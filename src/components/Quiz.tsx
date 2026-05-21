@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
 import { generateQuiz, submitAnswer } from '../server-functions/quiz'
@@ -44,41 +44,52 @@ export function Quiz({ examId, topic }: QuizProps) {
   })
 
   const quizState = useStore(quizStore, (state) => state)
+  const questionsRef = useRef(questions)
+  const quizStateRef = useRef(quizState)
+  const submitMutationRef = useRef(submitMutation)
+
+  useEffect(() => { questionsRef.current = questions }, [questions])
+  useEffect(() => { quizStateRef.current = quizState }, [quizState])
+  useEffect(() => { submitMutationRef.current = submitMutation }, [submitMutation])
 
   useEffect(() => {
     if (questions?.length) resetQuiz(questions.length)
   }, [questions])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!questions || !questions[quizState.currentQuestionIndex]) return
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const currentQuestions = questionsRef.current
+    const currentState = quizStateRef.current
+    const currentMutation = submitMutationRef.current
 
-      const currentQuestion = questions[quizState.currentQuestionIndex] as QuizQuestion
+    if (!currentQuestions || !currentQuestions[currentState.currentQuestionIndex]) return
 
-      if (['1', '2', '3', '4'].includes(e.key)) {
-        const index = parseInt(e.key) - 1
-        if (currentQuestion.options[index]) {
-          selectAnswer(currentQuestion.options[index])
-        }
-      }
+    const currentQuestion = currentQuestions[currentState.currentQuestionIndex] as QuizQuestion
 
-      if (e.key === 'Enter') {
-        if (quizState.selectedAnswer && !quizState.showExplanation) {
-          submitMutation.mutate({
-            questionId: currentQuestion.id,
-            userAnswer: quizState.selectedAnswer,
-            correctAnswer: currentQuestion.answer,
-            question: currentQuestion.question,
-          })
-        } else if (quizState.showExplanation) {
-          nextQuestion()
-        }
+    if (['1', '2', '3', '4'].includes(e.key)) {
+      const index = parseInt(e.key) - 1
+      if (currentQuestion.options[index]) {
+        selectAnswer(currentQuestion.options[index])
       }
     }
 
+    if (e.key === 'Enter') {
+      if (currentState.selectedAnswer && !currentState.showExplanation) {
+        currentMutation.mutate({
+          questionId: currentQuestion.id,
+          userAnswer: currentState.selectedAnswer,
+          correctAnswer: currentQuestion.answer,
+          question: currentQuestion.question,
+        })
+      } else if (currentState.showExplanation) {
+        nextQuestion()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [questions, quizState, submitMutation])
+  }, [handleKeyDown])
 
   if (!config) return <div>Loading config...</div>
   if (!questions || !questions[quizState.currentQuestionIndex]) return <div>Loading...</div>

@@ -1,6 +1,7 @@
 import { createOpenaiChatCompletions } from '@tanstack/ai-openai';
 import { chat } from '@tanstack/ai';
 import type { ProviderConfig, Question, ExamIngestResponse } from './validation';
+import { examIngestResponseSchema, questionSchema } from './validation';
 
 export function getAiAdapter(config: ProviderConfig) {
   const baseURL = config.baseUrl || (config.provider === 'openrouter'
@@ -54,7 +55,8 @@ export async function extractQuestionsFromText(
   `, { json: true, system: 'You are a helpful assistant that extracts exam questions from text. Always return valid JSON.' });
 
   const parsed = JSON.parse(result.text);
-  return parsed as ExamIngestResponse;
+  const validated = examIngestResponseSchema.parse(parsed);
+  return validated;
 }
 
 export async function generateQuizQuestions(
@@ -76,7 +78,9 @@ export async function generateQuizQuestions(
     ]
   `, { json: true, system: 'You are a helpful assistant that generates exam questions. Always return valid JSON.' });
 
-  return JSON.parse(result.text) as Question[];
+  const parsed = JSON.parse(result.text);
+  const validated = questionSchema.array().parse(parsed);
+  return validated;
 }
 
 export async function getExplanation(
