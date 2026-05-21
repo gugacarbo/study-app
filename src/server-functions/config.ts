@@ -4,7 +4,7 @@ import { getDB } from './db';
 import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
 
 export const getConfig = createServerFn({ method: 'GET' }).handler(async (ctx) => {
-  const db = getDB(ctx);
+  const db = await getDB(ctx);
   if (!db) {
     throw new Error('D1 database not available');
   }
@@ -24,7 +24,7 @@ export const setConfig = createServerFn({ method: 'POST' })
   .inputValidator(providerConfigSchema)
   .handler(async (ctx) => {
     const { data } = ctx;
-    const db = getDB(ctx);
+    const db = await getDB(ctx);
     if (!db) {
       throw new Error('D1 database not available');
     }

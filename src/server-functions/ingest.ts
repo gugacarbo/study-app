@@ -21,7 +21,7 @@ export const ingestExam = createServerFn({ method: 'POST' })
   .inputValidator(ingestSchema)
   .handler(async (ctx) => {
     const { data } = ctx;
-    const db = getDB(ctx);
+    const db = await getDB(ctx);
     if (!db) {
       throw new Error('D1 database not available');
     }

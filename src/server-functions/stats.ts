@@ -3,7 +3,7 @@ import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 
 export const getStats = createServerFn({ method: 'GET' }).handler(async (ctx) => {
-  const db = getDB(ctx);
+  const db = await getDB(ctx);
   if (!db) throw new Error('D1 database not available');
 
   const queries = new DBQueries(db);
@@ -11,7 +11,7 @@ export const getStats = createServerFn({ method: 'GET' }).handler(async (ctx) =>
 });
 
 export const getExams = createServerFn({ method: 'GET' }).handler(async (ctx) => {
-  const db = getDB(ctx);
+  const db = await getDB(ctx);
   if (!db) throw new Error('D1 database not available');
 
   const queries = new DBQueries(db);

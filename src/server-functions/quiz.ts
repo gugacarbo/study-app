@@ -24,7 +24,7 @@ export const generateQuiz = createServerFn({ method: 'POST' })
   .inputValidator(generateQuizSchema)
   .handler(async (ctx) => {
     const { data } = ctx;
-    const db = getDB(ctx);
+    const db = await getDB(ctx);
     if (!db) throw new Error('D1 database not available');
 
     const queries = new DBQueries(db);
@@ -50,7 +50,7 @@ export const submitAnswer = createServerFn({ method: 'POST' })
     const { data } = ctx;
     const isCorrect = data.userAnswer === data.correctAnswer;
 
-    const db = getDB(ctx);
+    const db = await getDB(ctx);
     if (!db) throw new Error('D1 database not available');
 
     const queries = new DBQueries(db);
