@@ -45,7 +45,14 @@ export class DBQueries {
       .prepare('INSERT INTO exams (name, source) VALUES (?, ?)')
       .bind(name, source || null)
       .run();
-    return result.meta.last_row_id;
+    return result.meta.last_row_id ?? 0;
+  }
+
+  async getExamById(id: number): Promise<ExamRecord | null> {
+    return await this.db
+      .prepare('SELECT * FROM exams WHERE id = ?')
+      .bind(id)
+      .first<ExamRecord>();
   }
 
   async getExams(): Promise<ExamRecord[]> {
@@ -56,20 +63,24 @@ export class DBQueries {
   }
 
   async insertQuestions(examId: number, questions: Question[]): Promise<void> {
+    if (questions.length === 0) return;
+
     const stmt = this.db.prepare(
       'INSERT INTO questions (exam_id, question, options, answer, explanation, topic) VALUES (?, ?, ?, ?, ?, ?)'
     );
 
-    for (const q of questions) {
-      await stmt.bind(
+    const batch = questions.map(q =>
+      stmt.bind(
         examId,
         q.question,
         JSON.stringify(q.options),
         q.answer,
         q.explanation || '',
         q.topic || 'General'
-      ).run();
-    }
+      )
+    );
+
+    await this.db.batch(batch);
   }
 
   async getQuestionsByExam(examId: number): Promise<ParsedQuestion[]> {
@@ -156,10 +167,6 @@ export class DBQueries {
     const results = await this.db
       .prepare('SELECT key, value FROM config')
       .all<{ key: string; value: string }>();
-    const config: Record<string, string> = {};
-    for (const row of results.results) {
-      config[row.key] = row.value;
-    }
-    return config;
+    return Object.fromEntries(results.results.map(r => [r.key, r.value]));
   }
 }
