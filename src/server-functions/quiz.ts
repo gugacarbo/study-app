@@ -1,17 +1,30 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { D1Database } from '@cloudflare/workers-types';
+import { z } from 'zod';
 import { DBQueries } from '../db/queries';
+import { getDB } from './db';
 import { generateQuizQuestions, getExplanation } from '../lib/ai';
-import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
+import { providerConfigSchema } from '../lib/validation';
 
-function getDB(): D1Database {
-  return (globalThis as any).env?.DB;
-}
+const generateQuizSchema = z.object({
+  topic: z.string().optional(),
+  count: z.number().optional(),
+  config: providerConfigSchema,
+  examId: z.number().optional(),
+});
 
-export const generateQuiz = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { topic?: string; count?: number; config: ProviderConfig; examId?: number } }) => {
-    const validatedConfig = providerConfigSchema.parse(data.config);
-    const db = getDB();
+const submitAnswerSchema = z.object({
+  questionId: z.number(),
+  userAnswer: z.string(),
+  correctAnswer: z.string(),
+  question: z.string(),
+  config: providerConfigSchema,
+});
+
+export const generateQuiz = createServerFn({ method: 'POST' })
+  .inputValidator(generateQuizSchema)
+  .handler(async (ctx) => {
+    const { data } = ctx;
+    const db = getDB(ctx);
     if (!db) throw new Error('D1 database not available');
 
     const queries = new DBQueries(db);
@@ -28,23 +41,23 @@ export const generateQuiz = createServerFn({ method: 'POST' }).handler(
     }
 
     const topic = data.topic || 'General';
-    return await generateQuizQuestions(validatedConfig, topic, count);
-  }
-);
+    return await generateQuizQuestions(data.config, topic, count);
+  });
 
-export const submitAnswer = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { questionId: number; userAnswer: string; correctAnswer: string; question: string; config: ProviderConfig } }) => {
-    const validatedConfig = providerConfigSchema.parse(data.config);
+export const submitAnswer = createServerFn({ method: 'POST' })
+  .inputValidator(submitAnswerSchema)
+  .handler(async (ctx) => {
+    const { data } = ctx;
     const isCorrect = data.userAnswer === data.correctAnswer;
 
-    const db = getDB();
+    const db = getDB(ctx);
     if (!db) throw new Error('D1 database not available');
 
     const queries = new DBQueries(db);
     await queries.recordAttempt(data.questionId, data.userAnswer, isCorrect);
 
     const explanation = await getExplanation(
-      validatedConfig,
+      data.config,
       data.question,
       data.userAnswer,
       data.correctAnswer,
@@ -55,5 +68,4 @@ export const submitAnswer = createServerFn({ method: 'POST' }).handler(
       correct: isCorrect,
       explanation,
     };
-  }
-);
+  });

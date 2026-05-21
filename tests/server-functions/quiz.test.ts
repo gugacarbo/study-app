@@ -8,7 +8,7 @@ vi.mock('#/lib/ai', () => ({
 
 function createMockDB() {
   return {
-    prepare: vi.fn((sql: string) => ({
+    prepare: vi.fn((_sql: string) => ({
       bind: vi.fn(() => ({
         run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
         first: vi.fn(async () => null),

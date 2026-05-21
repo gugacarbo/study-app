@@ -1,14 +1,10 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { D1Database } from '@cloudflare/workers-types';
 import { DBQueries } from '../db/queries';
+import { getDB } from './db';
 import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
 
-function getDB(): D1Database {
-  return (globalThis as any).env?.DB;
-}
-
-export const getConfig = createServerFn({ method: 'GET' }).handler(async () => {
-  const db = getDB();
+export const getConfig = createServerFn({ method: 'GET' }).handler(async (ctx) => {
+  const db = getDB(ctx);
   if (!db) {
     throw new Error('D1 database not available');
   }
@@ -24,21 +20,22 @@ export const getConfig = createServerFn({ method: 'GET' }).handler(async () => {
   };
 });
 
-export const setConfig = createServerFn({ method: 'POST' }).handler(async ({ data }: { data: ProviderConfig }) => {
-  const validated = providerConfigSchema.parse(data);
+export const setConfig = createServerFn({ method: 'POST' })
+  .inputValidator(providerConfigSchema)
+  .handler(async (ctx) => {
+    const { data } = ctx;
+    const db = getDB(ctx);
+    if (!db) {
+      throw new Error('D1 database not available');
+    }
 
-  const db = getDB();
-  if (!db) {
-    throw new Error('D1 database not available');
-  }
+    const queries = new DBQueries(db);
+    await queries.setConfig('ai_provider', data.provider);
+    await queries.setConfig('ai_model', data.model);
+    if (data.baseUrl) {
+      await queries.setConfig('ai_base_url', data.baseUrl);
+    }
+    await queries.setConfig('ai_api_key', data.apiKey);
 
-  const queries = new DBQueries(db);
-  await queries.setConfig('ai_provider', validated.provider);
-  await queries.setConfig('ai_model', validated.model);
-  if (validated.baseUrl) {
-    await queries.setConfig('ai_base_url', validated.baseUrl);
-  }
-  await queries.setConfig('ai_api_key', validated.apiKey);
-
-  return { success: true };
-});
+    return { success: true };
+  });

@@ -1,21 +1,17 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { D1Database } from '@cloudflare/workers-types';
 import { DBQueries } from '../db/queries';
+import { getDB } from './db';
 
-function getDB(): D1Database {
-  return (globalThis as any).env?.DB;
-}
-
-export const getStats = createServerFn({ method: 'GET' }).handler(async () => {
-  const db = getDB();
+export const getStats = createServerFn({ method: 'GET' }).handler(async (ctx) => {
+  const db = getDB(ctx);
   if (!db) throw new Error('D1 database not available');
 
   const queries = new DBQueries(db);
   return await queries.getStats();
 });
 
-export const getExams = createServerFn({ method: 'GET' }).handler(async () => {
-  const db = getDB();
+export const getExams = createServerFn({ method: 'GET' }).handler(async (ctx) => {
+  const db = getDB(ctx);
   if (!db) throw new Error('D1 database not available');
 
   const queries = new DBQueries(db);

@@ -2,7 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "study-app",
   "compatibility_date": "2026-05-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "main": "@tanstack/react-start/server-entry",
   "d1_databases": [
     {
@@ -15,5 +17,9 @@
   "vars": {
     "AI_PROVIDER": "openrouter",
     "AI_MODEL": "openai/gpt-4o-mini"
-  }
+  },
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true
 }
