@@ -1,16 +1,15 @@
 import { createOpenaiChatCompletions } from '@tanstack/ai-openai';
 import { chat } from '@tanstack/ai';
-import type { ProviderConfig } from './validation';
+import type { ProviderConfig, Question, ExamIngestResponse } from './validation';
 
 export function getAiAdapter(config: ProviderConfig) {
   const baseURL = config.baseUrl || (config.provider === 'openrouter'
     ? 'https://openrouter.ai/api/v1'
     : undefined);
 
-  return {
-    apiKey: config.apiKey,
+  return createOpenaiChatCompletions(config.model as any, config.apiKey, {
     baseURL,
-  };
+  });
 }
 
 export async function generateText(
@@ -18,10 +17,7 @@ export async function generateText(
   prompt: string,
   options?: { json?: boolean; system?: string }
 ) {
-  const clientConfig = getAiAdapter(config);
-  const adapter = createOpenaiChatCompletions(config.model as any, clientConfig.apiKey, {
-    baseURL: clientConfig.baseURL,
-  });
+  const adapter = getAiAdapter(config);
 
   const result = await chat({
     adapter,
@@ -36,7 +32,7 @@ export async function generateText(
 export async function extractQuestionsFromText(
   config: ProviderConfig,
   text: string
-): Promise<{ questions: any[]; topics: string[] }> {
+): Promise<ExamIngestResponse> {
   const result = await generateText(config, `
     Extract all exam questions from the following text.
     Return ONLY a valid JSON object with this exact structure:
@@ -58,14 +54,14 @@ export async function extractQuestionsFromText(
   `, { json: true, system: 'You are a helpful assistant that extracts exam questions from text. Always return valid JSON.' });
 
   const parsed = JSON.parse(result.text);
-  return parsed;
+  return parsed as ExamIngestResponse;
 }
 
 export async function generateQuizQuestions(
   config: ProviderConfig,
   topic: string,
   count: number = 10
-): Promise<any[]> {
+): Promise<Question[]> {
   const result = await generateText(config, `
     Generate ${count} multiple-choice questions about: ${topic}
     Return ONLY a valid JSON array with this exact structure:
@@ -80,7 +76,7 @@ export async function generateQuizQuestions(
     ]
   `, { json: true, system: 'You are a helpful assistant that generates exam questions. Always return valid JSON.' });
 
-  return JSON.parse(result.text);
+  return JSON.parse(result.text) as Question[];
 }
 
 export async function getExplanation(
