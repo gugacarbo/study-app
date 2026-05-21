@@ -9,20 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as StatsRouteImport } from './routes/stats'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ConfigRouteImport } from './routes/config'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
 
+const UploadRoute = UploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UploadRoute = UploadRouteImport.update({
-  id: '/upload',
-  path: '/upload',
+const ConfigRoute = ConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -44,6 +50,7 @@ const QuizIdRoute = QuizIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/config': typeof ConfigRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/config': typeof ConfigRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -59,21 +67,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/config': typeof ConfigRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/quiz/$id': typeof QuizIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/stats' | '/upload' | '/quiz/$id'
+  fullPaths: '/' | '/about' | '/config' | '/stats' | '/upload' | '/quiz/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/stats' | '/upload' | '/quiz/$id'
-  id: '__root__' | '/' | '/about' | '/stats' | '/upload' | '/quiz/$id'
+  to: '/' | '/about' | '/config' | '/stats' | '/upload' | '/quiz/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/config'
+    | '/stats'
+    | '/upload'
+    | '/quiz/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ConfigRoute: typeof ConfigRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
   QuizIdRoute: typeof QuizIdRoute
@@ -81,6 +98,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upload': {
+      id: '/upload'
+      path: '/upload'
+      fullPath: '/upload'
+      preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stats': {
       id: '/stats'
       path: '/stats'
@@ -88,11 +112,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/upload': {
-      id: '/upload'
-      path: '/upload'
-      fullPath: '/upload'
-      preLoaderRoute: typeof UploadRouteImport
+    '/config': {
+      id: '/config'
+      path: '/config'
+      fullPath: '/config'
+      preLoaderRoute: typeof ConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -122,6 +146,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ConfigRoute: ConfigRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
   QuizIdRoute: QuizIdRoute,
