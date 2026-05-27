@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { getConfig, setConfig } from '../server-functions/config'
+import { getConfig, setConfig, testConnection } from '../server-functions/config'
 import type { ProviderConfig } from '../lib/validation'
 
 export function ConfigForm() {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [dialogData, setDialogData] = useState<{ prompt: string; response: string } | null>(null)
 
   const { data: currentConfig } = useSuspenseQuery({
     queryKey: ['config'],
@@ -118,9 +120,41 @@ export function ConfigForm() {
           )}
         </form.Field>
 
-        <button type="submit" className="btn" disabled={status === 'saving'}>
-          {status === 'saving' ? 'Saving...' : 'Save Configuration'}
-        </button>
+        <div className="flex gap-3">
+          <button type="submit" className="btn" disabled={status === 'saving'}>
+            {status === 'saving' ? 'Saving...' : 'Save Configuration'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            disabled={testStatus === 'testing'}
+            onClick={async () => {
+              setTestStatus('testing')
+              try {
+                const values = form.getFieldValue('provider') ? {
+                  provider: form.getFieldValue('provider'),
+                  model: form.getFieldValue('model'),
+                  baseUrl: form.getFieldValue('baseUrl') || undefined,
+                  apiKey: form.getFieldValue('apiKey'),
+                } as ProviderConfig : undefined
+
+                if (!values) return
+
+                const result = await testConnection({ data: values })
+                setDialogData({ prompt: result.prompt, response: result.response })
+                setTestStatus('success')
+              } catch (err) {
+                setDialogData({
+                  prompt: '',
+                  response: err instanceof Error ? err.message : 'Connection failed',
+                })
+                setTestStatus('error')
+              }
+            }}
+          >
+            {testStatus === 'testing' ? 'Testing...' : 'Test Connection'}
+          </button>
+        </div>
       </form>
 
       {status !== 'idle' && (
@@ -130,6 +164,56 @@ export function ConfigForm() {
           }`}
         >
           {message}
+        </div>
+      )}
+
+      {dialogData && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setDialogData(null)}
+        >
+          <div
+            className="bg-surface border border-border rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                {testStatus === 'error' ? 'Connection Failed' : 'Connection Test Result'}
+              </h3>
+              <button
+                className="text-text-muted hover:text-text text-xl leading-none"
+                onClick={() => setDialogData(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            {testStatus === 'error' ? (
+              <div className="bg-error/10 text-error p-3 rounded">{dialogData.response}</div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm text-text-muted mb-1">Sent to LLM</label>
+                  <pre className="bg-bg border border-border rounded p-3 text-sm whitespace-pre-wrap overflow-x-auto max-h-48 overflow-y-auto">
+                    {dialogData.prompt}
+                  </pre>
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1">Response from LLM</label>
+                  <pre className="bg-bg border border-border rounded p-3 text-sm whitespace-pre-wrap overflow-x-auto max-h-48 overflow-y-auto">
+                    {dialogData.response}
+                  </pre>
+                </div>
+              </>
+            )}
+
+            <button
+              className="btn mt-4"
+              onClick={() => setDialogData(null)}
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>

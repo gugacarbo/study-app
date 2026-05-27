@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
+import { generateText } from '../lib/ai';
 
 export const getConfig = createServerFn({ method: 'GET' }).handler(async (ctx) => {
   const db = await getDB(ctx);
@@ -38,4 +39,21 @@ export const setConfig = createServerFn({ method: 'POST' })
     await queries.setConfig('ai_api_key', data.apiKey);
 
     return { success: true };
+  });
+
+export const testConnection = createServerFn({ method: 'POST' })
+  .inputValidator(providerConfigSchema)
+  .handler(async (ctx) => {
+    const { data } = ctx;
+
+    const system = 'Reply with only the model name you are (e.g. "gpt-4o-mini") and nothing else.';
+    const userMsg = 'What is your model name?';
+
+    const result = await generateText(data, userMsg, { system });
+
+    return {
+      success: true,
+      prompt: `[System]\n${system}\n\n[User]\n${userMsg}`,
+      response: result.text.trim(),
+    };
   });

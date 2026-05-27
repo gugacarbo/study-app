@@ -22,7 +22,7 @@ export const providerConfigSchema = z.object({
   provider: z.enum(['openrouter', 'openai', 'groq', 'ollama', 'custom']),
   model: z.string().min(1, 'Model is required'),
   baseUrl: z.string().url().optional(),
-  apiKey: z.string().min(1, 'API key is required'),
+  apiKey: z.string(),
 });
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;

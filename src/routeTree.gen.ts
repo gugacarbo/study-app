@@ -13,9 +13,11 @@ import { Route as UploadRouteImport } from './routes/upload'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as ObsidianRouteImport } from './routes/obsidian'
 import { Route as ConfigRouteImport } from './routes/config'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
+import { Route as ApiChatRouteImport } from './routes/api.chat'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
@@ -37,6 +39,11 @@ const ConfigRoute = ConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -52,33 +59,44 @@ const QuizIdRoute = QuizIdRouteImport.update({
   path: '/quiz/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
+  '/api/chat': typeof ApiChatRoute
   '/quiz/$id': typeof QuizIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
+  '/api/chat': typeof ApiChatRoute
   '/quiz/$id': typeof QuizIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
+  '/api/chat': typeof ApiChatRoute
   '/quiz/$id': typeof QuizIdRoute
 }
 export interface FileRouteTypes {
@@ -86,38 +104,46 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/chat'
     | '/config'
     | '/obsidian'
     | '/stats'
     | '/upload'
+    | '/api/chat'
     | '/quiz/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
+    | '/chat'
     | '/config'
     | '/obsidian'
     | '/stats'
     | '/upload'
+    | '/api/chat'
     | '/quiz/$id'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/chat'
     | '/config'
     | '/obsidian'
     | '/stats'
     | '/upload'
+    | '/api/chat'
     | '/quiz/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ChatRoute: typeof ChatRoute
   ConfigRoute: typeof ConfigRoute
   ObsidianRoute: typeof ObsidianRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
+  ApiChatRoute: typeof ApiChatRoute
   QuizIdRoute: typeof QuizIdRoute
 }
 
@@ -151,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -172,16 +205,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ChatRoute: ChatRoute,
   ConfigRoute: ConfigRoute,
   ObsidianRoute: ObsidianRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
+  ApiChatRoute: ApiChatRoute,
   QuizIdRoute: QuizIdRoute,
 }
 export const routeTree = rootRouteImport
