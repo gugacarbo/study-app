@@ -6,15 +6,14 @@ import { extractQuestionsFromText } from '../lib/ai';
 import { providerConfigSchema } from '../lib/validation';
 import { getMemoryContext } from './obsidian';
 
-async function extractTextFromFile(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
+function extractTextFromBytes(bytes: Uint8Array): string {
   const text = new TextDecoder().decode(bytes);
   return text.replace(/[^\x20-\x7E\n\r\t]/g, ' ').trim();
 }
 
 const ingestSchema = z.object({
-  file: z.instanceof(File),
+  buffer: z.array(z.number()),
+  fileName: z.string(),
   config: providerConfigSchema,
 });
 
@@ -28,7 +27,8 @@ export const ingestExam = createServerFn({ method: 'POST' })
     }
 
     const queries = new DBQueries(db);
-    const text = await extractTextFromFile(data.file);
+    const bytes = new Uint8Array(data.buffer);
+    const text = extractTextFromBytes(bytes);
 
     if (!text || text.length < 50) {
       throw new Error('Could not extract enough text from file. Try pasting text manually.');
@@ -43,7 +43,7 @@ export const ingestExam = createServerFn({ method: 'POST' })
       : extracted;
 
     const finalExtracted = memoryResult.context ? extractedWithMemory : extracted;
-    const examId = await queries.insertExam(data.file.name, 'upload');
+    const examId = await queries.insertExam(data.fileName, 'upload');
 
     if (finalExtracted.questions.length > 0) {
       await queries.insertQuestions(examId, finalExtracted.questions);

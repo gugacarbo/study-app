@@ -8,6 +8,7 @@ export function UploadForm() {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [hasFile, setHasFile] = useState(false)
 
   const form = useForm({
     defaultValues: {
@@ -19,7 +20,8 @@ export function UploadForm() {
       setStatus('uploading')
       try {
         const config = await getConfig()
-        const result = await ingestExam({ data: { file: value.file!, config } })
+        const buffer = await value.file.arrayBuffer()
+        const result = await ingestExam({ data: { buffer: Array.from(new Uint8Array(buffer)), fileName: value.file.name, config } })
         setStatus('success')
         setMessage(`Extracted ${result.questions} questions from ${result.topics.join(', ')}`)
         queryClient.invalidateQueries({ queryKey: ['exams'] })
@@ -45,15 +47,30 @@ export function UploadForm() {
             <div className="mb-4">
               <input
                 type="file"
+                id="file-upload"
                 accept=".pdf,.txt"
-                onChange={e => field.handleChange(e.target.files?.[0] || null)}
-                className="input"
+                onChange={e => {
+                  const file = e.target.files?.[0] || null
+                  field.handleChange(file)
+                  setHasFile(!!file)
+                }}
+                className="hidden"
               />
+              <label
+                htmlFor="file-upload"
+                className="btn cursor-pointer inline-block text-center w-full"
+              >
+                {field.state.value ? field.state.value.name : 'Select a file...'}
+              </label>
             </div>
           )}
         </form.Field>
 
-        <button type="submit" className="btn" disabled={status === 'uploading'}>
+        <button
+          type="submit"
+          className="btn w-full mt-2"
+          disabled={status === 'uploading' || !hasFile}
+        >
           {status === 'uploading' ? 'Processing...' : 'Upload & Extract Questions'}
         </button>
       </form>
