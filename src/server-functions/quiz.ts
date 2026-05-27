@@ -4,6 +4,7 @@ import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { generateQuizQuestions, getExplanation } from '../lib/ai';
 import { providerConfigSchema } from '../lib/validation';
+import { getMemoryContext } from './obsidian';
 
 const generateQuizSchema = z.object({
   topic: z.string().optional(),
@@ -41,7 +42,9 @@ export const generateQuiz = createServerFn({ method: 'POST' })
     }
 
     const topic = data.topic || 'General';
-    return await generateQuizQuestions(data.config, topic, count);
+
+    const memoryResult = await getMemoryContext({ data: { topics: [topic] } }).catch(() => ({ context: '' }));
+    return await generateQuizQuestions(data.config, topic, count, memoryResult.context || undefined);
   });
 
 export const submitAnswer = createServerFn({ method: 'POST' })
@@ -56,12 +59,15 @@ export const submitAnswer = createServerFn({ method: 'POST' })
     const queries = new DBQueries(db);
     await queries.recordAttempt(data.questionId, data.userAnswer, isCorrect);
 
+    const memoryResult = await getMemoryContext({ data: { topics: [data.question] } }).catch(() => ({ context: '' }));
+
     const explanation = await getExplanation(
       data.config,
       data.question,
       data.userAnswer,
       data.correctAnswer,
-      isCorrect
+      isCorrect,
+      memoryResult.context || undefined
     );
 
     return {

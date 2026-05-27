@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ObsidianRouteImport } from './routes/obsidian'
 import { Route as ConfigRouteImport } from './routes/config'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -24,6 +25,11 @@ const UploadRoute = UploadRouteImport.update({
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObsidianRoute = ObsidianRouteImport.update({
+  id: '/obsidian',
+  path: '/obsidian',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfigRoute = ConfigRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/config': typeof ConfigRoute
+  '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/config': typeof ConfigRoute
+  '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -68,20 +76,36 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/config': typeof ConfigRoute
+  '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/quiz/$id': typeof QuizIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/config' | '/stats' | '/upload' | '/quiz/$id'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/config'
+    | '/obsidian'
+    | '/stats'
+    | '/upload'
+    | '/quiz/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/config' | '/stats' | '/upload' | '/quiz/$id'
+  to:
+    | '/'
+    | '/about'
+    | '/config'
+    | '/obsidian'
+    | '/stats'
+    | '/upload'
+    | '/quiz/$id'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/config'
+    | '/obsidian'
     | '/stats'
     | '/upload'
     | '/quiz/$id'
@@ -91,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ConfigRoute: typeof ConfigRoute
+  ObsidianRoute: typeof ObsidianRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
   QuizIdRoute: typeof QuizIdRoute
@@ -110,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/obsidian': {
+      id: '/obsidian'
+      path: '/obsidian'
+      fullPath: '/obsidian'
+      preLoaderRoute: typeof ObsidianRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/config': {
@@ -147,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ConfigRoute: ConfigRoute,
+  ObsidianRoute: ObsidianRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
   QuizIdRoute: QuizIdRoute,

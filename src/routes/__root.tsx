@@ -22,6 +22,7 @@ const navItems = [
   { to: '/', label: 'Dashboard' },
   { to: '/upload', label: 'Upload' },
   { to: '/stats', label: 'Stats' },
+  { to: '/obsidian', label: 'Obsidian' },
   { to: '/config', label: 'Config' },
 ]
 

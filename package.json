@@ -18,7 +18,8 @@
     "typecheck":"tsc --noEmit",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply study-app-db --local",
-    "db:migrate:prod": "wrangler d1 migrations apply study-app-db --remote"
+    "db:migrate:prod": "wrangler d1 migrations apply study-app-db --remote",
+    "postinstall": "npm run cf-typegen && npm run db:migrate"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",

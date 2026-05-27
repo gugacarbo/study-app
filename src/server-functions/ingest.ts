@@ -4,6 +4,7 @@ import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { extractQuestionsFromText } from '../lib/ai';
 import { providerConfigSchema } from '../lib/validation';
+import { getMemoryContext } from './obsidian';
 
 async function extractTextFromFile(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
@@ -34,15 +35,23 @@ export const ingestExam = createServerFn({ method: 'POST' })
     }
 
     const extracted = await extractQuestionsFromText(data.config, text);
+
+    const topics = extracted.topics;
+    const memoryResult = await getMemoryContext({ data: { topics } }).catch(() => ({ context: '' }));
+    const extractedWithMemory = memoryResult.context
+      ? await extractQuestionsFromText(data.config, text, memoryResult.context)
+      : extracted;
+
+    const finalExtracted = memoryResult.context ? extractedWithMemory : extracted;
     const examId = await queries.insertExam(data.file.name, 'upload');
 
-    if (extracted.questions.length > 0) {
-      await queries.insertQuestions(examId, extracted.questions);
+    if (finalExtracted.questions.length > 0) {
+      await queries.insertQuestions(examId, finalExtracted.questions);
     }
 
     return {
-      questions: extracted.questions.length,
-      topics: extracted.topics,
+      questions: finalExtracted.questions.length,
+      topics: finalExtracted.topics,
       examId,
     };
   });

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
 import { generateQuiz, submitAnswer } from '../server-functions/quiz'
 import { getConfig } from '../server-functions/config'
+import { saveQuizSessionToMemory } from '../server-functions/obsidian'
 import { quizStore, resetQuiz, selectAnswer, nextQuestion, recordAnswer } from '../stores/quizStore'
 import type { ProviderConfig, Question } from '../lib/validation'
 
@@ -15,9 +16,19 @@ interface QuizQuestion extends Question {
   id: number
 }
 
+interface AnswerRecord {
+  question: string
+  userAnswer: string
+  correctAnswer: string
+  isCorrect: boolean
+  explanation: string
+  topic: string
+}
+
 export function Quiz({ examId, topic }: QuizProps) {
   const queryClient = useQueryClient()
   const [config, setConfig] = useState<ProviderConfig | null>(null)
+  const answersRef = useRef<AnswerRecord[]>([])
 
   useEffect(() => {
     getConfig().then(setConfig)
@@ -33,12 +44,22 @@ export function Quiz({ examId, topic }: QuizProps) {
   })
 
   const submitMutation = useMutation({
-    mutationFn: (vars: { questionId: number; userAnswer: string; correctAnswer: string; question: string }) => {
+    mutationFn: (vars: { questionId: number; userAnswer: string; correctAnswer: string; question: string; topic?: string }) => {
       if (!config) throw new Error('Config not loaded')
       return submitAnswer({ data: { ...vars, config } })
     },
-    onSuccess: (data) => {
+    onSuccess: (data, vars) => {
       recordAnswer(data.correct, data.explanation)
+
+      answersRef.current.push({
+        question: vars.question,
+        userAnswer: vars.userAnswer,
+        correctAnswer: vars.correctAnswer,
+        isCorrect: data.correct,
+        explanation: data.explanation,
+        topic: vars.topic || 'General',
+      })
+
       queryClient.invalidateQueries({ queryKey: ['stats'] })
     },
   })
@@ -53,8 +74,36 @@ export function Quiz({ examId, topic }: QuizProps) {
   useEffect(() => { submitMutationRef.current = submitMutation }, [submitMutation])
 
   useEffect(() => {
-    if (questions?.length) resetQuiz(questions.length)
+    if (questions?.length) {
+      resetQuiz(questions.length)
+      answersRef.current = []
+    }
   }, [questions])
+
+  const saveSession = useCallback(async () => {
+    const state = quizStore.state
+    if (!state.isComplete || answersRef.current.length === 0) return
+
+    await saveQuizSessionToMemory({
+      data: {
+        examName: examId ? `Exam #${examId}` : topic || 'General',
+        topic: topic || 'General',
+        totalQuestions: state.total,
+        correctAnswers: state.score,
+        questions: answersRef.current,
+      },
+    }).catch(() => {})
+  }, [examId, topic])
+
+  useEffect(() => {
+    const sub = quizStore.subscribe(() => {
+      const newState = quizStore.state
+      if (newState.isComplete && newState.currentQuestionIndex >= newState.total) {
+        saveSession()
+      }
+    })
+    return () => sub.unsubscribe()
+  }, [saveSession])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const currentQuestions = questionsRef.current
@@ -79,6 +128,7 @@ export function Quiz({ examId, topic }: QuizProps) {
           userAnswer: currentState.selectedAnswer,
           correctAnswer: currentQuestion.answer,
           question: currentQuestion.question,
+          topic: currentQuestion.topic,
         })
       } else if (currentState.showExplanation) {
         nextQuestion()
@@ -136,6 +186,7 @@ export function Quiz({ examId, topic }: QuizProps) {
               userAnswer: quizState.selectedAnswer!,
               correctAnswer: currentQuestion.answer,
               question: currentQuestion.question,
+              topic: currentQuestion.topic,
             })
           }}
         >

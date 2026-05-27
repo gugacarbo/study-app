@@ -32,8 +32,16 @@ export async function generateText(
 
 export async function extractQuestionsFromText(
   config: ProviderConfig,
-  text: string
+  text: string,
+  memoryContext?: string
 ): Promise<ExamIngestResponse> {
+  const systemPrompt = memoryContext
+    ? `You are a helpful assistant that extracts exam questions from text. Always return valid JSON.
+Use the following context about the student's learning history to tailor the extraction:
+
+${memoryContext}`
+    : 'You are a helpful assistant that extracts exam questions from text. Always return valid JSON.';
+
   const result = await generateText(config, `
     Extract all exam questions from the following text.
     Return ONLY a valid JSON object with this exact structure:
@@ -52,7 +60,7 @@ export async function extractQuestionsFromText(
 
     Text to extract from:
     ${text}
-  `, { json: true, system: 'You are a helpful assistant that extracts exam questions from text. Always return valid JSON.' });
+  `, { json: true, system: systemPrompt });
 
   const parsed = JSON.parse(result.text);
   const validated = examIngestResponseSchema.parse(parsed);
@@ -62,8 +70,16 @@ export async function extractQuestionsFromText(
 export async function generateQuizQuestions(
   config: ProviderConfig,
   topic: string,
-  count: number = 10
+  count: number = 10,
+  memoryContext?: string
 ): Promise<Question[]> {
+  const systemPrompt = memoryContext
+    ? `You are a helpful assistant that generates exam questions. Always return valid JSON.
+Use the following context about the student's learning history to personalize questions:
+
+${memoryContext}`
+    : 'You are a helpful assistant that generates exam questions. Always return valid JSON.';
+
   const result = await generateText(config, `
     Generate ${count} multiple-choice questions about: ${topic}
     Return ONLY a valid JSON array with this exact structure:
@@ -76,7 +92,7 @@ export async function generateQuizQuestions(
         "topic": "${topic}"
       }
     ]
-  `, { json: true, system: 'You are a helpful assistant that generates exam questions. Always return valid JSON.' });
+  `, { json: true, system: systemPrompt });
 
   const parsed = JSON.parse(result.text);
   const validated = questionSchema.array().parse(parsed);
@@ -88,14 +104,22 @@ export async function getExplanation(
   question: string,
   userAnswer: string,
   correctAnswer: string,
-  isCorrect: boolean
+  isCorrect: boolean,
+  memoryContext?: string
 ): Promise<string> {
+  const systemPrompt = memoryContext
+    ? `You are a helpful tutor. Explain why the answer is correct or incorrect in 2-3 sentences.
+Use the following context about the student's learning history:
+
+${memoryContext}`
+    : 'You are a helpful tutor. Explain why the answer is correct or incorrect in 2-3 sentences.';
+
   const result = await generateText(config, `
     The user answered "${userAnswer}" to the question: "${question}"
     The correct answer is: "${correctAnswer}"
     The user was ${isCorrect ? 'correct' : 'incorrect'}.
     Provide a brief, helpful explanation.
-  `, { system: 'You are a helpful tutor. Explain why the answer is correct or incorrect in 2-3 sentences.' });
+  `, { system: systemPrompt });
 
   return result.text;
 }
