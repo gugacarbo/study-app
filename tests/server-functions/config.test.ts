@@ -2,37 +2,49 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DBQueries } from '#/db/queries';
 import { providerConfigSchema } from '#/lib/validation';
 
-// Mock D1 database with proper chaining
 function createMockDB() {
-  const configStore = new Map<string, string>();
-  configStore.set('ai_provider', 'openrouter');
-  configStore.set('ai_model', 'openai/gpt-4o-mini');
+  const configStore = new Map([
+    ['ai_provider', 'openrouter'],
+    ['ai_model', 'openai/gpt-4o-mini'],
+  ]);
 
-  const db = {
+  return {
     prepare: vi.fn((sql: string) => {
-      const stmt = {
-        run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
-        first: vi.fn(async () => null),
-        all: vi.fn(async () => {
-          if (sql.includes('SELECT key, value FROM config')) {
-            return {
-              results: Array.from(configStore.entries()).map(([key, value]) => ({ key, value })),
-            };
+      const bound = {
+        raw: vi.fn(async () => {
+          if (sql.includes('"config"') && /\bselect\b/i.test(sql)) {
+            if (sql.includes('where') || sql.includes('WHERE')) {
+              // getConfig — use params captured by bind
+              return [];
+            }
+            // getAllConfig
+            return Array.from(configStore.entries());
           }
-          return { results: [] };
+          return [];
         }),
-        bind: vi.fn(() => ({
-          run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
-          first: vi.fn(async () => null),
-          all: vi.fn(async () => ({ results: [] })),
-        })),
+        all: vi.fn(async () => ({ results: [], success: true })),
+        run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
       };
-      return stmt;
+
+      return {
+        bind: vi.fn((...params: unknown[]) => ({
+          raw: vi.fn(async () => {
+            if (sql.includes('"config"') && /\bselect\b/i.test(sql) && params.length > 0) {
+              const val = configStore.get(params[0] as string);
+              return val ? [[params[0], val]] : [];
+            }
+            return bound.raw();
+          }),
+          all: bound.all,
+          run: bound.run,
+        })),
+        raw: bound.raw,
+        all: bound.all,
+        run: bound.run,
+      };
     }),
     configStore,
   };
-
-  return db;
 }
 
 describe('DBQueries config operations', () => {
@@ -63,7 +75,7 @@ describe('DBQueries config operations', () => {
     it('calls prepare with correct SQL', async () => {
       await queries.setConfig('ai_provider', 'openai');
       expect(mockDB.prepare).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT OR REPLACE INTO config')
+        expect.stringContaining('into "config"')
       );
     });
   });

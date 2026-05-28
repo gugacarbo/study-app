@@ -43,7 +43,7 @@ export function Dashboard() {
             <div>
               <div className="font-semibold">{exam.name}</div>
               <div className="text-xs text-text-muted">
-                {new Date(exam.created_at).toLocaleDateString()}
+                {exam.created_at ? new Date(exam.created_at).toLocaleDateString() : ''}
               </div>
             </div>
             <Link to="/quiz/$id" params={{ id: exam.id.toString() }} className="btn">

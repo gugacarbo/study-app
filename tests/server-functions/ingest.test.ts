@@ -19,16 +19,27 @@ vi.mock('#/lib/ai', () => ({
 
 function createMockDB() {
   return {
-    prepare: vi.fn((_sql: string) => ({
-      bind: vi.fn(() => ({
+    prepare: vi.fn(() => {
+      const bound = {
+        raw: vi.fn(async () => []),
+        all: vi.fn(async () => ({ results: [], success: true })),
         run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
-        first: vi.fn(async () => null),
-        all: vi.fn(async () => ({ results: [] })),
-      })),
-      run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
-      first: vi.fn(async () => null),
-      all: vi.fn(async () => ({ results: [] })),
-    })),
+      };
+
+      return {
+        bind: vi.fn(() => ({
+          raw: vi.fn(async () => {
+            // Simulate INSERT ... RETURNING id returning [[1]]
+            return [[1]];
+          }),
+          all: vi.fn(async () => ({ results: [{ id: 1 }], success: true })),
+          run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
+        })),
+        raw: bound.raw,
+        all: bound.all,
+        run: bound.run,
+      };
+    }),
     batch: vi.fn(async () => []),
   };
 }
@@ -57,10 +68,10 @@ describe('ingestExam server function', () => {
     ]);
 
     expect(mockDB.prepare).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO exams')
+      expect.stringContaining('insert into "exams"')
     );
     expect(mockDB.prepare).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO questions')
+      expect.stringContaining('insert into "questions"')
     );
   });
 });

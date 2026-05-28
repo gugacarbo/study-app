@@ -1,172 +1,197 @@
-import type { D1Database } from '@cloudflare/workers-types';
-import type { Question } from '../lib/validation';
+import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
+import { eq, and, sql, count } from "drizzle-orm";
+import type { D1Database } from "@cloudflare/workers-types";
+import * as schema from "./schema";
+import type { Question } from "../lib/validation";
 
 export interface ExamRecord {
-  id: number;
-  name: string;
-  source: string | null;
-  created_at: string;
+	id: number;
+	name: string;
+	source: string | null;
+	created_at: string | null;
 }
 
 export interface AttemptRecord {
-  id: number;
-  question_id: number;
-  user_answer: string;
-  correct: boolean;
-  timestamp: string;
+	id: number;
+	question_id: number | null;
+	user_answer: string;
+	correct: number; // 0 | 1 in SQLite
+	timestamp: string | null;
 }
 
 export interface TopicStats {
-  topic: string;
-  total: number;
-  correct: number;
-  accuracy: number;
+	topic: string;
+	total: number;
+	correct: number;
+	accuracy: number;
 }
 
-interface RawQuestion {
-  id: number;
-  exam_id: number;
-  question: string;
-  options: string;
-  answer: string;
-  explanation: string;
-  topic: string;
+interface ParsedQuestion {
+	id: number;
+	exam_id: number | null;
+	question: string;
+	options: string[];
+	answer: string;
+	explanation: string;
+	topic: string;
 }
 
-interface ParsedQuestion extends Omit<RawQuestion, 'options'> {
-  options: string[];
-}
+type DrizzleDB = DrizzleD1Database<typeof schema>;
 
 export class DBQueries {
-  constructor(private db: D1Database) {}
+	private db: DrizzleDB;
 
-  async insertExam(name: string, source?: string): Promise<number> {
-    const result = await this.db
-      .prepare('INSERT INTO exams (name, source) VALUES (?, ?)')
-      .bind(name, source || null)
-      .run();
-    return result.meta.last_row_id ?? 0;
-  }
+	constructor(d1: D1Database) {
+		this.db = drizzle(d1, { schema });
+	}
 
-  async getExamById(id: number): Promise<ExamRecord | null> {
-    return await this.db
-      .prepare('SELECT * FROM exams WHERE id = ?')
-      .bind(id)
-      .first<ExamRecord>();
-  }
+	async insertExam(name: string, source?: string): Promise<number> {
+		const result = await this.db
+			.insert(schema.exams)
+			.values({ name, source: source || null })
+			.returning({ id: schema.exams.id })
+			.get();
 
-  async getExams(): Promise<ExamRecord[]> {
-    const result = await this.db
-      .prepare('SELECT * FROM exams ORDER BY created_at DESC')
-      .all<ExamRecord>();
-    return result.results;
-  }
+		return result?.id ?? 0;
+	}
 
-  async insertQuestions(examId: number, questions: Question[]): Promise<void> {
-    if (questions.length === 0) return;
+	async getExamById(id: number): Promise<ExamRecord | null> {
+		return (
+			(await this.db
+				.select()
+				.from(schema.exams)
+				.where(eq(schema.exams.id, id))
+				.get()) ?? null
+		);
+	}
 
-    const stmt = this.db.prepare(
-      'INSERT INTO questions (exam_id, question, options, answer, explanation, topic) VALUES (?, ?, ?, ?, ?, ?)'
-    );
+	async getExams(): Promise<ExamRecord[]> {
+		return await this.db
+			.select()
+			.from(schema.exams)
+			.orderBy(sql`created_at DESC`)
+			.all();
+	}
 
-    const batch = questions.map(q =>
-      stmt.bind(
-        examId,
-        q.question,
-        JSON.stringify(q.options),
-        q.answer,
-        q.explanation || '',
-        q.topic || 'General'
-      )
-    );
+	async insertQuestions(examId: number, questions: Question[]): Promise<void> {
+		if (questions.length === 0) return;
 
-    await this.db.batch(batch);
-  }
+		await this.db
+			.insert(schema.questions)
+			.values(
+				questions.map((q) => ({
+					exam_id: examId,
+					question: q.question,
+					options: JSON.stringify(q.options),
+					answer: q.answer,
+					explanation: q.explanation || "",
+					topic: q.topic || "General",
+				})),
+			)
+			.run();
+	}
 
-  async getQuestionsByExam(examId: number): Promise<ParsedQuestion[]> {
-    const result = await this.db
-      .prepare('SELECT * FROM questions WHERE exam_id = ? ORDER BY id')
-      .bind(examId)
-      .all<RawQuestion>();
-    return result.results.map((q): ParsedQuestion => ({
-      ...q,
-      options: JSON.parse(q.options),
-    }));
-  }
+	async getQuestionsByExam(examId: number): Promise<ParsedQuestion[]> {
+		const rows = await this.db
+			.select()
+			.from(schema.questions)
+			.where(eq(schema.questions.exam_id, examId))
+			.orderBy(schema.questions.id)
+			.all();
 
-  async getRandomQuestions(count: number, topic?: string): Promise<ParsedQuestion[]> {
-    let sql = 'SELECT * FROM questions';
-    const params: (string | number)[] = [];
+		return rows.map((r) => ({
+			...r,
+			options: JSON.parse(r.options) as string[],
+			explanation: r.explanation ?? "",
+			topic: r.topic ?? "",
+		}));
+	}
 
-    if (topic) {
-      sql += ' WHERE topic = ?';
-      params.push(topic);
-    }
+	async getRandomQuestions(
+		limit: number,
+		topic?: string,
+	): Promise<ParsedQuestion[]> {
+		const conditions = topic ? [eq(schema.questions.topic, topic)] : [];
 
-    sql += ' ORDER BY RANDOM() LIMIT ?';
-    params.push(count);
+		const rows = await this.db
+			.select()
+			.from(schema.questions)
+			.where(and(...conditions))
+			.orderBy(sql`RANDOM()`)
+			.limit(limit)
+			.all();
 
-    const result = await this.db
-      .prepare(sql)
-      .bind(...params)
-      .all<RawQuestion>();
-    return result.results.map((q): ParsedQuestion => ({
-      ...q,
-      options: JSON.parse(q.options),
-    }));
-  }
+		return rows.map((r) => ({
+			...r,
+			options: JSON.parse(r.options) as string[],
+			explanation: r.explanation ?? "",
+			topic: r.topic ?? "",
+		}));
+	}
 
-  async recordAttempt(questionId: number, userAnswer: string, correct: boolean): Promise<void> {
-    await this.db
-      .prepare('INSERT INTO attempts (question_id, user_answer, correct) VALUES (?, ?, ?)')
-      .bind(questionId, userAnswer, correct)
-      .run();
-  }
+	async recordAttempt(
+		questionId: number,
+		userAnswer: string,
+		correct: boolean,
+	): Promise<void> {
+		await this.db
+			.insert(schema.attempts)
+			.values({ question_id: questionId, user_answer: userAnswer, correct })
+			.run();
+	}
 
-  async getStats(): Promise<{ totalAttempts: number; topics: TopicStats[] }> {
-    const totalResult = await this.db
-      .prepare('SELECT COUNT(*) as count FROM attempts')
-      .first<{ count: number }>();
+	async getStats(): Promise<{ totalAttempts: number; topics: TopicStats[] }> {
+		const totalResult = await this.db
+			.select({ count: count() })
+			.from(schema.attempts)
+			.get();
 
-    const topicsResult = await this.db
-      .prepare(`
-        SELECT q.topic, COUNT(*) as total, SUM(a.correct) as correct
-        FROM attempts a
-        JOIN questions q ON a.question_id = q.id
-        GROUP BY q.topic
-      `)
-      .all<{ topic: string; total: number; correct: number }>();
+		const topicsResult = await this.db
+			.select({
+				topic: schema.questions.topic,
+				total: count(),
+				correct: sql<number>`SUM(${schema.attempts.correct})`,
+			})
+			.from(schema.attempts)
+			.innerJoin(
+				schema.questions,
+				eq(schema.attempts.question_id, schema.questions.id),
+			)
+			.groupBy(schema.questions.topic)
+			.all();
 
-    return {
-      totalAttempts: totalResult?.count || 0,
-      topics: topicsResult.results.map((t): TopicStats => ({
-        topic: t.topic,
-        total: t.total,
-        correct: t.correct,
-        accuracy: t.total ? Math.round((t.correct / t.total) * 100) : 0,
-      })),
-    };
-  }
+		return {
+			totalAttempts: totalResult?.count ?? 0,
+			topics: topicsResult.map((t) => ({
+				topic: t.topic ?? "General",
+				total: t.total,
+				correct: t.correct ?? 0,
+				accuracy: t.total ? Math.round(((t.correct ?? 0) / t.total) * 100) : 0,
+			})),
+		};
+	}
 
-  async getConfig(key: string): Promise<string | null> {
-    const result = await this.db
-      .prepare('SELECT value FROM config WHERE key = ?')
-      .bind(key)
-      .first<{ value: string }>();
-    return result?.value || null;
-  }
+	async getConfig(key: string): Promise<string | null> {
+		const result = await this.db
+			.select()
+			.from(schema.config)
+			.where(eq(schema.config.key, key))
+			.get();
 
-  async setConfig(key: string, value: string): Promise<void> {
-    await this.db
-      .prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)')
-      .bind(key, value)
-      .run();
-  }
+		return result?.value ?? null;
+	}
 
-  async getAllConfig(): Promise<Record<string, string>> {
-    const results = await this.db
-      .prepare('SELECT key, value FROM config')
-      .all<{ key: string; value: string }>();
-    return Object.fromEntries(results.results.map(r => [r.key, r.value]));
-  }
+	async setConfig(key: string, value: string): Promise<void> {
+		await this.db
+			.insert(schema.config)
+			.values({ key, value })
+			.onConflictDoUpdate({ target: schema.config.key, set: { value } })
+			.run();
+	}
+
+	async getAllConfig(): Promise<Record<string, string>> {
+		const rows = await this.db.select().from(schema.config).all();
+
+		return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+	}
 }

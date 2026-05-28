@@ -8,16 +8,24 @@ vi.mock('#/lib/ai', () => ({
 
 function createMockDB() {
   return {
-    prepare: vi.fn((_sql: string) => ({
-      bind: vi.fn(() => ({
+    prepare: vi.fn(() => {
+      const bound = {
+        raw: vi.fn(async () => []),
+        all: vi.fn(async () => ({ results: [], success: true })),
         run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
-        first: vi.fn(async () => null),
-        all: vi.fn(async () => ({ results: [] })),
-      })),
-      run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
-      first: vi.fn(async () => null),
-      all: vi.fn(async () => ({ results: [] })),
-    })),
+      };
+
+      return {
+        bind: vi.fn(() => ({
+          raw: vi.fn(async () => []),
+          all: vi.fn(async () => ({ results: [], success: true })),
+          run: vi.fn(async () => ({ success: true, meta: { last_row_id: 1 } })),
+        })),
+        raw: bound.raw,
+        all: bound.all,
+        run: bound.run,
+      };
+    }),
   };
 }
 
@@ -33,21 +41,21 @@ describe('DBQueries quiz operations', () => {
   it('records an attempt', async () => {
     await queries.recordAttempt(1, '4', true);
     expect(mockDB.prepare).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO attempts')
+      expect.stringContaining('insert into "attempts"')
     );
   });
 
   it('gets questions by exam', async () => {
     await queries.getQuestionsByExam(1);
     expect(mockDB.prepare).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE exam_id = ?')
+      expect.stringContaining('"exam_id" = ?')
     );
   });
 
   it('gets random questions', async () => {
     await queries.getRandomQuestions(10);
     expect(mockDB.prepare).toHaveBeenCalledWith(
-      expect.stringContaining('ORDER BY RANDOM()')
+      expect.stringContaining('RANDOM()')
     );
   });
 });

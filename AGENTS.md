@@ -11,6 +11,8 @@ Single-user web app for studying college exams using past exams as source materi
 - **Routing:** TanStack Router (file-based, `src/routes/`)
 - **State:** TanStack Store (quiz), TanStack Query (server data)
 - **Backend:** Cloudflare Workers + D1 (SQLite)
+- **ORM:** Drizzle (`drizzle-orm`) with `drizzle-orm/d1` driver
+- **Migrations:** Drizzle Kit (`drizzle-kit`) + wrangler D1 migrations
 - **AI:** OpenRouter SDK (`@openrouter/sdk`) — configurable provider/model
 - **Validation:** Zod
 - **Styling:** Tailwind CSS v4
@@ -60,7 +62,8 @@ src/
 │   ├── obsidian.ts      # Memory vault operations (7 fns)
 │   └── db.ts            # NOT a server fn — D1 helper utility
 ├── db/
-│   └── queries.ts       # D1 query layer (DBQueries class)
+│   ├── schema.ts        # Drizzle schema definitions (4 tables)
+│   └── queries.ts       # Drizzle query layer (DBQueries class)
 ├── lib/
 │   ├── ai.ts            # AI integration (extract, explain, generate)
 │   ├── memory.ts        # Obsidian memory manager
@@ -79,7 +82,10 @@ tests/
     ├── ingest.test.ts
     └── quiz.test.ts
 migrations/
-└── 001_initial.sql      # D1 schema: exams, questions, attempts, config
+├── 0001_exams.sql       # exams table
+├── 0002_questions.sql   # questions table (depends on exams)
+├── 0003_attempts.sql    # attempts table (depends on questions)
+└── 0004_config.sql      # config table + seed data
 ```
 
 ## Commands
@@ -94,15 +100,20 @@ migrations/
 | `npm run format` | Biome format |
 | `npm run check` | Biome lint + format check |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run db:migrate` | D1 migrations (local) |
-| `npm run db:migrate:prod` | D1 migrations (remote) |
+| `npm run db:generate` | Drizzle Kit — generate migration from schema diff |
+| `npm run db:generate:local` | Drizzle Kit — generate with explicit config path |
+| `npm run db:migrate` | Wrangler D1 migrations (local) |
+| `npm run db:migrate:prod` | Wrangler D1 migrations (remote) |
+| `npm run db:reset` | Wrangler D1 migrations reset (local) |
+| `npm run db:reset:prod` | Wrangler D1 migrations reset (remote) |
 
-**Note:** `postinstall` runs `cf-typegen` + `db:migrate:local` automatically.
+**Note:** `postinstall` runs `cf-typegen` + `db:migrate` automatically.
 
 ## Key Architectural Decisions
 - **Single-user, local-first** — no auth, no multi-tenancy
 - **All AI calls server-side** — never in browser
-- **D1 via direct D1Database binding** (TanStack DB adapter not yet available for D1)
+- **D1 via Drizzle ORM** — `src/db/schema.ts` defines tables, `src/db/queries.ts` wraps Drizzle operations
+- **Migrations managed by wrangler** — each table has its own migration file (`0001_exams.sql` → `0004_config.sql`)
 - **SPA mode** (no SSR) — appropriate for single-user app
 - **TanStack Store** for quiz state (ephemeral), **TanStack Query** for server data
 - **PDF parsing** via text extraction; fallback to manual paste
@@ -123,6 +134,9 @@ migrations/
 - `@tanstack/react-router-ssr-query` and `axios` are unused dependencies
 - No CI pipeline — quality checks are manual
 - D1 `database_id: "DEV"` hardcoded in wrangler.jsonc; production DB injected at deploy
+- Drizzle `d1-http` driver is for migration generation only; runtime uses `drizzle-orm/d1`
+- Test mocks must support `stmt.bind(...).raw()` for Drizzle D1 compatibility
+- `db:reset` drops all tables — use with caution (local only)
 
 <!-- intent-skills:start -->
 # Skill mappings - load `use` with `npx @tanstack/intent@latest load <use>`.
