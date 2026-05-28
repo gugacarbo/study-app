@@ -1,7 +1,7 @@
 # Study App — Agent Context
 
 **Generated:** 2026-05-28
-**Commit:** cf41384
+**Commit:** 6067b81
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -45,11 +45,12 @@ src/
 │   ├── Chat.tsx         # AI chat assistant
 │   ├── ObsidianConfigForm.tsx
 │   └── ObsidianPanel.tsx
-├── routes/              # File-based TanStack Router routes (12)
+├── routes/              # File-based TanStack Router routes (13)
 │   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts
 │   ├── index.tsx        # / — Dashboard
 │   ├── upload.tsx       # /upload
-│   ├── exams.tsx        # /exams — exam list page
+│   ├── exams.tsx        # /exams — exam layout (Outlet)
+│   ├── exams.index.tsx  # /exams/ — exam list page
 │   ├── exams.$id.tsx    # /exams/$id — exam detail page
 │   ├── quiz.$id.tsx     # /quiz/$id — quiz by exam ID
 │   ├── stats.tsx        # /stats
@@ -70,7 +71,7 @@ src/
 │   ├── schema.ts        # Drizzle schema definitions (5 tables)
 │   └── queries.ts       # Drizzle query layer (DBQueries class)
 ├── lib/
-│   ├── ai/              # AI integration module (ai.ts, parse-json.ts, prompts/)
+│   ├── ai/              # AI integration module (ai.ts, prompts/)
 │   ├── file-service.ts  # File storage and retrieval service
 │   ├── memory.ts        # Obsidian memory manager
 │   ├── obsidian.ts      # Obsidian REST API client

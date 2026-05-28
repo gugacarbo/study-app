@@ -15,7 +15,7 @@ Use the following context about the student's learning history to personalize qu
 ${memoryContext}`
     : "You are a helpful assistant that generates exam questions. Always return valid JSON.";
 
-  const parsed = await generateJson<unknown>(
+  return await generateJson<Question[]>(
     config,
     `
     Generate ${count} multiple-choice questions about: ${topic}
@@ -30,9 +30,7 @@ ${memoryContext}`
       }
     ]
   `,
+    questionSchema.array(),
     { system: systemPrompt },
   );
-
-  const validated = questionSchema.array().parse(parsed);
-  return validated;
 }

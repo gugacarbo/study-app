@@ -17,6 +17,7 @@ import { Route as ConfigRouteImport } from './routes/config'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExamsIndexRouteImport } from './routes/exams.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
 import { Route as ApiChatRouteImport } from './routes/api.chat'
@@ -61,6 +62,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExamsIndexRoute = ExamsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExamsRoute,
+} as any)
 const QuizIdRoute = QuizIdRouteImport.update({
   id: '/quiz/$id',
   path: '/quiz/$id',
@@ -89,19 +95,20 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/exams/$id': typeof ExamsIdRoute
   '/quiz/$id': typeof QuizIdRoute
+  '/exams/': typeof ExamsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
-  '/exams': typeof ExamsRouteWithChildren
   '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
   '/exams/$id': typeof ExamsIdRoute
   '/quiz/$id': typeof QuizIdRoute
+  '/exams': typeof ExamsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +123,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/exams/$id': typeof ExamsIdRoute
   '/quiz/$id': typeof QuizIdRoute
+  '/exams/': typeof ExamsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,19 +139,20 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/exams/$id'
     | '/quiz/$id'
+    | '/exams/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/chat'
     | '/config'
-    | '/exams'
     | '/obsidian'
     | '/stats'
     | '/upload'
     | '/api/chat'
     | '/exams/$id'
     | '/quiz/$id'
+    | '/exams'
   id:
     | '__root__'
     | '/'
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/exams/$id'
     | '/quiz/$id'
+    | '/exams/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -230,6 +240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exams/': {
+      id: '/exams/'
+      path: '/'
+      fullPath: '/exams/'
+      preLoaderRoute: typeof ExamsIndexRouteImport
+      parentRoute: typeof ExamsRoute
+    }
     '/quiz/$id': {
       id: '/quiz/$id'
       path: '/quiz/$id'
@@ -256,10 +273,12 @@ declare module '@tanstack/react-router' {
 
 interface ExamsRouteChildren {
   ExamsIdRoute: typeof ExamsIdRoute
+  ExamsIndexRoute: typeof ExamsIndexRoute
 }
 
 const ExamsRouteChildren: ExamsRouteChildren = {
   ExamsIdRoute: ExamsIdRoute,
+  ExamsIndexRoute: ExamsIndexRoute,
 }
 
 const ExamsRouteWithChildren = ExamsRoute._addFileChildren(ExamsRouteChildren)

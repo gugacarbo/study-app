@@ -1,10 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { ExamsView } from '../components/ExamsView'
+import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/exams')({
-  component: ExamsPage,
+  component: ExamsLayout,
 })
 
-function ExamsPage() {
-  return <ExamsView />
+function ExamsLayout() {
+  return <Outlet />
 }

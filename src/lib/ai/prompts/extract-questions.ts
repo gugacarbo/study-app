@@ -56,7 +56,7 @@ export async function extractQuestionsFromText(
 ): Promise<ExamIngestResponse> {
   const systemPrompt = buildSystemPrompt(memoryContext);
 
-  const parsed = await generateJson<unknown>(
+  return await generateJson<ExamIngestResponse>(
     config,
     `
     Extract all exam questions from the following text.
@@ -77,9 +77,7 @@ export async function extractQuestionsFromText(
     Text to extract from:
     ${text}
   `,
+    examIngestResponseSchema,
     { system: systemPrompt },
   );
-
-  const validated = examIngestResponseSchema.parse(parsed);
-  return validated;
 }
