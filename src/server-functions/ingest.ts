@@ -4,6 +4,7 @@ import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { extractQuestionsFromText } from '../lib/ai/prompts/extract-questions';
 import { FileService } from '../lib/file-service';
+import type { Question } from '../lib/validation';
 import { providerConfigSchema } from '../lib/validation';
 import { getMemoryContext } from './memory';
 
@@ -45,10 +46,15 @@ export const ingestExam = createServerFn({ method: 'POST' })
       : extracted;
 
     const finalExtracted = memoryResult.context ? extractedWithMemory : extracted;
+    const sanitizedQuestions: Question[] = finalExtracted.questions.map((question) => ({
+      ...question,
+      explanation: '',
+      deepExplanation: '',
+    }));
     const examId = await queries.insertExam(data.fileName, 'upload');
 
-    if (finalExtracted.questions.length > 0) {
-      await queries.insertQuestions(examId, finalExtracted.questions);
+    if (sanitizedQuestions.length > 0) {
+      await queries.insertQuestions(examId, sanitizedQuestions);
     }
 
     // Save the original file
@@ -56,7 +62,7 @@ export const ingestExam = createServerFn({ method: 'POST' })
     const fileId = await fileService.save(examId, data.fileName, data.buffer, mimeType);
 
     return {
-      questions: finalExtracted.questions.length,
+      questions: sanitizedQuestions.length,
       topics: finalExtracted.topics,
       examId,
       fileId,

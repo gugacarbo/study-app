@@ -1,0 +1,5 @@
+interface:
+  display_name: "shadcn/ui"
+  short_description: "Manages shadcn/ui components — adding, searching, fixing, debugging, styling, and composing UI."
+  icon_small: "./skills/shadcn/assets/shadcn-small.png"
+  icon_large: "./skills/shadcn/assets/shadcn.png"

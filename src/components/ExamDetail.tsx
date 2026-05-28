@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useRouter } from '@tanstack/react-router'
 import {
@@ -17,8 +17,25 @@ import {
 	Pencil,
 	Save,
 	X,
+	Sparkles,
+	LoaderCircle,
+	AlertCircle,
 } from 'lucide-react'
-import { getExamDetail, deleteExam, updateQuestion } from '../server-functions/exams'
+import {
+	getExamDetail,
+	deleteExam,
+	updateQuestion,
+	generateExamQuestionExplanations,
+} from '../server-functions/exams'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from './ui/dialog'
 
 function formatDate(dateStr: string | null): string {
 	if (!dateStr) return '—'
@@ -52,6 +69,33 @@ interface ExamDetailProps {
 	examId: number
 }
 
+type ExplanationProgressStatus = 'pending' | 'processing' | 'done' | 'error' | 'skipped'
+
+interface ExplanationProgressItem {
+	id: number
+	question: string
+	status: ExplanationProgressStatus
+	message?: string
+	response?: {
+		explanation: string
+		deepExplanation: string
+	}
+}
+
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message) return error.message
+	if (typeof error === 'string') return error
+	return 'Erro desconhecido'
+}
+
+function chunkIds(ids: number[], chunkSize: number): number[][] {
+	const chunks: number[][] = []
+	for (let idx = 0; idx < ids.length; idx += chunkSize) {
+		chunks.push(ids.slice(idx, idx + chunkSize))
+	}
+	return chunks
+}
+
 export function ExamDetail({ examId }: ExamDetailProps) {
 	const router = useRouter()
 	const queryClient = useQueryClient()
@@ -66,14 +110,43 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		options: string[]
 		answer: string
 		explanation: string
+		deepExplanation: string
 		topic: string
 	} | null>(null)
 	const [saving, setSaving] = useState(false)
+	const [explanationsDialogOpen, setExplanationsDialogOpen] = useState(false)
+	const [generatingExplanations, setGeneratingExplanations] = useState(false)
+	const [overwriteExplanations, setOverwriteExplanations] = useState(false)
+	const [batchSize, setBatchSize] = useState(8)
+	const [generationMessage, setGenerationMessage] = useState<string | null>(null)
+	const [progressItems, setProgressItems] = useState<ExplanationProgressItem[]>([])
+	const [selectedResponseItemId, setSelectedResponseItemId] = useState<number | null>(null)
 
 	const { data: exam } = useSuspenseQuery({
 		queryKey: ['exam-detail', examId],
 		queryFn: () => getExamDetail({ data: { id: examId } }),
 	})
+
+	const isQuestionComplete = (q: typeof exam.questions[number]) =>
+		Boolean(q.explanation?.trim()) && Boolean(q.deepExplanation?.trim())
+
+	const buildProgressItems = (): ExplanationProgressItem[] =>
+		exam.questions.map((question) => {
+			const complete = isQuestionComplete(question)
+			const needsGeneration = overwriteExplanations || !complete
+			return {
+				id: question.id,
+				question: question.question,
+				status: needsGeneration ? 'pending' : 'skipped',
+				message: needsGeneration ? 'Aguardando' : 'Já preenchida',
+			}
+		})
+
+	useEffect(() => {
+		if (!explanationsDialogOpen || generatingExplanations) return
+		setProgressItems(buildProgressItems())
+		setSelectedResponseItemId(null)
+	}, [explanationsDialogOpen, overwriteExplanations, generatingExplanations, exam.questions])
 
 	const toggleQuestion = (id: number) => {
 		setExpandedQuestions((prev) => {
@@ -106,6 +179,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 			options: [...q.options],
 			answer: q.answer,
 			explanation: q.explanation || '',
+			deepExplanation: q.deepExplanation || '',
 			topic: q.topic || '',
 		})
 	}
@@ -126,6 +200,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 					options: editForm.options,
 					answer: editForm.answer,
 					explanation: editForm.explanation || '',
+					deepExplanation: editForm.deepExplanation || '',
 					topic: editForm.topic || '',
 				},
 			})
@@ -138,7 +213,122 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		}
 	}
 
+	const handleGenerateExplanations = async () => {
+		setGeneratingExplanations(true)
+		setGenerationMessage(null)
+
+		const initialProgress = buildProgressItems()
+		setProgressItems(initialProgress)
+
+		const targetIds = initialProgress
+			.filter((item) => item.status === 'pending')
+			.map((item) => item.id)
+
+		if (targetIds.length === 0) {
+			setGenerationMessage('Nenhuma pergunta precisa de geração.')
+			setGeneratingExplanations(false)
+			return
+		}
+
+		const idBatches = chunkIds(targetIds, batchSize)
+		let updatedCount = 0
+		let failedCount = 0
+
+		try {
+			for (const batchIds of idBatches) {
+				setProgressItems((prev) =>
+					prev.map((item) =>
+						batchIds.includes(item.id)
+							? { ...item, status: 'processing', message: 'Gerando...' }
+							: item,
+					),
+				)
+
+				try {
+					const result = await generateExamQuestionExplanations({
+						data: {
+							examId,
+							overwrite: true,
+							batchSize: batchIds.length,
+							questionIds: batchIds,
+						},
+					})
+
+					const updatedIds = new Set(result.updatedQuestionIds || [])
+					const generatedById = new Map(
+						(result.generatedResponses || []).map((item) => [item.id, item]),
+					)
+					updatedCount += updatedIds.size
+					failedCount += batchIds.filter((id) => !updatedIds.has(id)).length
+
+					setProgressItems((prev) =>
+						prev.map((item) => {
+							if (!batchIds.includes(item.id)) return item
+							if (updatedIds.has(item.id)) {
+								const generated = generatedById.get(item.id)
+								return {
+									...item,
+									status: 'done',
+									message: 'Concluída',
+									response: generated
+										? {
+												explanation: generated.explanation,
+												deepExplanation: generated.deepExplanation,
+											}
+										: undefined,
+								}
+							}
+							return { ...item, status: 'error', message: 'Sem retorno do agente' }
+						}),
+					)
+				} catch (batchError) {
+					const errorMessage = getErrorMessage(batchError)
+					failedCount += batchIds.length
+					setProgressItems((prev) =>
+						prev.map((item) =>
+							batchIds.includes(item.id)
+								? { ...item, status: 'error', message: errorMessage }
+								: item,
+						),
+					)
+					// Keep processing remaining batches even if one batch fails.
+					continue
+				}
+			}
+
+			setGenerationMessage(
+				failedCount > 0
+					? `Concluído com alertas: ${updatedCount} atualizadas, ${failedCount} com erro.`
+					: `Concluído: ${updatedCount} perguntas atualizadas.`,
+			)
+
+			if (updatedCount > 0) {
+				queryClient.invalidateQueries({ queryKey: ['exam-detail', examId] })
+			}
+		} catch (err) {
+			console.error('Failed to generate explanations:', err)
+			setGenerationMessage(`Falha ao gerar explicações: ${getErrorMessage(err)}`)
+		} finally {
+			setGeneratingExplanations(false)
+		}
+	}
+
 	const { stats } = exam
+	const pendingExplanationCount = exam.questions.filter(
+		(q) => !q.explanation?.trim() || !q.deepExplanation?.trim(),
+	).length
+	const questionOrder = new Map(exam.questions.map((question, index) => [question.id, index + 1]))
+	const processingCount = progressItems.filter((item) => item.status === 'processing').length
+	const doneCount = progressItems.filter(
+		(item) => item.status === 'done' || item.status === 'skipped',
+	).length
+	const errorCount = progressItems.filter((item) => item.status === 'error').length
+	const finishedCount = doneCount + errorCount
+	const progressPercent =
+		progressItems.length > 0
+			? Math.round((finishedCount / progressItems.length) * 100)
+			: 0
+	const selectedResponseItem = progressItems.find((item) => item.id === selectedResponseItemId)
 
 	return (
 		<div>
@@ -164,6 +354,170 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 
 				{/* Actions */}
 				<div className="flex gap-2 shrink-0">
+					<Dialog open={explanationsDialogOpen} onOpenChange={setExplanationsDialogOpen}>
+						<DialogTrigger asChild>
+							<button
+								type="button"
+								className="btn text-sm gap-1.5"
+								style={{
+									background: 'var(--surface-hover)',
+									color: 'var(--text)',
+								}}
+							>
+								<Sparkles className="h-4 w-4" />
+								Explicações
+							</button>
+						</DialogTrigger>
+						<DialogContent className="sm:max-w-lg">
+							<DialogHeader>
+								<DialogTitle>Gerar explicações por agente</DialogTitle>
+								<DialogDescription>
+									O agente vai preencher `explanation` e `deepExplanation` das questões deste exame.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="space-y-3 text-sm">
+								<div className="rounded-lg border border-border bg-surface-hover p-3">
+									<p className="font-medium">Pendentes</p>
+									<p className="text-text-muted">
+										{pendingExplanationCount} de {exam.questions.length} perguntas sem explicação completa.
+									</p>
+								</div>
+
+								<div>
+									<label htmlFor="batch-size" className="text-xs font-semibold text-text-muted">
+										Tamanho do batch (1-20)
+									</label>
+									<input
+										id="batch-size"
+										type="number"
+										min={1}
+										max={20}
+										value={batchSize}
+										disabled={generatingExplanations}
+										onChange={(e) => {
+											const value = Number(e.target.value)
+											if (Number.isNaN(value)) return
+											setBatchSize(Math.max(1, Math.min(20, value)))
+										}}
+										className="mt-1 w-full rounded-lg border border-border bg-surface p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+									/>
+								</div>
+
+								<label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface p-2.5">
+									<input
+										type="checkbox"
+										checked={overwriteExplanations}
+										onChange={(e) => setOverwriteExplanations(e.target.checked)}
+										disabled={generatingExplanations}
+										className="accent-primary"
+									/>
+									<span>Sobrescrever explicações já existentes</span>
+								</label>
+
+								{progressItems.length > 0 && (
+									<div className="rounded-lg border border-border bg-surface p-3">
+										<div className="mb-2 flex items-center justify-between text-xs">
+											<span className="font-semibold text-text-muted">Progresso por pergunta</span>
+											<span className="text-text-muted">
+												{finishedCount}/{progressItems.length} ({progressPercent}%)
+											</span>
+										</div>
+										<div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-hover">
+											<div
+												className="h-full rounded-full bg-primary transition-all"
+												style={{ width: `${progressPercent}%` }}
+											/>
+										</div>
+										<div className="mb-2 text-xs text-text-muted">
+											{processingCount > 0 && <span>{processingCount} processando</span>}
+											{processingCount > 0 && errorCount > 0 && <span> • </span>}
+											{errorCount > 0 && <span>{errorCount} com erro</span>}
+										</div>
+										<div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+											{progressItems.map((item) => (
+												<div
+													key={item.id}
+													className={`rounded-md border border-border bg-surface-hover px-2 py-1.5 ${
+														item.status === 'done' ? 'cursor-pointer hover:bg-surface' : ''
+													} ${
+														selectedResponseItemId === item.id ? 'ring-1 ring-primary/40' : ''
+													}`}
+													onClick={() => {
+														if (item.status === 'done') {
+															setSelectedResponseItemId(item.id)
+														}
+													}}
+												>
+													<div className="flex items-start gap-1.5">
+														<span className="mt-0.5 shrink-0">
+															{item.status === 'processing' && (
+																<LoaderCircle className="h-3.5 w-3.5 animate-spin text-primary" />
+															)}
+															{item.status === 'done' && (
+																<CheckCircle2 className="h-3.5 w-3.5 text-success" />
+															)}
+															{item.status === 'error' && (
+																<AlertCircle className="h-3.5 w-3.5 text-error" />
+															)}
+															{item.status === 'pending' && (
+																<div className="mt-1 h-2 w-2 rounded-full bg-text-muted/50" />
+															)}
+															{item.status === 'skipped' && (
+																<div className="mt-1 h-2 w-2 rounded-full bg-success/60" />
+															)}
+														</span>
+														<div className="min-w-0 flex-1">
+															<p className="truncate text-xs font-medium text-text">
+																Q{questionOrder.get(item.id) ?? '?'} · {item.question}
+															</p>
+															{item.message && (
+																<p className="text-[11px] text-text-muted">{item.message}</p>
+															)}
+														</div>
+													</div>
+												</div>
+											))}
+										</div>
+										{selectedResponseItem?.response && (
+											<div className="mt-3 rounded-lg border border-border bg-surface-hover p-3">
+												<p className="text-xs font-semibold text-text-muted mb-1">
+													Resposta do agente · Q{questionOrder.get(selectedResponseItem.id) ?? '?'}
+												</p>
+												<p className="text-xs font-semibold text-text-muted mb-1">Explanation</p>
+												<p className="mb-2 text-sm leading-relaxed">
+													{selectedResponseItem.response.explanation}
+												</p>
+												<p className="text-xs font-semibold text-text-muted mb-1">Deep Explanation</p>
+												<p className="text-sm leading-relaxed whitespace-pre-wrap">
+													{selectedResponseItem.response.deepExplanation}
+												</p>
+											</div>
+										)}
+									</div>
+								)}
+
+								{generationMessage && (
+									<p className="rounded-lg bg-surface-hover p-2.5 text-xs text-text-muted">
+										{generationMessage}
+									</p>
+								)}
+							</div>
+
+							<DialogFooter>
+								<button
+									type="button"
+									onClick={handleGenerateExplanations}
+									disabled={generatingExplanations || exam.questions.length === 0}
+									className="btn text-sm gap-1.5"
+								>
+									<Sparkles className="h-4 w-4" />
+									{generatingExplanations ? 'Gerando...' : 'Gerar agora'}
+								</button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
 					<Link
 						to="/quiz/$id"
 						params={{ id: exam.id.toString() }}
@@ -533,6 +887,20 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 														/>
 													</div>
 
+													{/* Deep explanation */}
+													<div>
+														<label className="text-xs font-semibold text-text-muted mb-1 block">
+															Deep Explanation
+														</label>
+														<textarea
+															value={editForm.deepExplanation}
+															onChange={(e) =>
+																setEditForm({ ...editForm, deepExplanation: e.target.value })
+															}
+															className="w-full rounded-lg border border-border bg-surface p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y min-h-[130px]"
+														/>
+													</div>
+
 													{/* Actions */}
 													<div className="flex gap-2">
 														<button
@@ -606,6 +974,17 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 																Explanation
 															</p>
 															<p className="leading-relaxed">{q.explanation}</p>
+														</div>
+													)}
+
+													{q.deepExplanation && (
+														<div className="mt-3 rounded-lg bg-surface-hover p-3 text-sm">
+															<p className="text-xs font-semibold text-text-muted mb-1">
+																Deep Explanation
+															</p>
+															<p className="leading-relaxed whitespace-pre-wrap">
+																{q.deepExplanation}
+															</p>
 														</div>
 													)}
 												</>

@@ -8,7 +8,14 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-
+import ThemeToggle from "@/components/ThemeToggle";
+import {
+	NavigationMenu,
+	NavigationMenuItem,
+	NavigationMenuLink,
+	NavigationMenuList,
+	navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 import appCss from "../globals.css?url";
 
 const queryClient = new QueryClient({
@@ -27,6 +34,7 @@ const navItems = [
 	{ to: "/exams", label: "Exams" },
 	{ to: "/upload", label: "Upload" },
 	{ to: "/stats", label: "Stats" },
+	{ to: "/memory", label: "Memory" },
 	{ to: "/chat", label: "Chat" },
 	{ to: "/config", label: "Config" },
 ];
@@ -36,21 +44,28 @@ function AppNav() {
 	const pathname = routerState.location.pathname;
 
 	return (
-		<nav className="flex gap-4 px-6 py-3 bg-surface border-b border-border">
-			{navItems.map((item) => (
-				<Link
-					key={item.to}
-					to={item.to}
-					className={`text-sm transition-colors ${
-						pathname === item.to
-							? "text-text font-medium"
-							: "text-text-muted hover:text-text"
-					}`}
-				>
-					{item.label}
-				</Link>
-			))}
-		</nav>
+		<header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+			<div className="flex h-14 items-center px-6">
+				<NavigationMenu>
+					<NavigationMenuList>
+						{navItems.map((item) => (
+							<NavigationMenuItem key={item.to}>
+								<NavigationMenuLink
+									asChild
+									active={pathname === item.to}
+									className={navigationMenuTriggerStyle()}
+								>
+									<Link to={item.to}>{item.label}</Link>
+								</NavigationMenuLink>
+							</NavigationMenuItem>
+						))}
+					</NavigationMenuList>
+				</NavigationMenu>
+				<div className="ml-auto">
+					<ThemeToggle />
+				</div>
+			</div>
+		</header>
 	);
 }
 

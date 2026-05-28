@@ -33,6 +33,7 @@ interface ParsedQuestion {
 	options: string[];
 	answer: string;
 	explanation: string;
+	deepExplanation: string;
 	topic: string;
 }
 
@@ -321,6 +322,7 @@ export class DBQueries {
 					options: JSON.stringify(q.options),
 					answer: q.answer,
 					explanation: q.explanation || "",
+					deep_explanation: q.deepExplanation || "",
 					topic: q.topic || "General",
 				})),
 			)
@@ -334,6 +336,7 @@ export class DBQueries {
 			options?: string[];
 			answer?: string;
 			explanation?: string;
+			deepExplanation?: string;
 			topic?: string;
 		},
 	): Promise<void> {
@@ -342,6 +345,9 @@ export class DBQueries {
 		if (data.options !== undefined) updates.options = JSON.stringify(data.options);
 		if (data.answer !== undefined) updates.answer = data.answer;
 		if (data.explanation !== undefined) updates.explanation = data.explanation;
+		if (data.deepExplanation !== undefined) {
+			updates.deep_explanation = data.deepExplanation;
+		}
 		if (data.topic !== undefined) updates.topic = data.topic;
 
 		if (Object.keys(updates).length === 0) return;
@@ -372,6 +378,7 @@ export class DBQueries {
 			...r,
 			options: JSON.parse(r.options) as string[],
 			explanation: r.explanation ?? "",
+			deepExplanation: r.deep_explanation ?? "",
 			topic: r.topic ?? "",
 		}));
 	}
@@ -389,6 +396,7 @@ export class DBQueries {
 			...row,
 			options: JSON.parse(row.options) as string[],
 			explanation: row.explanation ?? "",
+			deepExplanation: row.deep_explanation ?? "",
 			topic: row.topic ?? "",
 		};
 	}
@@ -411,6 +419,7 @@ export class DBQueries {
 			...r,
 			options: JSON.parse(r.options) as string[],
 			explanation: r.explanation ?? "",
+			deepExplanation: r.deep_explanation ?? "",
 			topic: r.topic ?? "",
 		}));
 	}

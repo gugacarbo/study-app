@@ -1,6 +1,6 @@
 # Routes
 
-TanStack Router file-based routing. 13 entries in `src/routes/`.
+TanStack Router file-based routing. 15 entries in `src/routes/`.
 
 ## Route Table
 
@@ -17,16 +17,18 @@ TanStack Router file-based routing. 13 entries in `src/routes/`.
 | `config.tsx` | `/config` | Page | `getConfig`/`setConfig` via server fns |
 | `chat.tsx` | `/chat` | Page | Chat API stream |
 | `about.tsx` | `/about` | Page | — |
-| `obsidian.tsx` | `/obsidian` | Page | `getObsidianStatus` via server fn |
+| `memory.tsx` | `/memory` | Page | Memory overview via server fn |
 | `api.chat.ts` | `/api/chat` | **API** (POST) | Server-side handler via `server.handlers` |
+| `api.test-connection.ts` | `/api/test-connection` | **API** (POST, SSE) | Server-side handler via `server.handlers` |
 
 ## Conventions
 - **File naming:** TanStack Start file conventions — `__root.tsx` for layout, `$param` for dynamic params, `.` for path nesting (`quiz.$id.tsx` → `/quiz/$id`)
-- **API routes:** Use `server.handlers` on `createFileRoute` — only `api.chat.ts` does this
+- **API routes:** Use `server.handlers` on `createFileRoute` — `api.chat.ts` and `api.test-connection.ts` do this
 - **Data loading:** Route components call server functions via TanStack Query's `useSuspenseQuery` (not route loaders)
 - **No route guards/layouts** — single-user app, no auth
 
 ## Notable
 - `__root.tsx` is the shell — wraps `<Outlet>` with nav, query client, theme
 - `exams.tsx` is a layout route with `<Outlet>` — child routes `exams.index.tsx` and `exams.$id.tsx` render inside it
-- `api.chat.ts` is the sole API endpoint (lives alongside page routes)
+- `api.chat.ts` and `api.test-connection.ts` are the API endpoints (live alongside page routes)
+- `api.test-connection.ts` uses SSE (text/event-stream) for streaming connection tests

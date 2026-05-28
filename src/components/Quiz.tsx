@@ -46,7 +46,8 @@ export function Quiz({ examId, topic }: QuizProps) {
   const submitMutation = useMutation({
     mutationFn: (vars: { questionId: number; userAnswer: string; correctAnswer: string; question: string; topic?: string }) => {
       if (!config) throw new Error('Config not loaded')
-      return submitAnswer({ data: { ...vars, config } })
+      const { correctAnswer: _correctAnswer, ...serverVars } = vars
+      return submitAnswer({ data: { ...serverVars, config } })
     },
     onSuccess: (data, vars) => {
       recordAnswer(data.correct, data.explanation)

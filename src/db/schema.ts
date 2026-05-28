@@ -19,6 +19,7 @@ export const questions = sqliteTable(
 		options: text("options").notNull(), // JSON array of strings
 		answer: text("answer").notNull(),
 		explanation: text("explanation"),
+		deep_explanation: text("deep_explanation"),
 		topic: text("topic"),
 		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},

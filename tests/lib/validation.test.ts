@@ -43,6 +43,7 @@ describe('questionSchema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.explanation).toBe('');
+      expect(result.data.deepExplanation).toBeUndefined();
       expect(result.data.topic).toBe('General');
     }
   });

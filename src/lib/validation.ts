@@ -5,6 +5,7 @@ export const questionSchema = z.object({
   options: z.array(z.string()).min(2, 'At least 2 options required'),
   answer: z.string().min(1, 'Answer is required'),
   explanation: z.string().optional().default(''),
+  deepExplanation: z.string().optional(),
   topic: z.string().optional().default('General'),
 });
 

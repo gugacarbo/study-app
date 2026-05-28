@@ -17,7 +17,7 @@ Output contract:
   - "question": string (non-empty)
   - "options": string[] (at least 2 items)
   - "answer": string (non-empty)
-  - "explanation": string (use "" if not available)
+  - "explanation": string (always use "")
   - "topic": string (use "General" if unclear)
 
 Extraction rules:
@@ -25,7 +25,7 @@ Extraction rules:
 - Preserve the original language of the source text.
 - Keep wording faithful to the source whenever possible.
 - If options are present, include them; if not explicit, infer only when clearly implied.
-- Keep explanations brief and grounded in the question/answer.
+- During ingestion, never generate explanations. Always set "explanation" to "".
 - Do not invent extra sections or keys.
 
 Topics rules:
@@ -44,7 +44,7 @@ function buildSystemPrompt(memoryContext?: string) {
 
   return `${BASE_SYSTEM_PROMPT}
 
-Use the following student learning-history context to improve topic naming and brief explanations.
+Use the following student learning-history context to improve topic naming consistency.
 Do not include this context text in the output.
 
 ${memoryContext}`;
@@ -70,7 +70,7 @@ export async function extractQuestionsFromText(
           "question": "the question text",
           "options": ["option a", "option b", "option c", "option d"],
           "answer": "the correct answer text",
-          "explanation": "brief explanation",
+          "explanation": "",
           "topic": "subject/topic name"
         }
       ],

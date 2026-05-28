@@ -3,6 +3,8 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
+> **Last auto-updated:** 2026-05-28 — shadcn/ui migration, deep explanations, react-hook-form, memory route
+
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
 
@@ -15,6 +17,7 @@ Single-user web app for studying college exams using past exams as source materi
 - **Migrations:** Drizzle Kit (`drizzle-kit`) + wrangler D1 migrations
 - **AI:** OpenRouter SDK (`@openrouter/sdk`) — configurable provider/model
 - **Validation:** Zod
+- **Forms:** react-hook-form + @hookform/resolvers (Zod adapter)
 - **Styling:** Tailwind CSS v4
 - **Testing:** Vitest + jsdom
 - **Linting/Formatting:** Biome v2 (no ESLint/Prettier)
@@ -38,9 +41,10 @@ src/
 │   ├── UploadForm.tsx   # PDF upload + text paste (streaming progress)
 │   ├── Quiz.tsx         # Quiz player (question nav, timer, scoring)
 │   ├── StatsTable.tsx   # Stats display (plain HTML table)
-│   ├── ConfigForm.tsx   # AI provider config form
+│   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
-│   └── Chat.tsx         # AI chat assistant
+│   ├── Chat.tsx         # AI chat assistant
+│   └── MemoryPanel.tsx  # Memory overview and search
 ├── routes/              # File-based TanStack Router routes
 │   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts
 │   ├── index.tsx        # / — Dashboard
@@ -53,8 +57,10 @@ src/
 │   ├── config.tsx       # /config — AI provider settings
 │   ├── chat.tsx         # /chat — AI chat interface
 │   ├── about.tsx        # /about
+│   ├── memory.tsx       # /memory — memory overview
 │   ├── api.chat.ts      # /api/chat — POST handler (server-side API)
-│   └── api.ingest.ts    # /api/ingest — POST handler (streaming ingest)
+│   ├── api.ingest.ts    # /api/ingest — POST handler (streaming ingest)
+│   └── api.test-connection.ts # /api/test-connection — SSE streaming test
 ├── server-functions/    # Server functions + utilities
 │   ├── config.ts        # getConfig, setConfig, testConnection
 │   ├── ingest.ts        # ingestExam (PDF → questions)
@@ -90,7 +96,8 @@ migrations/
 ├── 0003_attempts.sql    # attempts table (depends on questions)
 ├── 0004_config.sql      # config table + seed data
 ├── 0005_files.sql       # files table (depends on exams)
-└── 0006_memory.sql      # memory tables (profile, sessions, topic_notes, documents)
+├── 0006_memory.sql      # memory tables (profile, sessions, topic_notes, documents)
+└── 0007_questions_deep_explanation.sql # adds deep_explanation column to questions
 ```
 
 ## Commands
@@ -123,6 +130,8 @@ migrations/
 - **TanStack Store** for quiz state (ephemeral), **TanStack Query** for server data
 - **PDF parsing** via text extraction; fallback to manual paste
 - **Server functions** use `createServerFn` from `@tanstack/react-start` with `data` parameter pattern
+- **Deep explanations** generated in batches by AI agent, stored in `deep_explanation` column
+- **Config form** uses `react-hook-form` + `@hookform/resolvers` (Zod adapter) — not `@tanstack/react-form`
 
 ## Memory Layer (D1-Based)
 - **Storage:** D1 database tables (`memory_profile`, `memory_sessions`, `memory_topic_notes`, `memory_documents`)

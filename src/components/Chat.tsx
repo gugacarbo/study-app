@@ -2,6 +2,14 @@ import { useState, useRef, useEffect } from "react";
 import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
 import type { UIMessage } from "@tanstack/ai-client";
 
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardFooter,
+} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+
 export function Chat() {
 	const [messages, setMessages] = useState<UIMessage[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
@@ -64,25 +72,30 @@ export function Chat() {
 		<div>
 			<h1 className="text-2xl font-bold mb-6">Chat</h1>
 
-			<div className="card flex flex-col" style={{ height: "60vh" }}>
-				<div className="flex-1 overflow-y-auto mb-4 space-y-4 pr-2">
+			<Card className="flex flex-col" style={{ height: "60vh" }}>
+				<CardContent className="flex-1 overflow-y-auto space-y-4">
 					{messages.map((msg) => (
 						<div
 							key={msg.id}
-							className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+							className={`flex ${
+								msg.role === "user" ? "justify-end" : "justify-start"
+							}`}
 						>
 							<div
 								className={`max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
 									msg.role === "user"
-										? "bg-primary text-white"
-										: "bg-surface border border-border text-text"
+										? "bg-primary text-primary-foreground"
+										: "bg-card border border-border text-card-foreground"
 								}`}
 							>
 								{msg.parts.map((part, i) =>
 									part.type === "text" ? (
 										<span key={i}>{part.content}</span>
 									) : part.type === "thinking" ? (
-										<span key={i} className="italic text-text-muted">
+										<span
+											key={i}
+											className="italic text-muted-foreground"
+										>
 											{part.content}
 										</span>
 									) : null,
@@ -93,7 +106,7 @@ export function Chat() {
 
 					{isLoading && (
 						<div className="flex justify-start">
-							<div className="bg-surface border border-border rounded-lg px-4 py-2 text-sm text-text-muted">
+							<div className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
 								Thinking...
 							</div>
 						</div>
@@ -101,34 +114,33 @@ export function Chat() {
 
 					{error && (
 						<div className="flex justify-center">
-							<div className="bg-error/10 text-error text-sm rounded-lg px-4 py-2">
+							<div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
 								{error.message}
 							</div>
 						</div>
 					)}
 
 					<div ref={bottomRef} />
-				</div>
+				</CardContent>
 
-				<div className="flex gap-2">
-					<textarea
-						className="input resize-none"
+				<CardFooter className="border-t border-border gap-2">
+					<Textarea
+						className="min-h-[2.5rem] flex-1"
 						rows={2}
 						placeholder="Ask a question..."
 						value={input}
 						onChange={(e) => setInput(e.target.value)}
 						onKeyDown={handleKeyDown}
 					/>
-					<button
-						type="button"
-						className="btn shrink-0 self-end"
+					<Button
+						className="shrink-0 self-end"
 						onClick={handleSend}
 						disabled={!input.trim() || isLoading}
 					>
 						Send
-					</button>
-				</div>
-			</div>
+					</Button>
+				</CardFooter>
+			</Card>
 		</div>
 	);
 }

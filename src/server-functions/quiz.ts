@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { generateQuizQuestions } from '../lib/ai/prompts/generate-quiz';
-import { getExplanation } from '../lib/ai/prompts/explain-answer';
+import { evaluateQuizAnswer } from '../lib/ai/prompts/evaluate-answer';
 import { providerConfigSchema } from '../lib/validation';
 import { getMemoryContext } from './memory';
 
@@ -17,7 +17,6 @@ const generateQuizSchema = z.object({
 const submitAnswerSchema = z.object({
   questionId: z.number(),
   userAnswer: z.string(),
-  correctAnswer: z.string(),
   question: z.string(),
   config: providerConfigSchema,
 });
@@ -52,27 +51,34 @@ export const submitAnswer = createServerFn({ method: 'POST' })
   .inputValidator(submitAnswerSchema)
   .handler(async (ctx) => {
     const { data } = ctx;
-    const isCorrect = data.userAnswer === data.correctAnswer;
 
     const db = await getDB(ctx);
     if (!db) throw new Error('D1 database not available');
 
     const queries = new DBQueries(db);
-    await queries.recordAttempt(data.questionId, data.userAnswer, isCorrect);
+    const storedQuestion = await queries.getQuestionById(data.questionId);
+    if (!storedQuestion) {
+      throw new Error('Question not found');
+    }
 
-    const memoryResult = await getMemoryContext({ data: { topics: [data.question] } }).catch(() => ({ context: '' }));
+    const memoryTopic = storedQuestion.topic || data.question;
+    const memoryResult = await getMemoryContext({ data: { topics: [memoryTopic] } }).catch(() => ({ context: '' }));
 
-    const explanation = await getExplanation(
+    const evaluation = await evaluateQuizAnswer(
       data.config,
-      data.question,
-      data.userAnswer,
-      data.correctAnswer,
-      isCorrect,
-      memoryResult.context || undefined
+      {
+        question: storedQuestion.question,
+        options: storedQuestion.options,
+        userAnswer: data.userAnswer,
+        correctAnswer: storedQuestion.answer,
+      },
+      memoryResult.context || undefined,
     );
 
+    await queries.recordAttempt(data.questionId, data.userAnswer, evaluation.correct);
+
     return {
-      correct: isCorrect,
-      explanation,
+      correct: evaluation.correct,
+      explanation: evaluation.explanation,
     };
   });

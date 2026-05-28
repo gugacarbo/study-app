@@ -1,6 +1,6 @@
 # Components
 
-React components in TanStack Start SPA. 11 files, each self-contained.
+React components in TanStack Start SPA. 12 files, each self-contained.
 
 ## Inventory
 
@@ -15,13 +15,14 @@ React components in TanStack Start SPA. 11 files, each self-contained.
 | `ConfigForm.tsx` | `/config` | TanStack Query (`getConfig`) | AI provider/model/URL config form |
 | `ThemeToggle.tsx` | global (nav) | Local state + class toggle | Light/dark mode switch |
 | `Chat.tsx` | `/chat` | Local state + fetch | AI chat assistant |
+| `MemoryPanel.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory overview and search |
 | `ObsidianConfigForm.tsx` | `/obsidian` | Local state | Obsidian connection config |
 | `ObsidianPanel.tsx` | `/obsidian` | TanStack Query | Vault management UI |
 
 ## State Conventions
 - **Ephemeral quiz state** → `src/stores/quizStore.ts` (TanStack Store)
 - **Server data** → TanStack Query with `useSuspenseQuery` + server functions
-- **Form state** → Local `useState` (no TanStack Form used yet)
+- **Form state** → `react-hook-form` + `@hookform/resolvers` (ConfigForm) or local `useState` (other forms)
 - **No component tests exist** — `@testing-library/react` is installed but unused
 
 ## Patterns
