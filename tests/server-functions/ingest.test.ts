@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DBQueries } from '#/db/queries';
 
-// Mock AI module
-vi.mock('#/lib/ai', () => ({
+// Mock AI prompt modules
+vi.mock('#/lib/prompts/extract-questions', () => ({
   extractQuestionsFromText: vi.fn(async () => ({
     questions: [
       {

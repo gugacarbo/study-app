@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
-import { generateText } from '../lib/ai';
+import { generateText } from '../lib/ai/ai';
 
 export const getConfig = createServerFn({ method: 'GET' }).handler(async (ctx) => {
   const db = await getDB(ctx);

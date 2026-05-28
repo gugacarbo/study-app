@@ -24,6 +24,7 @@ const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getIte
 
 const navItems = [
 	{ to: "/", label: "Dashboard" },
+	{ to: "/exams", label: "Exams" },
 	{ to: "/upload", label: "Upload" },
 	{ to: "/stats", label: "Stats" },
 	{ to: "/chat", label: "Chat" },
@@ -54,6 +55,23 @@ function AppNav() {
 	);
 }
 
+function DefaultNotFound() {
+	return (
+		<div className="rounded-lg border border-border bg-surface p-6">
+			<h1 className="text-lg font-semibold text-text">Page not found</h1>
+			<p className="mt-2 text-sm text-text-muted">
+				The page you requested does not exist.
+			</p>
+			<Link
+				to="/"
+				className="mt-4 inline-flex text-sm font-medium text-primary hover:underline"
+			>
+				Back to dashboard
+			</Link>
+		</div>
+	);
+}
+
 export const Route = createRootRoute({
 	head: () => ({
 		meta: [
@@ -63,6 +81,7 @@ export const Route = createRootRoute({
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
 	}),
+	notFoundComponent: DefaultNotFound,
 	shellComponent: RootDocument,
 });
 

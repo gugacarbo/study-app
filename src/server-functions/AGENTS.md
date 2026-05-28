@@ -1,6 +1,6 @@
 # Server Functions
 
-Server-side functions using TanStack Start's `createServerFn`. 6 files.
+Server-side functions using TanStack Start's `createServerFn`. 7 files.
 
 ## Inventory
 
@@ -10,13 +10,14 @@ Server-side functions using TanStack Start's `createServerFn`. 6 files.
 | `ingest.ts` | `ingestExam` | `createServerFn` (POST) |
 | `quiz.ts` | `generateQuiz`, `submitAnswer` | `createServerFn` (POST) |
 | `stats.ts` | `getStats`, `getExams` | `createServerFn` (GET) |
+| `exams.ts` | `getExamDetail`, `getExamsDetailed`, `deleteExam` | `createServerFn` (GET/POST) |
 | `obsidian.ts` | 7 functions (status, save, export, search, config) | `createServerFn` |
 | `db.ts` | `getDB` | **NOT a server fn** — utility helper |
 
 ## Patterns
 - **Input validation:** Zod schemas passed via `inputValidator` (from `src/lib/validation.ts`)
 - **D1 access:** All DB fns import `getDB` from `./db.ts` which resolves the `D1Database` binding
-- **AI calls:** Via `src/lib/ai.ts` (extractQuestionsFromText, getExplanation, generateQuizQuestions)
+- **AI calls:** Via `src/lib/ai/` module (ai.ts core, prompts/extract-questions, prompts/generate-quiz, prompts/explain-answer)
 - **Obsidian calls:** Via `src/lib/obsidian.ts` REST client
 - **Environment:** Server-only by default — never importable from client
 

@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DBQueries } from '#/db/queries';
 
-vi.mock('#/lib/ai', () => ({
+vi.mock('#/lib/prompts/explain-answer', () => ({
   getExplanation: vi.fn(async () => 'This is the correct answer because...'),
+}));
+vi.mock('#/lib/prompts/generate-quiz', () => ({
   generateQuizQuestions: vi.fn(async () => []),
 }));
 

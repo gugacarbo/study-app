@@ -33,8 +33,10 @@ Single-user web app for studying college exams using past exams as source materi
 ## Project Structure
 ```
 src/
-├── components/          # UI components (9 files)
+├── components/          # UI components (11 files)
 │   ├── Dashboard.tsx    # Home page — exam list + quick stats
+│   ├── ExamDetail.tsx   # Exam detail view with stats, files, questions
+│   ├── ExamsView.tsx    # Exam list view with search and delete
 │   ├── UploadForm.tsx   # PDF upload + text paste
 │   ├── Quiz.tsx         # Quiz player (question nav, timer, scoring)
 │   ├── StatsTable.tsx   # Stats display (plain HTML table)
@@ -43,10 +45,12 @@ src/
 │   ├── Chat.tsx         # AI chat assistant
 │   ├── ObsidianConfigForm.tsx
 │   └── ObsidianPanel.tsx
-├── routes/              # File-based TanStack Router routes (10)
+├── routes/              # File-based TanStack Router routes (12)
 │   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts
 │   ├── index.tsx        # / — Dashboard
 │   ├── upload.tsx       # /upload
+│   ├── exams.tsx        # /exams — exam list page
+│   ├── exams.$id.tsx    # /exams/$id — exam detail page
 │   ├── quiz.$id.tsx     # /quiz/$id — quiz by exam ID
 │   ├── stats.tsx        # /stats
 │   ├── config.tsx       # /config — AI provider settings
@@ -54,18 +58,20 @@ src/
 │   ├── about.tsx        # /about
 │   ├── obsidian.tsx     # /obsidian — Obsidian vault management
 │   └── api.chat.ts      # /api/chat — POST handler (server-side API)
-├── server-functions/    # Server functions + utilities (6)
+├── server-functions/    # Server functions + utilities (7)
 │   ├── config.ts        # getConfig, setConfig, testConnection
 │   ├── ingest.ts        # ingestExam (PDF → questions)
 │   ├── quiz.ts          # generateQuiz, submitAnswer
 │   ├── stats.ts         # getStats, getExams
+│   ├── exams.ts         # getExamDetail, getExamsDetailed, deleteExam
 │   ├── obsidian.ts      # Memory vault operations (7 fns)
 │   └── db.ts            # NOT a server fn — D1 helper utility
 ├── db/
-│   ├── schema.ts        # Drizzle schema definitions (4 tables)
+│   ├── schema.ts        # Drizzle schema definitions (5 tables)
 │   └── queries.ts       # Drizzle query layer (DBQueries class)
 ├── lib/
-│   ├── ai.ts            # AI integration (extract, explain, generate)
+│   ├── ai/              # AI integration module (ai.ts, parse-json.ts, prompts/)
+│   ├── file-service.ts  # File storage and retrieval service
 │   ├── memory.ts        # Obsidian memory manager
 │   ├── obsidian.ts      # Obsidian REST API client
 │   └── validation.ts    # Zod schemas
@@ -85,7 +91,8 @@ migrations/
 ├── 0001_exams.sql       # exams table
 ├── 0002_questions.sql   # questions table (depends on exams)
 ├── 0003_attempts.sql    # attempts table (depends on questions)
-└── 0004_config.sql      # config table + seed data
+├── 0004_config.sql      # config table + seed data
+└── 0005_files.sql       # files table (depends on exams)
 ```
 
 ## Commands
@@ -113,7 +120,7 @@ migrations/
 - **Single-user, local-first** — no auth, no multi-tenancy
 - **All AI calls server-side** — never in browser
 - **D1 via Drizzle ORM** — `src/db/schema.ts` defines tables, `src/db/queries.ts` wraps Drizzle operations
-- **Migrations managed by wrangler** — each table has its own migration file (`0001_exams.sql` → `0004_config.sql`)
+- **Migrations managed by wrangler** — each table has its own migration file (\`0001_exams.sql\` → \`0005_files.sql\`)
 - **SPA mode** (no SSR) — appropriate for single-user app
 - **TanStack Store** for quiz state (ephemeral), **TanStack Query** for server data
 - **PDF parsing** via text extraction; fallback to manual paste
@@ -137,6 +144,7 @@ migrations/
 - Drizzle `d1-http` driver is for migration generation only; runtime uses `drizzle-orm/d1`
 - Test mocks must support `stmt.bind(...).raw()` for Drizzle D1 compatibility
 - `db:reset` drops all tables — use with caution (local only)
+- File blobs stored in D1 `files` table (content column) — large files may hit D1's 1MB row limit
 
 <!-- intent-skills:start -->
 # Skill mappings - load `use` with `npx @tanstack/intent@latest load <use>`.

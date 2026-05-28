@@ -2,7 +2,8 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { DBQueries } from '../db/queries';
 import { getDB } from './db';
-import { generateQuizQuestions, getExplanation } from '../lib/ai';
+import { generateQuizQuestions } from '../lib/ai/prompts/generate-quiz';
+import { getExplanation } from '../lib/ai/prompts/explain-answer';
 import { providerConfigSchema } from '../lib/validation';
 import { getMemoryContext } from './obsidian';
 

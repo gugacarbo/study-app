@@ -2,7 +2,8 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { DBQueries } from '../db/queries';
 import { getDB } from './db';
-import { extractQuestionsFromText } from '../lib/ai';
+import { extractQuestionsFromText } from '../lib/ai/prompts/extract-questions';
+import { FileService } from '../lib/file-service';
 import { providerConfigSchema } from '../lib/validation';
 import { getMemoryContext } from './obsidian';
 
@@ -27,6 +28,7 @@ export const ingestExam = createServerFn({ method: 'POST' })
     }
 
     const queries = new DBQueries(db);
+    const fileService = new FileService(db);
     const bytes = new Uint8Array(data.buffer);
     const text = extractTextFromBytes(bytes);
 
@@ -49,9 +51,14 @@ export const ingestExam = createServerFn({ method: 'POST' })
       await queries.insertQuestions(examId, finalExtracted.questions);
     }
 
+    // Save the original file
+    const mimeType = FileService.inferMimeType(data.fileName);
+    const fileId = await fileService.save(examId, data.fileName, data.buffer, mimeType);
+
     return {
       questions: finalExtracted.questions.length,
       topics: finalExtracted.topics,
       examId,
+      fileId,
     };
   });

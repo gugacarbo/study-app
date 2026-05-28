@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, blob, index } from "drizzle-orm/sqlite-core";
 
 export const exams = sqliteTable("exams", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -37,6 +37,22 @@ export const attempts = sqliteTable(
 		timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [index("idx_attempts_question_id").on(table.question_id)],
+);
+
+export const files = sqliteTable(
+	"files",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		exam_id: integer("exam_id").references(() => exams.id, {
+			onDelete: "cascade",
+		}),
+		name: text("name").notNull(),
+		content: blob("content", { mode: "buffer" }).notNull(),
+		mime_type: text("mime_type"),
+		size: integer("size"),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [index("idx_files_exam_id").on(table.exam_id)],
 );
 
 export const config = sqliteTable("config", {

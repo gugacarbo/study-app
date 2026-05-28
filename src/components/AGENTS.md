@@ -1,12 +1,14 @@
 # Components
 
-React components in TanStack Start SPA. 9 files, each self-contained.
+React components in TanStack Start SPA. 11 files, each self-contained.
 
 ## Inventory
 
 | Component | Route | State Source | Purpose |
 |---|---|---|---|
 | `Dashboard.tsx` | `/` | TanStack Query (`getExams`) | Exam list + quick stats cards |
+| `ExamDetail.tsx` | `/exams/$id` | TanStack Query (`getExamDetail`) | Exam detail with stats, files, questions |
+| `ExamsView.tsx` | `/exams` | TanStack Query (`getExamsDetailed`) | Exam list with search and delete |
 | `UploadForm.tsx` | `/upload` | Local state | PDF file picker + text paste area |
 | `Quiz.tsx` | `/quiz/$id` | TanStack Store (`quizStore`) | Question display, timer, answer submission, results |
 | `StatsTable.tsx` | `/stats` | TanStack Query (`getStats`) | Plain HTML table — no TanStack Table yet |

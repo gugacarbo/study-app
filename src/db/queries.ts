@@ -36,13 +36,114 @@ interface ParsedQuestion {
 	topic: string;
 }
 
+export interface ExamFull {
+	id: number;
+	name: string;
+	source: string | null;
+	created_at: string | null;
+	questionCount: number;
+	topics: string[];
+	files: FileInfo[];
+	questions: ParsedQuestion[];
+	stats: {
+		totalQuestions: number;
+		totalAttempts: number;
+		correctAttempts: number;
+		overallAccuracy: number;
+		topicStats: TopicStats[];
+	};
+}
+
 type DrizzleDB = DrizzleD1Database<typeof schema>;
+
+export interface FileRecord {
+	id: number;
+	exam_id: number | null;
+	name: string;
+	content: Buffer;
+	mime_type: string | null;
+	size: number | null;
+	created_at: string | null;
+}
+
+export interface FileInfo {
+	id: number;
+	exam_id: number | null;
+	name: string;
+	mime_type: string | null;
+	size: number | null;
+	created_at: string | null;
+}
+
+export interface ExamDetail {
+	id: number;
+	name: string;
+	source: string | null;
+	created_at: string | null;
+	questionCount: number;
+	topics: string[];
+	files: FileInfo[];
+}
 
 export class DBQueries {
 	private db: DrizzleDB;
 
 	constructor(d1: D1Database) {
 		this.db = drizzle(d1, { schema });
+	}
+
+	async insertFile(
+		examId: number,
+		name: string,
+		content: Buffer,
+		mimeType?: string,
+	): Promise<number> {
+		const result = await this.db
+			.insert(schema.files)
+			.values({
+				exam_id: examId,
+				name,
+				content,
+				mime_type: mimeType || null,
+				size: content.length,
+			})
+			.returning({ id: schema.files.id })
+			.get();
+
+		return result?.id ?? 0;
+	}
+
+	async getFile(id: number): Promise<FileRecord | null> {
+		const row = await this.db
+			.select()
+			.from(schema.files)
+			.where(eq(schema.files.id, id))
+			.get();
+
+		return (row as FileRecord | undefined) ?? null;
+	}
+
+	async getFilesByExam(examId: number): Promise<FileInfo[]> {
+		return await this.db
+			.select({
+				id: schema.files.id,
+				exam_id: schema.files.exam_id,
+				name: schema.files.name,
+				mime_type: schema.files.mime_type,
+				size: schema.files.size,
+				created_at: schema.files.created_at,
+			})
+			.from(schema.files)
+			.where(eq(schema.files.exam_id, examId))
+			.orderBy(sql`created_at DESC`)
+			.all();
+	}
+
+	async deleteFile(id: number): Promise<void> {
+		await this.db
+			.delete(schema.files)
+			.where(eq(schema.files.id, id))
+			.run();
 	}
 
 	async insertExam(name: string, source?: string): Promise<number> {
@@ -71,6 +172,141 @@ export class DBQueries {
 			.from(schema.exams)
 			.orderBy(sql`created_at DESC`)
 			.all();
+	}
+
+	async getExamsDetailed(): Promise<ExamDetail[]> {
+		const exams = await this.getExams();
+
+		// Get question counts and topics per exam
+		const examDetails = await this.db
+			.select({
+				exam_id: schema.questions.exam_id,
+				questionCount: count(),
+				topics: sql<string>`GROUP_CONCAT(DISTINCT ${schema.questions.topic})`,
+			})
+			.from(schema.questions)
+			.groupBy(schema.questions.exam_id)
+			.all();
+
+		const examDetailMap = new Map(examDetails.map((e) => [e.exam_id, e]));
+
+		// Get all files grouped by exam_id
+		const allFiles = await this.db
+			.select({
+				id: schema.files.id,
+				exam_id: schema.files.exam_id,
+				name: schema.files.name,
+				mime_type: schema.files.mime_type,
+				size: schema.files.size,
+				created_at: schema.files.created_at,
+			})
+			.from(schema.files)
+			.all();
+
+		const filesByExam = new Map<number, FileInfo[]>();
+		for (const file of allFiles) {
+			if (file.exam_id === null) continue;
+			const list = filesByExam.get(file.exam_id) ?? [];
+			list.push(file);
+			filesByExam.set(file.exam_id, list);
+		}
+
+		return exams.map((exam) => ({
+			...exam,
+			questionCount: examDetailMap.get(exam.id)?.questionCount ?? 0,
+			topics: (examDetailMap.get(exam.id)?.topics ?? "")
+				.split(",")
+				.filter(Boolean),
+			files: filesByExam.get(exam.id) ?? [],
+		}));
+	}
+
+	async getExamStats(examId: number): Promise<{
+		totalQuestions: number;
+		totalAttempts: number;
+		correctAttempts: number;
+		overallAccuracy: number;
+		topicStats: TopicStats[];
+	}> {
+		const overall = await this.db
+			.select({
+				totalAttempts: count(schema.attempts.id),
+				correctAttempts: sql<number>`COALESCE(SUM(${schema.attempts.correct}), 0)`,
+			})
+			.from(schema.questions)
+			.leftJoin(
+				schema.attempts,
+				eq(schema.attempts.question_id, schema.questions.id),
+			)
+			.where(eq(schema.questions.exam_id, examId))
+			.get();
+
+		const totalQuestionsResult = await this.db
+			.select({ count: count() })
+			.from(schema.questions)
+			.where(eq(schema.questions.exam_id, examId))
+			.get();
+
+		const topicResults = await this.db
+			.select({
+				topic: schema.questions.topic,
+				total: count(schema.attempts.id),
+				correct: sql<number>`COALESCE(SUM(${schema.attempts.correct}), 0)`,
+			})
+			.from(schema.questions)
+			.leftJoin(
+				schema.attempts,
+				eq(schema.attempts.question_id, schema.questions.id),
+			)
+			.where(eq(schema.questions.exam_id, examId))
+			.groupBy(schema.questions.topic)
+			.all();
+
+		const totalQuestions = totalQuestionsResult?.count ?? 0;
+		const totalAttempts = overall?.totalAttempts ?? 0;
+		const correctAttempts = overall?.correctAttempts ?? 0;
+
+		return {
+			totalQuestions,
+			totalAttempts,
+			correctAttempts,
+			overallAccuracy:
+				totalAttempts > 0
+					? Math.round((correctAttempts / totalAttempts) * 100)
+					: 0,
+			topicStats: topicResults.map((t) => ({
+				topic: t.topic ?? "General",
+				total: t.total,
+				correct: t.correct,
+				accuracy: t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0,
+			})),
+		};
+	}
+
+	async getExamFull(examId: number): Promise<ExamFull | null> {
+		const exam = await this.getExamById(examId);
+		if (!exam) return null;
+
+		const questions = await this.getQuestionsByExam(examId);
+		const files = await this.getFilesByExam(examId);
+		const stats = await this.getExamStats(examId);
+
+		const topics = [
+			...new Set(questions.map((q) => q.topic).filter(Boolean)),
+		];
+
+		return {
+			...exam,
+			questionCount: questions.length,
+			topics,
+			files,
+			questions,
+			stats,
+		};
+	}
+
+	async deleteExam(id: number): Promise<void> {
+		await this.db.delete(schema.exams).where(eq(schema.exams.id, id)).run();
 	}
 
 	async insertQuestions(examId: number, questions: Question[]): Promise<void> {
