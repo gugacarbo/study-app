@@ -34,15 +34,6 @@ export const examIngestResponseSchema = z.object({
 
 export type ExamIngestResponse = z.infer<typeof examIngestResponseSchema>;
 
-export const obsidianConfigSchema = z.object({
-  host: z.string().default('localhost'),
-  port: z.coerce.number().int().min(1).max(65535).default(27124),
-  apiKey: z.string().optional(),
-  enabled: z.boolean().default(false),
-});
-
-export type ObsidianConfig = z.infer<typeof obsidianConfigSchema>;
-
 export const memorySessionSchema = z.object({
   examName: z.string(),
   topic: z.string(),

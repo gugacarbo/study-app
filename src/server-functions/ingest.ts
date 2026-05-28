@@ -5,7 +5,7 @@ import { getDB } from './db';
 import { extractQuestionsFromText } from '../lib/ai/prompts/extract-questions';
 import { FileService } from '../lib/file-service';
 import { providerConfigSchema } from '../lib/validation';
-import { getMemoryContext } from './obsidian';
+import { getMemoryContext } from './memory';
 
 function extractTextFromBytes(bytes: Uint8Array): string {
   const text = new TextDecoder().decode(bytes);

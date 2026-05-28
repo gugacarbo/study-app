@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as StatsRouteImport } from './routes/stats'
-import { Route as ObsidianRouteImport } from './routes/obsidian'
 import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as ConfigRouteImport } from './routes/config'
 import { Route as ChatRouteImport } from './routes/chat'
@@ -20,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExamsIndexRouteImport } from './routes/exams.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
+import { Route as ApiIngestRouteImport } from './routes/api.ingest'
 import { Route as ApiChatRouteImport } from './routes/api.chat'
 
 const UploadRoute = UploadRouteImport.update({
@@ -30,11 +30,6 @@ const UploadRoute = UploadRouteImport.update({
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ObsidianRoute = ObsidianRouteImport.update({
-  id: '/obsidian',
-  path: '/obsidian',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExamsRoute = ExamsRouteImport.update({
@@ -77,6 +72,11 @@ const ExamsIdRoute = ExamsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ExamsRoute,
 } as any)
+const ApiIngestRoute = ApiIngestRouteImport.update({
+  id: '/api/ingest',
+  path: '/api/ingest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -89,10 +89,10 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
-  '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/ingest': typeof ApiIngestRoute
   '/exams/$id': typeof ExamsIdRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
@@ -102,10 +102,10 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
-  '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/ingest': typeof ApiIngestRoute
   '/exams/$id': typeof ExamsIdRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams': typeof ExamsIndexRoute
@@ -117,10 +117,10 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
-  '/obsidian': typeof ObsidianRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/ingest': typeof ApiIngestRoute
   '/exams/$id': typeof ExamsIdRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
@@ -133,10 +133,10 @@ export interface FileRouteTypes {
     | '/chat'
     | '/config'
     | '/exams'
-    | '/obsidian'
     | '/stats'
     | '/upload'
     | '/api/chat'
+    | '/api/ingest'
     | '/exams/$id'
     | '/quiz/$id'
     | '/exams/'
@@ -146,10 +146,10 @@ export interface FileRouteTypes {
     | '/about'
     | '/chat'
     | '/config'
-    | '/obsidian'
     | '/stats'
     | '/upload'
     | '/api/chat'
+    | '/api/ingest'
     | '/exams/$id'
     | '/quiz/$id'
     | '/exams'
@@ -160,10 +160,10 @@ export interface FileRouteTypes {
     | '/chat'
     | '/config'
     | '/exams'
-    | '/obsidian'
     | '/stats'
     | '/upload'
     | '/api/chat'
+    | '/api/ingest'
     | '/exams/$id'
     | '/quiz/$id'
     | '/exams/'
@@ -175,10 +175,10 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   ConfigRoute: typeof ConfigRoute
   ExamsRoute: typeof ExamsRouteWithChildren
-  ObsidianRoute: typeof ObsidianRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiIngestRoute: typeof ApiIngestRoute
   QuizIdRoute: typeof QuizIdRoute
 }
 
@@ -196,13 +196,6 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/obsidian': {
-      id: '/obsidian'
-      path: '/obsidian'
-      fullPath: '/obsidian'
-      preLoaderRoute: typeof ObsidianRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/exams': {
@@ -261,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamsIdRouteImport
       parentRoute: typeof ExamsRoute
     }
+    '/api/ingest': {
+      id: '/api/ingest'
+      path: '/api/ingest'
+      fullPath: '/api/ingest'
+      preLoaderRoute: typeof ApiIngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -289,10 +289,10 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   ConfigRoute: ConfigRoute,
   ExamsRoute: ExamsRouteWithChildren,
-  ObsidianRoute: ObsidianRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiIngestRoute: ApiIngestRoute,
   QuizIdRoute: QuizIdRoute,
 }
 export const routeTree = rootRouteImport

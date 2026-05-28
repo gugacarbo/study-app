@@ -1,15 +1,15 @@
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-	HeadContent,
-	Scripts,
 	createRootRoute,
+	HeadContent,
 	Link,
+	Scripts,
 	useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import { TanStackDevtools } from "@tanstack/react-devtools";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import appCss from "../styles.css?url";
+import appCss from "../globals.css?url";
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -28,7 +28,6 @@ const navItems = [
 	{ to: "/upload", label: "Upload" },
 	{ to: "/stats", label: "Stats" },
 	{ to: "/chat", label: "Chat" },
-	{ to: "/obsidian", label: "Obsidian" },
 	{ to: "/config", label: "Config" },
 ];
 
@@ -89,10 +88,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
+				{/** biome-ignore lint/security/noDangerouslySetInnerHtml: i known */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased [overflow-wrap:anywhere]">
+			<body className="font-sans antialiased wrap-anywhere">
 				<QueryClientProvider client={queryClient}>
 					<AppNav />
 					<main className="max-w-3xl mx-auto px-4 py-8">{children}</main>

@@ -327,6 +327,39 @@ export class DBQueries {
 			.run();
 	}
 
+	async updateQuestion(
+		id: number,
+		data: {
+			question?: string;
+			options?: string[];
+			answer?: string;
+			explanation?: string;
+			topic?: string;
+		},
+	): Promise<void> {
+		const updates: Record<string, unknown> = {};
+		if (data.question !== undefined) updates.question = data.question;
+		if (data.options !== undefined) updates.options = JSON.stringify(data.options);
+		if (data.answer !== undefined) updates.answer = data.answer;
+		if (data.explanation !== undefined) updates.explanation = data.explanation;
+		if (data.topic !== undefined) updates.topic = data.topic;
+
+		if (Object.keys(updates).length === 0) return;
+
+		await this.db
+			.update(schema.questions)
+			.set(updates)
+			.where(eq(schema.questions.id, id))
+			.run();
+	}
+
+	async deleteQuestion(id: number): Promise<void> {
+		await this.db
+			.delete(schema.questions)
+			.where(eq(schema.questions.id, id))
+			.run();
+	}
+
 	async getQuestionsByExam(examId: number): Promise<ParsedQuestion[]> {
 		const rows = await this.db
 			.select()
@@ -341,6 +374,23 @@ export class DBQueries {
 			explanation: r.explanation ?? "",
 			topic: r.topic ?? "",
 		}));
+	}
+
+	async getQuestionById(questionId: number): Promise<ParsedQuestion | null> {
+		const row = await this.db
+			.select()
+			.from(schema.questions)
+			.where(eq(schema.questions.id, questionId))
+			.get();
+
+		if (!row) return null;
+
+		return {
+			...row,
+			options: JSON.parse(row.options) as string[],
+			explanation: row.explanation ?? "",
+			topic: row.topic ?? "",
+		};
 	}
 
 	async getRandomQuestions(

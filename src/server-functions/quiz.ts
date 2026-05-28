@@ -5,7 +5,7 @@ import { getDB } from './db';
 import { generateQuizQuestions } from '../lib/ai/prompts/generate-quiz';
 import { getExplanation } from '../lib/ai/prompts/explain-answer';
 import { providerConfigSchema } from '../lib/validation';
-import { getMemoryContext } from './obsidian';
+import { getMemoryContext } from './memory';
 
 const generateQuizSchema = z.object({
   topic: z.string().optional(),

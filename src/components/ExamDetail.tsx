@@ -14,8 +14,11 @@ import {
 	ChevronUp,
 	HelpCircle,
 	BarChart3,
+	Pencil,
+	Save,
+	X,
 } from 'lucide-react'
-import { getExamDetail, deleteExam } from '../server-functions/exams'
+import { getExamDetail, deleteExam, updateQuestion } from '../server-functions/exams'
 
 function formatDate(dateStr: string | null): string {
 	if (!dateStr) return '—'
@@ -57,6 +60,15 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(
 		new Set(),
 	)
+	const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null)
+	const [editForm, setEditForm] = useState<{
+		question: string
+		options: string[]
+		answer: string
+		explanation: string
+		topic: string
+	} | null>(null)
+	const [saving, setSaving] = useState(false)
 
 	const { data: exam } = useSuspenseQuery({
 		queryKey: ['exam-detail', examId],
@@ -84,6 +96,45 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 			console.error('Failed to delete exam:', err)
 		} finally {
 			setDeleting(false)
+		}
+	}
+
+	const startEditing = (q: typeof exam.questions[0]) => {
+		setEditingQuestionId(q.id)
+		setEditForm({
+			question: q.question,
+			options: [...q.options],
+			answer: q.answer,
+			explanation: q.explanation || '',
+			topic: q.topic || '',
+		})
+	}
+
+	const cancelEditing = () => {
+		setEditingQuestionId(null)
+		setEditForm(null)
+	}
+
+	const handleSave = async (questionId: number) => {
+		if (!editForm) return
+		setSaving(true)
+		try {
+			await updateQuestion({
+				data: {
+					id: questionId,
+					question: editForm.question,
+					options: editForm.options,
+					answer: editForm.answer,
+					explanation: editForm.explanation || '',
+					topic: editForm.topic || '',
+				},
+			})
+			queryClient.invalidateQueries({ queryKey: ['exam-detail', examId] })
+			cancelEditing()
+		} catch (err) {
+			console.error('Failed to update question:', err)
+		} finally {
+			setSaving(false)
 		}
 	}
 
@@ -372,46 +423,192 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 									{/* Expanded content */}
 									{isExpanded && (
 										<div className="px-3 pb-3 pt-0 border-t border-border">
-											{/* Options */}
-											<div className="mt-3 space-y-1.5">
-												{q.options.map((opt, optIdx) => {
-													const letter = String.fromCharCode(65 + optIdx) // A, B, C, D
-													const isCorrect = opt === q.answer
-													return (
-														<div
-															key={optIdx}
-															className={`flex items-start gap-2.5 rounded-lg p-2.5 text-sm ${
-																isCorrect
-																	? 'bg-success/10 border border-success/30'
-																	: 'bg-surface-hover'
-															}`}
-														>
-															<span
-																className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
-																	isCorrect
-																		? 'bg-success text-white'
-																		: 'bg-surface text-text-muted'
-																}`}
-															>
-																{letter}
-															</span>
-															<span className="flex-1">{opt}</span>
-															{isCorrect && (
-																<CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
-															)}
-														</div>
-													)
-												})}
-											</div>
+											{editingQuestionId === q.id && editForm ? (
+												/* Edit mode */
+												<div className="mt-3 space-y-3">
+													{/* Question text */}
+													<div>
+														<label className="text-xs font-semibold text-text-muted mb-1 block">
+															Question
+														</label>
+														<textarea
+															value={editForm.question}
+															onChange={(e) =>
+																setEditForm({ ...editForm, question: e.target.value })
+															}
+															className="w-full rounded-lg border border-border bg-surface p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y min-h-[60px]"
+														/>
+													</div>
 
-											{/* Explanation */}
-											{q.explanation && (
-												<div className="mt-3 rounded-lg bg-surface-hover p-3 text-sm">
-													<p className="text-xs font-semibold text-text-muted mb-1">
-														Explanation
-													</p>
-													<p className="leading-relaxed">{q.explanation}</p>
+													{/* Options */}
+													<div>
+														<label className="text-xs font-semibold text-text-muted mb-1 block">
+															Options
+														</label>
+														<div className="space-y-1.5">
+															{editForm.options.map((opt, optIdx) => {
+																const letter = String.fromCharCode(65 + optIdx)
+																return (
+																	<div key={optIdx} className="flex items-center gap-2">
+																		<input
+																			type="radio"
+																			name={`correct-${q.id}`}
+																			checked={editForm.answer === opt}
+																			onChange={() =>
+																				setEditForm({ ...editForm, answer: opt })
+																			}
+																			className="shrink-0 accent-primary"
+																		/>
+																		<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-surface text-[11px] font-bold text-text-muted">
+																			{letter}
+																		</span>
+																		<input
+																			type="text"
+																			value={opt}
+																			onChange={(e) => {
+																				const newOptions = [...editForm.options]
+																				newOptions[optIdx] = e.target.value
+																				setEditForm({
+																					...editForm,
+																					options: newOptions,
+																					answer:
+																						editForm.answer === opt
+																							? e.target.value
+																							: editForm.answer,
+																				})
+																			}}
+																			className="flex-1 rounded-lg border border-border bg-surface p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+																		/>
+																		{editForm.options.length > 2 && (
+																			<button
+																				type="button"
+																				onClick={() => {
+																					const newOptions = editForm.options.filter(
+																						(_, i) => i !== optIdx,
+																					)
+																					const newAnswer =
+																						editForm.answer === opt
+																							? newOptions[0] ?? ''
+																							: editForm.answer
+																					setEditForm({
+																						...editForm,
+																						options: newOptions,
+																						answer: newAnswer,
+																					})
+																				}}
+																				className="text-text-muted hover:text-error transition-colors"
+																			>
+																				<X className="h-4 w-4" />
+																			</button>
+																		)}
+																	</div>
+																)
+															})}
+														</div>
+														<button
+															type="button"
+															onClick={() =>
+																setEditForm({
+																	...editForm,
+																	options: [...editForm.options, ''],
+																})
+															}
+															className="mt-1.5 text-xs text-primary hover:underline"
+														>
+															+ Add option
+														</button>
+													</div>
+
+													{/* Explanation */}
+													<div>
+														<label className="text-xs font-semibold text-text-muted mb-1 block">
+															Explanation
+														</label>
+														<textarea
+															value={editForm.explanation}
+															onChange={(e) =>
+																setEditForm({ ...editForm, explanation: e.target.value })
+															}
+															className="w-full rounded-lg border border-border bg-surface p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y min-h-[50px]"
+														/>
+													</div>
+
+													{/* Actions */}
+													<div className="flex gap-2">
+														<button
+															type="button"
+															onClick={() => handleSave(q.id)}
+															disabled={saving || !editForm.question || editForm.options.length < 2 || !editForm.answer}
+															className="btn text-sm gap-1.5"
+														>
+															<Save className="h-4 w-4" />
+															{saving ? 'Saving...' : 'Save'}
+														</button>
+														<button
+															type="button"
+															onClick={cancelEditing}
+															className="rounded bg-surface-hover px-3 py-2 text-xs font-medium text-text-muted hover:text-text transition-colors"
+														>
+															Cancel
+														</button>
+													</div>
 												</div>
+											) : (
+												/* View mode */
+												<>
+													<div className="flex justify-end mt-2">
+														<button
+															type="button"
+															onClick={() => startEditing(q)}
+															className="flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
+														>
+															<Pencil className="h-3.5 w-3.5" />
+															Edit
+														</button>
+													</div>
+
+													{/* Options */}
+													<div className="space-y-1.5">
+														{q.options.map((opt, optIdx) => {
+															const letter = String.fromCharCode(65 + optIdx)
+															const isCorrect = opt === q.answer
+															return (
+																<div
+																	key={optIdx}
+																	className={`flex items-start gap-2.5 rounded-lg p-2.5 text-sm ${
+																		isCorrect
+																			? 'bg-success/10 border border-success/30'
+																			: 'bg-surface-hover'
+																	}`}
+																>
+																	<span
+																		className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
+																			isCorrect
+																				? 'bg-success text-white'
+																				: 'bg-surface text-text-muted'
+																		}`}
+																	>
+																		{letter}
+																	</span>
+																	<span className="flex-1">{opt}</span>
+																	{isCorrect && (
+																		<CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+																	)}
+																</div>
+															)
+														})}
+													</div>
+
+													{/* Explanation */}
+													{q.explanation && (
+														<div className="mt-3 rounded-lg bg-surface-hover p-3 text-sm">
+															<p className="text-xs font-semibold text-text-muted mb-1">
+																Explanation
+															</p>
+															<p className="leading-relaxed">{q.explanation}</p>
+														</div>
+													)}
+												</>
 											)}
 										</div>
 									)}

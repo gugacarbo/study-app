@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
 import { generateQuiz, submitAnswer } from '../server-functions/quiz'
 import { getConfig } from '../server-functions/config'
-import { saveQuizSessionToMemory } from '../server-functions/obsidian'
+import { saveQuizSessionToMemory } from '../server-functions/memory'
 import { quizStore, resetQuiz, selectAnswer, nextQuestion, recordAnswer } from '../stores/quizStore'
 import type { ProviderConfig, Question } from '../lib/validation'
 
@@ -61,6 +61,9 @@ export function Quiz({ examId, topic }: QuizProps) {
       })
 
       queryClient.invalidateQueries({ queryKey: ['stats'] })
+    },
+    onError: (err) => {
+      console.error('Failed to submit answer:', err)
     },
   })
 
@@ -122,6 +125,7 @@ export function Quiz({ examId, topic }: QuizProps) {
     }
 
     if (e.key === 'Enter') {
+      if (currentMutation.isPending) return
       if (currentState.selectedAnswer && !currentState.showExplanation) {
         currentMutation.mutate({
           questionId: currentQuestion.id,
@@ -177,21 +181,28 @@ export function Quiz({ examId, topic }: QuizProps) {
       </div>
 
       {!quizState.showExplanation && (
-        <button
-          className="btn w-full mt-4"
-          disabled={!quizState.selectedAnswer}
-          onClick={() => {
-            submitMutation.mutate({
-              questionId: currentQuestion.id,
-              userAnswer: quizState.selectedAnswer!,
-              correctAnswer: currentQuestion.answer,
-              question: currentQuestion.question,
-              topic: currentQuestion.topic,
-            })
-          }}
-        >
-          Submit Answer (Enter)
-        </button>
+        <>
+          <button
+            className="btn w-full mt-4"
+            disabled={!quizState.selectedAnswer || submitMutation.isPending}
+            onClick={() => {
+              submitMutation.mutate({
+                questionId: currentQuestion.id,
+                userAnswer: quizState.selectedAnswer!,
+                correctAnswer: currentQuestion.answer,
+                question: currentQuestion.question,
+                topic: currentQuestion.topic,
+              })
+            }}
+          >
+            {submitMutation.isPending ? 'Submitting...' : 'Submit Answer (Enter)'}
+          </button>
+          {submitMutation.isError && (
+            <p className="text-error text-sm mt-2">
+              Error submitting: {submitMutation.error.message}
+            </p>
+          )}
+        </>
       )}
 
       {quizState.showExplanation && (

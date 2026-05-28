@@ -1,8 +1,111 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
-import { ingestExam } from '../server-functions/ingest'
+import type { ProviderConfig } from '../lib/validation'
 import { getConfig } from '../server-functions/config'
+
+type IngestProgressEvent = {
+  progress: number
+  step: string
+}
+
+type IngestResultEvent = {
+  questions: number
+  topics: string[]
+  examId: number
+  fileId: number
+}
+
+function parseEventBlock(block: string): { event: string; data: string } | null {
+  const lines = block.split(/\r?\n/)
+  let event = 'message'
+  const dataLines: string[] = []
+
+  for (const line of lines) {
+    if (line.startsWith('event:')) {
+      event = line.slice('event:'.length).trim()
+      continue
+    }
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice('data:'.length).trim())
+    }
+  }
+
+  if (dataLines.length === 0) return null
+  return { event, data: dataLines.join('\n') }
+}
+
+async function ingestWithProgress(
+  payload: { buffer: number[]; fileName: string; config: ProviderConfig },
+  onProgress: (event: IngestProgressEvent) => void,
+): Promise<IngestResultEvent> {
+  const response = await fetch('/api/ingest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(text || `Ingest request failed (${response.status})`)
+  }
+
+  if (!response.body) {
+    throw new Error('Ingest stream is not available')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let result: IngestResultEvent | null = null
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    let separatorIndex = buffer.indexOf('\n\n')
+
+    while (separatorIndex >= 0) {
+      const block = buffer.slice(0, separatorIndex).trim()
+      buffer = buffer.slice(separatorIndex + 2)
+
+      if (block) {
+        const parsed = parseEventBlock(block)
+        if (parsed) {
+          let data: unknown
+          try {
+            data = JSON.parse(parsed.data)
+          } catch {
+            data = null
+          }
+
+          if (parsed.event === 'progress' && data && typeof data === 'object') {
+            const event = data as IngestProgressEvent
+            onProgress(event)
+          }
+
+          if (parsed.event === 'result' && data && typeof data === 'object') {
+            result = data as IngestResultEvent
+          }
+
+          if (parsed.event === 'error' && data && typeof data === 'object') {
+            const message = (data as { message?: string }).message || 'Unknown ingest error'
+            throw new Error(message)
+          }
+        }
+      }
+
+      separatorIndex = buffer.indexOf('\n\n')
+    }
+  }
+
+  if (!result) {
+    throw new Error('Ingest stream finished without a result')
+  }
+
+  return result
+}
 
 export function UploadForm() {
   const queryClient = useQueryClient()
@@ -25,14 +128,22 @@ export function UploadForm() {
       setProgressStep('Carregando configuração da IA...')
       try {
         const config = await getConfig()
-        setProgress(25)
+        setProgress(15)
         setProgressStep('Lendo arquivo...')
         const buffer = await value.file.arrayBuffer()
-        setProgress(40)
-        setProgressStep('Preparando conteúdo para extração...')
-        const result = await ingestExam({ data: { buffer: Array.from(new Uint8Array(buffer)), fileName: value.file.name, config } })
-        setProgress(90)
-        setProgressStep('Finalizando e atualizando resultados...')
+        setProgress(18)
+        setProgressStep('Enviando arquivo para processamento...')
+        const result = await ingestWithProgress(
+          {
+            buffer: Array.from(new Uint8Array(buffer)),
+            fileName: value.file.name,
+            config,
+          },
+          event => {
+            setProgress(event.progress)
+            setProgressStep(event.step)
+          },
+        )
         setStatus('success')
         setProgress(100)
         setProgressStep('Concluído')

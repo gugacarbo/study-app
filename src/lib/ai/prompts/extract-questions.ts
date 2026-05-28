@@ -1,6 +1,7 @@
 import type { ExamIngestResponse, ProviderConfig } from "../../validation";
+import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
 import { examIngestResponseSchema } from "../../validation";
-import { generateJson } from "../ai";
+import { generateJson, generateJsonStream } from "../ai";
 
 const BASE_SYSTEM_PROMPT = `You are an exam-question extraction agent.
 Your only task is to extract structured exam questions from raw text and return valid JSON.
@@ -53,12 +54,14 @@ export async function extractQuestionsFromText(
   config: ProviderConfig,
   text: string,
   memoryContext?: string,
+  options?: {
+    onChunk?: (
+      chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
+    ) => void;
+  },
 ): Promise<ExamIngestResponse> {
   const systemPrompt = buildSystemPrompt(memoryContext);
-
-  return await generateJson<ExamIngestResponse>(
-    config,
-    `
+  const prompt = `
     Extract all exam questions from the following text.
     Return ONLY a valid JSON object with this exact structure:
     {
@@ -76,7 +79,20 @@ export async function extractQuestionsFromText(
 
     Text to extract from:
     ${text}
-  `,
+  `;
+
+  if (options?.onChunk) {
+    return await generateJsonStream<ExamIngestResponse>(
+      config,
+      prompt,
+      examIngestResponseSchema,
+      { system: systemPrompt, onChunk: options.onChunk },
+    );
+  }
+
+  return await generateJson<ExamIngestResponse>(
+    config,
+    prompt,
     examIngestResponseSchema,
     { system: systemPrompt },
   );

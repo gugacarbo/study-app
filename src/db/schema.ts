@@ -59,3 +59,51 @@ export const config = sqliteTable("config", {
 	key: text("key").primaryKey(),
 	value: text("value").notNull(),
 });
+
+export const memoryProfile = sqliteTable("memory_profile", {
+	id: integer("id").primaryKey(),
+	content: text("content").notNull(),
+	updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const memorySessions = sqliteTable(
+	"memory_sessions",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		session_date: text("session_date").notNull(),
+		topic: text("topic").notNull(),
+		exam_name: text("exam_name").notNull(),
+		total_questions: integer("total_questions").notNull(),
+		correct_answers: integer("correct_answers").notNull(),
+		accuracy: integer("accuracy").notNull(),
+		duration: integer("duration"),
+		content: text("content").notNull(),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [index("idx_memory_sessions_topic").on(table.topic)],
+);
+
+export const memoryTopicNotes = sqliteTable(
+	"memory_topic_notes",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		topic_slug: text("topic_slug").notNull().unique(),
+		topic: text("topic").notNull(),
+		content: text("content").notNull(),
+		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [index("idx_memory_topic_notes_topic").on(table.topic)],
+);
+
+export const memoryDocuments = sqliteTable(
+	"memory_documents",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		doc_type: text("doc_type").notNull(),
+		name: text("name").notNull(),
+		topic: text("topic"),
+		content: text("content").notNull(),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [index("idx_memory_documents_type").on(table.doc_type)],
+);
