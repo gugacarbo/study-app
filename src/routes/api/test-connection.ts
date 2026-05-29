@@ -80,7 +80,7 @@ async function runConnectionTestWithProgress(
 export const Route = createFileRoute("/api/test-connection")({
 	server: {
 		handlers: {
-			POST: async ({ request }) => {
+			POST: async ({ request }: { request: Request }) => {
 				const payload = await request.json().catch(() => null);
 
 				const encoder = new TextEncoder();
@@ -135,4 +135,4 @@ export const Route = createFileRoute("/api/test-connection")({
 			},
 		},
 	},
-});
+} as any);

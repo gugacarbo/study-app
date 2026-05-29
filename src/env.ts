@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export const env = createEnv({
 	server: {
-		OPENROUTER_API_KEY: z.string().min(1),
+		OPENROUTER_API_KEY: z.string().min(1).optional().default(""),
 		AI_PROVIDER: z.string().default("openrouter"),
 		AI_MODEL: z.string().default("openai/gpt-4o-mini"),
 		AI_LOG_LLM: z.enum(["true", "false"]).default("false"),

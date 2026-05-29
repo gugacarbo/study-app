@@ -21,6 +21,7 @@ type CloudflareWorkersModule = {
 };
 
 let cachedWorkersEnv: CloudflareWorkersModule["env"] | null | undefined;
+const CLOUDFLARE_WORKERS_MODULE = "cloudflare:workers";
 
 async function getDBFromCloudflareWorkersModule(): Promise<
 	D1Database | undefined
@@ -28,7 +29,7 @@ async function getDBFromCloudflareWorkersModule(): Promise<
 	if (cachedWorkersEnv === undefined) {
 		try {
 			const mod = (await import(
-				"cloudflare:workers"
+				/* @vite-ignore */ CLOUDFLARE_WORKERS_MODULE
 			)) as CloudflareWorkersModule;
 			cachedWorkersEnv = mod.env ?? null;
 		} catch {

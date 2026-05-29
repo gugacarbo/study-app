@@ -143,7 +143,11 @@ export async function generateJsonStream<T>(
 export function streamChatMessages(
 	config: ProviderConfig,
 	messages: Array<ModelMessage>,
-	options?: { abortController?: AbortController; system?: string },
+	options?: {
+		abortController?: AbortController;
+		system?: string;
+		tools?: Parameters<typeof chat>[0]["tools"];
+	},
 ) {
 	const adapter = getAiAdapter(config);
 
@@ -152,5 +156,6 @@ export function streamChatMessages(
 		messages,
 		systemPrompts: options?.system ? [options.system] : undefined,
 		abortController: options?.abortController,
+		tools: options?.tools,
 	});
 }

@@ -3,12 +3,17 @@ import { toServerSentEventsStream } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { DBQueries } from "../../db/queries";
 import { streamChatMessages } from "../../lib/ai/ai";
+import { createChatDbTools } from "../../lib/ai/chat-db-tools";
 import type { ProviderConfig } from "../../lib/validation";
-import { getDB } from "../../server-functions/db";
 
 // Timeout for AI provider responses — prevents SSE connections from hanging
 // indefinitely if the upstream provider stalls.
 const AI_TIMEOUT_MS = 60_000;
+const CHAT_SYSTEM_PROMPT = `You are a helpful study assistant for this app.
+
+When the user asks for factual data from the app database (exams, questions, answer keys, attempts), call the available tools first instead of guessing.
+Use tools only on-demand for factual lookups. Do not call tools for generic tutoring, explanations, or brainstorming.
+If tool data is unavailable, say so briefly and continue with best-effort guidance.`;
 
 /**
  * Wraps an async iterable with a cleanup callback that fires when the
@@ -89,7 +94,8 @@ function safeSSEResponse(
 export const Route = createFileRoute("/api/chat")({
 	server: {
 		handlers: {
-			POST: async ({ request }) => {
+			POST: async ({ request }: { request: Request }) => {
+				const { getDB } = await import("../../server-functions/db");
 				const body = (await request.json()) as {
 					messages: { role: string; content: string }[];
 				};
@@ -137,7 +143,11 @@ export const Route = createFileRoute("/api/chat")({
 				const rawStream = streamChatMessages(
 					providerConfig,
 					body.messages as Array<ModelMessage>,
-					{ abortController },
+					{
+						abortController,
+						system: CHAT_SYSTEM_PROMPT,
+						tools: [...createChatDbTools(queries)],
+					},
 				);
 
 				// Ensure the timeout is cleared once the stream completes
@@ -149,4 +159,4 @@ export const Route = createFileRoute("/api/chat")({
 			},
 		},
 	},
-});
+} as any);

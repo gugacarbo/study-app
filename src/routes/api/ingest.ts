@@ -7,7 +7,6 @@ import { extractQuestionsFromText } from "../../lib/ai/prompts/extract-questions
 import { FileService } from "../../lib/file-service";
 import { MemoryManager } from "../../lib/memory";
 import { providerConfigSchema } from "../../lib/validation";
-import { getDB } from "../../server-functions/db";
 
 const ingestRequestSchema = z.object({
 	buffer: z.array(z.number()),
@@ -40,6 +39,7 @@ async function runIngestWithProgress(
 	send: (event: string, data: unknown) => void,
 	abortSignal: AbortSignal,
 ) {
+	const { getDB } = await import("../../server-functions/db");
 	const assertNotAborted = () => {
 		if (abortSignal.aborted) {
 			throw new Error("Upload canceled");
@@ -157,7 +157,7 @@ async function runIngestWithProgress(
 export const Route = createFileRoute("/api/ingest")({
 	server: {
 		handlers: {
-			POST: async ({ request }) => {
+			POST: async ({ request }: { request: Request }) => {
 				const payloadRaw = await request.json().catch(() => null);
 				const parsed = ingestRequestSchema.safeParse(payloadRaw);
 				if (!parsed.success) {
@@ -213,4 +213,4 @@ export const Route = createFileRoute("/api/ingest")({
 			},
 		},
 	},
-});
+} as any);
