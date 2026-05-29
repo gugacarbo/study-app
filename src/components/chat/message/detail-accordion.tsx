@@ -1,4 +1,5 @@
 import { Accordion as AccordionPrimitive } from "radix-ui";
+import { AccordionContent } from "#/components/ui/accordion";
 import { DetailTrigger } from "./chat-message-detail-trigger";
 import type { DetailTriggerTone } from "./chat-message-utils";
 
@@ -33,9 +34,7 @@ export function DetailAccordion({
 		>
 			<AccordionPrimitive.AccordionItem value={value} className="border-b-0">
 				<DetailTrigger label={label} tone={tone} />
-				<AccordionPrimitive.AccordionContent className="px-2 pb-2">
-					{children}
-				</AccordionPrimitive.AccordionContent>
+				<AccordionContent className="p-0">{children}</AccordionContent>
 			</AccordionPrimitive.AccordionItem>
 		</AccordionPrimitive.Root>
 	);
