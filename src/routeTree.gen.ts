@@ -21,9 +21,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExamsIndexRouteImport } from './routes/exams.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
-import { Route as ApiTestConnectionRouteImport } from './routes/api.test-connection'
-import { Route as ApiIngestRouteImport } from './routes/api.ingest'
-import { Route as ApiChatRouteImport } from './routes/api.chat'
+import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connection'
+import { Route as ApiIngestRouteImport } from './routes/api/ingest'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',

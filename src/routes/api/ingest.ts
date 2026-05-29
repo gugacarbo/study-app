@@ -1,12 +1,12 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import type { D1Database } from "@cloudflare/workers-types";
-import { DBQueries } from "../db/queries";
-import { FileService } from "../lib/file-service";
-import { MemoryManager } from "../lib/memory";
-import { providerConfigSchema } from "../lib/validation";
-import { extractQuestionsFromText } from "../lib/ai/prompts/extract-questions";
-import { getDB } from "../server-functions/db";
+import { DBQueries } from "../../db/queries";
+import { extractQuestionsFromText } from "../../lib/ai/prompts/extract-questions";
+import { FileService } from "../../lib/file-service";
+import { MemoryManager } from "../../lib/memory";
+import { providerConfigSchema } from "../../lib/validation";
+import { getDB } from "../../server-functions/db";
 
 const ingestRequestSchema = z.object({
   buffer: z.array(z.number()),
@@ -72,8 +72,10 @@ async function runIngestWithProgress(
   assertNotAborted();
 
   onProgress(60, "Loading study-memory context...");
-  const memoryContext = await getMemoryContextForTopics(db, extracted.topics)
-    .catch(() => "");
+  const memoryContext = await getMemoryContextForTopics(
+    db,
+    extracted.topics,
+  ).catch(() => "");
   assertNotAborted();
 
   let finalExtracted = extracted;
@@ -159,7 +161,9 @@ export const Route = createFileRoute("/api/ingest")({
               } catch (error) {
                 send("error", {
                   message:
-                    error instanceof Error ? error.message : "Unknown ingest error",
+                    error instanceof Error
+                      ? error.message
+                      : "Unknown ingest error",
                 });
               } finally {
                 controller.close();

@@ -84,7 +84,7 @@ body {
   border: none;
   border-radius: 6px;
   background: var(--primary);
-  color: white;
+  color: var(--primary-foreground);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;

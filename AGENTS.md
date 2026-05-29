@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-05-28 — quiz local eval & persistence, think tags, memory-viz route
+> **Last auto-updated:** 2026-05-28 — shadcn theme provider, CSS utility migration, API directory routes
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -43,6 +43,7 @@ src/
 │   ├── StatsTable.tsx   # Stats display (plain HTML table)
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
+│   ├── theme-provider.tsx # Theme context provider (shadcn)
 │   ├── Chat.tsx         # AI chat assistant
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
@@ -60,9 +61,10 @@ src/
 │   ├── about.tsx        # /about
 │   ├── memory.tsx       # /memory — memory overview (now uses MemoryVisualization)
 │   ├── memory-viz.tsx   # /memory-viz — memory visualization dashboard
-│   ├── api.chat.ts      # /api/chat — POST handler (server-side API)
-│   ├── api.ingest.ts    # /api/ingest — POST handler (streaming ingest)
-│   └── api.test-connection.ts # /api/test-connection — SSE streaming test
+│   ├── api/             # API route directory (chat, ingest, test-connection)
+│   │   ├── chat.ts      # /api/chat — POST handler (server-side API)
+│   │   ├── ingest.ts    # /api/ingest — POST handler (streaming ingest)
+│   │   └── test-connection.ts # /api/test-connection — SSE streaming test
 ├── server-functions/    # Server functions + utilities
 │   ├── config.ts        # getConfig, setConfig, testConnection
 │   ├── ingest.ts        # ingestExam (PDF → questions)

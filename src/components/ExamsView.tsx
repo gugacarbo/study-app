@@ -151,16 +151,11 @@ export function ExamsView() {
 									<Link
 										to="/exams/$id"
 										params={{ id: exam.id.toString() }}
-										className="btn text-sm gap-1.5"
-										style={{
-											background: 'transparent',
-											color: 'var(--text-muted)',
-											border: '1px solid var(--border)',
-										}}
-									>
-										<ChevronRight className="h-4 w-4" />
-										Details
-									</Link>
+									className="btn text-sm gap-1.5 bg-transparent text-text-muted border-border"
+								>
+									<ChevronRight className="h-4 w-4" />
+									Details
+								</Link>
 									{confirmDelete === exam.id ? (
 										<div className="flex gap-1.5">
 											<button
@@ -191,7 +186,7 @@ export function ExamsView() {
 											}}
 											onMouseEnter={(e) => {
 												e.currentTarget.style.background = 'var(--error)'
-												e.currentTarget.style.color = 'white'
+												e.currentTarget.style.color = 'var(--primary-foreground)'
 												e.currentTarget.style.borderColor = 'transparent'
 											}}
 											onMouseLeave={(e) => {

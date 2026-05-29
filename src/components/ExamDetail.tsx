@@ -358,11 +358,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 						<DialogTrigger asChild>
 							<button
 								type="button"
-								className="btn text-sm gap-1.5"
-								style={{
-									background: 'var(--surface-hover)',
-									color: 'var(--text)',
-								}}
+								className="btn text-sm gap-1.5 bg-surface-hover text-text"
 							>
 								<Sparkles className="h-4 w-4" />
 								Explicações
@@ -556,7 +552,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 							}}
 							onMouseEnter={(e) => {
 								e.currentTarget.style.background = 'var(--error)'
-								e.currentTarget.style.color = 'white'
+								e.currentTarget.style.color = 'var(--primary-foreground)'
 								e.currentTarget.style.borderColor = 'transparent'
 							}}
 							onMouseLeave={(e) => {
@@ -952,7 +948,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 																	<span
 																		className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
 																			isCorrect
-																				? 'bg-success text-white'
+																				? 'bg-success text-primary-foreground'
 																				: 'bg-surface text-text-muted'
 																		}`}
 																	>

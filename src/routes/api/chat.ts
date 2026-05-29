@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { toServerSentEventsStream } from "@tanstack/ai";
-import { getDB } from "../server-functions/db";
-import { DBQueries } from "../db/queries";
 import type { ModelMessage, StreamChunk } from "@tanstack/ai";
-import { streamChatMessages } from "../lib/ai/ai";
-import type { ProviderConfig } from "../lib/validation";
+import { toServerSentEventsStream } from "@tanstack/ai";
+import { createFileRoute } from "@tanstack/react-router";
+import { DBQueries } from "../../db/queries";
+import { streamChatMessages } from "../../lib/ai/ai";
+import type { ProviderConfig } from "../../lib/validation";
+import { getDB } from "../../server-functions/db";
 
 // Timeout for AI provider responses — prevents SSE connections from hanging
 // indefinitely if the upstream provider stalls.
@@ -71,7 +71,7 @@ function safeSSEResponse(
 			// cancel() callback fires → abortController.abort() → chat()
 			// generator stops → withCleanup clears the timeout.
 			if (rawReader) {
-				rawReader.cancel().catch(() => {});
+				rawReader.cancel().catch(() => { });
 				rawReader = null;
 			}
 		},

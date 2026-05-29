@@ -220,32 +220,32 @@ export function Quiz({ examId, topic }: QuizProps) {
           <p className="text-text-muted mt-1">Resumo do seu desempenho</p>
 
           <div className="grid grid-cols-2 gap-2 mt-4">
-            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="rounded border border-border bg-surface p-3">
               <p className="text-xs text-text-muted">Acertos</p>
               <p className="text-lg font-semibold text-success">{correct}</p>
             </div>
-            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="rounded border border-border bg-surface p-3">
               <p className="text-xs text-text-muted">Erros</p>
               <p className="text-lg font-semibold text-error">{incorrect}</p>
             </div>
-            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="rounded border border-border bg-surface p-3">
               <p className="text-xs text-text-muted">Taxa de acerto</p>
               <p className="text-lg font-semibold">{accuracy}%</p>
             </div>
-            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="rounded border border-border bg-surface p-3">
               <p className="text-xs text-text-muted">Resultado</p>
               <p className="text-lg font-semibold">{correct} / {total}</p>
             </div>
           </div>
 
           {wrongAnswers.length > 0 && (
-            <details className="mt-4 rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+            <details className="mt-4 rounded border border-border bg-surface p-3">
               <summary className="cursor-pointer text-sm font-medium text-text-muted">
                 Revisar questões erradas ({wrongAnswers.length})
               </summary>
               <div className="mt-3 flex flex-col gap-3">
                 {wrongAnswers.map((item, index) => (
-                  <div key={`${item.question}-${index}`} className="rounded border border-[var(--border)] p-3">
+                  <div key={`${item.question}-${index}`} className="rounded border border-border p-3">
                     <p className="text-sm font-medium">{item.question}</p>
                     <p className="text-xs text-text-muted mt-1">Sua resposta: {item.userAnswer}</p>
                     <p className="text-xs text-text-muted">Correta: {item.correctAnswer}</p>
@@ -279,12 +279,10 @@ export function Quiz({ examId, topic }: QuizProps) {
           <button
             key={i}
             className={`btn justify-start ${
-              quizState.selectedAnswer === option ? 'ring-2 ring-primary' : ''
+              quizState.selectedAnswer === option
+                ? 'ring-2 ring-primary bg-primary text-primary-foreground border-primary'
+                : 'bg-surface text-text border-border'
             }`}
-            style={{
-              background: quizState.selectedAnswer === option ? 'var(--primary)' : 'var(--surface)',
-              border: `1px solid ${quizState.selectedAnswer === option ? 'var(--primary)' : 'var(--border)'}`,
-            }}
             onClick={() => selectAnswer(option)}
           >
             <span className="mr-2 font-bold">{String.fromCharCode(97 + i)})</span>
@@ -330,7 +328,7 @@ export function Quiz({ examId, topic }: QuizProps) {
           </div>
           <p className="text-text-muted text-sm">{quizState.explanation}</p>
           {longExplanation && (
-            <details className="mt-2 rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+            <details className="mt-2 rounded border border-border bg-surface p-3">
               <summary className="cursor-pointer text-sm font-medium text-text-muted">
                 Ver explicação completa
               </summary>

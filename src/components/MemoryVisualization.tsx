@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { getMemoryOverview } from "../server-functions/memory";
 
@@ -10,6 +11,13 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetDescription,
+} from "@/components/ui/sheet";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -19,6 +27,20 @@ import {
 } from "@/components/ui/table";
 
 export function MemoryVisualization() {
+	const [selectedSession, setSelectedSession] = useState<
+		| {
+				id: number;
+				sessionDate: string;
+				topic: string;
+				examName: string;
+				totalQuestions: number;
+				correctAnswers: number;
+				accuracy: number;
+				createdAt: string;
+		  }
+		| undefined
+	>(undefined);
+
 	const { data } = useSuspenseQuery({
 		queryKey: ["memory-overview"],
 		queryFn: () => getMemoryOverview(),
@@ -176,7 +198,11 @@ export function MemoryVisualization() {
 							</TableHeader>
 							<TableBody>
 								{sessions.map((s) => (
-									<TableRow key={s.id}>
+									<TableRow
+										key={s.id}
+										className="cursor-pointer"
+										onClick={() => setSelectedSession(s)}
+									>
 										<TableCell>{s.sessionDate}</TableCell>
 										<TableCell>{s.examName}</TableCell>
 										<TableCell className="font-medium">
@@ -205,6 +231,75 @@ export function MemoryVisualization() {
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Session Detail Sheet */}
+			<Sheet
+				open={!!selectedSession}
+				onOpenChange={(open) => {
+					if (!open) setSelectedSession(undefined);
+				}}
+			>
+				<SheetContent side="right" className="sm:max-w-md">
+					<SheetHeader>
+						<SheetTitle>
+							{selectedSession?.topic ?? ""}
+						</SheetTitle>
+						<SheetDescription>
+							{selectedSession?.examName ?? ""} &bull;{" "}
+							{selectedSession?.sessionDate ?? ""}
+						</SheetDescription>
+					</SheetHeader>
+
+					<div className="flex flex-col gap-6 p-6 pt-4">
+						{/* Accuracy */}
+						<div className="space-y-2">
+							<div className="flex items-center justify-between text-sm">
+								<span className="text-muted-foreground">
+									Accuracy
+								</span>
+								<span className="font-semibold">
+									{selectedSession?.accuracy ?? 0}%
+								</span>
+							</div>
+							<Progress
+								value={selectedSession?.accuracy ?? 0}
+								className="h-2"
+							/>
+						</div>
+
+						{/* Score Grid */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="rounded-lg border border-border bg-background p-3">
+								<p className="text-xs text-muted-foreground">
+									Correct
+								</p>
+								<p className="text-xl font-bold text-success">
+									{selectedSession?.correctAnswers ?? 0}
+								</p>
+							</div>
+							<div className="rounded-lg border border-border bg-background p-3">
+								<p className="text-xs text-muted-foreground">
+									Incorrect
+								</p>
+								<p className="text-xl font-bold text-error">
+									{(selectedSession?.totalQuestions ?? 0) -
+										(selectedSession?.correctAnswers ?? 0)}
+								</p>
+							</div>
+						</div>
+
+						{/* Total Questions */}
+						<div className="rounded-lg border border-border bg-muted/50 p-3">
+							<p className="text-xs text-muted-foreground">
+								Total Questions
+							</p>
+							<p className="text-lg font-semibold">
+								{selectedSession?.totalQuestions ?? 0}
+							</p>
+						</div>
+					</div>
+				</SheetContent>
+			</Sheet>
 		</div>
 	);
 }

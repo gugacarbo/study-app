@@ -1,7 +1,7 @@
 import { chat, type StreamChunk } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
-import { providerConfigSchema } from "../lib/validation";
-import { getAiAdapter } from "../lib/ai/ai";
+import { getAiAdapter } from "../../lib/ai/ai";
+import { providerConfigSchema } from "../../lib/validation";
 
 type ConnectionProgressEvent = {
 	progress: number;
@@ -16,8 +16,12 @@ function formatSSE(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-function isTextChunk(chunk: StreamChunk): chunk is StreamChunk & { delta: string } {
-	return chunk.type === "TEXT_MESSAGE_CONTENT" && typeof chunk.delta === "string";
+function isTextChunk(
+	chunk: StreamChunk,
+): chunk is StreamChunk & { delta: string } {
+	return (
+		chunk.type === "TEXT_MESSAGE_CONTENT" && typeof chunk.delta === "string"
+	);
 }
 
 async function runConnectionTestWithProgress(
