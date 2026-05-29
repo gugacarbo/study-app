@@ -9,11 +9,21 @@ interface UseQuestionEditingProps {
 
 export function useQuestionEditing({ examId }: UseQuestionEditingProps) {
 	const queryClient = useQueryClient();
-	const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+	const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
+		null,
+	);
 	const [editForm, setEditForm] = useState<EditFormData | null>(null);
 	const [saving, setSaving] = useState(false);
 
-	const startEditing = (q: { id: number; question: string; options: string[]; answer: string; explanation?: string | null; deepExplanation?: string | null; topic?: string | null }) => {
+	const startEditing = (q: {
+		id: number;
+		question: string;
+		options: string[];
+		answer: string;
+		explanation?: string | null;
+		deepExplanation?: string | null;
+		topic?: string | null;
+	}) => {
 		setEditingQuestionId(q.id);
 		setEditForm({
 			question: q.question,

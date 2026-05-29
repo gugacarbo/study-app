@@ -1,28 +1,28 @@
-import { Sparkles } from "lucide-react"
-import { Button } from "../ui/button"
+import { Sparkles } from "lucide-react";
+import { Button } from "../ui/button";
 import {
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "../ui/dialog"
-import { Input } from "../ui/input"
-import { MarkdownRenderer } from "../ui/markdown"
-import { Progress } from "../ui/progress"
-import { ProgressItemButton } from "./progress-item-button"
-import { useExplanationGeneration } from "./use-explanation-generation"
+} from "../ui/dialog";
+import { Input } from "../ui/input";
+import { MarkdownRenderer } from "../ui/markdown";
+import { Progress } from "../ui/progress";
+import { ProgressItemButton } from "./progress-item-button";
+import { useExplanationGeneration } from "./use-explanation-generation";
 
 interface ExplanationDialogProps {
-	open: boolean
-	examId: number
+	open: boolean;
+	examId: number;
 	questions: Array<{
-		id: number
-		question: string
-		explanation: string
-		deepExplanation: string
-	}>
-	questionCount: number
+		id: number;
+		question: string;
+		explanation: string;
+		deepExplanation: string;
+	}>;
+	questionCount: number;
 }
 
 export function ExplanationDialog({
@@ -31,7 +31,7 @@ export function ExplanationDialog({
 	questions,
 	questionCount,
 }: ExplanationDialogProps) {
-	const gen = useExplanationGeneration({ examId, questions, open })
+	const gen = useExplanationGeneration({ examId, questions, open });
 	return (
 		<DialogContent className="sm:max-w-lg">
 			<DialogHeader>
@@ -60,9 +60,9 @@ export function ExplanationDialog({
 						value={gen.batchSize}
 						disabled={gen.generatingExplanations}
 						onChange={(e) => {
-							const value = Number(e.target.value)
-							if (Number.isNaN(value)) return
-							gen.setBatchSize(Math.max(1, Math.min(20, value)))
+							const value = Number(e.target.value);
+							if (Number.isNaN(value)) return;
+							gen.setBatchSize(Math.max(1, Math.min(20, value)));
 						}}
 						className="mt-1"
 					/>
@@ -146,5 +146,5 @@ export function ExplanationDialog({
 				</Button>
 			</DialogFooter>
 		</DialogContent>
-	)
+	);
 }

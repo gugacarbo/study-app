@@ -1,13 +1,13 @@
 import { ScriptOnce } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-	ThemeProviderContext,
 	type Theme,
+	ThemeProviderContext,
 	type ThemeProviderState,
 } from "./use-theme";
 
-export type { Theme, ThemeProviderState };
 export { useTheme } from "./use-theme";
+export type { Theme, ThemeProviderState };
 
 type ThemeProviderProps = {
 	children: React.ReactNode;

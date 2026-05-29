@@ -20,8 +20,7 @@ export const getConfig = createServerFn({ method: "GET" }).handler(
 		const config = await queries.getAllConfig();
 
 		return {
-			provider: (config.ai_provider
-			) as ProviderConfig["provider"],
+			provider: config.ai_provider as ProviderConfig["provider"],
 			model: config.ai_model,
 			baseUrl: config.ai_base_url || undefined,
 			apiKey: config.ai_api_key,

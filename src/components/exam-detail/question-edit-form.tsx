@@ -77,7 +77,9 @@ export function QuestionEditForm({
 										variant="ghost"
 										size="icon"
 										onClick={() => {
-											const newOptions = editForm.options.filter((_, i) => i !== optIdx);
+											const newOptions = editForm.options.filter(
+												(_, i) => i !== optIdx,
+											);
 											const newAnswer =
 												editForm.answer === opt
 													? (newOptions[0] ?? "")

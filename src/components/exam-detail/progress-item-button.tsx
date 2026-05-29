@@ -1,12 +1,12 @@
-import { AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react"
-import { cn } from "../../lib/utils"
-import type { ExplanationProgressItem } from "./exam-utils"
+import { AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
+import { cn } from "../../lib/utils";
+import type { ExplanationProgressItem } from "./exam-utils";
 
 interface ProgressItemButtonProps {
-	item: ExplanationProgressItem
-	questionOrder: Map<number, number>
-	isSelected: boolean
-	onSelect: (id: number) => void
+	item: ExplanationProgressItem;
+	questionOrder: Map<number, number>;
+	isSelected: boolean;
+	onSelect: (id: number) => void;
 }
 
 export function ProgressItemButton({
@@ -15,7 +15,7 @@ export function ProgressItemButton({
 	isSelected,
 	onSelect,
 }: ProgressItemButtonProps) {
-	const isDone = item.status === "done"
+	const isDone = item.status === "done";
 
 	return (
 		<button
@@ -27,7 +27,7 @@ export function ProgressItemButton({
 				isSelected && "ring-1 ring-primary/40",
 			)}
 			onClick={() => {
-				if (isDone) onSelect(item.id)
+				if (isDone) onSelect(item.id);
 			}}
 		>
 			<div className="flex items-start gap-1.5">
@@ -58,5 +58,5 @@ export function ProgressItemButton({
 				</div>
 			</div>
 		</button>
-	)
+	);
 }

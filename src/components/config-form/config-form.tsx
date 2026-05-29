@@ -121,8 +121,8 @@ export function ConfigForm() {
 					<div
 						className={cn(
 							"mt-4 rounded-md border p-3 text-sm",
-						status === "success" &&
-							"border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
+							status === "success" &&
+								"border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
 							status === "error" &&
 								"border-destructive/20 bg-destructive/10 text-destructive",
 						)}
