@@ -1,10 +1,13 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { MarkdownRenderer } from "@/components/ui/markdown";
+import { cn } from "@/lib/utils";
 
 export interface AssistantPerfMetrics {
 	ttftMs: number;
 	tokensPerSecond: number;
 	isStreaming: boolean;
+	inputTokens?: number;
+	outputTokens?: number;
 }
 
 type ParsedPart =
@@ -63,17 +66,18 @@ export function ChatMessage({
 
 	return (
 		<div
-			className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"}`}
+			className={cn("flex flex-col gap-1", message.role === "user" ? "items-end" : "items-start")}
 		>
 			<div
-				className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}
+				className={cn("flex w-full", message.role === "user" ? "justify-end" : "justify-start")}
 			>
 				<div
-					className={`break-words whitespace-pre-wrap rounded-lg px-4 py-2 text-sm leading-relaxed ${
+					className={cn(
+						"break-words whitespace-pre-wrap rounded-lg px-4 py-2 text-sm leading-relaxed",
 						message.role === "user"
 							? "w-[70%] max-w-[70%] bg-primary text-primary-foreground"
 							: "max-w-[80%] bg-card border border-border text-card-foreground"
-					}`}
+					)}
 				>
 					{message.parts.map((part) => {
 						const partContent =
@@ -86,7 +90,7 @@ export function ChatMessage({
 						const partKey = `${message.id}:${partBase}:${partCount}`;
 
 						return part.type === "text" ? (
-							<div key={partKey} className="space-y-2">
+							<div key={partKey} className="flex flex-col gap-2">
 								{parseTextParts(part.content).map((parsedPart) => {
 									const parsedBase = `${partKey}:${parsedPart.type}:${parsedPart.content}`;
 									const parsedCount =
@@ -124,9 +128,12 @@ export function ChatMessage({
 				</div>
 			</div>
 			{message.role === "assistant" && metrics && (
-				<p className="mt-1 px-1 text-[11px] text-muted-foreground">
+				<p className="px-1 text-[11px] text-muted-foreground">
 					TTFT: {(metrics.ttftMs / 1000).toFixed(2)}s •{" "}
 					{metrics.tokensPerSecond.toFixed(1)} tok/s
+					{metrics.inputTokens != null &&
+						metrics.outputTokens != null &&
+						` • in: ${metrics.inputTokens} • out: ${metrics.outputTokens}`}
 					{metrics.isStreaming ? " • ao vivo" : ""}
 				</p>
 			)}

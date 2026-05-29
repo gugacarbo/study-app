@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ingestStream } from "../../lib/sse-stream";
@@ -25,7 +26,6 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 			streamEndRef.current.scrollIntoView({ behavior: "smooth" });
 		}
 	}, [streamText]);
-
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!file) return;
@@ -114,7 +114,7 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 					>
 						{status === "uploading" ? (
 							<>
-								<Loader2 className="h-4 w-4 animate-spin" />
+								<Loader2 className="size-4 animate-spin" />
 								Processing...
 							</>
 						) : (
@@ -134,11 +134,12 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 
 				{status !== "idle" && status !== "uploading" && (
 					<div
-						className={`mt-4 p-3 rounded ${
+						className={cn(
+							"mt-4 p-3 rounded",
 							status === "success"
-								? "bg-green-500/10 text-green-600"
-								: "bg-red-500/10 text-red-600"
-						}`}
+								? "bg-emerald-500/10 text-emerald-600"
+								: "bg-destructive/10 text-destructive",
+						)}
 					>
 						{message}
 					</div>

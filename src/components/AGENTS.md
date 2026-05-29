@@ -1,6 +1,6 @@
 # Components
 
-**Last updated:** 2026-05-28 — refactored into grouped folders, all <150 lines
+**Last updated:** 2026-05-29 — extracted hooks/utils, shadcn compliance, all ≤150 lines
 
 React components in TanStack Start SPA. Organized into feature folders under `src/components/`.
 

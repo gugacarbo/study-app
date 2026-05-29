@@ -2,6 +2,7 @@ import { CheckCircle2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { MarkdownRenderer } from "../ui/markdown";
+import { cn } from "../../lib/utils";
 import type { QuestionData } from "./exam-utils";
 
 interface QuestionAccordionProps {
@@ -26,7 +27,7 @@ export function QuestionAccordion({
 				onClick={() => onToggle(question.id)}
 				className="w-full flex items-start gap-3 p-3 text-left hover:bg-muted transition-colors"
 			>
-				<div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+				<div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
 					{index + 1}
 				</div>
 				<div className="flex-1 min-w-0">
@@ -41,9 +42,9 @@ export function QuestionAccordion({
 				</div>
 				<div className="shrink-0 mt-0.5">
 					{isExpanded ? (
-						<ChevronUp className="h-4 w-4 text-muted-foreground" />
+						<ChevronUp className="size-4 text-muted-foreground" />
 					) : (
-						<ChevronDown className="h-4 w-4 text-muted-foreground" />
+						<ChevronDown className="size-4 text-muted-foreground" />
 					)}
 				</div>
 			</button>
@@ -56,30 +57,32 @@ export function QuestionAccordion({
 							size="sm"
 							onClick={() => onStartEdit(question)}
 						>
-							<Pencil className="h-3.5 w-3.5" />
+							<Pencil className="size-3.5" />
 							Edit
 						</Button>
 					</div>
 
-					<div className="space-y-1.5">
+					<div className="flex flex-col gap-1.5">
 						{question.options.map((opt, optIdx) => {
 							const letter = String.fromCharCode(65 + optIdx);
 							const isCorrect = opt === question.answer;
 							return (
 								<div
 									key={`${question.id}:${letter}:${opt}`}
-									className={`flex items-start gap-2.5 rounded-lg p-2.5 text-sm ${
+									className={cn(
+										"flex items-start gap-2.5 rounded-lg p-2.5 text-sm",
 										isCorrect
 											? "bg-success/10 border border-success/30"
-											: "bg-muted"
-									}`}
+											: "bg-muted",
+									)}
 								>
 									<span
-										className={`flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold ${
+										className={cn(
+											"flex size-5 shrink-0 items-center justify-center rounded text-[11px] font-bold",
 											isCorrect
 												? "bg-success text-primary-foreground"
-												: "bg-card text-muted-foreground"
-										}`}
+												: "bg-card text-muted-foreground",
+										)}
 									>
 										{letter}
 									</span>
@@ -87,7 +90,7 @@ export function QuestionAccordion({
 										<MarkdownRenderer content={opt} />
 									</span>
 									{isCorrect && (
-										<CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+										<CheckCircle2 className="size-4 text-success shrink-0 mt-0.5" />
 									)}
 								</div>
 							);

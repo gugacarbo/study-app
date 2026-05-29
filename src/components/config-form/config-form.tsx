@@ -8,11 +8,10 @@ import { Form } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import type { ProviderConfig } from "../../lib/validation";
 import { getConfig, setConfig } from "../../server-functions/config";
-import { ConfigFormFields, formFieldsSchema } from "./config-form-fields";
-import {
-	TestConnectionDialog,
-	useConnectionTest,
-} from "./test-connection-dialog";
+import { ConfigFormFields } from "./config-form-fields";
+import { formFieldsSchema } from "./config-form-schema";
+import { TestConnectionDialog } from "./test-connection-dialog";
+import { useConnectionTest } from "./use-connection-test";
 
 type FormValues = {
 	provider: "openrouter" | "openai" | "groq" | "ollama" | "custom";
@@ -122,8 +121,8 @@ export function ConfigForm() {
 					<div
 						className={cn(
 							"mt-4 rounded-md border p-3 text-sm",
-							status === "success" &&
-								"border-success/20 bg-success/10 text-success",
+						status === "success" &&
+							"border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
 							status === "error" &&
 								"border-destructive/20 bg-destructive/10 text-destructive",
 						)}

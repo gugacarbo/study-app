@@ -1,32 +1,28 @@
-import {
-	AlertCircle,
-	CheckCircle2,
-	LoaderCircle,
-	Sparkles,
-} from "lucide-react";
-import { Button } from "../ui/button";
+import { Sparkles } from "lucide-react"
+import { Button } from "../ui/button"
 import {
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "../ui/dialog";
-import { Input } from "../ui/input";
-import { MarkdownRenderer } from "../ui/markdown";
-import { Progress } from "../ui/progress";
-import { useExplanationGeneration } from "./use-explanation-generation";
+} from "../ui/dialog"
+import { Input } from "../ui/input"
+import { MarkdownRenderer } from "../ui/markdown"
+import { Progress } from "../ui/progress"
+import { ProgressItemButton } from "./progress-item-button"
+import { useExplanationGeneration } from "./use-explanation-generation"
 
 interface ExplanationDialogProps {
-	open: boolean;
-	examId: number;
+	open: boolean
+	examId: number
 	questions: Array<{
-		id: number;
-		question: string;
-		explanation: string;
-		deepExplanation: string;
-	}>;
-	questionCount: number;
+		id: number
+		question: string
+		explanation: string
+		deepExplanation: string
+	}>
+	questionCount: number
 }
 
 export function ExplanationDialog({
@@ -35,8 +31,7 @@ export function ExplanationDialog({
 	questions,
 	questionCount,
 }: ExplanationDialogProps) {
-	const gen = useExplanationGeneration({ examId, questions, open });
-
+	const gen = useExplanationGeneration({ examId, questions, open })
 	return (
 		<DialogContent className="sm:max-w-lg">
 			<DialogHeader>
@@ -46,8 +41,7 @@ export function ExplanationDialog({
 					deste exame.
 				</DialogDescription>
 			</DialogHeader>
-
-			<div className="space-y-3 text-sm">
+			<div className="flex flex-col gap-3 text-sm">
 				<div className="rounded-lg border border-border bg-muted p-3">
 					<p className="font-medium">Pendentes</p>
 					<p className="text-muted-foreground">
@@ -55,7 +49,6 @@ export function ExplanationDialog({
 						explicação completa.
 					</p>
 				</div>
-
 				<div>
 					<span className="text-xs font-semibold text-muted-foreground">
 						Tamanho do batch (1-20)
@@ -67,14 +60,13 @@ export function ExplanationDialog({
 						value={gen.batchSize}
 						disabled={gen.generatingExplanations}
 						onChange={(e) => {
-							const value = Number(e.target.value);
-							if (Number.isNaN(value)) return;
-							gen.setBatchSize(Math.max(1, Math.min(20, value)));
+							const value = Number(e.target.value)
+							if (Number.isNaN(value)) return
+							gen.setBatchSize(Math.max(1, Math.min(20, value)))
 						}}
 						className="mt-1"
 					/>
 				</div>
-
 				<label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2.5">
 					<input
 						type="checkbox"
@@ -85,7 +77,6 @@ export function ExplanationDialog({
 					/>
 					<span>Sobrescrever explicações já existentes</span>
 				</label>
-
 				{gen.progressItems.length > 0 && (
 					<div className="rounded-lg border border-border bg-card p-3">
 						<div className="mb-2 flex items-center justify-between text-xs">
@@ -99,61 +90,19 @@ export function ExplanationDialog({
 						</div>
 						<Progress value={gen.progressPercent} className="mb-2 h-2" />
 						<div className="mb-2 text-xs text-muted-foreground">
-							{gen.processingCount > 0 && (
-								<span>{gen.processingCount} processando</span>
-							)}
-							{gen.processingCount > 0 && gen.errorCount > 0 && (
-								<span> • </span>
-							)}
-							{gen.errorCount > 0 && <span>{gen.errorCount} com erro</span>}
+							{gen.processingCount > 0 && `${gen.processingCount} processando`}
+							{gen.processingCount > 0 && gen.errorCount > 0 && " • "}
+							{gen.errorCount > 0 && `${gen.errorCount} com erro`}
 						</div>
-						<div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+						<div className="max-h-48 flex flex-col gap-1.5 overflow-y-auto pr-1">
 							{gen.progressItems.map((item) => (
-								<button
-									type="button"
+								<ProgressItemButton
 									key={item.id}
-									disabled={item.status !== "done"}
-									className={`w-full text-left rounded-md border border-border bg-muted px-2 py-1.5 ${
-										item.status === "done"
-											? "cursor-pointer hover:bg-card"
-											: "cursor-default"
-									} ${gen.selectedResponseItemId === item.id ? "ring-1 ring-primary/40" : ""}`}
-									onClick={() => {
-										if (item.status === "done")
-											gen.setSelectedResponseItemId(item.id);
-									}}
-								>
-									<div className="flex items-start gap-1.5">
-										<span className="mt-0.5 shrink-0">
-											{item.status === "processing" && (
-												<LoaderCircle className="h-3.5 w-3.5 animate-spin text-primary" />
-											)}
-											{item.status === "done" && (
-												<CheckCircle2 className="h-3.5 w-3.5 text-success" />
-											)}
-											{item.status === "error" && (
-												<AlertCircle className="h-3.5 w-3.5 text-error" />
-											)}
-											{item.status === "pending" && (
-												<div className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/50" />
-											)}
-											{item.status === "skipped" && (
-												<div className="mt-1 h-2 w-2 rounded-full bg-success/60" />
-											)}
-										</span>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-xs font-medium text-foreground">
-												Q{gen.questionOrder.get(item.id) ?? "?"} ·{" "}
-												{item.question}
-											</p>
-											{item.message && (
-												<p className="text-[11px] text-muted-foreground">
-													{item.message}
-												</p>
-											)}
-										</div>
-									</div>
-								</button>
+									item={item}
+									questionOrder={gen.questionOrder}
+									isSelected={gen.selectedResponseItemId === item.id}
+									onSelect={gen.setSelectedResponseItemId}
+								/>
 							))}
 						</div>
 						{gen.selectedResponseItem?.response && (
@@ -180,24 +129,22 @@ export function ExplanationDialog({
 						)}
 					</div>
 				)}
-
 				{gen.generationMessage && (
 					<p className="rounded-lg bg-muted p-2.5 text-xs text-muted-foreground">
 						{gen.generationMessage}
 					</p>
 				)}
 			</div>
-
 			<DialogFooter>
 				<Button
 					type="button"
 					onClick={gen.handleGenerateExplanations}
 					disabled={gen.generatingExplanations || questionCount === 0}
 				>
-					<Sparkles className="h-4 w-4" />
+					<Sparkles data-icon="inline-start" />
 					{gen.generatingExplanations ? "Gerando..." : "Gerar agora"}
 				</Button>
 			</DialogFooter>
 		</DialogContent>
-	);
+	)
 }

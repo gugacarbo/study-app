@@ -11,28 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-
-export function formatFileSize(bytes: number | null): string {
-	if (bytes === null || bytes === undefined) return "Unknown";
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-export function formatDate(dateStr: string | null): string {
-	if (!dateStr) return "Unknown";
-	try {
-		return new Date(dateStr).toLocaleDateString("pt-BR", {
-			day: "2-digit",
-			month: "2-digit",
-			year: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	} catch {
-		return dateStr;
-	}
-}
+import { formatDate, formatFileSize } from "./exam-card-utils";
 
 interface ExamCardProps {
 	exam: {
@@ -65,31 +44,31 @@ export function ExamCard({
 				<Link
 					to="/exams/$id"
 					params={{ id: exam.id.toString() }}
-					className="flex-1 min-w-0 group"
+					className="flex flex-col gap-3 flex-1 min-w-0 group"
 				>
 					<h2 className="text-lg font-semibold truncate group-hover:text-primary transition-colors">
 						{exam.name}
 					</h2>
-					<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-text-muted">
+					<div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
 						<span className="inline-flex items-center gap-1">
-							<Calendar className="h-3.5 w-3.5" />
+							<Calendar className="size-3.5" />
 							{formatDate(exam.created_at)}
 						</span>
 						<span className="inline-flex items-center gap-1">
-							<ListChecks className="h-3.5 w-3.5" />
+							<ListChecks className="size-3.5" />
 							{exam.questionCount}{" "}
 							{exam.questionCount === 1 ? "question" : "questions"}
 						</span>
 						{exam.source && (
 							<span className="inline-flex items-center gap-1 truncate max-w-[200px]">
-								<FileText className="h-3.5 w-3.5 shrink-0" />
+								<FileText className="size-3.5 shrink-0" />
 								<span className="truncate">{exam.source}</span>
 							</span>
 						)}
 					</div>
 					{exam.topics.length > 0 && (
-						<div className="mt-3 flex flex-wrap items-center gap-1.5">
-							<Tag className="h-3.5 w-3.5 text-text-muted shrink-0" />
+						<div className="flex flex-wrap items-center gap-1.5">
+							<Tag className="size-3.5 text-muted-foreground shrink-0" />
 							{exam.topics.map((topic) => (
 								<Badge variant="secondary" key={topic}>
 									{topic}
@@ -98,13 +77,13 @@ export function ExamCard({
 						</div>
 					)}
 					{exam.files.length > 0 && (
-						<div className="mt-3 space-y-1">
+						<div className="flex flex-col gap-1">
 							{exam.files.map((file) => (
 								<div
 									key={file.id}
-									className="flex items-center gap-2 text-xs text-text-muted"
+									className="flex items-center gap-2 text-xs text-muted-foreground"
 								>
-									<FileText className="h-3 w-3 shrink-0" />
+									<FileText className="size-3 shrink-0" />
 									<span className="truncate">{file.name}</span>
 									{file.size !== null && file.size !== undefined && (
 										<span>({formatFileSize(file.size)})</span>
@@ -117,13 +96,13 @@ export function ExamCard({
 				<div className="flex flex-col gap-2 shrink-0">
 					<Button variant="default" size="sm" asChild>
 						<Link to="/quiz/$id" params={{ id: exam.id.toString() }}>
-							<Play />
+							<Play data-icon="inline-start" />
 							Quiz
 						</Link>
 					</Button>
 					<Button variant="outline" size="sm" asChild>
 						<Link to="/exams/$id" params={{ id: exam.id.toString() }}>
-							<ChevronRight />
+							<ChevronRight data-icon="inline-start" />
 							Details
 						</Link>
 					</Button>
@@ -144,7 +123,7 @@ export function ExamCard({
 					) : (
 						<Button
 							variant="ghost"
-							size="icon-sm"
+							size="icon"
 							className="text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
 							onClick={() => onConfirmDelete(exam.id)}
 						>
@@ -156,3 +135,5 @@ export function ExamCard({
 		</Card>
 	);
 }
+
+export { formatFileSize, formatDate } from "./exam-card-utils";

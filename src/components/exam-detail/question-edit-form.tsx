@@ -1,5 +1,6 @@
 import { Save, X } from "lucide-react";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import type { EditFormData, QuestionData } from "./exam-utils";
 
@@ -21,7 +22,7 @@ export function QuestionEditForm({
 	saving,
 }: QuestionEditFormProps) {
 	return (
-		<div className="mt-3 space-y-3">
+		<div className="mt-3 flex flex-col gap-3">
 			<div>
 				<span className="text-xs font-semibold text-muted-foreground mb-1 block">
 					Question
@@ -37,7 +38,7 @@ export function QuestionEditForm({
 				<span className="text-xs font-semibold text-muted-foreground mb-1 block">
 					Options
 				</span>
-				<div className="space-y-1.5">
+				<div className="flex flex-col gap-1.5">
 					{editForm.options.map((opt, optIdx) => {
 						const letter = String.fromCharCode(65 + optIdx);
 						return (
@@ -52,11 +53,10 @@ export function QuestionEditForm({
 									onChange={() => onFormChange({ answer: opt })}
 									className="shrink-0 accent-primary"
 								/>
-								<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted text-[11px] font-bold text-muted-foreground">
+								<span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted text-[11px] font-bold text-muted-foreground">
 									{letter}
 								</span>
-								<input
-									type="text"
+								<Input
 									value={opt}
 									onChange={(e) => {
 										const newOptions = [...editForm.options];
@@ -69,37 +69,39 @@ export function QuestionEditForm({
 													: editForm.answer,
 										});
 									}}
-									className="flex-1 rounded-lg border border-border bg-card p-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+									className="flex-1"
 								/>
 								{editForm.options.length > 2 && (
-									<button
+									<Button
 										type="button"
+										variant="ghost"
+										size="icon"
 										onClick={() => {
-											const newOptions = editForm.options.filter(
-												(_, i) => i !== optIdx,
-											);
+											const newOptions = editForm.options.filter((_, i) => i !== optIdx);
 											const newAnswer =
 												editForm.answer === opt
 													? (newOptions[0] ?? "")
 													: editForm.answer;
 											onFormChange({ options: newOptions, answer: newAnswer });
 										}}
-										className="text-muted-foreground hover:text-destructive transition-colors"
+										className="text-muted-foreground hover:text-destructive"
 									>
-										<X className="h-4 w-4" />
-									</button>
+										<X className="size-4" />
+									</Button>
 								)}
 							</div>
 						);
 					})}
 				</div>
-				<button
+				<Button
 					type="button"
+					variant="link"
+					size="xs"
 					onClick={() => onFormChange({ options: [...editForm.options, ""] })}
-					className="mt-1.5 text-xs text-primary hover:underline"
+					className="mt-1.5"
 				>
 					+ Add option
-				</button>
+				</Button>
 			</div>
 
 			<div>
@@ -135,7 +137,7 @@ export function QuestionEditForm({
 						!editForm.answer
 					}
 				>
-					<Save className="h-4 w-4" />
+					<Save className="size-4" />
 					{saving ? "Saving..." : "Save"}
 				</Button>
 				<Button type="button" variant="ghost" onClick={onCancel}>

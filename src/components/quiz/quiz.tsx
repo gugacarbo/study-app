@@ -1,39 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ProviderConfig } from "../../lib/validation";
 import { getConfig } from "../../server-functions/config";
-import { saveQuizSessionToMemory } from "../../server-functions/memory";
 import { generateQuiz, submitAnswer } from "../../server-functions/quiz";
 import {
-	hydrateQuiz,
 	nextQuestion,
 	quizStore,
 	recordAnswer,
-	resetQuiz,
 	selectAnswer,
 } from "../../stores/quizStore";
 import { QuizExplanation } from "./quiz-explanation";
+import { QuizLoading } from "./quiz-loading";
 import { type QuestionWithId, QuizQuestion } from "./quiz-question";
 import { QuizResults } from "./quiz-results";
-
-type QA = {
-	question: string;
-	userAnswer: string;
-	correctAnswer: string;
-	isCorrect: boolean;
-	explanation: string;
-	topic: string;
-};
+import { useQuizKeyboard } from "./use-quiz-keyboard";
+import { type QA, useQuizPersistence } from "./use-quiz-persistence";
 
 export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 	const qc = useQueryClient();
 	const [config, setConfig] = useState<ProviderConfig | null>(null);
-	const [init, setInit] = useState(false);
 	const [longExp, setLongExp] = useState("");
 	const ans = useRef<QA[]>([]);
-	const sk = `study-app:quiz:${examId ?? "topic"}:${topic ?? "general"}`;
+
 	const { data: questions } = useQuery({
 		queryKey: ["quiz", examId, topic],
 		queryFn: () => {
@@ -75,109 +65,35 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 	useEffect(() => {
 		getConfig().then(setConfig);
 	}, []);
+
 	const st = useSelector(quizStore, (s) => s);
 	const qr = useRef(questions);
 	const sr = useRef(st);
 	const mr = useRef(mut);
+
 	useEffect(() => {
 		qr.current = questions;
 		sr.current = st;
 		mr.current = mut;
 	});
 
-	useEffect(() => {
-		if (!questions?.length || init) return;
-		const fb = () => {
-			resetQuiz(questions.length);
-			ans.current = [];
-			setInit(true);
-		};
-		try {
-			const r = localStorage.getItem(sk);
-			if (!r) {
-				fb();
-				return;
-			}
-			const p = JSON.parse(r);
-			if (
-				!p?.quizState ||
-				p.quizState.total !== questions.length ||
-				p.quizState.currentQuestionIndex < 0 ||
-				p.quizState.currentQuestionIndex > questions.length
-			) {
-				fb();
-				return;
-			}
-			hydrateQuiz(p.quizState);
-			ans.current = Array.isArray(p.answers) ? p.answers : [];
-			setInit(true);
-		} catch {
-			fb();
-		}
-	}, [questions, init, sk]);
+	const { init } = useQuizPersistence({
+		examId,
+		topic,
+		questions,
+		answersRef: ans,
+	});
+	useQuizKeyboard({ questionsRef: qr, stateRef: sr, mutationRef: mr });
 
-	useEffect(() => {
-		if (!init) return;
-		const sub = quizStore.subscribe(() => {
-			const s = quizStore.state;
-			localStorage.setItem(
-				sk,
-				JSON.stringify({ quizState: s, answers: ans.current }),
-			);
-			if (
-				s.isComplete &&
-				s.currentQuestionIndex >= s.total &&
-				ans.current.length > 0
-			) {
-				saveQuizSessionToMemory({
-					data: {
-						examName: examId ? `Exam #${examId}` : topic || "General",
-						topic: topic || "General",
-						totalQuestions: s.total,
-						correctAnswers: s.score,
-						questions: ans.current,
-					},
-				}).catch(() => {});
-				localStorage.removeItem(sk);
-			}
-		});
-		return () => sub.unsubscribe();
-	}, [init, sk, examId, topic]);
+	if (!config || !init || !questions) return <QuizLoading withButton />;
 
-	const hk = useCallback((e: KeyboardEvent) => {
-		const qs = qr.current;
-		const state = sr.current;
-		const m = mr.current;
-		if (!qs?.[state.currentQuestionIndex]) return;
-		const q = qs[state.currentQuestionIndex] as QuestionWithId;
-		const num = Number(e.key) - 1;
-		if (num >= 0 && num < 4 && q.options[num]) selectAnswer(q.options[num]);
-		if (e.key === "Enter") {
-			if (m.isPending) return;
-			if (state.selectedAnswer && !state.showExplanation)
-				m.mutate({
-					questionId: q.id,
-					userAnswer: state.selectedAnswer,
-					correctAnswer: q.answer,
-					question: q.question,
-					topic: q.topic,
-				});
-			else if (state.showExplanation) nextQuestion();
-		}
-	}, []);
-
-	useEffect(() => {
-		window.addEventListener("keydown", hk);
-		return () => window.removeEventListener("keydown", hk);
-	}, [hk]);
-
-	if (!config || !init || !questions) return <div>Loading...</div>;
 	if (st.isComplete)
 		return (
 			<QuizResults score={st.score} total={st.total} answers={ans.current} />
 		);
+
 	const cq = questions[st.currentQuestionIndex] as QuestionWithId;
-	if (!cq) return <div>Loading...</div>;
+	if (!cq) return <QuizLoading />;
 
 	return (
 		<Card>

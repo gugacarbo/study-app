@@ -1,41 +1,42 @@
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Link, useRouter } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import {
-	deleteExam,
-	getExamDetail,
-	updateQuestion,
-} from "../../server-functions/exams";
+import { getExamDetail } from "../../server-functions/exams";
 import { ExamHeader } from "./exam-header";
-import type { EditFormData } from "./exam-utils";
 import { FileList } from "./file-list";
 import { QuestionsCard } from "./questions-card";
 import { StatsCards } from "./stats-cards";
 import { TopicList } from "./topic-list";
 import { TopicStatsCard } from "./topic-stats-card";
+import { useExamDelete } from "./use-exam-delete";
+import { useQuestionEditing } from "./use-question-editing";
 
 interface ExamDetailProps {
 	examId: number;
 }
 
 export function ExamDetail({ examId }: ExamDetailProps) {
-	const router = useRouter();
-	const queryClient = useQueryClient();
-	const [deleting, setDeleting] = useState(false);
-	const [confirmDelete, setConfirmDelete] = useState(false);
 	const [expandedQuestions, setExpandedQuestions] = useState(new Set<number>());
-	const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
-		null,
-	);
-	const [editForm, setEditForm] = useState<EditFormData | null>(null);
-	const [saving, setSaving] = useState(false);
 	const [explanationsDialogOpen, setExplanationsDialogOpen] = useState(false);
 
 	const { data: exam } = useSuspenseQuery({
 		queryKey: ["exam-detail", examId],
 		queryFn: () => getExamDetail({ data: { id: examId } }),
 	});
+
+	const { deleting, confirmDelete, setConfirmDelete, handleDelete } =
+		useExamDelete({ examId });
+
+	const {
+		editingQuestionId,
+		editForm,
+		saving,
+		startEditing,
+		cancelEditing,
+		handleSave,
+		setEditForm,
+	} = useQuestionEditing({ examId });
 
 	const toggleQuestion = (id: number) => {
 		setExpandedQuestions((prev) => {
@@ -44,62 +45,6 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 			else next.add(id);
 			return next;
 		});
-	};
-
-	const handleDelete = async () => {
-		setDeleting(true);
-		try {
-			await deleteExam({ data: { id: examId } });
-			queryClient.invalidateQueries({ queryKey: ["exams-detailed"] });
-			queryClient.invalidateQueries({ queryKey: ["exams"] });
-			queryClient.invalidateQueries({ queryKey: ["stats"] });
-			router.navigate({ to: "/exams" });
-		} catch (err) {
-			console.error("Failed to delete exam:", err);
-		} finally {
-			setDeleting(false);
-		}
-	};
-
-	const startEditing = (q: (typeof exam.questions)[number]) => {
-		setEditingQuestionId(q.id);
-		setEditForm({
-			question: q.question,
-			options: [...q.options],
-			answer: q.answer,
-			explanation: q.explanation || "",
-			deepExplanation: q.deepExplanation || "",
-			topic: q.topic || "",
-		});
-	};
-
-	const cancelEditing = () => {
-		setEditingQuestionId(null);
-		setEditForm(null);
-	};
-
-	const handleSave = async (questionId: number) => {
-		if (!editForm) return;
-		setSaving(true);
-		try {
-			await updateQuestion({
-				data: {
-					id: questionId,
-					question: editForm.question,
-					options: editForm.options,
-					answer: editForm.answer,
-					explanation: editForm.explanation || "",
-					deepExplanation: editForm.deepExplanation || "",
-					topic: editForm.topic || "",
-				},
-			});
-			queryClient.invalidateQueries({ queryKey: ["exam-detail", examId] });
-			cancelEditing();
-		} catch (err) {
-			console.error("Failed to update question:", err);
-		} finally {
-			setSaving(false);
-		}
 	};
 
 	const { stats } = exam;
