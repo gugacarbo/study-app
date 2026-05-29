@@ -51,26 +51,23 @@ export function ChatSidebar() {
 					conversations.map((conv) => (
 						<div
 							key={conv.id}
-							role="button"
-							tabIndex={0}
-							onClick={() => handleSelect(conv.id)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									handleSelect(conv.id);
-								}
-							}}
-							className={`group flex w-full items-start gap-2 border-b border-border/40 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50 ${
-								activeId === conv.id ? "bg-muted/70 font-medium" : ""
-							}`}
+							className="group flex w-full items-center gap-2 border-b border-border/40 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
 						>
-							<MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-							<div className="min-w-0 flex-1">
-								<div className="truncate">{conv.title}</div>
-								<div className="mt-0.5 text-[11px] text-muted-foreground">
-									{new Date(conv.updatedAt).toLocaleDateString()}
+							<button
+								type="button"
+								onClick={() => handleSelect(conv.id)}
+								className={`flex min-w-0 flex-1 items-start gap-2 text-left ${
+									activeId === conv.id ? "bg-muted/70 font-medium" : ""
+								}`}
+							>
+								<MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+								<div className="min-w-0 flex-1">
+									<div className="truncate">{conv.title}</div>
+									<div className="mt-0.5 text-[11px] text-muted-foreground">
+										{new Date(conv.updatedAt).toLocaleDateString()}
+									</div>
 								</div>
-							</div>
+							</button>
 							<button
 								type="button"
 								onClick={(e) => handleDelete(e, conv.id)}

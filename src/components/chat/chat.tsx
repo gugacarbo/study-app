@@ -6,15 +6,15 @@ import {
 	conversationsStore,
 	updateConversationTitle,
 } from "@/stores/conversationsStore";
-import { useAutoScroll } from "./use-auto-scroll";
-import { useAutoTitle } from "./use-auto-title";
-import { useChatClient } from "./use-chat-client";
+import { ChatError } from "./chat-error";
 import { ChatHeader } from "./chat-header";
 import { ChatInput } from "./chat-input";
-import { ChatMessage } from "./chat-message";
-import { ChatSidebar } from "./chat-sidebar";
 import { ChatLoading } from "./chat-loading";
-import { ChatError } from "./chat-error";
+import { ChatMessage } from "./message/chat-message";
+import { ChatSidebar } from "./chat-sidebar";
+import { useAutoScroll } from "./hooks/use-auto-scroll";
+import { useAutoTitle } from "./hooks/use-auto-title";
+import { useChatClient } from "./hooks/use-chat-client";
 
 export function Chat() {
 	const messages = useSelector(chatStore, (s) => s.messages);

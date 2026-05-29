@@ -116,6 +116,31 @@ body {
 	border-color: var(--primary);
 }
 
+/* Shimmer animation for thinking parts */
+@keyframes shimmer {
+	0% {
+		background-position: -200% center;
+	}
+	100% {
+		background-position: 200% center;
+	}
+}
+
+.chat-thinking-part {
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		hsl(var(--primary) / 0.15) 40%,
+		hsl(var(--primary) / 0.3) 50%,
+		hsl(var(--primary) / 0.15) 60%,
+		transparent 100%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 3s ease-in-out infinite;
+	background-clip: text;
+	-webkit-background-clip: text;
+}
+
 @theme inline {
 	--font-heading: var(--font-sans);
 	--font-sans: "Inter Variable", sans-serif;

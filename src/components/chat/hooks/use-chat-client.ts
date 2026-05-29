@@ -1,18 +1,23 @@
 import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
 import { useEffect, useRef, useState } from "react";
-import { chatStore, setError, setIsLoading, setMessages } from "@/stores/chatStore";
+import {
+	chatStore,
+	setError,
+	setIsLoading,
+	setMessages,
+} from "@/stores/chatStore";
 import {
 	ensureActiveConversation,
 	getConversationMessages,
 	saveMessagesToConversation,
 } from "@/stores/conversationsStore";
-import type { AssistantPerfMetrics } from "./chat-message";
+import type { AssistantPerfMetrics } from "../message/chat-message";
 import {
 	estimateTokens,
 	getMessageText,
 	type PerfRuntime,
 	WELCOME,
-} from "./chat-utils";
+} from "../chat-utils";
 
 export function useChatClient(activeId: string | null) {
 	const [chatClient, setChatClient] = useState<ChatClient | null>(null);
