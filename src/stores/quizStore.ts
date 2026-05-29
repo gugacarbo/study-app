@@ -26,6 +26,10 @@ const initialState: QuizState = {
 
 export const quizStore = new Store<QuizState>(initialState);
 
+export function hydrateQuiz(state: QuizState) {
+  quizStore.setState(() => state);
+}
+
 export function resetQuiz(totalQuestions: number) {
   quizStore.setState(() => ({
     ...initialState,

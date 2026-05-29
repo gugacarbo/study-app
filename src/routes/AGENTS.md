@@ -1,6 +1,6 @@
 # Routes
 
-TanStack Router file-based routing. 15 entries in `src/routes/`.
+TanStack Router file-based routing. 16 entries in `src/routes/`.
 
 ## Route Table
 
@@ -17,7 +17,8 @@ TanStack Router file-based routing. 15 entries in `src/routes/`.
 | `config.tsx` | `/config` | Page | `getConfig`/`setConfig` via server fns |
 | `chat.tsx` | `/chat` | Page | Chat API stream |
 | `about.tsx` | `/about` | Page | — |
-| `memory.tsx` | `/memory` | Page | Memory overview via server fn |
+| `memory.tsx` | `/memory` | Page | Memory visualization dashboard (uses MemoryVisualization) |
+| `memory-viz.tsx` | `/memory-viz` | Page | Memory visualization dashboard |
 | `api.chat.ts` | `/api/chat` | **API** (POST) | Server-side handler via `server.handlers` |
 | `api.test-connection.ts` | `/api/test-connection` | **API** (POST, SSE) | Server-side handler via `server.handlers` |
 

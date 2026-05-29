@@ -4,7 +4,7 @@ import { useStore } from '@tanstack/react-store'
 import { generateQuiz, submitAnswer } from '../server-functions/quiz'
 import { getConfig } from '../server-functions/config'
 import { saveQuizSessionToMemory } from '../server-functions/memory'
-import { quizStore, resetQuiz, selectAnswer, nextQuestion, recordAnswer } from '../stores/quizStore'
+import { quizStore, resetQuiz, selectAnswer, nextQuestion, recordAnswer, hydrateQuiz } from '../stores/quizStore'
 import type { ProviderConfig, Question } from '../lib/validation'
 
 interface QuizProps {
@@ -25,10 +25,22 @@ interface AnswerRecord {
   topic: string
 }
 
+interface PersistedQuizState {
+  quizState: ReturnType<typeof getQuizStateSnapshot>
+  answers: AnswerRecord[]
+}
+
+function getQuizStateSnapshot() {
+  return quizStore.state
+}
+
 export function Quiz({ examId, topic }: QuizProps) {
   const queryClient = useQueryClient()
   const [config, setConfig] = useState<ProviderConfig | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [longExplanation, setLongExplanation] = useState('')
   const answersRef = useRef<AnswerRecord[]>([])
+  const storageKey = `study-app:quiz:${examId ?? 'topic'}:${topic ?? 'general'}`
 
   useEffect(() => {
     getConfig().then(setConfig)
@@ -45,13 +57,9 @@ export function Quiz({ examId, topic }: QuizProps) {
 
   const submitMutation = useMutation({
     mutationFn: (vars: { questionId: number; userAnswer: string; correctAnswer: string; question: string; topic?: string }) => {
-      if (!config) throw new Error('Config not loaded')
-      const { correctAnswer: _correctAnswer, ...serverVars } = vars
-      return submitAnswer({ data: { ...serverVars, config } })
+      return submitAnswer({ data: { questionId: vars.questionId, userAnswer: vars.userAnswer } })
     },
     onSuccess: (data, vars) => {
-      recordAnswer(data.correct, data.explanation)
-
       answersRef.current.push({
         question: vars.question,
         userAnswer: vars.userAnswer,
@@ -60,6 +68,8 @@ export function Quiz({ examId, topic }: QuizProps) {
         explanation: data.explanation,
         topic: vars.topic || 'General',
       })
+      recordAnswer(data.correct, data.explanation)
+      setLongExplanation(data.longExplanation || '')
 
       queryClient.invalidateQueries({ queryKey: ['stats'] })
     },
@@ -78,11 +88,55 @@ export function Quiz({ examId, topic }: QuizProps) {
   useEffect(() => { submitMutationRef.current = submitMutation }, [submitMutation])
 
   useEffect(() => {
-    if (questions?.length) {
+    if (!questions?.length || isInitialized) return
+    const fallbackToReset = () => {
       resetQuiz(questions.length)
       answersRef.current = []
+      setIsInitialized(true)
     }
-  }, [questions])
+
+    try {
+      const raw = localStorage.getItem(storageKey)
+      if (!raw) {
+        fallbackToReset()
+        return
+      }
+
+      const persisted = JSON.parse(raw) as PersistedQuizState
+      const savedState = persisted?.quizState
+      const savedAnswers = persisted?.answers
+
+      const isStateValid =
+        !!savedState &&
+        typeof savedState.total === 'number' &&
+        savedState.total === questions.length &&
+        savedState.currentQuestionIndex >= 0 &&
+        savedState.currentQuestionIndex <= questions.length
+
+      if (!isStateValid) {
+        fallbackToReset()
+        return
+      }
+
+      hydrateQuiz(savedState)
+      answersRef.current = Array.isArray(savedAnswers) ? savedAnswers : []
+      setIsInitialized(true)
+    } catch {
+      fallbackToReset()
+    }
+  }, [questions, isInitialized, storageKey])
+
+  useEffect(() => {
+    if (!isInitialized) return
+    const sub = quizStore.subscribe(() => {
+      const payload: PersistedQuizState = {
+        quizState: getQuizStateSnapshot(),
+        answers: answersRef.current,
+      }
+      localStorage.setItem(storageKey, JSON.stringify(payload))
+    })
+    return () => sub.unsubscribe()
+  }, [isInitialized, storageKey])
 
   const saveSession = useCallback(async () => {
     const state = quizStore.state
@@ -97,6 +151,8 @@ export function Quiz({ examId, topic }: QuizProps) {
         questions: answersRef.current,
       },
     }).catch(() => {})
+
+    localStorage.removeItem(storageKey)
   }, [examId, topic])
 
   useEffect(() => {
@@ -128,6 +184,7 @@ export function Quiz({ examId, topic }: QuizProps) {
     if (e.key === 'Enter') {
       if (currentMutation.isPending) return
       if (currentState.selectedAnswer && !currentState.showExplanation) {
+        setLongExplanation('')
         currentMutation.mutate({
           questionId: currentQuestion.id,
           userAnswer: currentState.selectedAnswer,
@@ -147,7 +204,62 @@ export function Quiz({ examId, topic }: QuizProps) {
   }, [handleKeyDown])
 
   if (!config) return <div>Loading config...</div>
-  if (!questions || !questions[quizState.currentQuestionIndex]) return <div>Loading...</div>
+  if (!isInitialized) return <div>Loading...</div>
+  if (!questions) return <div>Loading...</div>
+  if (quizState.isComplete) {
+    const total = quizState.total
+    const correct = quizState.score
+    const incorrect = Math.max(total - correct, 0)
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0
+    const wrongAnswers = answersRef.current.filter((answer) => !answer.isCorrect)
+
+    return (
+      <div className="card">
+        <div className="mt-4">
+          <h2 className="text-xl font-bold">Quiz Complete!</h2>
+          <p className="text-text-muted mt-1">Resumo do seu desempenho</p>
+
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+              <p className="text-xs text-text-muted">Acertos</p>
+              <p className="text-lg font-semibold text-success">{correct}</p>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+              <p className="text-xs text-text-muted">Erros</p>
+              <p className="text-lg font-semibold text-error">{incorrect}</p>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+              <p className="text-xs text-text-muted">Taxa de acerto</p>
+              <p className="text-lg font-semibold">{accuracy}%</p>
+            </div>
+            <div className="rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+              <p className="text-xs text-text-muted">Resultado</p>
+              <p className="text-lg font-semibold">{correct} / {total}</p>
+            </div>
+          </div>
+
+          {wrongAnswers.length > 0 && (
+            <details className="mt-4 rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+              <summary className="cursor-pointer text-sm font-medium text-text-muted">
+                Revisar questões erradas ({wrongAnswers.length})
+              </summary>
+              <div className="mt-3 flex flex-col gap-3">
+                {wrongAnswers.map((item, index) => (
+                  <div key={`${item.question}-${index}`} className="rounded border border-[var(--border)] p-3">
+                    <p className="text-sm font-medium">{item.question}</p>
+                    <p className="text-xs text-text-muted mt-1">Sua resposta: {item.userAnswer}</p>
+                    <p className="text-xs text-text-muted">Correta: {item.correctAnswer}</p>
+                    <p className="text-xs text-text-muted mt-2">{item.explanation}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      </div>
+    )
+  }
+  if (!questions[quizState.currentQuestionIndex]) return <div>Loading...</div>
 
   const currentQuestion = questions[quizState.currentQuestionIndex] as QuizQuestion
 
@@ -187,6 +299,7 @@ export function Quiz({ examId, topic }: QuizProps) {
             className="btn w-full mt-4"
             disabled={!quizState.selectedAnswer || submitMutation.isPending}
             onClick={() => {
+              setLongExplanation('')
               submitMutation.mutate({
                 questionId: currentQuestion.id,
                 userAnswer: quizState.selectedAnswer!,
@@ -216,18 +329,19 @@ export function Quiz({ examId, topic }: QuizProps) {
             {quizState.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
           </div>
           <p className="text-text-muted text-sm">{quizState.explanation}</p>
+          {longExplanation && (
+            <details className="mt-2 rounded border border-[var(--border)] bg-[var(--surface)] p-3">
+              <summary className="cursor-pointer text-sm font-medium text-text-muted">
+                Ver explicação completa
+              </summary>
+              <div className="mt-2 whitespace-pre-wrap text-sm text-text-muted">
+                {longExplanation}
+              </div>
+            </details>
+          )}
           <button className="btn mt-2" onClick={nextQuestion}>
             Next Question (Enter)
           </button>
-        </div>
-      )}
-
-      {quizState.isComplete && (
-        <div className="mt-4 text-center">
-          <h2 className="text-xl font-bold">Quiz Complete!</h2>
-          <p className="text-2xl font-bold mt-2">
-            {quizState.score} / {quizState.total}
-          </p>
         </div>
       )}
 

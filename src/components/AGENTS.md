@@ -1,6 +1,6 @@
 # Components
 
-React components in TanStack Start SPA. 12 files, each self-contained.
+React components in TanStack Start SPA. 13 files, each self-contained.
 
 ## Inventory
 
@@ -16,6 +16,7 @@ React components in TanStack Start SPA. 12 files, each self-contained.
 | `ThemeToggle.tsx` | global (nav) | Local state + class toggle | Light/dark mode switch |
 | `Chat.tsx` | `/chat` | Local state + fetch | AI chat assistant |
 | `MemoryPanel.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory overview and search |
+| `MemoryVisualization.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory stats dashboard with topic charts |
 | `ObsidianConfigForm.tsx` | `/obsidian` | Local state | Obsidian connection config |
 | `ObsidianPanel.tsx` | `/obsidian` | TanStack Query | Vault management UI |
 

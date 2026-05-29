@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { DBQueries } from '../db/queries';
 import { getDB } from './db';
 import { generateQuizQuestions } from '../lib/ai/prompts/generate-quiz';
-import { evaluateQuizAnswer } from '../lib/ai/prompts/evaluate-answer';
 import { providerConfigSchema } from '../lib/validation';
 import { getMemoryContext } from './memory';
 
@@ -17,8 +16,6 @@ const generateQuizSchema = z.object({
 const submitAnswerSchema = z.object({
   questionId: z.number(),
   userAnswer: z.string(),
-  question: z.string(),
-  config: providerConfigSchema,
 });
 
 export const generateQuiz = createServerFn({ method: 'POST' })
@@ -61,24 +58,22 @@ export const submitAnswer = createServerFn({ method: 'POST' })
       throw new Error('Question not found');
     }
 
-    const memoryTopic = storedQuestion.topic || data.question;
-    const memoryResult = await getMemoryContext({ data: { topics: [memoryTopic] } }).catch(() => ({ context: '' }));
+    const normalizeAnswer = (value: string) => value.trim().toLowerCase();
+    const normalizedUserAnswer = normalizeAnswer(data.userAnswer);
+    const normalizedCorrectAnswer = normalizeAnswer(storedQuestion.answer);
+    const correct = normalizedUserAnswer === normalizedCorrectAnswer;
+    const shortExplanation =
+      storedQuestion.explanation ||
+      (correct
+        ? 'Resposta correta.'
+        : `Resposta incorreta. A resposta correta é: ${storedQuestion.answer}`);
+    const longExplanation = storedQuestion.deepExplanation || '';
 
-    const evaluation = await evaluateQuizAnswer(
-      data.config,
-      {
-        question: storedQuestion.question,
-        options: storedQuestion.options,
-        userAnswer: data.userAnswer,
-        correctAnswer: storedQuestion.answer,
-      },
-      memoryResult.context || undefined,
-    );
-
-    await queries.recordAttempt(data.questionId, data.userAnswer, evaluation.correct);
+    await queries.recordAttempt(data.questionId, data.userAnswer, correct);
 
     return {
-      correct: evaluation.correct,
-      explanation: evaluation.explanation,
+      correct,
+      explanation: shortExplanation,
+      longExplanation,
     };
   });

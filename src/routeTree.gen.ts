@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as MemoryVizRouteImport } from './routes/memory-viz'
 import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as ConfigRouteImport } from './routes/config'
@@ -32,6 +33,11 @@ const UploadRoute = UploadRouteImport.update({
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoryVizRoute = MemoryVizRouteImport.update({
+  id: '/memory-viz',
+  path: '/memory-viz',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MemoryRoute = MemoryRouteImport.update({
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
+  '/memory-viz': typeof MemoryVizRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/memory': typeof MemoryRoute
+  '/memory-viz': typeof MemoryVizRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
+  '/memory-viz': typeof MemoryVizRoute
   '/stats': typeof StatsRoute
   '/upload': typeof UploadRoute
   '/api/chat': typeof ApiChatRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/config'
     | '/exams'
     | '/memory'
+    | '/memory-viz'
     | '/stats'
     | '/upload'
     | '/api/chat'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/config'
     | '/memory'
+    | '/memory-viz'
     | '/stats'
     | '/upload'
     | '/api/chat'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/config'
     | '/exams'
     | '/memory'
+    | '/memory-viz'
     | '/stats'
     | '/upload'
     | '/api/chat'
@@ -200,6 +212,7 @@ export interface RootRouteChildren {
   ConfigRoute: typeof ConfigRoute
   ExamsRoute: typeof ExamsRouteWithChildren
   MemoryRoute: typeof MemoryRoute
+  MemoryVizRoute: typeof MemoryVizRoute
   StatsRoute: typeof StatsRoute
   UploadRoute: typeof UploadRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -222,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memory-viz': {
+      id: '/memory-viz'
+      path: '/memory-viz'
+      fullPath: '/memory-viz'
+      preLoaderRoute: typeof MemoryVizRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/memory': {
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfigRoute: ConfigRoute,
   ExamsRoute: ExamsRouteWithChildren,
   MemoryRoute: MemoryRoute,
+  MemoryVizRoute: MemoryVizRoute,
   StatsRoute: StatsRoute,
   UploadRoute: UploadRoute,
   ApiChatRoute: ApiChatRoute,

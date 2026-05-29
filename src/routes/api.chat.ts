@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { chat, toServerSentEventsStream } from "@tanstack/ai";
-import { createOpenaiChatCompletions } from "@tanstack/ai-openai";
+import { toServerSentEventsStream } from "@tanstack/ai";
 import { getDB } from "../server-functions/db";
 import { DBQueries } from "../db/queries";
 import type { ModelMessage, StreamChunk } from "@tanstack/ai";
+import { streamChatMessages } from "../lib/ai/ai";
+import type { ProviderConfig } from "../lib/validation";
 
 // Timeout for AI provider responses — prevents SSE connections from hanging
 // indefinitely if the upstream provider stalls.
@@ -103,11 +104,7 @@ export const Route = createFileRoute("/api/chat")({
 				const model = config.ai_model || "openai/gpt-4o-mini";
 				const apiKey = config.ai_api_key;
 				const provider = config.ai_provider || "openrouter";
-				const baseUrl =
-					config.ai_base_url ||
-					(provider === "openrouter"
-						? "https://openrouter.ai/api/v1"
-						: undefined);
+				const baseUrl = config.ai_base_url || undefined;
 
 				if (!apiKey) {
 					return new Response("AI provider not configured", { status: 400 });
@@ -130,15 +127,18 @@ export const Route = createFileRoute("/api/chat")({
 					);
 				}, AI_TIMEOUT_MS);
 
-				const adapter = createOpenaiChatCompletions(model as any, apiKey, {
-					baseURL: baseUrl,
-				});
+				const providerConfig: ProviderConfig = {
+					provider: provider as ProviderConfig["provider"],
+					model,
+					baseUrl,
+					apiKey,
+				};
 
-				const rawStream = chat({
-					adapter,
-					messages: body.messages as Array<ModelMessage>,
-					abortController,
-				});
+				const rawStream = streamChatMessages(
+					providerConfig,
+					body.messages as Array<ModelMessage>,
+					{ abortController },
+				);
 
 				// Ensure the timeout is cleared once the stream completes
 				const stream = withCleanup(rawStream, () =>

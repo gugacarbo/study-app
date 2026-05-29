@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-05-28 — shadcn/ui migration, deep explanations, react-hook-form, memory route
+> **Last auto-updated:** 2026-05-28 — quiz local eval & persistence, think tags, memory-viz route
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -44,7 +44,8 @@ src/
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
 │   ├── Chat.tsx         # AI chat assistant
-│   └── MemoryPanel.tsx  # Memory overview and search
+│   ├── MemoryPanel.tsx  # Memory overview and search
+│   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
 ├── routes/              # File-based TanStack Router routes
 │   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts
 │   ├── index.tsx        # / — Dashboard
@@ -57,7 +58,8 @@ src/
 │   ├── config.tsx       # /config — AI provider settings
 │   ├── chat.tsx         # /chat — AI chat interface
 │   ├── about.tsx        # /about
-│   ├── memory.tsx       # /memory — memory overview
+│   ├── memory.tsx       # /memory — memory overview (now uses MemoryVisualization)
+│   ├── memory-viz.tsx   # /memory-viz — memory visualization dashboard
 │   ├── api.chat.ts      # /api/chat — POST handler (server-side API)
 │   ├── api.ingest.ts    # /api/ingest — POST handler (streaming ingest)
 │   └── api.test-connection.ts # /api/test-connection — SSE streaming test
@@ -127,10 +129,12 @@ migrations/
 - **D1 via Drizzle ORM** — `src/db/schema.ts` defines tables, `src/db/queries.ts` wraps Drizzle operations
 - **Migrations managed by wrangler** — each table has its own migration file (\`0001_exams.sql\` → \`0006_memory.sql\`)
 - **SPA mode** (no SSR) — appropriate for single-user app
-- **TanStack Store** for quiz state (ephemeral), **TanStack Query** for server data
+- **TanStack Store** for quiz state (ephemeral + localStorage persistence), **TanStack Query** for server data
 - **PDF parsing** via text extraction; fallback to manual paste
 - **Server functions** use `createServerFn` from `@tanstack/react-start` with `data` parameter pattern
-- **Deep explanations** generated in batches by AI agent, stored in `deep_explanation` column
+- **Deep explanations** generated in batches by AI agent, stored in `deep_explanation` column; shown as collapsible in quiz results
+- **Quiz answer evaluation** uses direct string comparison (not AI) — faster, cheaper, deterministic
+- **Quiz state persisted** to localStorage — survives page refresh, keyed by exam/topic
 - **Config form** uses `react-hook-form` + `@hookform/resolvers` (Zod adapter) — not `@tanstack/react-form`
 
 ## Memory Layer (D1-Based)

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MemoryPanel } from "../components/MemoryPanel";
+import { MemoryVisualization } from "../components/MemoryVisualization";
 
 export const Route = createFileRoute("/memory")({
   component: MemoryPage,
@@ -8,8 +8,8 @@ export const Route = createFileRoute("/memory")({
 function MemoryPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Memory</h1>
-      <MemoryPanel />
+      <h1 className="mb-6 text-2xl font-bold">Memory Visualization</h1>
+      <MemoryVisualization />
     </div>
   );
 }

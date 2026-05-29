@@ -11,9 +11,11 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 
 export function MemoryPanel() {
 	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
 	const { data } = useSuspenseQuery({
 		queryKey: ["memory-overview"],
@@ -31,6 +33,14 @@ export function MemoryPanel() {
 		? data.profileNotes.slice(0, 600)
 		: "";
 	const searchResults = searchMutation.data?.results ?? [];
+	const selectedSession =
+		recentSessions.find((session) => session.id === selectedSessionId) ?? null;
+	const selectedSessionAccuracy = selectedSession
+		? selectedSession.accuracy
+		: 0;
+	const selectedSessionIncorrect = selectedSession
+		? selectedSession.totalQuestions - selectedSession.correctAnswers
+		: 0;
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -67,25 +77,40 @@ export function MemoryPanel() {
 						<div className="flex flex-col gap-2">
 							{recentSessions.map((s) => (
 								<Card key={s.id}>
-									<div className="flex items-center justify-between gap-2 p-3">
-										<div className="flex flex-col gap-1">
-											<p className="text-sm font-medium">{s.topic}</p>
-											<p className="text-xs text-muted-foreground">
-												{s.examName} &bull; {s.correctAnswers}/
-												{s.totalQuestions} &bull; {s.sessionDate}
-											</p>
-										</div>
-										<Badge
-											variant={
-												s.accuracy >= 70
-													? "default"
-													: s.accuracy >= 40
-														? "secondary"
-														: "destructive"
-											}
+									<div className="p-3">
+										<button
+											type="button"
+											className="flex w-full items-center justify-between gap-2 text-left"
+											onClick={() => setSelectedSessionId(s.id)}
 										>
-											{s.accuracy}%
-										</Badge>
+											<div className="flex flex-col gap-1">
+												<p className="text-sm font-medium">{s.topic}</p>
+												<p className="text-xs text-muted-foreground">
+													{s.examName} &bull; {s.correctAnswers}/
+													{s.totalQuestions} &bull; {s.sessionDate}
+												</p>
+											</div>
+											<Badge
+												variant={
+													s.accuracy >= 70
+														? "default"
+														: s.accuracy >= 40
+															? "secondary"
+															: "destructive"
+												}
+											>
+												{s.accuracy}%
+											</Badge>
+										</button>
+										<div className="mt-2 flex justify-end">
+											<Button
+												variant="ghost"
+												size="sm"
+												onClick={() => setSelectedSessionId(s.id)}
+											>
+												Visualizar sessao
+											</Button>
+										</div>
 									</div>
 								</Card>
 							))}
@@ -93,6 +118,43 @@ export function MemoryPanel() {
 					)}
 				</CardContent>
 			</Card>
+
+			{selectedSession && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Session Visualization</CardTitle>
+					</CardHeader>
+					<CardContent className="flex flex-col gap-4">
+						<div>
+							<p className="text-sm font-medium">
+								{selectedSession.topic} - {selectedSession.examName}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{selectedSession.sessionDate}
+							</p>
+						</div>
+						<div className="space-y-2">
+							<div className="flex items-center justify-between text-xs">
+								<span>Accuracy</span>
+								<span>{selectedSessionAccuracy}%</span>
+							</div>
+							<Progress value={selectedSessionAccuracy} className="h-2" />
+						</div>
+						<div className="grid grid-cols-2 gap-2 text-sm">
+							<div className="rounded-md border p-2">
+								<p className="text-xs text-muted-foreground">Correct</p>
+								<p className="font-semibold">
+									{selectedSession.correctAnswers}
+								</p>
+							</div>
+							<div className="rounded-md border p-2">
+								<p className="text-xs text-muted-foreground">Incorrect</p>
+								<p className="font-semibold">{selectedSessionIncorrect}</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{/* Search Memory */}
 			<Card>
