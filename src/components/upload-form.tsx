@@ -1,13 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ProviderConfig } from '../lib/validation'
 import { getConfig } from '../server-functions/config'
-
-type IngestProgressEvent = {
-  progress: number
-  step: string
-}
+import { Loader2 } from 'lucide-react'
 
 type IngestResultEvent = {
   questions: number
@@ -35,9 +31,13 @@ function parseEventBlock(block: string): { event: string; data: string } | null 
   return { event, data: dataLines.join('\n') }
 }
 
-async function ingestWithProgress(
+async function ingestStream(
   payload: { buffer: number[]; fileName: string; config: ProviderConfig },
-  onProgress: (event: IngestProgressEvent) => void,
+  callbacks: {
+    onStep: (step: string) => void
+    onChunk: (text: string) => void
+    onToken: (promptTokens: number, completionTokens: number, totalTokens: number) => void
+  },
 ): Promise<IngestResultEvent> {
   const response = await fetch('/api/ingest', {
     method: 'POST',
@@ -81,8 +81,22 @@ async function ingestWithProgress(
           }
 
           if (parsed.event === 'progress' && data && typeof data === 'object') {
-            const event = data as IngestProgressEvent
-            onProgress(event)
+            const { step } = data as { step: string }
+            callbacks.onStep(step)
+          }
+
+          if (parsed.event === 'chunk' && data && typeof data === 'object') {
+            const { text } = data as { text: string }
+            callbacks.onChunk(text)
+          }
+
+          if (parsed.event === 'token' && data && typeof data === 'object') {
+            const { promptTokens, completionTokens, totalTokens } = data as {
+              promptTokens: number
+              completionTokens: number
+              totalTokens: number
+            }
+            callbacks.onToken(promptTokens, completionTokens, totalTokens)
           }
 
           if (parsed.event === 'result' && data && typeof data === 'object') {
@@ -112,8 +126,16 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const [hasFile, setHasFile] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [progressStep, setProgressStep] = useState('')
+  const [stepText, setStepText] = useState('')
+  const [streamText, setStreamText] = useState('')
+  const [totalTokens, setTotalTokens] = useState(0)
+  const streamEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (streamEndRef.current) {
+      streamEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [streamText])
 
   const form = useForm({
     defaultValues: {
@@ -124,29 +146,34 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 
       setStatus('uploading')
       setMessage('')
-      setProgress(10)
-      setProgressStep('Carregando configuração da IA...')
+      setStepText('Carregando configuração da IA...')
+      setStreamText('')
+      setTotalTokens(0)
+
       try {
         const config = await getConfig()
-        setProgress(15)
-        setProgressStep('Lendo arquivo...')
+        setStepText('Lendo arquivo...')
         const buffer = await value.file.arrayBuffer()
-        setProgress(18)
-        setProgressStep('Enviando arquivo para processamento...')
-        const result = await ingestWithProgress(
+        setStepText('Enviando arquivo para processamento...')
+        const result = await ingestStream(
           {
             buffer: Array.from(new Uint8Array(buffer)),
             fileName: value.file.name,
             config,
           },
-          event => {
-            setProgress(event.progress)
-            setProgressStep(event.step)
+          {
+            onStep: setStepText,
+            onChunk: (text) => {
+              setStreamText(text)
+              // ~4 chars per token — estimativa em tempo real
+              const estimated = Math.round(text.length / 4)
+              setTotalTokens((prev) => Math.max(prev, estimated))
+            },
+            onToken: (_p, _c, total) => setTotalTokens((prev) => Math.max(prev, total)),
           },
         )
         setStatus('success')
-        setProgress(100)
-        setProgressStep('Concluído')
+        setStepText('Concluído')
         setMessage(`Extracted ${result.questions} questions from ${result.topics.join(', ')}`)
         queryClient.invalidateQueries({ queryKey: ['exams'] })
         queryClient.invalidateQueries({ queryKey: ['exams-detailed'] })
@@ -154,8 +181,8 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
         onSuccess?.()
       } catch (err) {
         setStatus('error')
-        setProgress(0)
-        setProgressStep('')
+        setStepText('')
+        setStreamText('')
         setMessage(err instanceof Error ? err.message : 'Unknown error')
       }
     },
@@ -185,8 +212,9 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
                   if (file) {
                     setStatus('idle')
                     setMessage('')
-                    setProgress(0)
-                    setProgressStep('')
+                    setStepText('')
+                    setStreamText('')
+                    setTotalTokens(0)
                   }
                 }}
                 className="hidden"
@@ -203,29 +231,47 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 
         <button
           type="submit"
-          className="btn w-full mt-2"
+          className="btn w-full mt-2 flex items-center justify-center gap-2"
           disabled={status === 'uploading' || !hasFile}
         >
-          {status === 'uploading' ? 'Processing...' : 'Upload & Extract Questions'}
+          {status === 'uploading' ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            'Upload & Extract Questions'
+          )}
         </button>
       </form>
 
       {status === 'uploading' && (
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between text-sm text-text-muted">
-            <span>{progressStep}</span>
-            <span>{progress}%</span>
+        <div className="mt-4 space-y-3">
+          {/* Spinner + step text */}
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+            <span className="text-sm text-text-muted">{stepText}</span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded bg-surface-hover">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+
+          {/* Streaming AI response */}
+          {streamText && (
+            <div className="max-h-32 overflow-y-auto rounded border border-border bg-surface/50 p-3 font-mono text-[11px] leading-relaxed text-text-muted">
+              <code>{streamText}</code>
+              <div ref={streamEndRef} />
+            </div>
+          )}
+
+          {/* Token counter — sempre visível durante upload */}
+          <div className="flex justify-end">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              {totalTokens > 0 ? `${totalTokens.toLocaleString()} tokens` : '0 tokens'}
+            </span>
           </div>
         </div>
       )}
 
-      {status !== 'idle' && (
+      {status !== 'idle' && status !== 'uploading' && (
         <div
           className={`mt-4 p-3 rounded ${
             status === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'

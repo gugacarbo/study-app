@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
+import { MarkdownRenderer } from '@/components/ui/markdown'
 import { generateQuiz, submitAnswer } from '../server-functions/quiz'
 import { getConfig } from '../server-functions/config'
 import { saveQuizSessionToMemory } from '../server-functions/memory'
@@ -246,10 +247,10 @@ export function Quiz({ examId, topic }: QuizProps) {
               <div className="mt-3 flex flex-col gap-3">
                 {wrongAnswers.map((item, index) => (
                   <div key={`${item.question}-${index}`} className="rounded border border-border p-3">
-                    <p className="text-sm font-medium">{item.question}</p>
-                    <p className="text-xs text-text-muted mt-1">Sua resposta: {item.userAnswer}</p>
-                    <p className="text-xs text-text-muted">Correta: {item.correctAnswer}</p>
-                    <p className="text-xs text-text-muted mt-2">{item.explanation}</p>
+                    <MarkdownRenderer content={item.question} className="text-sm font-medium" />
+                    <p className="text-xs text-text-muted mt-1">Sua resposta: <MarkdownRenderer content={item.userAnswer} className="inline" prose={false} /></p>
+                    <p className="text-xs text-text-muted">Correta: <MarkdownRenderer content={item.correctAnswer} className="inline" prose={false} /></p>
+                    <MarkdownRenderer content={item.explanation} className="text-xs mt-2 text-text-muted" />
                   </div>
                 ))}
               </div>
@@ -272,7 +273,9 @@ export function Quiz({ examId, topic }: QuizProps) {
         <span className="text-success">Score: {quizState.score}</span>
       </div>
 
-      <h3 className="text-lg font-semibold mb-4">{currentQuestion.question}</h3>
+      <div className="text-lg font-semibold mb-4">
+        <MarkdownRenderer content={currentQuestion.question} />
+      </div>
 
       <div className="flex flex-col gap-2">
         {currentQuestion.options.map((option: string, i: number) => (
@@ -285,8 +288,8 @@ export function Quiz({ examId, topic }: QuizProps) {
             }`}
             onClick={() => selectAnswer(option)}
           >
-            <span className="mr-2 font-bold">{String.fromCharCode(97 + i)})</span>
-            {option}
+            <span className="mr-2 font-bold shrink-0">{String.fromCharCode(97 + i)})</span>
+            <MarkdownRenderer content={option} className="text-left" />
           </button>
         ))}
       </div>
@@ -326,14 +329,14 @@ export function Quiz({ examId, topic }: QuizProps) {
           >
             {quizState.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
           </div>
-          <p className="text-text-muted text-sm">{quizState.explanation}</p>
+          <MarkdownRenderer content={quizState.explanation} className="text-sm" />
           {longExplanation && (
             <details className="mt-2 rounded border border-border bg-surface p-3">
               <summary className="cursor-pointer text-sm font-medium text-text-muted">
                 Ver explicação completa
               </summary>
-              <div className="mt-2 whitespace-pre-wrap text-sm text-text-muted">
-                {longExplanation}
+              <div className="mt-2 text-sm text-text-muted">
+                <MarkdownRenderer content={longExplanation} />
               </div>
             </details>
           )}

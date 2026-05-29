@@ -4,6 +4,7 @@ import { getMemoryOverview, searchMemory } from "../server-functions/memory";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MarkdownRenderer } from "@/components/ui/markdown";
 import {
 	Card,
 	CardContent,
@@ -51,9 +52,10 @@ export function MemoryPanel() {
 				</CardHeader>
 				<CardContent>
 					{profileSummary ? (
-						<pre className="whitespace-pre-wrap text-xs text-muted-foreground">
-							{profileSummary}
-						</pre>
+						<MarkdownRenderer
+							content={profileSummary}
+							className="text-xs text-muted-foreground"
+						/>
 					) : (
 						<p className="text-sm text-muted-foreground">
 							No profile yet. Complete a quiz and we will start tracking

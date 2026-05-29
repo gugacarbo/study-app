@@ -1,6 +1,7 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import type { StreamChunk } from "@tanstack/ai";
 import { DBQueries } from "../../db/queries";
 import { extractQuestionsFromText } from "../../lib/ai/prompts/extract-questions";
 import { FileService } from "../../lib/file-service";
@@ -36,7 +37,7 @@ async function getMemoryContextForTopics(
 
 async function runIngestWithProgress(
   payload: IngestRequest,
-  onProgress: (progress: number, step: string) => void,
+  send: (event: string, data: unknown) => void,
   abortSignal: AbortSignal,
 ) {
   const assertNotAborted = () => {
@@ -45,7 +46,32 @@ async function runIngestWithProgress(
     }
   };
 
-  onProgress(5, "Connecting to database...");
+  const onProgress = (step: string) => {
+    send("progress", { step });
+  };
+
+  const onAiChunk = (chunk: StreamChunk) => {
+    // Raw text from generic streaming chunks
+    if ("content" in chunk && typeof chunk.content === "string" && chunk.content) {
+      send("chunk", { text: chunk.content });
+    }
+    // Raw JSON from structured-output chunks (the actual extraction text)
+    if (
+      "value" in chunk &&
+      chunk.value &&
+      typeof chunk.value === "object" &&
+      "raw" in chunk.value &&
+      typeof chunk.value.raw === "string"
+    ) {
+      send("chunk", { text: chunk.value.raw });
+    }
+    // Token usage at end of AI run
+    if ("usage" in chunk && chunk.usage) {
+      send("token", chunk.usage);
+    }
+  };
+
+  onProgress("Connecting to database...");
   const db = await getDB();
   if (!db) {
     throw new Error("D1 database not available");
@@ -55,7 +81,7 @@ async function runIngestWithProgress(
   const queries = new DBQueries(db);
   const fileService = new FileService(db);
 
-  onProgress(12, "Decoding file...");
+  onProgress("Decoding file...");
   const bytes = new Uint8Array(payload.buffer);
   const text = extractTextFromBytes(bytes);
   assertNotAborted();
@@ -66,12 +92,14 @@ async function runIngestWithProgress(
     );
   }
 
-  onProgress(28, "Extracting questions with AI...");
-  const extracted = await extractQuestionsFromText(payload.config, text);
-  onProgress(56, "Initial extraction completed");
+  onProgress("Extracting questions with AI...");
+  const extracted = await extractQuestionsFromText(payload.config, text, undefined, {
+    onChunk: onAiChunk,
+  });
+  onProgress("Initial extraction completed");
   assertNotAborted();
 
-  onProgress(60, "Loading study-memory context...");
+  onProgress("Loading study-memory context...");
   const memoryContext = await getMemoryContextForTopics(
     db,
     extracted.topics,
@@ -80,25 +108,26 @@ async function runIngestWithProgress(
 
   let finalExtracted = extracted;
   if (memoryContext) {
-    onProgress(66, "Refining extraction with memory context...");
+    onProgress("Refining extraction with memory context...");
     finalExtracted = await extractQuestionsFromText(
       payload.config,
       text,
       memoryContext,
+      { onChunk: onAiChunk },
     );
-    onProgress(84, "Memory refinement completed");
+    onProgress("Memory refinement completed");
     assertNotAborted();
   }
 
-  onProgress(88, "Saving exam...");
+  onProgress("Saving exam...");
   const examId = await queries.insertExam(payload.fileName, "upload");
 
   if (finalExtracted.questions.length > 0) {
-    onProgress(92, "Saving extracted questions...");
+    onProgress("Saving extracted questions...");
     await queries.insertQuestions(examId, finalExtracted.questions);
   }
 
-  onProgress(96, "Saving original file...");
+  onProgress("Saving original file...");
   const mimeType = FileService.inferMimeType(payload.fileName);
   const fileId = await fileService.save(
     examId,
@@ -107,7 +136,7 @@ async function runIngestWithProgress(
     mimeType,
   );
 
-  onProgress(100, "Completed");
+  onProgress("Completed");
   return {
     questions: finalExtracted.questions.length,
     topics: finalExtracted.topics,
@@ -136,7 +165,6 @@ export const Route = createFileRoute("/api/ingest")({
         }
 
         const encoder = new TextEncoder();
-        let lastProgress = 0;
 
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
@@ -144,17 +172,11 @@ export const Route = createFileRoute("/api/ingest")({
               controller.enqueue(encoder.encode(formatSSE(event, data)));
             };
 
-            const sendProgress = (progress: number, step: string) => {
-              const bounded = Math.max(lastProgress, Math.min(100, progress));
-              lastProgress = bounded;
-              send("progress", { progress: bounded, step });
-            };
-
             void (async () => {
               try {
                 const result = await runIngestWithProgress(
                   parsed.data,
-                  sendProgress,
+                  send,
                   request.signal,
                 );
                 send("result", result);

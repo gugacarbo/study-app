@@ -1,8 +1,8 @@
 # Components
 
-**Last updated:** 2026-05-28
+**Last updated:** 2026-05-28 — added ChatSidebar.tsx + MarkdownRenderer
 
-React components in TanStack Start SPA. 14 files, each self-contained.
+React components in TanStack Start SPA. 15 files, each self-contained.
 
 ## Inventory
 
@@ -17,16 +17,18 @@ React components in TanStack Start SPA. 14 files, each self-contained.
 | `ConfigForm.tsx` | `/config` | TanStack Query (`getConfig`) | AI provider/model/URL config form |
 | `ThemeToggle.tsx` | global (nav) | `useTheme` hook | Light/dark mode toggle button |
 | `theme-provider.tsx` | global (root layout) | Context (useState + localStorage) | Theme context provider (shadcn) |
-| `Chat.tsx` | `/chat` | TanStack Store (`chatStore`) | AI chat assistant |
+| `Chat.tsx` | `/chat` | TanStack Store (`chatStore`) | AI chat assistant (multi-conversation sidebar) |
+| `ChatSidebar.tsx` | `/chat` (sidebar) | TanStack Store (`conversationsStore`) | Conversation list, new/delete/switch |
 | `MemoryPanel.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory overview and search |
 | `MemoryVisualization.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory stats dashboard with topic charts |
+| `ui/MarkdownRenderer.tsx` (file: `ui/markdown.tsx`) | global (shared) | None (pure render) | Markdown → React via `react-markdown` + `remark-gfm`, custom component overrides |
 | `ObsidianConfigForm.tsx` | `/obsidian` | Local state | Obsidian connection config |
 | `ObsidianPanel.tsx` | `/obsidian` | TanStack Query | Vault management UI |
 
-> **Note:** `ui/tabs.tsx` and `ui/sheet.tsx` were added as shadcn/ui primitives. `ThemeToggle.tsx` was refactored to use the `useTheme` hook from `theme-provider.tsx`. `Chat.tsx` was refactored from local state to TanStack Store (`chatStore`).
+> **Note:** `ui/tabs.tsx` and `ui/sheet.tsx` were added as shadcn/ui primitives. `ThemeToggle.tsx` was refactored to use the `useTheme` hook from `theme-provider.tsx`. `Chat.tsx` was refactored from local state to TanStack Store (`chatStore`). `ui/MarkdownRenderer.tsx` added for consistent markdown rendering across exam-detail, quiz, and memory-panel. `UploadForm.tsx` switched from static progress bar to real-time streaming AI text display with token counter.
 
 ## State Conventions
-- **Ephemeral state** → `src/stores/quizStore.ts` and `src/stores/chatStore.ts` (TanStack Store)
+- **Ephemeral state** → `src/stores/quizStore.ts`, `src/stores/chatStore.ts`, and `src/stores/conversationsStore.ts` (TanStack Store)
 - **Server data** → TanStack Query with `useSuspenseQuery` + server functions
 - **Form state** → `react-hook-form` + `@hookform/resolvers` (ConfigForm) or local `useState` (other forms)
 - **No component tests exist** — `@testing-library/react` is installed but unused
@@ -35,3 +37,5 @@ React components in TanStack Start SPA. 14 files, each self-contained.
 - All components are default exports
 - No shared component library — each is standalone
 - Obsidian components prefixed `Obsidian*` for discoverability
+- **Markdown rendering** via `MarkdownRenderer` (`ui/markdown.tsx`) — wraps `react-markdown` + `remark-gfm` with custom component overrides; used for AI-generated explanations, questions, options, and profile summaries
+- **Streaming ingest** — `UploadForm` subscribes to SSE `chunk` and `token` events from `/api/ingest`, rendering AI text in real-time with token count

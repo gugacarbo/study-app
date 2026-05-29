@@ -36,6 +36,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from './ui/dialog'
+import { MarkdownRenderer } from './ui/markdown'
 
 function formatDate(dateStr: string | null): string {
 	if (!dateStr) return '—'
@@ -481,13 +482,15 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 													Resposta do agente · Q{questionOrder.get(selectedResponseItem.id) ?? '?'}
 												</p>
 												<p className="text-xs font-semibold text-text-muted mb-1">Explanation</p>
-												<p className="mb-2 text-sm leading-relaxed">
-													{selectedResponseItem.response.explanation}
-												</p>
+												<MarkdownRenderer
+													content={selectedResponseItem.response.explanation}
+													className="mb-2 text-sm"
+												/>
 												<p className="text-xs font-semibold text-text-muted mb-1">Deep Explanation</p>
-												<p className="text-sm leading-relaxed whitespace-pre-wrap">
-													{selectedResponseItem.response.deepExplanation}
-												</p>
+												<MarkdownRenderer
+													content={selectedResponseItem.response.deepExplanation}
+													className="text-sm"
+												/>
 											</div>
 										)}
 									</div>
@@ -954,7 +957,9 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 																	>
 																		{letter}
 																	</span>
-																	<span className="flex-1">{opt}</span>
+																	<span className="flex-1">
+																		<MarkdownRenderer content={opt} />
+																	</span>
 																	{isCorrect && (
 																		<CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
 																	)}
@@ -969,7 +974,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 															<p className="text-xs font-semibold text-text-muted mb-1">
 																Explanation
 															</p>
-															<p className="leading-relaxed">{q.explanation}</p>
+															<MarkdownRenderer content={q.explanation} />
 														</div>
 													)}
 
@@ -978,9 +983,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 															<p className="text-xs font-semibold text-text-muted mb-1">
 																Deep Explanation
 															</p>
-															<p className="leading-relaxed whitespace-pre-wrap">
-																{q.deepExplanation}
-															</p>
+															<MarkdownRenderer content={q.deepExplanation} />
 														</div>
 													)}
 												</>

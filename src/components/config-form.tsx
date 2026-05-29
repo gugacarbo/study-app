@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -181,16 +181,24 @@ export function ConfigForm() {
 		queryFn: () => getConfig(),
 	});
 
+	const initialValues = useMemo<FormValues>(
+		() => ({
+			provider: currentConfig.provider || "openrouter",
+			model: currentConfig.model || "openai/gpt-4o-mini",
+			baseUrl: currentConfig.baseUrl ?? "",
+			apiKey: currentConfig.apiKey || "",
+		}),
+		[currentConfig],
+	);
+
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
-		defaultValues: {
-			provider: "openrouter",
-			model: "",
-			baseUrl: "",
-			apiKey: "",
-		},
-		values: currentConfig,
+		defaultValues: initialValues,
 	});
+
+	useEffect(() => {
+		form.reset(initialValues);
+	}, [form, initialValues]);
 
 	async function onSubmit(values: FormValues) {
 		setStatus("saving");
@@ -270,13 +278,16 @@ export function ConfigForm() {
 							name="provider"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Provider</FormLabel>
-									<Select value={field.value} onValueChange={field.onChange}>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-										</FormControl>
+								<FormLabel>Provider</FormLabel>
+								<Select
+									value={field.value || "openrouter"}
+									onValueChange={field.onChange}
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="Select provider" />
+										</SelectTrigger>
+									</FormControl>
 										<SelectContent>
 											<SelectItem value="openrouter">OpenRouter</SelectItem>
 											<SelectItem value="openai">OpenAI</SelectItem>
