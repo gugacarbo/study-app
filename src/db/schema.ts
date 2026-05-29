@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, blob, index } from "drizzle-orm/sqlite-core";
+import {
+	blob,
+	index,
+	integer,
+	sqliteTable,
+	text,
+} from "drizzle-orm/sqlite-core";
 
 export const exams = sqliteTable("exams", {
 	id: integer("id").primaryKey({ autoIncrement: true }),

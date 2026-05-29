@@ -1,5 +1,5 @@
-import type { D1Database } from '@cloudflare/workers-types';
-import { DBQueries, type FileInfo, type FileRecord } from '../db/queries';
+import type { D1Database } from "@cloudflare/workers-types";
+import { DBQueries, type FileInfo, type FileRecord } from "../db/queries";
 
 export class FileService {
 	private queries: DBQueries;
@@ -48,23 +48,23 @@ export class FileService {
 	 * Infer a MIME type from a file name extension.
 	 */
 	static inferMimeType(fileName: string): string {
-		const ext = fileName.split('.').pop()?.toLowerCase();
+		const ext = fileName.split(".").pop()?.toLowerCase();
 		switch (ext) {
-			case 'pdf':
-				return 'application/pdf';
-			case 'md':
-				return 'text/markdown';
-			case 'txt':
-				return 'text/plain';
-			case 'html':
-			case 'htm':
-				return 'text/html';
-			case 'json':
-				return 'application/json';
-			case 'csv':
-				return 'text/csv';
+			case "pdf":
+				return "application/pdf";
+			case "md":
+				return "text/markdown";
+			case "txt":
+				return "text/plain";
+			case "html":
+			case "htm":
+				return "text/html";
+			case "json":
+				return "application/json";
+			case "csv":
+				return "text/csv";
 			default:
-				return 'application/octet-stream';
+				return "application/octet-stream";
 		}
 	}
 }

@@ -3,20 +3,20 @@ import type { ProviderConfig } from "../../validation";
 import { generateJson } from "../ai";
 
 const quizEvaluationSchema = z.object({
-  correct: z.boolean(),
-  explanation: z.string().min(1),
+	correct: z.boolean(),
+	explanation: z.string().min(1),
 });
 
 type QuizEvaluation = z.infer<typeof quizEvaluationSchema>;
 
 function buildSystemPrompt(memoryContext?: string) {
-  if (!memoryContext) {
-    return `You are a strict quiz-grading agent.
+	if (!memoryContext) {
+		return `You are a strict quiz-grading agent.
 Evaluate whether the student's answer should be considered correct based only on the provided question and official correct answer.
 Return valid JSON only.`;
-  }
+	}
 
-  return `You are a strict quiz-grading agent.
+	return `You are a strict quiz-grading agent.
 Evaluate whether the student's answer should be considered correct based only on the provided question and official correct answer.
 Use the learning-history context only to personalize the explanation tone; never change grading criteria.
 Return valid JSON only.
@@ -25,18 +25,18 @@ ${memoryContext}`;
 }
 
 export async function evaluateQuizAnswer(
-  config: ProviderConfig,
-  input: {
-    question: string;
-    options: string[];
-    userAnswer: string;
-    correctAnswer: string;
-  },
-  memoryContext?: string,
+	config: ProviderConfig,
+	input: {
+		question: string;
+		options: string[];
+		userAnswer: string;
+		correctAnswer: string;
+	},
+	memoryContext?: string,
 ): Promise<QuizEvaluation> {
-  return await generateJson<QuizEvaluation>(
-    config,
-    `
+	return await generateJson<QuizEvaluation>(
+		config,
+		`
     Evaluate the student's answer.
 
     Question:
@@ -63,7 +63,7 @@ export async function evaluateQuizAnswer(
       "explanation": "short explanation"
     }
   `,
-    quizEvaluationSchema,
-    { system: buildSystemPrompt(memoryContext) },
-  );
+		quizEvaluationSchema,
+		{ system: buildSystemPrompt(memoryContext) },
+	);
 }

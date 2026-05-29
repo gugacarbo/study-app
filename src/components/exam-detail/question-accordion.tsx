@@ -1,6 +1,6 @@
-import { ChevronDown, ChevronUp, Pencil, CheckCircle2 } from "lucide-react";
-import { Button } from "../ui/button";
+import { CheckCircle2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { MarkdownRenderer } from "../ui/markdown";
 import type { QuestionData } from "./exam-utils";
 
@@ -67,7 +67,7 @@ export function QuestionAccordion({
 							const isCorrect = opt === question.answer;
 							return (
 								<div
-									key={optIdx}
+									key={`${question.id}:${letter}:${opt}`}
 									className={`flex items-start gap-2.5 rounded-lg p-2.5 text-sm ${
 										isCorrect
 											? "bg-success/10 border border-success/30"

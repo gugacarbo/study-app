@@ -106,7 +106,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<ThemeProvider defaultTheme="system" storageKey="theme">
 					<QueryClientProvider client={queryClient}>
 						<AppNav />
-						<main className="mx-auto px-4 py-8 max-w-3xl has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0">{children}</main>
+						<main className="mx-auto px-4 py-8 max-w-3xl has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0">
+							{children}
+						</main>
 						<TanStackDevtools
 							config={{ position: "bottom-right" }}
 							plugins={[

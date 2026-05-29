@@ -1,10 +1,7 @@
-import { useState } from "react";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
-import { getExamsDetailed, deleteExam } from "../../server-functions/exams";
-import { UploadForm } from "../upload-form/upload-form";
-import { ExamCard } from "./exam-card";
-import { ExamsEmptyState } from "./exams-empty-state";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -12,7 +9,10 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { deleteExam, getExamsDetailed } from "../../server-functions/exams";
+import { UploadForm } from "../upload-form/upload-form";
+import { ExamCard } from "./exam-card";
+import { ExamsEmptyState } from "./exams-empty-state";
 
 export function ExamsView() {
 	const queryClient = useQueryClient();

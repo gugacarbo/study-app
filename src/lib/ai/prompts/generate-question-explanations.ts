@@ -1,30 +1,30 @@
-import { z } from 'zod';
-import type { ProviderConfig } from '../../validation';
-import { generateJson } from '../ai';
+import { z } from "zod";
+import type { ProviderConfig } from "../../validation";
+import { generateJson } from "../ai";
 
 const explanationBatchSchema = z.object({
-  questions: z.array(
-    z.object({
-      id: z.number().int().positive(),
-      explanation: z.string().min(1),
-      deepExplanation: z.string().min(1),
-    }),
-  ),
+	questions: z.array(
+		z.object({
+			id: z.number().int().positive(),
+			explanation: z.string().min(1),
+			deepExplanation: z.string().min(1),
+		}),
+	),
 });
 
 type ExplanationBatchResult = z.infer<typeof explanationBatchSchema>;
 
 export interface ExplanationBatchInput {
-  id: number;
-  question: string;
-  options: string[];
-  answer: string;
-  topic?: string;
-  explanation?: string;
+	id: number;
+	question: string;
+	options: string[];
+	answer: string;
+	topic?: string;
+	explanation?: string;
 }
 
 function buildSystemPrompt(memoryContext?: string) {
-  const basePrompt = `You are a study-coach agent that writes high-quality learning explanations for exam questions.
+	const basePrompt = `You are a study-coach agent that writes high-quality learning explanations for exam questions.
 
 Output contract:
 - Return ONLY valid JSON with this exact shape:
@@ -47,11 +47,11 @@ Writing rules:
 - Do not invent facts not implied by the question/context.
 - Never include markdown, lists, or extra keys.`;
 
-  if (!memoryContext) {
-    return basePrompt;
-  }
+	if (!memoryContext) {
+		return basePrompt;
+	}
 
-  return `${basePrompt}
+	return `${basePrompt}
 
 Use this student memory context to adapt teaching style and emphasis. Do not quote this context in output.
 
@@ -59,22 +59,22 @@ ${memoryContext}`;
 }
 
 export async function generateQuestionExplanationsBatch(
-  config: ProviderConfig,
-  questions: ExplanationBatchInput[],
-  memoryContext?: string,
-): Promise<ExplanationBatchResult['questions']> {
-  const system = buildSystemPrompt(memoryContext);
-  const prompt = `Generate explanation and deepExplanation for each question below.
+	config: ProviderConfig,
+	questions: ExplanationBatchInput[],
+	memoryContext?: string,
+): Promise<ExplanationBatchResult["questions"]> {
+	const system = buildSystemPrompt(memoryContext);
+	const prompt = `Generate explanation and deepExplanation for each question below.
 
 Questions input:
 ${JSON.stringify(questions, null, 2)}`;
 
-  const result = await generateJson<ExplanationBatchResult>(
-    config,
-    prompt,
-    explanationBatchSchema,
-    { system },
-  );
+	const result = await generateJson<ExplanationBatchResult>(
+		config,
+		prompt,
+		explanationBatchSchema,
+		{ system },
+	);
 
-  return result.questions;
+	return result.questions;
 }

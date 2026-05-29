@@ -30,7 +30,10 @@ const defaultComponents: Components = {
 		}
 		return (
 			<code
-				className={className + " block rounded-md bg-muted/60 p-3 text-sm overflow-x-auto"}
+				className={
+					className +
+					" block rounded-md bg-muted/60 p-3 text-sm overflow-x-auto"
+				}
 				{...props}
 			>
 				{children}
@@ -120,16 +123,11 @@ export function MarkdownRenderer({
 }: MarkdownRendererProps) {
 	if (!content) return null;
 
-	const baseClass = prose
-		? "prose prose-sm dark:prose-invert max-w-none"
-		: "";
+	const baseClass = prose ? "prose prose-sm dark:prose-invert max-w-none" : "";
 
 	return (
 		<div className={`${baseClass} ${className}`}>
-			<ReactMarkdown
-				components={defaultComponents}
-				remarkPlugins={[remarkGfm]}
-			>
+			<ReactMarkdown components={defaultComponents} remarkPlugins={[remarkGfm]}>
 				{content}
 			</ReactMarkdown>
 		</div>

@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { getMemoryOverview } from "../../server-functions/memory";
 import { MemorySummaryCards } from "./memory-summary-cards";
-import { TopicPerformanceCard } from "./topic-performance-card";
-import { SessionHistoryTable } from "./session-history-table";
 import { SessionDetailSheet } from "./session-detail-sheet";
+import { SessionHistoryTable } from "./session-history-table";
+import { TopicPerformanceCard } from "./topic-performance-card";
 
 interface Session {
 	id: number;

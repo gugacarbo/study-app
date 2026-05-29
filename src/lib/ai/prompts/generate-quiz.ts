@@ -3,21 +3,21 @@ import { questionSchema } from "../../validation";
 import { generateJson } from "../ai";
 
 export async function generateQuizQuestions(
-  config: ProviderConfig,
-  topic: string,
-  count: number = 10,
-  memoryContext?: string,
+	config: ProviderConfig,
+	topic: string,
+	count: number = 10,
+	memoryContext?: string,
 ): Promise<Question[]> {
-  const systemPrompt = memoryContext
-    ? `You are a helpful assistant that generates exam questions. Always return valid JSON.
+	const systemPrompt = memoryContext
+		? `You are a helpful assistant that generates exam questions. Always return valid JSON.
 Use the following context about the student's learning history to personalize questions:
 
 ${memoryContext}`
-    : "You are a helpful assistant that generates exam questions. Always return valid JSON.";
+		: "You are a helpful assistant that generates exam questions. Always return valid JSON.";
 
-  return await generateJson<Question[]>(
-    config,
-    `
+	return await generateJson<Question[]>(
+		config,
+		`
     Generate ${count} multiple-choice questions about: ${topic}
     Return ONLY a valid JSON array with this exact structure:
     [
@@ -30,7 +30,7 @@ ${memoryContext}`
       }
     ]
   `,
-    questionSchema.array(),
-    { system: systemPrompt },
-  );
+		questionSchema.array(),
+		{ system: systemPrompt },
+	);
 }

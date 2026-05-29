@@ -1,11 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { getStats } from "../server-functions/stats";
-
 import { Badge } from "@/components/ui/badge";
-import {
-	Card,
-	CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Table,
 	TableBody,
@@ -14,6 +9,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { getStats } from "../server-functions/stats";
 
 export function StatsTable() {
 	const { data: stats } = useSuspenseQuery({
@@ -46,9 +42,7 @@ export function StatsTable() {
 					<TableBody>
 						{stats.topics.map((topic) => (
 							<TableRow key={topic.topic}>
-								<TableCell className="font-medium">
-									{topic.topic}
-								</TableCell>
+								<TableCell className="font-medium">{topic.topic}</TableCell>
 								<TableCell>{topic.total}</TableCell>
 								<TableCell>{topic.correct}</TableCell>
 								<TableCell>

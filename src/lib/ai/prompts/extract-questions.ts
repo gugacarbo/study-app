@@ -1,5 +1,5 @@
-import type { ExamIngestResponse, ProviderConfig } from "../../validation";
 import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
+import type { ExamIngestResponse, ProviderConfig } from "../../validation";
 import { examIngestResponseSchema } from "../../validation";
 import { generateJson, generateJsonStream } from "../ai";
 
@@ -38,11 +38,11 @@ Fallback behavior:
   {"questions":[],"topics":[]}.`;
 
 function buildSystemPrompt(memoryContext?: string) {
-  if (!memoryContext) {
-    return BASE_SYSTEM_PROMPT;
-  }
+	if (!memoryContext) {
+		return BASE_SYSTEM_PROMPT;
+	}
 
-  return `${BASE_SYSTEM_PROMPT}
+	return `${BASE_SYSTEM_PROMPT}
 
 Use the following student learning-history context to improve topic naming consistency.
 Do not include this context text in the output.
@@ -51,17 +51,17 @@ ${memoryContext}`;
 }
 
 export async function extractQuestionsFromText(
-  config: ProviderConfig,
-  text: string,
-  memoryContext?: string,
-  options?: {
-    onChunk?: (
-      chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
-    ) => void;
-  },
+	config: ProviderConfig,
+	text: string,
+	memoryContext?: string,
+	options?: {
+		onChunk?: (
+			chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
+		) => void;
+	},
 ): Promise<ExamIngestResponse> {
-  const systemPrompt = buildSystemPrompt(memoryContext);
-  const prompt = `
+	const systemPrompt = buildSystemPrompt(memoryContext);
+	const prompt = `
     Extract all exam questions from the following text.
     Return ONLY a valid JSON object with this exact structure:
     {
@@ -81,19 +81,19 @@ export async function extractQuestionsFromText(
     ${text}
   `;
 
-  if (options?.onChunk) {
-    return await generateJsonStream<ExamIngestResponse>(
-      config,
-      prompt,
-      examIngestResponseSchema,
-      { system: systemPrompt, onChunk: options.onChunk },
-    );
-  }
+	if (options?.onChunk) {
+		return await generateJsonStream<ExamIngestResponse>(
+			config,
+			prompt,
+			examIngestResponseSchema,
+			{ system: systemPrompt, onChunk: options.onChunk },
+		);
+	}
 
-  return await generateJson<ExamIngestResponse>(
-    config,
-    prompt,
-    examIngestResponseSchema,
-    { system: systemPrompt },
-  );
+	return await generateJson<ExamIngestResponse>(
+		config,
+		prompt,
+		examIngestResponseSchema,
+		{ system: systemPrompt },
+	);
 }

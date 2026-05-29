@@ -1,13 +1,13 @@
-import { useState } from "react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { getMemoryOverview, searchMemory } from "../../server-functions/memory";
 
 import { LearningProfileCard } from "./learning-profile-card";
-import { RecentSessionsCard } from "./recent-sessions-card";
-import { SessionVisualization } from "./session-visualization";
-import { SearchMemoryCard } from "./search-memory-card";
-import { TopicNotesCard } from "./topic-notes-card";
 import { MemoryDocumentsCard } from "./memory-documents-card";
+import { RecentSessionsCard } from "./recent-sessions-card";
+import { SearchMemoryCard } from "./search-memory-card";
+import { SessionVisualization } from "./session-visualization";
+import { TopicNotesCard } from "./topic-notes-card";
 
 export function MemoryPanel() {
 	const [searchQuery, setSearchQuery] = useState("");

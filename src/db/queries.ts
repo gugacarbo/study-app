@@ -1,8 +1,8 @@
-import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
-import { eq, and, sql, count } from "drizzle-orm";
 import type { D1Database } from "@cloudflare/workers-types";
-import * as schema from "./schema";
+import { and, count, eq, sql } from "drizzle-orm";
+import { type DrizzleD1Database, drizzle } from "drizzle-orm/d1";
 import type { Question } from "../lib/validation";
+import * as schema from "./schema";
 
 export interface ExamRecord {
 	id: number;
@@ -141,10 +141,7 @@ export class DBQueries {
 	}
 
 	async deleteFile(id: number): Promise<void> {
-		await this.db
-			.delete(schema.files)
-			.where(eq(schema.files.id, id))
-			.run();
+		await this.db.delete(schema.files).where(eq(schema.files.id, id)).run();
 	}
 
 	async insertExam(name: string, source?: string): Promise<number> {
@@ -292,9 +289,7 @@ export class DBQueries {
 		const files = await this.getFilesByExam(examId);
 		const stats = await this.getExamStats(examId);
 
-		const topics = [
-			...new Set(questions.map((q) => q.topic).filter(Boolean)),
-		];
+		const topics = [...new Set(questions.map((q) => q.topic).filter(Boolean))];
 
 		return {
 			...exam,
@@ -342,7 +337,8 @@ export class DBQueries {
 	): Promise<void> {
 		const updates: Record<string, unknown> = {};
 		if (data.question !== undefined) updates.question = data.question;
-		if (data.options !== undefined) updates.options = JSON.stringify(data.options);
+		if (data.options !== undefined)
+			updates.options = JSON.stringify(data.options);
 		if (data.answer !== undefined) updates.answer = data.answer;
 		if (data.explanation !== undefined) updates.explanation = data.explanation;
 		if (data.deepExplanation !== undefined) {

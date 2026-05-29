@@ -1,19 +1,20 @@
-import { useState } from "react";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import {
-	getExamDetail,
 	deleteExam,
+	getExamDetail,
 	updateQuestion,
 } from "../../server-functions/exams";
-import { StatsCards } from "./stats-cards";
-import { FileList } from "./file-list";
-import { TopicList } from "./topic-list";
-import { TopicStatsCard } from "./topic-stats-card";
-import { QuestionsCard } from "./questions-card";
 import { ExamHeader } from "./exam-header";
 import type { EditFormData } from "./exam-utils";
+import { FileList } from "./file-list";
+import { QuestionsCard } from "./questions-card";
+import { StatsCards } from "./stats-cards";
+import { TopicList } from "./topic-list";
+import { TopicStatsCard } from "./topic-stats-card";
+
 interface ExamDetailProps {
 	examId: number;
 }

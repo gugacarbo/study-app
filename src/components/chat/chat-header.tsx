@@ -26,8 +26,9 @@ export function ChatHeader({
 	return (
 		<div className="mb-6 flex items-center justify-between">
 			<h1 className="text-2xl font-bold">Chat</h1>
-			{activeId && conversations.length > 0 && (
-				editingTitle ? (
+			{activeId &&
+				conversations.length > 0 &&
+				(editingTitle ? (
 					<Input
 						value={titleDraft}
 						onChange={(e) => onTitleDraftChange(e.target.value)}
@@ -52,8 +53,7 @@ export function ChatHeader({
 					>
 						{conversations.find((c) => c.id === activeId)?.title ?? "Chat"}
 					</Button>
-				)
-			)}
+				))}
 		</div>
 	);
 }

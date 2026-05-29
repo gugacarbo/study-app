@@ -1,7 +1,7 @@
 import { Save, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import type { QuestionData, EditFormData } from "./exam-utils";
+import type { EditFormData, QuestionData } from "./exam-utils";
 
 interface QuestionEditFormProps {
 	question: QuestionData;
@@ -41,7 +41,10 @@ export function QuestionEditForm({
 					{editForm.options.map((opt, optIdx) => {
 						const letter = String.fromCharCode(65 + optIdx);
 						return (
-							<div key={optIdx} className="flex items-center gap-2">
+							<div
+								key={`${question.id}:${letter}:${opt}`}
+								className="flex items-center gap-2"
+							>
 								<input
 									type="radio"
 									name={`correct-${question.id}`}

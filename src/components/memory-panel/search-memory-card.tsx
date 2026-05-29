@@ -48,8 +48,8 @@ export function SearchMemoryCard({
 
 				{searchResults.length > 0 && (
 					<div className="flex flex-col gap-2">
-						{searchResults.map((result, i) => (
-							<Card key={`${result.path}-${i}`} size="sm">
+						{searchResults.map((result) => (
+							<Card key={`${result.path}:${result.content}`} size="sm">
 								<CardContent className="p-2">
 									<p className="mb-1 text-xs text-muted-foreground">
 										{result.path}

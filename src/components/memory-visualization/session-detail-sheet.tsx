@@ -2,9 +2,9 @@ import { Progress } from "@/components/ui/progress";
 import {
 	Sheet,
 	SheetContent,
+	SheetDescription,
 	SheetHeader,
 	SheetTitle,
-	SheetDescription,
 } from "@/components/ui/sheet";
 
 interface Session {

@@ -71,7 +71,7 @@ function safeSSEResponse(
 			// cancel() callback fires → abortController.abort() → chat()
 			// generator stops → withCleanup clears the timeout.
 			if (rawReader) {
-				rawReader.cancel().catch(() => { });
+				rawReader.cancel().catch(() => {});
 				rawReader = null;
 			}
 		},

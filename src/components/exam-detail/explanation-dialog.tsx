@@ -1,20 +1,20 @@
 import {
-	Sparkles,
-	LoaderCircle,
-	CheckCircle2,
 	AlertCircle,
+	CheckCircle2,
+	LoaderCircle,
+	Sparkles,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Progress } from "../ui/progress";
 import {
 	DialogContent,
-	DialogHeader,
-	DialogTitle,
 	DialogDescription,
 	DialogFooter,
+	DialogHeader,
+	DialogTitle,
 } from "../ui/dialog";
+import { Input } from "../ui/input";
 import { MarkdownRenderer } from "../ui/markdown";
+import { Progress } from "../ui/progress";
 import { useExplanationGeneration } from "./use-explanation-generation";
 
 interface ExplanationDialogProps {
@@ -109,10 +109,14 @@ export function ExplanationDialog({
 						</div>
 						<div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
 							{gen.progressItems.map((item) => (
-								<div
+								<button
+									type="button"
 									key={item.id}
-									className={`rounded-md border border-border bg-muted px-2 py-1.5 ${
-										item.status === "done" ? "cursor-pointer hover:bg-card" : ""
+									disabled={item.status !== "done"}
+									className={`w-full text-left rounded-md border border-border bg-muted px-2 py-1.5 ${
+										item.status === "done"
+											? "cursor-pointer hover:bg-card"
+											: "cursor-default"
 									} ${gen.selectedResponseItemId === item.id ? "ring-1 ring-primary/40" : ""}`}
 									onClick={() => {
 										if (item.status === "done")
@@ -149,7 +153,7 @@ export function ExplanationDialog({
 											)}
 										</div>
 									</div>
-								</div>
+								</button>
 							))}
 						</div>
 						{gen.selectedResponseItem?.response && (

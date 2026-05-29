@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 import { generateExamQuestionExplanations } from "../../server-functions/exams";
 import type {
 	ExplanationProgressItem,
 	ExplanationProgressStatus,
 } from "./exam-utils";
-import { getErrorMessage, chunkIds } from "./exam-utils";
+import { chunkIds, getErrorMessage } from "./exam-utils";
 
 interface QuestionBrief {
 	id: number;
@@ -38,30 +38,35 @@ export function useExplanationGeneration({
 		number | null
 	>(null);
 
-	const isComplete = (q: QuestionBrief) =>
-		Boolean(q.explanation?.trim()) && Boolean(q.deepExplanation?.trim());
 	const pendingExplanationCount = questions.filter(
 		(q) => !q.explanation?.trim() || !q.deepExplanation?.trim(),
 	).length;
 	const questionOrder = new Map(questions.map((q, idx) => [q.id, idx + 1]));
-	const buildProgressItems = (): ExplanationProgressItem[] =>
-		questions.map((q) => ({
-			id: q.id,
-			question: q.question,
-			status: (overwriteExplanations || !isComplete(q)
-				? "pending"
-				: "skipped") as ExplanationProgressStatus,
-			message:
-				overwriteExplanations || !isComplete(q)
-					? "Aguardando"
-					: "Já preenchida",
-		}));
+	const buildProgressItems = useCallback(
+		(): ExplanationProgressItem[] =>
+			questions.map((q) => ({
+				id: q.id,
+				question: q.question,
+				status: (overwriteExplanations ||
+				!(Boolean(q.explanation?.trim()) && Boolean(q.deepExplanation?.trim()))
+					? "pending"
+					: "skipped") as ExplanationProgressStatus,
+				message:
+					overwriteExplanations ||
+					!(
+						Boolean(q.explanation?.trim()) && Boolean(q.deepExplanation?.trim())
+					)
+						? "Aguardando"
+						: "Já preenchida",
+			})),
+		[questions, overwriteExplanations],
+	);
 
 	useEffect(() => {
 		if (!open || generatingExplanations) return;
 		setProgressItems(buildProgressItems());
 		setSelectedResponseItemId(null);
-	}, [open, overwriteExplanations]);
+	}, [open, generatingExplanations, buildProgressItems]);
 
 	const handleGenerateExplanations = async () => {
 		setGeneratingExplanations(true);

@@ -20,6 +20,7 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 	const streamEndRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
+		if (!streamText) return;
 		if (streamEndRef.current) {
 			streamEndRef.current.scrollIntoView({ behavior: "smooth" });
 		}
