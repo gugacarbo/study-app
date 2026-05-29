@@ -118,6 +118,9 @@ body {
 
 /* Shimmer animation for thinking parts */
 @keyframes shimmer {
+	0% {
+		background-position: 200% center;
+	}
 	20% {
 		background-position: 200% center;
 	}
@@ -138,7 +141,7 @@ body {
 		color-mix(in oklab, var(--muted-foreground) 80%, transparent) 100%
 	);
 	background-size: 250% 100%;
-	animation: shimmer 4.8s linear infinite;
+	animation: shimmer 7s linear infinite;
 	background-clip: text;
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
