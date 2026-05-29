@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { ThemeProvider } from "@/components/theme-provider";
-import ThemeToggle from "@/components/ThemeToggle";
+import ThemeToggle from "@/components/theme-toggle";
 import {
 	NavigationMenu,
 	NavigationMenuItem,

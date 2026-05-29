@@ -1,5 +1,5 @@
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import { ExamDetail } from '../components/ExamDetail'
+import { ExamDetail } from '../components/exam-detail'
 
 export const Route = createFileRoute('/exams/$id')({
   component: ExamDetailPage,
