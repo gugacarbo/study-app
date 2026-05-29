@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MemoryVizRouteImport } from './routes/memory-viz'
 import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as ConfigRouteImport } from './routes/config'
@@ -24,11 +23,6 @@ import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connect
 import { Route as ApiIngestRouteImport } from './routes/api/ingest'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
-const MemoryVizRoute = MemoryVizRouteImport.update({
-  id: '/memory-viz',
-  path: '/memory-viz',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MemoryRoute = MemoryRouteImport.update({
   id: '/memory',
   path: '/memory',
@@ -102,7 +96,6 @@ export interface FileRoutesByFullPath {
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
-  '/memory-viz': typeof MemoryVizRoute
   '/api/chat': typeof ApiChatRoute
   '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
@@ -117,7 +110,6 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/memory': typeof MemoryRoute
-  '/memory-viz': typeof MemoryVizRoute
   '/api/chat': typeof ApiChatRoute
   '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
@@ -134,7 +126,6 @@ export interface FileRoutesById {
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
-  '/memory-viz': typeof MemoryVizRoute
   '/api/chat': typeof ApiChatRoute
   '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
@@ -152,7 +143,6 @@ export interface FileRouteTypes {
     | '/config'
     | '/exams'
     | '/memory'
-    | '/memory-viz'
     | '/api/chat'
     | '/api/ingest'
     | '/api/test-connection'
@@ -167,7 +157,6 @@ export interface FileRouteTypes {
     | '/chat'
     | '/config'
     | '/memory'
-    | '/memory-viz'
     | '/api/chat'
     | '/api/ingest'
     | '/api/test-connection'
@@ -183,7 +172,6 @@ export interface FileRouteTypes {
     | '/config'
     | '/exams'
     | '/memory'
-    | '/memory-viz'
     | '/api/chat'
     | '/api/ingest'
     | '/api/test-connection'
@@ -200,7 +188,6 @@ export interface RootRouteChildren {
   ConfigRoute: typeof ConfigRoute
   ExamsRoute: typeof ExamsRouteWithChildren
   MemoryRoute: typeof MemoryRoute
-  MemoryVizRoute: typeof MemoryVizRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiIngestRoute: typeof ApiIngestRoute
   ApiTestConnectionRoute: typeof ApiTestConnectionRoute
@@ -209,13 +196,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/memory-viz': {
-      id: '/memory-viz'
-      path: '/memory-viz'
-      fullPath: '/memory-viz'
-      preLoaderRoute: typeof MemoryVizRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/memory': {
       id: '/memory'
       path: '/memory'
@@ -331,7 +311,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConfigRoute: ConfigRoute,
   ExamsRoute: ExamsRouteWithChildren,
   MemoryRoute: MemoryRoute,
-  MemoryVizRoute: MemoryVizRoute,
   ApiChatRoute: ApiChatRoute,
   ApiIngestRoute: ApiIngestRoute,
   ApiTestConnectionRoute: ApiTestConnectionRoute,

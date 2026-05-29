@@ -1,41 +1,43 @@
 # Components
 
-**Last updated:** 2026-05-28 — added ChatSidebar.tsx + MarkdownRenderer
+**Last updated:** 2026-05-28 — refactored into grouped folders, all <150 lines
 
-React components in TanStack Start SPA. 15 files, each self-contained.
+React components in TanStack Start SPA. Organized into feature folders under `src/components/`.
+
+## Structure
+
+Components are grouped into subdirectories by feature domain, plus standalone files and `ui/` shadcn primitives.
 
 ## Inventory
 
-| Component | Route | State Source | Purpose |
+| Folder / File | Route | Entry Point | Purpose |
 |---|---|---|---|
-| `Dashboard.tsx` | `/` | TanStack Query (`getExams`) | Exam list + quick stats cards |
-| `ExamDetail.tsx` | `/exams/$id` | TanStack Query (`getExamDetail`) | Exam detail with stats, files, questions |
-| `ExamsView.tsx` | `/exams` | TanStack Query (`getExamsDetailed`) | Exam list with search and delete |
-| `UploadForm.tsx` | `/upload` | Local state | PDF file picker + text paste area |
-| `Quiz.tsx` | `/quiz/$id` | TanStack Store (`quizStore`) | Question display, timer, answer submission, results |
-| `StatsTable.tsx` | `/exams/stats` | TanStack Query (`getStats`) | Plain HTML table — no TanStack Table yet |
-| `ConfigForm.tsx` | `/config` | TanStack Query (`getConfig`) | AI provider/model/URL config form |
-| `ThemeToggle.tsx` | global (nav) | `useTheme` hook | Light/dark mode toggle button |
-| `theme-provider.tsx` | global (root layout) | Context (useState + localStorage) | Theme context provider (shadcn) |
-| `Chat.tsx` | `/chat` | TanStack Store (`chatStore`) | AI chat assistant (multi-conversation sidebar) |
-| `ChatSidebar.tsx` | `/chat` (sidebar) | TanStack Store (`conversationsStore`) | Conversation list, new/delete/switch |
-| `MemoryPanel.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory overview and search |
-| `MemoryVisualization.tsx` | `/memory` | TanStack Query (`getMemoryOverview`) | Memory stats dashboard with topic charts |
-| `ui/MarkdownRenderer.tsx` (file: `ui/markdown.tsx`) | global (shared) | None (pure render) | Markdown → React via `react-markdown` + `remark-gfm`, custom component overrides |
-| `ObsidianConfigForm.tsx` | `/obsidian` | Local state | Obsidian connection config |
-| `ObsidianPanel.tsx` | `/obsidian` | TanStack Query | Vault management UI |
-
-> **Note:** `ui/tabs.tsx` and `ui/sheet.tsx` were added as shadcn/ui primitives. `ThemeToggle.tsx` was refactored to use the `useTheme` hook from `theme-provider.tsx`. `Chat.tsx` was refactored from local state to TanStack Store (`chatStore`). `ui/MarkdownRenderer.tsx` added for consistent markdown rendering across exam-detail, quiz, and memory-panel. `UploadForm.tsx` switched from static progress bar to real-time streaming AI text display with token counter.
+| `chat/` | `/chat` | `chat.tsx` | AI chat assistant with sidebar, message bubbles, inline title editing |
+| `config-form/` | `/config` | `config-form.tsx` | AI provider/model/URL config + test connection dialog |
+| `exam-detail/` | `/exams/$id` | `exam-detail.tsx` | Exam detail with stats cards, files, topics, questions accordion, inline edit, batch explanation generation |
+| `exams-view/` | `/exams` | `exams-view.tsx` | Exam list with search, delete (inline confirm), upload dialog |
+| `memory-panel/` | — | `memory-panel.tsx` | Memory overview: learning profile, recent sessions, search, topic notes, documents |
+| `memory-visualization/` | `/memory` | `memory-visualization.tsx` | Memory dashboard: summary cards, topic performance, session history table, session detail sheet |
+| `quiz/` | `/quiz/$id` | `quiz.tsx` | Quiz player: question display, answer options, results, keyboard hotkeys |
+| `upload-form/` | — | `upload-form.tsx` | PDF file picker + streaming AI ingest with real-time token counter |
+| `dashboard.tsx` | `/` | standalone | Exam list + quick stats cards |
+| `stats-table.tsx` | `/exams/stats` | standalone | Accuracy stats by topic (plain HTML table) |
+| `theme-provider.tsx` | global (root layout) | standalone | Theme context (shadcn) with localStorage + system preference |
+| `theme-toggle.tsx` | global (nav) | standalone | Light/dark mode toggle button |
+| `ui/markdown.tsx` | global (shared) | ui component | Markdown → React via `react-markdown` + `remark-gfm` |
+| `ui/*` | global | shadcn primitives | `badge`, `button`, `card`, `dialog`, `input`, `progress`, `select`, `sheet`, `table`, `tabs`, `textarea`, etc. |
 
 ## State Conventions
-- **Ephemeral state** → `src/stores/quizStore.ts`, `src/stores/chatStore.ts`, and `src/stores/conversationsStore.ts` (TanStack Store)
+- **Ephemeral state** → TanStack Store (`quizStore`, `chatStore`, `conversationsStore`)
 - **Server data** → TanStack Query with `useSuspenseQuery` + server functions
-- **Form state** → `react-hook-form` + `@hookform/resolvers` (ConfigForm) or local `useState` (other forms)
-- **No component tests exist** — `@testing-library/react` is installed but unused
+- **Form state** → `react-hook-form` + `@hookform/resolvers` (ConfigForm) or local `useState`
+- **No component tests** — `@testing-library/react` is installed but unused
 
 ## Patterns
-- All components are default exports
-- No shared component library — each is standalone
-- Obsidian components prefixed `Obsidian*` for discoverability
-- **Markdown rendering** via `MarkdownRenderer` (`ui/markdown.tsx`) — wraps `react-markdown` + `remark-gfm` with custom component overrides; used for AI-generated explanations, questions, options, and profile summaries
-- **Streaming ingest** — `UploadForm` subscribes to SSE `chunk` and `token` events from `/api/ingest`, rendering AI text in real-time with token count
+- All components are named exports
+- Feature folders: parent component + subcomponents co-located
+- Max ~150 lines per file — split at logical boundaries
+- **shadcn/ui** primitives used for all UI elements (Button, Card, Input, Badge, Progress, etc.)
+- **Markdown rendering** via `MarkdownRenderer` (`ui/markdown.tsx`) — used across exam-detail, quiz, and memory components
+- **SSE streaming** utilities in `src/lib/sse-stream.ts` — shared by `upload-form` and `config-form`
+- Inline hover styles (onMouseEnter/onMouseLeave) prohibited — use shadcn Button variants instead

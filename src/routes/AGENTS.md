@@ -1,6 +1,6 @@
 # Routes
 
-**Last updated:** 2026-05-28
+**Last updated:** 2026-05-28 — removed memory-viz route, updated component paths
 
 TanStack Router file-based routing. Entries in `src/routes/`.
 
@@ -19,8 +19,7 @@ TanStack Router file-based routing. Entries in `src/routes/`.
 | `config.tsx` | `/config` | Page | `getConfig`/`setConfig` via server fns |
 | `chat.tsx` | `/chat` | Page | Chat API stream |
 | `about.tsx` | `/about` | Page | — |
-| `memory.tsx` | `/memory` | Page | Memory visualization dashboard (uses MemoryVisualization) |
-| `memory-viz.tsx` | `/memory-viz` | Page | Memory visualization dashboard |
+| `memory.tsx` | `/memory` | Page | Memory visualization dashboard (uses MemoryVisualization from `components/memory-visualization/`) |
 | `api/chat.ts` | `/api/chat` | **API** (POST) | Server-side handler via `server.handlers` |
 | `api/ingest.ts` | `/api/ingest` | **API** (POST, SSE) | Server-side handler via `server.handlers` |
 | `api/test-connection.ts` | `/api/test-connection` | **API** (POST, SSE) | Server-side handler via `server.handlers` |

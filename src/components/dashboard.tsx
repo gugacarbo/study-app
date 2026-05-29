@@ -1,7 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { getExams, getStats } from "../server-functions/stats";
-
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -11,6 +9,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { getExams, getStats } from "@/server-functions/stats";
 
 export function Dashboard() {
 	const { data: exams } = useSuspenseQuery({
@@ -33,30 +32,22 @@ export function Dashboard() {
 						<CardTitle className="text-3xl font-bold">
 							{stats.totalAttempts}
 						</CardTitle>
+						<CardDescription>Total Attempts</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<p className="text-xs text-muted-foreground">Total Attempts</p>
-					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-3xl font-bold">
-							{exams.length}
-						</CardTitle>
+						<CardTitle className="text-3xl font-bold">{exams.length}</CardTitle>
+						<CardDescription>Exams Imported</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<p className="text-xs text-muted-foreground">Exams Imported</p>
-					</CardContent>
 				</Card>
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-3xl font-bold">
 							{stats.topics.length}
 						</CardTitle>
+						<CardDescription>Topics Covered</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<p className="text-xs text-muted-foreground">Topics Covered</p>
-					</CardContent>
 				</Card>
 			</div>
 
@@ -65,12 +56,9 @@ export function Dashboard() {
 				<Card className="py-6">
 					<CardContent className="text-center text-muted-foreground">
 						No exams imported yet.{" "}
-						<Link
-							to="/exams"
-							className="text-primary hover:underline"
-						>
-							Upload one now
-						</Link>
+						<Button asChild variant="link">
+							<Link to="/exams">Upload one now</Link>
+						</Button>
 					</CardContent>
 				</Card>
 			) : (
@@ -88,10 +76,7 @@ export function Dashboard() {
 								</CardDescription>
 								<CardAction>
 									<Button asChild variant="default" size="sm">
-										<Link
-											to="/quiz/$id"
-											params={{ id: exam.id.toString() }}
-										>
+										<Link to="/quiz/$id" params={{ id: exam.id.toString() }}>
 											Start Quiz
 										</Link>
 									</Button>
