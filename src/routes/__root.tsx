@@ -17,6 +17,7 @@ import {
 	NavigationMenuList,
 	navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import appCss from "../globals.css?url";
 
 const queryClient = new QueryClient({
@@ -102,24 +103,26 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			<head>
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased wrap-anywhere">
+			<body className="font-sans antialiased">
 				<ThemeProvider defaultTheme="system" storageKey="theme">
-					<QueryClientProvider client={queryClient}>
-						<AppNav />
-						<main className="mx-auto px-4 py-8 max-w-3xl has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0">
-							{children}
-						</main>
-						<TanStackDevtools
-							config={{ position: "bottom-right" }}
-							plugins={[
-								{
-									name: "Tanstack Router",
-									render: <TanStackRouterDevtoolsPanel />,
-								},
-							]}
-						/>
-						<Scripts />
-					</QueryClientProvider>
+					<TooltipProvider>
+						<QueryClientProvider client={queryClient}>
+							<AppNav />
+							<main className="mx-auto px-4 py-8 max-w-3xl has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0">
+								{children}
+							</main>
+							<TanStackDevtools
+								config={{ position: "bottom-right" }}
+								plugins={[
+									{
+										name: "Tanstack Router",
+										render: <TanStackRouterDevtoolsPanel />,
+									},
+								]}
+							/>
+							<Scripts />
+						</QueryClientProvider>
+					</TooltipProvider>
 				</ThemeProvider>
 			</body>
 		</html>

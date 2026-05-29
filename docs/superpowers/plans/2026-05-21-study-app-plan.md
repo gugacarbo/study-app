@@ -12,35 +12,35 @@
 
 ## File Map
 
-| File | Responsibility | Created/Modified |
-|---|---|---|
-| `wrangler.toml` | Cloudflare config, D1 binding | Create |
-| `migrations/001_initial.sql` | D1 schema | Create |
-| `app/lib/ai.ts` | TanStack AI + OpenRouter setup | Create |
-| `app/lib/validation.ts` | Zod schemas for AI responses | Create |
-| `app/lib/parser.ts` | PDF/text parsing | Create |
-| `app/db/queries.ts` | D1 query functions | Create |
-| `app/stores/quizStore.ts` | TanStack Store for quiz state | Create |
-| `app/server-functions/config.ts` | Provider config server functions | Create |
-| `app/server-functions/ingest.ts` | Exam ingestion server function | Create |
-| `app/server-functions/quiz.ts` | Quiz generation + answer submission | Create |
-| `app/server-functions/stats.ts` | Stats aggregation server function | Create |
-| `app/routes/__root.tsx` | Root layout, TanStack Query provider | Create |
-| `app/routes/index.tsx` | Dashboard page | Create |
-| `app/routes/upload.tsx` | Upload page | Create |
-| `app/routes/quiz.$id.tsx` | Quiz page | Create |
-| `app/routes/stats.tsx` | Stats page | Create |
-| `app/routes/config.tsx` | Config page | Create |
-| `app/components/Dashboard.tsx` | Dashboard UI component | Create |
-| `app/components/UploadForm.tsx` | Upload form component | Create |
-| `app/components/Quiz.tsx` | Quiz UI component | Create |
-| `app/components/StatsTable.tsx` | Stats table component | Create |
-| `app/components/ConfigForm.tsx` | Config form component | Create |
-| `app/styles/globals.css` | Global styles | Create |
-| `tests/server-functions/config.test.ts` | Config server function tests | Create |
-| `tests/server-functions/ingest.test.ts` | Ingest server function tests | Create |
-| `tests/server-functions/quiz.test.ts` | Quiz server function tests | Create |
-| `tests/lib/validation.test.ts` | Validation schema tests | Create |
+| File                                    | Responsibility                       | Created/Modified |
+| --------------------------------------- | ------------------------------------ | ---------------- |
+| `wrangler.toml`                         | Cloudflare config, D1 binding        | Create           |
+| `migrations/001_initial.sql`            | D1 schema                            | Create           |
+| `app/lib/ai.ts`                         | TanStack AI + OpenRouter setup       | Create           |
+| `app/lib/validation.ts`                 | Zod schemas for AI responses         | Create           |
+| `app/lib/parser.ts`                     | PDF/text parsing                     | Create           |
+| `app/db/queries.ts`                     | D1 query functions                   | Create           |
+| `app/stores/quizStore.ts`               | TanStack Store for quiz state        | Create           |
+| `app/server-functions/config.ts`        | Provider config server functions     | Create           |
+| `app/server-functions/ingest.ts`        | Exam ingestion server function       | Create           |
+| `app/server-functions/quiz.ts`          | Quiz generation + answer submission  | Create           |
+| `app/server-functions/stats.ts`         | Stats aggregation server function    | Create           |
+| `app/routes/__root.tsx`                 | Root layout, TanStack Query provider | Create           |
+| `app/routes/index.tsx`                  | Dashboard page                       | Create           |
+| `app/routes/upload.tsx`                 | Upload page                          | Create           |
+| `app/routes/quiz.$id.tsx`               | Quiz page                            | Create           |
+| `app/routes/stats.tsx`                  | Stats page                           | Create           |
+| `app/routes/config.tsx`                 | Config page                          | Create           |
+| `app/components/Dashboard.tsx`          | Dashboard UI component               | Create           |
+| `app/components/UploadForm.tsx`         | Upload form component                | Create           |
+| `app/components/Quiz.tsx`               | Quiz UI component                    | Create           |
+| `app/components/StatsTable.tsx`         | Stats table component                | Create           |
+| `app/components/ConfigForm.tsx`         | Config form component                | Create           |
+| `app/styles/globals.css`                | Global styles                        | Create           |
+| `tests/server-functions/config.test.ts` | Config server function tests         | Create           |
+| `tests/server-functions/ingest.test.ts` | Ingest server function tests         | Create           |
+| `tests/server-functions/quiz.test.ts`   | Quiz server function tests           | Create           |
+| `tests/lib/validation.test.ts`          | Validation schema tests              | Create           |
 
 ---
 
@@ -1542,7 +1542,7 @@ Create `app/components/Quiz.tsx`:
 ```tsx
 import { useState } from 'react';
 import { useSuspenseQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useStore } from '@tanstack/react-store';
+import { useSelector } from '@tanstack/react-store';
 import { useHotkeys } from '@tanstack/react-hotkeys';
 import { generateQuiz, submitAnswer } from '../server-functions/quiz';
 import { getConfig } from '../server-functions/config';
@@ -1570,7 +1570,7 @@ export function Quiz({ examId, topic }: QuizProps) {
     },
   });
 
-  const quizState = useStore(quizStore);
+  const quizState = useSelector(quizStore);
 
   // Reset quiz when questions load
   useState(() => {
@@ -2082,23 +2082,23 @@ git commit -m "docs: add AGENTS.md with project context and setup notes"
 ## Self-Review
 
 ### Spec Coverage Check
-| Spec Section | Task |
-|---|---|
-| TanStack Start SPA | Tasks 1, 9 |
-| TanStack Router | Tasks 9-14 |
-| TanStack AI + OpenRouter | Tasks 3, 5-7 |
-| TanStack Query | Tasks 9-14 |
-| TanStack Form | Tasks 11, 14 |
-| TanStack Store | Tasks 8, 12 |
-| TanStack DB (D1 bindings) | Tasks 4, 5-7 |
-| TanStack Table | Task 13 |
-| TanStack Hotkeys | Task 12 |
-| TanStack Virtual | Not yet — add to Task 12 if needed |
-| TanStack CLI/Intent | Task 15 |
-| D1 Schema | Task 1 |
-| Server Functions | Tasks 5-7 |
-| Error Handling | Built into Tasks 5-7, 11, 14 |
-| Testing | Tasks 2, 5, 6, 7 |
+| Spec Section              | Task                               |
+| ------------------------- | ---------------------------------- |
+| TanStack Start SPA        | Tasks 1, 9                         |
+| TanStack Router           | Tasks 9-14                         |
+| TanStack AI + OpenRouter  | Tasks 3, 5-7                       |
+| TanStack Query            | Tasks 9-14                         |
+| TanStack Form             | Tasks 11, 14                       |
+| TanStack Store            | Tasks 8, 12                        |
+| TanStack DB (D1 bindings) | Tasks 4, 5-7                       |
+| TanStack Table            | Task 13                            |
+| TanStack Hotkeys          | Task 12                            |
+| TanStack Virtual          | Not yet — add to Task 12 if needed |
+| TanStack CLI/Intent       | Task 15                            |
+| D1 Schema                 | Task 1                             |
+| Server Functions          | Tasks 5-7                          |
+| Error Handling            | Built into Tasks 5-7, 11, 14       |
+| Testing                   | Tasks 2, 5, 6, 7                   |
 
 ### Placeholder Scan
 - No TBD/TODO found

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useStore } from "@tanstack/react-store";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ProviderConfig } from "../../lib/validation";
@@ -75,7 +75,7 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 	useEffect(() => {
 		getConfig().then(setConfig);
 	}, []);
-	const st = useStore(quizStore, (s) => s);
+	const st = useSelector(quizStore, (s) => s);
 	const qr = useRef(questions);
 	const sr = useRef(st);
 	const mr = useRef(mut);

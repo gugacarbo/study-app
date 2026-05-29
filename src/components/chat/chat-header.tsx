@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Conversation } from "@/stores/conversationsStore";
+import { CardHeader, CardTitle } from "../ui/card";
 
 interface ChatHeaderProps {
 	activeId: string | null;
@@ -24,8 +25,10 @@ export function ChatHeader({
 	onTitleDraftChange,
 }: ChatHeaderProps) {
 	return (
-		<div className="mb-6 flex items-center justify-between">
-			<h1 className="text-2xl font-bold">Chat</h1>
+		<CardHeader className="flex shrink-0 items-center justify-between border-b border-border/60 py-3">
+			<div className="flex items-center gap-2">
+				<CardTitle className="text-2xl font-bold">Chat</CardTitle>
+			</div>
 			{activeId &&
 				conversations.length > 0 &&
 				(editingTitle ? (
@@ -54,6 +57,6 @@ export function ChatHeader({
 						{conversations.find((c) => c.id === activeId)?.title ?? "Chat"}
 					</Button>
 				))}
-		</div>
+		</CardHeader>
 	);
 }

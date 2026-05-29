@@ -5,6 +5,7 @@ import {
 	integer,
 	sqliteTable,
 	text,
+	uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 export const exams = sqliteTable("exams", {
@@ -66,6 +67,32 @@ export const config = sqliteTable("config", {
 	key: text("key").primaryKey(),
 	value: text("value").notNull(),
 });
+
+export const llmLogs = sqliteTable(
+	"llm_logs",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		call_id: text("call_id").notNull(),
+		call_type: text("call_type").notNull(),
+		provider: text("provider").notNull(),
+		model: text("model").notNull(),
+		base_url: text("base_url"),
+		system_prompt: text("system_prompt"),
+		request_payload: text("request_payload"),
+		response_payload: text("response_payload"),
+		duration_ms: integer("duration_ms"),
+		chunks: integer("chunks"),
+		final_chars: integer("final_chars"),
+		token_meta: text("token_meta"),
+		error_message: text("error_message"),
+		status: text("status").notNull().default("pending"),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_llm_logs_created_at").on(table.created_at),
+		uniqueIndex("uq_llm_logs_call_id").on(table.call_id),
+	],
+);
 
 export const memoryProfile = sqliteTable("memory_profile", {
 	id: integer("id").primaryKey(),

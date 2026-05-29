@@ -196,56 +196,57 @@ export function Chat() {
 	}
 
 	return (
-		<div data-fullwidth className="flex h-[calc(100vh-4rem)] max-w-7xl mx-auto">
-			<ChatSidebar />
-			<div className="flex-1 flex flex-col min-w-0">
-				<ChatHeader
-					activeId={activeId}
-					conversations={conversations}
-					editingTitle={editingTitle}
-					titleDraft={titleDraft}
-					onStartEditing={handleStartEdit}
-					onSaveTitle={handleSaveTitle}
-					onCancelEditing={() => setEditingTitle(false)}
-					onTitleDraftChange={setTitleDraft}
-				/>
+		<div data-fullwidth className="h-[calc(100dvh-4rem)] overflow-hidden">
+			<div className="mx-auto flex h-full w-full max-w-5xl overflow-hidden px-4 py-4 md:px-6">
+				<ChatSidebar />
+				<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+					<Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+						<ChatHeader
+							activeId={activeId}
+							conversations={conversations}
+							editingTitle={editingTitle}
+							titleDraft={titleDraft}
+							onStartEditing={handleStartEdit}
+							onSaveTitle={handleSaveTitle}
+							onCancelEditing={() => setEditingTitle(false)}
+							onTitleDraftChange={setTitleDraft}
+						/>
+						<CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto py-0">
+							{messages.map((msg) => (
+								<ChatMessage
+									key={msg.id}
+									message={msg}
+									metrics={assistantMetrics[msg.id]}
+								/>
+							))}
 
-				<Card className="flex flex-col flex-1">
-					<CardContent className="flex-1 overflow-y-auto space-y-4 py-0">
-						{messages.map((msg) => (
-							<ChatMessage
-								key={msg.id}
-								message={msg}
-								metrics={assistantMetrics[msg.id]}
-							/>
-						))}
-
-						{isLoading && (
-							<div className="flex justify-start">
-								<div className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
-									Thinking...
+							{isLoading && (
+								<div className="flex justify-start">
+									<div className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
+										Thinking...
+									</div>
 								</div>
-							</div>
-						)}
+							)}
 
-						{error && (
-							<div className="flex justify-center">
-								<div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
-									{error.message}
+							{error && (
+								<div className="flex justify-center">
+									<div className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
+										{error.message}
+									</div>
 								</div>
-							</div>
-						)}
+							)}
 
-						<div ref={bottomRef} />
-					</CardContent>
+							<div ref={bottomRef} />
+						</CardContent>
 
-					<ChatInput
-						input={input}
-						onInputChange={setInput}
-						onSend={handleSend}
-						isLoading={isLoading}
-					/>
-				</Card>
+						<ChatInput
+							input={input}
+							onInputChange={setInput}
+							onSend={handleSend}
+							isLoading={isLoading}
+						/>
+					</Card>
+				</div>
 			</div>
 		</div>
 	);

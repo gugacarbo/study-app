@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DBQueries } from "../db/queries";
+import { env } from "../env";
 import { generateQuestionExplanationsBatch } from "../lib/ai/prompts/generate-question-explanations";
 import type { ProviderConfig } from "../lib/validation";
 import { getDB } from "./db";
@@ -111,7 +112,7 @@ export const generateExamQuestionExplanations = createServerFn({
 		if (!exam) throw new Error("Exam not found");
 
 		const config = await queries.getAllConfig();
-		const apiKey = config.ai_api_key || "";
+		const apiKey = config.ai_api_key || env.OPENROUTER_API_KEY;
 		if (!apiKey) {
 			throw new Error(
 				"AI API key not configured. Please configure it in /config first.",
@@ -120,8 +121,8 @@ export const generateExamQuestionExplanations = createServerFn({
 
 		const providerConfig: ProviderConfig = {
 			provider: (config.ai_provider ||
-				"openrouter") as ProviderConfig["provider"],
-			model: config.ai_model || "openai/gpt-4o-mini",
+				env.AI_PROVIDER) as ProviderConfig["provider"],
+			model: config.ai_model || env.AI_MODEL,
 			baseUrl: config.ai_base_url || undefined,
 			apiKey,
 		};

@@ -66,13 +66,13 @@ export function ChatMessage({
 			className={`flex flex-col ${message.role === "user" ? "items-end" : "items-start"}`}
 		>
 			<div
-				className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+				className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}
 			>
 				<div
-					className={`max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${
+					className={`break-words whitespace-pre-wrap rounded-lg px-4 py-2 text-sm leading-relaxed ${
 						message.role === "user"
-							? "bg-primary text-primary-foreground"
-							: "bg-card border border-border text-card-foreground"
+							? "w-[70%] max-w-[70%] bg-primary text-primary-foreground"
+							: "max-w-[80%] bg-card border border-border text-card-foreground"
 					}`}
 				>
 					{message.parts.map((part) => {

@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-05-28 — markdown rendering + streaming ingest tokens
+> **Last auto-updated:** 2026-05-29 — LLM logging infrastructure
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -29,6 +29,9 @@ Single-user web app for studying college exams using past exams as source materi
 | `OPENROUTER_API_KEY` | Yes | — | OpenRouter API key |
 | `AI_PROVIDER` | No | `openrouter` | AI provider name |
 | `AI_MODEL` | No | `openai/gpt-4o-mini` | Model identifier |
+| `AI_LOG_LLM` | No | `false` | Enable LLM call logging to D1 |
+| `AI_LOG_LLM_CONTENT` | No | `false` | Log LLM request/response content (large) |
+| `AI_LOG_LLM_CHUNKS` | No | `false` | Log streaming chunk counts |
 
 ## Project Structure
 ```
@@ -103,7 +106,8 @@ migrations/
 ├── 0004_config.sql      # config table + seed data
 ├── 0005_files.sql       # files table (depends on exams)
 ├── 0006_memory.sql      # memory tables (profile, sessions, topic_notes, documents)
-└── 0007_questions_deep_explanation.sql # adds deep_explanation column to questions
+├── 0007_questions_deep_explanation.sql # adds deep_explanation column to questions
+└── 0008_llm_logs.sql      # LLM call logging table
 ```
 
 ## Commands
@@ -148,8 +152,8 @@ migrations/
 ## Memory Layer (D1-Based)
 - **Storage:** D1 database tables (`memory_profile`, `memory_sessions`, `memory_topic_notes`, `memory_documents`)
 - **Migration file:** `0006_memory.sql` — creates all 4 memory tables with indexes
-- **Schema:** Defined in `src/db/schema.ts` (9 tables total)
-- **Manager:** `src/lib/memory.ts` — `MemoryManager` class wrapping D1 queries
+- **Schema:** Defined in `src/db/schema.ts` (10 tables total) — includes `llm_logs` for API call logging
+- **LLM Logging:** `llm_logs` table stores AI call metadata (provider, model, duration, tokens, status). Enable via `AI_LOG_LLM`, `AI_LOG_LLM_CONTENT`, `AI_LOG_LLM_CHUNKS` env vars.
 - **Server functions:** `src/server-functions/memory.ts` — `saveQuizSessionToMemory`, `getMemoryContext`
 - **Context injection:** Before AI calls, `getMemoryContext` queries recent sessions, topic notes, and profile → injects into system prompt
 
