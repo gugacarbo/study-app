@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-05-28 — shadcn theme provider, CSS utility migration, API directory routes
+> **Last auto-updated:** 2026-05-28 — remove /upload route, integrate upload dialog into exams-view
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -50,7 +50,6 @@ src/
 ├── routes/              # File-based TanStack Router routes
 │   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts
 │   ├── index.tsx        # / — Dashboard
-│   ├── upload.tsx       # /upload
 │   ├── exams.tsx        # /exams — exam layout (Outlet)
 │   ├── exams.index.tsx  # /exams/ — exam list page
 │   ├── exams.stats.tsx  # /exams/stats — stats tab page

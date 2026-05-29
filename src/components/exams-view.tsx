@@ -1,8 +1,17 @@
 import { useState } from 'react'
 import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Trash2, Play, FileText, Calendar, Tag, ListChecks, ChevronRight } from 'lucide-react'
+import { Trash2, Play, FileText, Calendar, Tag, ListChecks, ChevronRight, Upload } from 'lucide-react'
 import { getExamsDetailed, deleteExam } from '../server-functions/exams'
+import { UploadForm } from './upload-form'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 function formatFileSize(bytes: number | null): string {
 	if (bytes === null || bytes === undefined) return 'Unknown'
@@ -30,6 +39,7 @@ export function ExamsView() {
 	const queryClient = useQueryClient()
 	const [deletingId, setDeletingId] = useState<number | null>(null)
 	const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+	const [uploadOpen, setUploadOpen] = useState(false)
 
 	const { data: exams } = useSuspenseQuery({
 		queryKey: ['exams-detailed'],
@@ -55,9 +65,25 @@ export function ExamsView() {
 		<div>
 			<div className="flex items-center justify-between mb-6">
 				<h1 className="text-2xl font-bold">Exams</h1>
-				<span className="text-sm text-text-muted">
-					{exams.length} {exams.length === 1 ? 'exam' : 'exams'}
-				</span>
+				<div className="flex items-center gap-3">
+					<span className="text-sm text-text-muted">
+						{exams.length} {exams.length === 1 ? 'exam' : 'exams'}
+					</span>
+					<Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+						<DialogTrigger asChild>
+							<Button size="sm">
+								<Upload className="h-4 w-4 mr-1.5" />
+								Upload
+							</Button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Upload Exam</DialogTitle>
+							</DialogHeader>
+							<UploadForm onSuccess={() => setUploadOpen(false)} />
+						</DialogContent>
+					</Dialog>
+				</div>
 			</div>
 
 			{exams.length === 0 ? (
@@ -66,9 +92,19 @@ export function ExamsView() {
 					<p className="text-text-muted mb-4">
 						No exams uploaded yet.
 					</p>
-					<Link to="/upload" className="btn">
-						Upload your first exam
-					</Link>
+					<Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+						<DialogTrigger asChild>
+							<button className="btn">
+								Upload your first exam
+							</button>
+						</DialogTrigger>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Upload Exam</DialogTitle>
+							</DialogHeader>
+							<UploadForm onSuccess={() => setUploadOpen(false)} />
+						</DialogContent>
+					</Dialog>
 				</div>
 			) : (
 				<div className="space-y-4">

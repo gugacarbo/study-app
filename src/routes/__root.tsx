@@ -31,7 +31,6 @@ const queryClient = new QueryClient({
 const navItems = [
 	{ to: "/", label: "Dashboard" },
 	{ to: "/exams", label: "Exams" },
-	{ to: "/upload", label: "Upload" },
 	{ to: "/memory", label: "Memory" },
 	{ to: "/chat", label: "Chat" },
 	{ to: "/config", label: "Config" },

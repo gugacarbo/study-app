@@ -66,7 +66,7 @@ export function Dashboard() {
 					<CardContent className="text-center text-muted-foreground">
 						No exams imported yet.{" "}
 						<Link
-							to="/upload"
+							to="/exams"
 							className="text-primary hover:underline"
 						>
 							Upload one now

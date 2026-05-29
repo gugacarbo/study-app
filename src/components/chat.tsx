@@ -1,17 +1,56 @@
 import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
-import { useEffect, useRef, useState } from "react";
 import { useStore } from "@tanstack/react-store";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
 	chatStore,
-	setMessages,
-	setIsLoading,
+	clearChat,
 	setError,
 	setInput,
+	setIsLoading,
+	setMessages,
 } from "@/stores/chatStore";
+
+const STORAGE_KEY = "chat-history";
+
+const WELCOME_MESSAGE = {
+	id: "welcome",
+	role: "assistant" as const,
+	parts: [
+		{
+			type: "text" as const,
+			content:
+				"Hi! I'm your study assistant. Ask me anything about your subjects.",
+		},
+	],
+};
+
+function loadSavedMessages() {
+	try {
+		const saved = localStorage.getItem(STORAGE_KEY);
+		if (saved) {
+			const parsed = JSON.parse(saved);
+			if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+		}
+	} catch {
+		// ignore corrupt data
+	}
+	return [];
+}
+
+function createChatClient() {
+	const saved = loadSavedMessages();
+	return new ChatClient({
+		initialMessages: saved.length > 0 ? saved : [WELCOME_MESSAGE],
+		connection: fetchServerSentEvents("/api/chat"),
+		onMessagesChange: (msgs) => setMessages([...msgs]),
+		onLoadingChange: (loading) => setIsLoading(loading),
+		onErrorChange: (err) => setError(err),
+	});
+}
 
 export function Chat() {
 	const messages = useStore(chatStore, (s) => s.messages);
@@ -20,34 +59,26 @@ export function Chat() {
 	const input = useStore(chatStore, (s) => s.input);
 	const bottomRef = useRef<HTMLDivElement>(null);
 
-	const [chatClient] = useState(
-		() =>
-			new ChatClient({
-				initialMessages: [
-					{
-						id: "welcome",
-						role: "assistant",
-						parts: [
-							{
-								type: "text" as const,
-								content:
-									"Hi! I'm your study assistant. Ask me anything about your subjects.",
-							},
-						],
-					},
-				],
-				connection: fetchServerSentEvents("/api/chat"),
-				onMessagesChange: (msgs) => setMessages([...msgs]),
-				onLoadingChange: (loading) => setIsLoading(loading),
-				onErrorChange: (err) => setError(err),
-			}),
-	);
+	const [chatClient, setChatClient] = useState(createChatClient);
 
 	useEffect(() => {
 		setMessages(chatClient.getMessages());
 		setIsLoading(chatClient.getIsLoading());
 		setError(chatClient.getError());
 	}, [chatClient]);
+
+	// Persist messages to localStorage on every change
+	useEffect(() => {
+		const sub = chatStore.subscribe(() => {
+			const { messages: msgs } = chatStore.state;
+			if (msgs.length > 0) {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+			} else {
+				localStorage.removeItem(STORAGE_KEY);
+			}
+		});
+		return () => sub.unsubscribe();
+	}, []);
 
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,6 +90,12 @@ export function Chat() {
 
 		setInput("");
 		await chatClient.sendMessage(text);
+	}
+
+	function handleClear() {
+		clearChat();
+		localStorage.removeItem(STORAGE_KEY);
+		setChatClient(createChatClient());
 	}
 
 	function handleKeyDown(e: React.KeyboardEvent) {
@@ -109,7 +146,19 @@ export function Chat() {
 
 	return (
 		<div>
-			<h1 className="text-2xl font-bold mb-6">Chat</h1>
+			<div className="mb-6 flex items-center justify-between">
+				<h1 className="text-2xl font-bold">Chat</h1>
+				{messages.length > 0 && (
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleClear}
+						disabled={isLoading}
+					>
+						Clear history
+					</Button>
+				)}
+			</div>
 
 			<Card className="flex flex-col" style={{ height: "60vh" }}>
 				<CardContent className="flex-1 overflow-y-auto space-y-4">

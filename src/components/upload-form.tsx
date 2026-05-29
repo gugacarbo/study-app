@@ -107,7 +107,7 @@ async function ingestWithProgress(
   return result
 }
 
-export function UploadForm() {
+export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
@@ -149,6 +149,9 @@ export function UploadForm() {
         setProgressStep('Concluído')
         setMessage(`Extracted ${result.questions} questions from ${result.topics.join(', ')}`)
         queryClient.invalidateQueries({ queryKey: ['exams'] })
+        queryClient.invalidateQueries({ queryKey: ['exams-detailed'] })
+        queryClient.invalidateQueries({ queryKey: ['stats'] })
+        onSuccess?.()
       } catch (err) {
         setStatus('error')
         setProgress(0)
