@@ -1,5 +1,7 @@
 # Routes
 
+**Last updated:** 2026-05-28
+
 TanStack Router file-based routing. Entries in `src/routes/`.
 
 ## Route Table
@@ -13,7 +15,7 @@ TanStack Router file-based routing. Entries in `src/routes/`.
 | `exams.index.tsx` | `/exams/` | Page | `getExamsDetailed` via TanStack Query |
 | `exams.$id.tsx` | `/exams/$id` | Page (params) | `getExamDetail` via TanStack Query |
 | `quiz.$id.tsx` | `/quiz/$id` | Page (params) | `generateQuiz` via server fn, `quizStore` |
-| `stats.tsx` | `/stats` | Page | `getStats` via TanStack Query |
+| `exams.stats.tsx` | `/exams/stats` | Page | `getStats` via TanStack Query |
 | `config.tsx` | `/config` | Page | `getConfig`/`setConfig` via server fns |
 | `chat.tsx` | `/chat` | Page | Chat API stream |
 | `about.tsx` | `/about` | Page | — |
@@ -31,6 +33,6 @@ TanStack Router file-based routing. Entries in `src/routes/`.
 
 ## Notable
 - `__root.tsx` is the shell — wraps `<Outlet>` with nav, query client, theme
-- `exams.tsx` is a layout route with `<Outlet>` — child routes `exams.index.tsx` and `exams.$id.tsx` render inside it
+- `exams.tsx` is a layout route with route-driven `<Tabs>` + `<Outlet>` — child routes `exams.index.tsx`, `exams.stats.tsx`, and `exams.$id.tsx` render inside it
 - API routes live in `src/routes/api/` directory (chat, ingest, test-connection)
 - `api/test-connection.ts` and `api/ingest.ts` use SSE (text/event-stream) for streaming

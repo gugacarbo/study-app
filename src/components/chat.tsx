@@ -1,20 +1,24 @@
-import type { UIMessage } from "@tanstack/ai-client";
 import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
 import { useEffect, useRef, useState } from "react";
+import { useStore } from "@tanstack/react-store";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	chatStore,
+	setMessages,
+	setIsLoading,
+	setError,
+	setInput,
+} from "@/stores/chatStore";
 
 export function Chat() {
-	const [messages, setMessages] = useState<UIMessage[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<Error | undefined>();
-	const [input, setInput] = useState("");
+	const messages = useStore(chatStore, (s) => s.messages);
+	const isLoading = useStore(chatStore, (s) => s.isLoading);
+	const error = useStore(chatStore, (s) => s.error);
+	const input = useStore(chatStore, (s) => s.input);
 	const bottomRef = useRef<HTMLDivElement>(null);
-
-	const stateRef = useRef({ setMessages, setIsLoading, setError });
-	stateRef.current = { setMessages, setIsLoading, setError };
 
 	const [chatClient] = useState(
 		() =>
@@ -33,9 +37,9 @@ export function Chat() {
 					},
 				],
 				connection: fetchServerSentEvents("/api/chat"),
-				onMessagesChange: (msgs) => stateRef.current.setMessages([...msgs]),
-				onLoadingChange: (loading) => stateRef.current.setIsLoading(loading),
-				onErrorChange: (err) => stateRef.current.setError(err),
+				onMessagesChange: (msgs) => setMessages([...msgs]),
+				onLoadingChange: (loading) => setIsLoading(loading),
+				onErrorChange: (err) => setError(err),
 			}),
 	);
 
