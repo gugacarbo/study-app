@@ -1,10 +1,11 @@
-import type { ToolCallViewModel } from "../chat-message-utils";
+import type { ToolCallViewModel } from "../../chat-message-utils";
 import {
+	isLoadingToolState,
 	labelForToolState,
 	safeJson,
 	toneFromState,
-} from "../chat-message-utils";
-import { DetailAccordion } from "../detail-accordion";
+} from "../../chat-message-utils";
+import { DetailAccordion } from "../../detail-accordion/detail-accordion";
 
 export function ChatMessageToolCall({ part }: { part: ToolCallViewModel }) {
 	const name = typeof part.name === "string" ? part.name : "unknown_tool";
@@ -14,16 +15,18 @@ export function ChatMessageToolCall({ part }: { part: ToolCallViewModel }) {
 			: undefined;
 	const parsedInput = "input" in part ? part.input : undefined;
 	const output = "output" in part ? part.output : undefined;
-	const state = labelForToolState(part.state);
+	const stateLabel = labelForToolState(part.state);
 	const value = "tool-call";
-	const defaultOpen = state !== "complete";
+	const isLoading = isLoadingToolState(part.state);
 
 	return (
 		<DetailAccordion
 			value={value}
-			label={`Tool call: ${name} (${state})`}
-			tone={toneFromState(state)}
-			defaultOpen={defaultOpen}
+			label={`Tool call: ${name} (${stateLabel})`}
+			tone={toneFromState(
+				typeof part.state === "string" ? part.state : "unknown",
+			)}
+			isLoading={isLoading}
 		>
 			{rawArgs ? (
 				<div>

@@ -25,7 +25,7 @@ export function ChatHeader({
 	onTitleDraftChange,
 }: ChatHeaderProps) {
 	return (
-		<CardHeader className="flex shrink-0 items-center justify-between border-b border-border/60 py-3">
+		<CardHeader className="flex shrink-0 items-center justify-between py-3">
 			<div className="flex items-center gap-2">
 				<CardTitle className="text-2xl font-bold">Chat</CardTitle>
 			</div>

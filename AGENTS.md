@@ -8,6 +8,10 @@
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
 
+## Code Patterns
+> **Always read before writing or reviewing code:**
+> [`docs/codebase-patterns.md`](docs/codebase-patterns.md)
+
 ## Stack
 - **Framework:** TanStack Start (SPA mode), React 19
 - **Routing:** TanStack Router (file-based, `src/routes/`)
@@ -24,14 +28,14 @@ Single-user web app for studying college exams using past exams as source materi
 - **Memory:** D1-based memory layer (sessions, topics, documents, profile)
 
 ## Environment Variables
-| Var | Required | Default | Description |
-|---|---|---|---|
-| `OPENROUTER_API_KEY` | No | — | OpenRouter API key (now optional — config-driven API keys supported) |
-| `AI_PROVIDER` | No | `openrouter` | AI provider name |
-| `AI_MODEL` | No | `openai/gpt-4o-mini` | Model identifier |
-| `AI_LOG_LLM` | No | `false` | Enable LLM call logging to D1 |
-| `AI_LOG_LLM_CONTENT` | No | `false` | Log LLM request/response content (large) |
-| `AI_LOG_LLM_CHUNKS` | No | `false` | Log streaming chunk counts |
+| Var                  | Required | Default              | Description                                                          |
+| -------------------- | -------- | -------------------- | -------------------------------------------------------------------- |
+| `OPENROUTER_API_KEY` | No       | —                    | OpenRouter API key (now optional — config-driven API keys supported) |
+| `AI_PROVIDER`        | No       | `openrouter`         | AI provider name                                                     |
+| `AI_MODEL`           | No       | `openai/gpt-4o-mini` | Model identifier                                                     |
+| `AI_LOG_LLM`         | No       | `false`              | Enable LLM call logging to D1                                        |
+| `AI_LOG_LLM_CONTENT` | No       | `false`              | Log LLM request/response content (large)                             |
+| `AI_LOG_LLM_CHUNKS`  | No       | `false`              | Log streaming chunk counts                                           |
 
 ## Project Structure
 ```
@@ -47,7 +51,7 @@ src/
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
 │   ├── theme-provider.tsx # Theme context provider (shadcn)
-│   ├── Chat.tsx         # AI chat assistant (multi-conversation)  
+│   ├── Chat.tsx         # AI chat assistant (multi-conversation)
 │   ├── ChatSidebar.tsx  # Conversation list sidebar
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
@@ -115,23 +119,23 @@ migrations/
 ```
 
 ## Commands
-| Command | Action |
-|---|---|
-| `npm run dev` | Local dev server (port 3000) |
-| `npm run wrangler:dev` | Wrangler dev mode |
-| `npm run build` | Production build |
-| `npm run deploy` | Build + wrangler deploy |
-| `npm run test` | Vitest run |
-| `npm run lint` | Biome lint |
-| `npm run format` | Biome format |
-| `npm run check` | Biome lint + format check |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run db:generate` | Drizzle Kit — generate migration from schema diff |
-| `npm run db:generate:local` | Drizzle Kit — generate with explicit config path |
-| `npm run db:migrate` | Wrangler D1 migrations (local) |
-| `npm run db:migrate:prod` | Wrangler D1 migrations (remote) |
-| `npm run db:reset` | Wrangler D1 migrations reset (local) |
-| `npm run db:reset:prod` | Wrangler D1 migrations reset (remote) |
+| Command                     | Action                                            |
+| --------------------------- | ------------------------------------------------- |
+| `npm run dev`               | Local dev server (port 3000)                      |
+| `npm run wrangler:dev`      | Wrangler dev mode                                 |
+| `npm run build`             | Production build                                  |
+| `npm run deploy`            | Build + wrangler deploy                           |
+| `npm run test`              | Vitest run                                        |
+| `npm run lint`              | Biome lint                                        |
+| `npm run format`            | Biome format                                      |
+| `npm run check`             | Biome lint + format check                         |
+| `npm run typecheck`         | `tsc --noEmit`                                    |
+| `npm run db:generate`       | Drizzle Kit — generate migration from schema diff |
+| `npm run db:generate:local` | Drizzle Kit — generate with explicit config path  |
+| `npm run db:migrate`        | Wrangler D1 migrations (local)                    |
+| `npm run db:migrate:prod`   | Wrangler D1 migrations (remote)                   |
+| `npm run db:reset`          | Wrangler D1 migrations reset (local)              |
+| `npm run db:reset:prod`     | Wrangler D1 migrations reset (remote)             |
 
 **Note:** `postinstall` runs `cf-typegen` + `db:migrate` automatically.
 

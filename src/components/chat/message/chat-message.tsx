@@ -1,9 +1,9 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { cn } from "@/lib/utils";
-import { AgentMessages } from "./agent-messages/agent-messages";
 import { ChatMessageMetrics } from "./chat-message-metrics";
 import type { AssistantPerfMetrics } from "./chat-message-utils";
-import { UserMessages } from "./user-messages/user-messages";
+import { AgentMessages } from "./parts/agent-messages/agent-messages";
+import { UserMessages } from "./parts/user-messages/user-messages";
 
 export type { AssistantPerfMetrics };
 
@@ -15,6 +15,7 @@ export function ChatMessage({
 	metrics?: AssistantPerfMetrics;
 }) {
 	const isUser = message.role === "user";
+
 	return (
 		<div
 			className={cn(
@@ -33,17 +34,16 @@ export function ChatMessage({
 							: "w-4/5 max-w-4/5 bg-card border border-border text-card-foreground",
 					)}
 				>
-					{message.parts.map((part, partIndex) => {
-						const itemKey = `${message.id}:${partIndex}`;
-						return isUser ? (
-							<UserMessages key={itemKey} part={part} />
-						) : (
-							<AgentMessages key={itemKey} part={part} />
-						);
-					})}
+					{isUser
+						? message.parts.map((part) => (
+								<UserMessages key={message.id} part={part} />
+							))
+						: message.parts.map((part) => (
+								<AgentMessages key={message.id} part={part} />
+							))}
 				</div>
 			</div>
-			{!isUser && metrics && <ChatMessageMetrics metrics={metrics} />}
+			<ChatMessageMetrics metrics={metrics} show={!isUser} />
 		</div>
 	);
 }

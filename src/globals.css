@@ -69,6 +69,34 @@ body {
 	color: var(--text);
 }
 
+/* Scrollbar styling */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--surface-hover) transparent;
+}
+
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: var(--surface-hover);
+	border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--text-muted);
+}
+
+*::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
 .card {
 	background: var(--surface);
 	border: 1px solid var(--border);

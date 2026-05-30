@@ -9,9 +9,9 @@ interface MarkdownRendererProps {
 }
 
 const defaultComponents: Components = {
-	// Ensure paragraphs don't add extra bottom margin in tight spaces
+	// Tight vertical spacing for chat bubbles
 	p: ({ children, ...props }) => (
-		<p className="last:mb-0" {...props}>
+		<p className="first:mt-0 last:mb-0" {...props}>
 			{children}
 		</p>
 	),
@@ -52,16 +52,21 @@ const defaultComponents: Components = {
 			{children}
 		</a>
 	),
-	// Style lists
+	// Style lists - tight vertical spacing
 	ul: ({ children, ...props }) => (
-		<ul className="list-disc pl-5 space-y-1" {...props}>
+		<ul className="list-disc pl-4 my-0.5 space-y-0" {...props}>
 			{children}
 		</ul>
 	),
 	ol: ({ children, ...props }) => (
-		<ol className="list-decimal pl-5 space-y-1" {...props}>
+		<ol className="list-decimal pl-4 my-0.5 space-y-0" {...props}>
 			{children}
 		</ol>
+	),
+	li: ({ children, ...props }) => (
+		<li className="my-0 leading-snug" {...props}>
+			{children}
+		</li>
 	),
 	// Style blockquotes
 	blockquote: ({ children, ...props }) => (
@@ -72,19 +77,28 @@ const defaultComponents: Components = {
 			{children}
 		</blockquote>
 	),
-	// Style headings
+	// Style headings - very tight spacing for chat bubbles
 	h1: ({ children, ...props }) => (
-		<h1 className="text-xl font-bold mb-2 mt-4 first:mt-0" {...props}>
+		<h1
+			className="text-lg font-bold mb-0.5 mt-1 first:mt-0 leading-tight"
+			{...props}
+		>
 			{children}
 		</h1>
 	),
 	h2: ({ children, ...props }) => (
-		<h2 className="text-lg font-bold mb-1.5 mt-3 first:mt-0" {...props}>
+		<h2
+			className="text-base font-bold mb-0.5 mt-0.5 first:mt-0 leading-tight"
+			{...props}
+		>
 			{children}
 		</h2>
 	),
 	h3: ({ children, ...props }) => (
-		<h3 className="text-base font-semibold mb-1 mt-2 first:mt-0" {...props}>
+		<h3
+			className="text-sm font-semibold mb-0.5 mt-0.5 first:mt-0 leading-tight"
+			{...props}
+		>
 			{children}
 		</h3>
 	),
@@ -113,7 +127,7 @@ const defaultComponents: Components = {
 		</td>
 	),
 	// Style horizontal rules
-	hr: (props) => <hr className="my-4 border-border" {...props} />,
+	hr: (props) => <hr className="border-border" {...props} />,
 };
 
 export function MarkdownRenderer({
@@ -123,7 +137,9 @@ export function MarkdownRenderer({
 }: MarkdownRendererProps) {
 	if (!content) return null;
 
-	const baseClass = prose ? "prose prose-sm dark:prose-invert max-w-none" : "";
+	const baseClass = !prose
+		? "prose prose-sm dark:prose-invert max-w-none prose-p:leading-snug prose-p:my-0.5 prose-headings:my-0.5 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0 prose-blockquote:my-1 prose-pre:my-1 prose-hr:my-1"
+		: "";
 
 	return (
 		<div className={`${baseClass} ${className}`}>

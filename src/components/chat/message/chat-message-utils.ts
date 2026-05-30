@@ -135,3 +135,11 @@ export function toneFromState(state: string): DetailTriggerTone {
 	}
 	return "neutral";
 }
+
+export function isLoadingToolState(state: unknown): boolean {
+	return (
+		state === "awaiting-input" ||
+		state === "input-streaming" ||
+		state === "streaming"
+	);
+}
