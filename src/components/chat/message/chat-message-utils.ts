@@ -114,15 +114,15 @@ export function labelForToolState(state: unknown): string {
 export function triggerToneClass(tone: DetailTriggerTone): string {
 	switch (tone) {
 		case "success":
-			return "text-emerald-700/60 dark:text-emerald-400/60";
+			return "emerald-400";
 		case "error":
-			return "text-red-700/60 dark:text-red-400/60";
+			return "red-400";
 		case "progress":
-			return "text-sky-700/60 dark:text-sky-400/60";
+			return "sky-400";
 		case "approval":
-			return "text-violet-700/60 dark:text-violet-400/60";
+			return "violet-400";
 		default:
-			return "text-muted-foreground";
+			return "muted-foreground";
 	}
 }
 

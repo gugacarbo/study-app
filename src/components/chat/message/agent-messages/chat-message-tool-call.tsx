@@ -1,10 +1,10 @@
-import type { ToolCallViewModel } from "./chat-message-utils";
+import type { ToolCallViewModel } from "../chat-message-utils";
 import {
 	labelForToolState,
 	safeJson,
 	toneFromState,
-} from "./chat-message-utils";
-import { DetailAccordion } from "./detail-accordion";
+} from "../chat-message-utils";
+import { DetailAccordion } from "../detail-accordion";
 
 export function ChatMessageToolCall({ part }: { part: ToolCallViewModel }) {
 	const name = typeof part.name === "string" ? part.name : "unknown_tool";

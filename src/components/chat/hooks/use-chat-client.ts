@@ -11,13 +11,13 @@ import {
 	getConversationMessages,
 	saveMessagesToConversation,
 } from "@/stores/conversationsStore";
-import type { AssistantPerfMetrics } from "../message/chat-message";
 import {
 	estimateTokens,
 	getMessageText,
 	type PerfRuntime,
 	WELCOME,
 } from "../chat-utils";
+import type { AssistantPerfMetrics } from "../message/chat-message";
 
 export function useChatClient(activeId: string | null) {
 	const [chatClient, setChatClient] = useState<ChatClient | null>(null);

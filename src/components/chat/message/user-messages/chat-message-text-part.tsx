@@ -1,14 +1,17 @@
 import type { MessagePart } from "@tanstack/ai-client";
 import { MarkdownRenderer } from "@/components/ui/markdown";
-import { bubbleMarkdownClass, parseTextParts } from "./chat-message-utils";
-import { DetailAccordion } from "./detail-accordion";
+import { bubbleMarkdownClass, parseTextParts } from "../chat-message-utils";
+import { DetailAccordion } from "../detail-accordion";
 
 interface ChatMessageTextPartProps {
 	part: Extract<MessagePart, { type: "text" }>;
-	role: "user" | "assistant";
+	msgRole: "user" | "assistant";
 }
 
-export function ChatMessageTextPart({ part, role }: ChatMessageTextPartProps) {
+export function ChatMessageTextPart({
+	part,
+	msgRole,
+}: ChatMessageTextPartProps) {
 	const keyOccurrences = new Map<string, number>();
 
 	return (
@@ -23,7 +26,7 @@ export function ChatMessageTextPart({ part, role }: ChatMessageTextPartProps) {
 					<MarkdownRenderer
 						key={partKey}
 						content={parsedPart.content}
-						className={bubbleMarkdownClass(role)}
+						className={bubbleMarkdownClass(msgRole)}
 					/>
 				) : (
 					<DetailAccordion

@@ -10,11 +10,11 @@ import { ChatError } from "./chat-error";
 import { ChatHeader } from "./chat-header";
 import { ChatInput } from "./chat-input";
 import { ChatLoading } from "./chat-loading";
-import { ChatMessage } from "./message/chat-message";
 import { ChatSidebar } from "./chat-sidebar";
 import { useAutoScroll } from "./hooks/use-auto-scroll";
 import { useAutoTitle } from "./hooks/use-auto-title";
 import { useChatClient } from "./hooks/use-chat-client";
+import { ChatMessage } from "./message/chat-message";
 
 export function Chat() {
 	const messages = useSelector(chatStore, (s) => s.messages);

@@ -1,4 +1,5 @@
 import { Accordion as AccordionPrimitive } from "radix-ui";
+import { ShimmerTextSpan } from "#/components/shimmer-text-span";
 import { cn } from "@/lib/utils";
 import type { DetailTriggerTone } from "./chat-message-utils";
 import { triggerToneClass } from "./chat-message-utils";
@@ -15,12 +16,13 @@ export function DetailTrigger({
 	return (
 		<AccordionPrimitive.Trigger
 			className={cn(
-				"chat-thinking-part border-0 bg-transparent px-2 py-1 text-xs font-medium normal-case no-underline hover:bg-transparent hover:no-underline focus-visible:border-0 focus-visible:ring-0",
-				triggerToneClass(tone),
+				"text-xs font-medium normal-case py-1 px-0.5 focus-visible:border-0 focus-visible:ring-0",
 				className,
 			)}
 		>
-			{label}
+			<ShimmerTextSpan shimmerColor={triggerToneClass(tone)}>
+				{label}
+			</ShimmerTextSpan>
 		</AccordionPrimitive.Trigger>
 	);
 }

@@ -1,10 +1,10 @@
-import type { ToolResultViewModel } from "./chat-message-utils";
+import type { ToolResultViewModel } from "../chat-message-utils";
 import {
 	labelForToolState,
 	safeJson,
 	toneFromState,
-} from "./chat-message-utils";
-import { DetailAccordion } from "./detail-accordion";
+} from "../chat-message-utils";
+import { DetailAccordion } from "../detail-accordion";
 
 export function ChatMessageToolResult({ part }: { part: ToolResultViewModel }) {
 	const state = labelForToolState(part.state);
