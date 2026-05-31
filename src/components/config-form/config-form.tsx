@@ -10,8 +10,8 @@ import type { ProviderConfig } from "../../lib/validation";
 import { getConfig, setConfig } from "../../server-functions/config";
 import { ConfigFormFields } from "./config-form-fields";
 import { formFieldsSchema } from "./config-form-schema";
-import { TestConnectionDialog } from "./test-connection-dialog";
-import { useConnectionTest } from "./use-connection-test";
+import { TestConnectionDialog } from "@/features/ai/components/config/test-connection-dialog";
+import { useConnectionTest } from "@/features/ai/components/config/use-connection-test";
 
 type FormValues = {
 	provider: "openrouter" | "openai" | "groq" | "ollama" | "custom";

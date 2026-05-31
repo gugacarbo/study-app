@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DBQueries } from "../db/queries";
-import { extractQuestionsFromText } from "../lib/ai/prompts/extract-questions";
+import { extractQuestionsFromText } from "@/features/ai/agents/ingest";
 import { FileService } from "../lib/file-service";
 import type { Question } from "../lib/validation";
 import { providerConfigSchema } from "../lib/validation";

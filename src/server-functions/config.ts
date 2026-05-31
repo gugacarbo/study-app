@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DBQueries } from "../db/queries";
-import { generateJson } from "../lib/ai/ai";
+import { generateJson } from "@/features/ai/core/generate";
 import { type ProviderConfig, providerConfigSchema } from "../lib/validation";
 import { getDB } from "./db";
 

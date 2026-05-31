@@ -10,7 +10,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { deleteExam, getExamsDetailed } from "../../server-functions/exams";
-import { UploadForm } from "../upload-form/upload-form";
+import { UploadForm } from "@/features/ai/components/upload/upload-form";
 import { ExamCard } from "./exam-card";
 import { ExamsEmptyState } from "./exams-empty-state";
 

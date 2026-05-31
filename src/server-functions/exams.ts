@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DBQueries } from "../db/queries";
 import { env } from "../env";
-import { generateQuestionExplanationsBatch } from "../lib/ai/prompts/generate-question-explanations";
+import { generateQuestionExplanationsBatch } from "@/features/ai/agents/explanations";
 import type { ProviderConfig } from "../lib/validation";
 import { getDB } from "./db";
 import { getMemoryContext } from "./memory";

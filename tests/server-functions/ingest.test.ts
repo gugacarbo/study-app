@@ -1,21 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DBQueries } from '#/db/queries';
 
-// Mock AI prompt modules
-vi.mock('#/lib/prompts/extract-questions', () => ({
-  extractQuestionsFromText: vi.fn(async () => ({
-    questions: [
-      {
-        question: 'What is 2+2?',
-        options: ['3', '4', '5', '6'],
-        answer: '4',
-        explanation: 'Basic math',
-        topic: 'Math',
-      },
-    ],
-    topics: ['Math'],
-  })),
-}));
 
 function createMockDB() {
   return {

@@ -3,7 +3,7 @@ import type { StreamChunk } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { DBQueries } from "../../db/queries";
-import { extractQuestionsFromText } from "../../lib/ai/prompts/extract-questions";
+import { extractQuestionsFromText } from "@/features/ai/agents/ingest";
 import { FileService } from "../../lib/file-service";
 import { MemoryManager } from "../../lib/memory";
 import { providerConfigSchema } from "../../lib/validation";

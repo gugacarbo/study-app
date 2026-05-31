@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Chat } from "@/components/chat/chat";
+import { Chat } from "@/features/ai/components/chat/chat";
 
 export const Route = createFileRoute("/chat")({
 	component: ChatPage,

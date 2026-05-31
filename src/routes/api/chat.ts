@@ -2,24 +2,18 @@ import type { ModelMessage, StreamChunk } from "@tanstack/ai";
 import { toServerSentEventsStream } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { DBQueries } from "../../db/queries";
-import { streamChatMessages } from "../../lib/ai/ai";
-import { createChatDbTools } from "../../lib/ai/chat-db-tools";
-import { createChatWebTools } from "../../lib/ai/chat-web-tools";
-import { TavilyWebContentProvider } from "../../lib/ai/tavily-web-content-provider";
-import { TavilyWebSearchProvider } from "../../lib/ai/tavily-web-search-provider";
+import { streamChatMessages } from "@/features/ai/core/chat-stream";
+import { createChatDbTools } from "@/features/ai/agents/chat/tools/db-tools";
+import { createChatWebTools } from "@/features/ai/agents/chat/tools/web-tools";
+import { TavilyWebContentProvider } from "@/features/ai/providers/web/tavily-content";
+import { TavilyWebSearchProvider } from "@/features/ai/providers/web/tavily-search";
+import { CHAT_SYSTEM_PROMPT } from "@/features/ai/agents/chat";
 import type { ProviderConfig } from "../../lib/validation";
 import { env } from "../../env";
 
 // Timeout for AI provider responses — prevents SSE connections from hanging
 // indefinitely if the upstream provider stalls.
 const AI_TIMEOUT_MS = 60_000;
-const CHAT_SYSTEM_PROMPT = `You are a helpful study assistant for this app.
-
-When the user asks for factual data from the app database (exams, questions, answer keys, attempts), call the available tools first instead of guessing.
-Use tools only on-demand for factual lookups. Do not call tools for generic tutoring, explanations, or brainstorming.
-When the user asks for current events or external facts not present in the app database, use web_search first, then web_fetch for the selected URLs when you need full context, and include source URLs in the answer.
-If tool data is unavailable, say so briefly and continue with best-effort guidance.`;
-
 /**
  * Wraps an async iterable with a cleanup callback that fires when the
  * iterator completes (naturally, via error, or via cancellation).

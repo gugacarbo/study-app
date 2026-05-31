@@ -10,7 +10,7 @@ vi.mock("@tanstack/ai", () => ({
   }),
 }));
 
-import { createChatDbTools } from "#/lib/ai/chat-db-tools";
+import { createChatDbTools } from "#/features/ai/agents/chat/tools/db-tools";
 
 function createQueriesMock() {
   return {

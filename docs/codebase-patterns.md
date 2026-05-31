@@ -62,7 +62,16 @@ import { ExamHeader } from "./exam-header";
 | Stores            | `src/stores/`           |
 | Types             | `src/types/`            |
 | Hooks             | `src/hooks/`            |
-| AI integration    | `src/lib/ai/`           |
+| Feature modules   | `src/features/`          |
+| AI integration    | `src/features/ai/`      |
+
+### Feature Module Structure
+
+- `src/features/ai/` — AI feature module (agents, core, providers, components, hooks, stores)
+  - `agents/` — Domain-specific AI agents (chat, ingest, explanations, quiz) with tools + prompts
+  - `core/` — Core generation functions (generate, chat-stream)
+  - `adapters/` — Provider adapter factory
+  - `providers/` — Web search/content provider interfaces + implementations
 
 ## Testing Patterns
 

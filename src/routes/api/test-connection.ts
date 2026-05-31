@@ -1,6 +1,6 @@
 import { chat, type StreamChunk } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
-import { getAiAdapter } from "../../lib/ai/ai";
+import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
 import { providerConfigSchema } from "../../lib/validation";
 
 type ConnectionProgressEvent = {

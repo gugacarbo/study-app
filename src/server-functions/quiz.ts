@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DBQueries } from "../db/queries";
-import { generateQuizQuestions } from "../lib/ai/prompts/generate-quiz";
+import { generateQuizQuestions } from "@/features/ai/agents/quiz";
 import { providerConfigSchema } from "../lib/validation";
 import { getDB } from "./db";
 import { getMemoryContext } from "./memory";

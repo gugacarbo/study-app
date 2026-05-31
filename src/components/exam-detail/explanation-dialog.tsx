@@ -11,7 +11,7 @@ import { Input } from "../ui/input";
 import { MarkdownRenderer } from "../ui/markdown";
 import { Progress } from "../ui/progress";
 import { ProgressItemButton } from "./progress-item-button";
-import { useExplanationGeneration } from "./use-explanation-generation";
+import { useExplanationGeneration } from "@/features/ai/components/exam-detail/use-explanation-generation";
 
 interface ExplanationDialogProps {
 	open: boolean;

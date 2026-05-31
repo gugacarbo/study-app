@@ -8,7 +8,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { UploadForm } from "../upload-form/upload-form";
+import { UploadForm } from "@/features/ai/components/upload/upload-form";
 
 interface ExamsEmptyStateProps {
 	uploadOpen: boolean;
