@@ -1,18 +1,17 @@
 # Server Functions
 
-Server-side functions using TanStack Start's `createServerFn`. 7 files.
+Server-side functions using TanStack Start's `createServerFn`. 6 files.
 
 ## Inventory
 
-| File | Exports | Type |
-|---|---|---|
-| `config.ts` | `getConfig`, `setConfig`, `testConnection` | `createServerFn` (GET/POST) |
-| `ingest.ts` | `ingestExam` | `createServerFn` (POST) |
-| `quiz.ts` | `generateQuiz`, `submitAnswer` | `createServerFn` (POST) |
-| `stats.ts` | `getStats`, `getExams` | `createServerFn` (GET) |
-| `exams.ts` | `getExamDetail`, `getExamsDetailed`, `deleteExam`, `updateQuestion`, `deleteQuestion`, `generateExamQuestionExplanations` | `createServerFn` (GET/POST) |
-| `memory.ts` | `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`, `searchMemory` | `createServerFn` (GET/POST) |
-| `db.ts` | `getDB` | **NOT a server fn** — utility helper |
+| File        | Exports                                                                                                 | Type                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `config.ts` | `getConfig`, `setConfig`                                                                                | `createServerFn` (GET/POST)          |
+| `quiz.ts`   | `generateQuiz`, `submitAnswer`                                                                          | `createServerFn` (POST)              |
+| `stats.ts`  | `getStats`, `getExams`                                                                                  | `createServerFn` (GET)               |
+| `exams.ts`  | `getExamDetail`, `getExamsDetailed`, `deleteExam`, `updateQuestion`, `generateExamQuestionExplanations` | `createServerFn` (GET/POST)          |
+| `memory.ts` | `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`                                      | `createServerFn` (GET/POST)          |
+| `db.ts`     | `getDB`                                                                                                 | **NOT a server fn** — utility helper |
 
 ## Patterns
 - **Input validation:** Zod schemas passed via `inputValidator` (from `src/lib/validation.ts`)

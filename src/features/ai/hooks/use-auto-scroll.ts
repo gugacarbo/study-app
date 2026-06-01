@@ -6,7 +6,7 @@ export function useAutoScroll(
 ) {
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, []);
+	}, [bottomRef.current?.scrollIntoView]);
 
 	useEffect(() => {
 		if (trigger <= 0) return;

@@ -1,2 +1,6 @@
-export { BASE_SYSTEM_PROMPT, buildSystemPrompt } from "./system-prompt";
 export { extractQuestionsFromText } from "./extract-questions";
+export {
+	reviewExtractionForCriticalTopics,
+	type IngestReviewEvent,
+	type IngestReviewResult,
+} from "./review-extraction";

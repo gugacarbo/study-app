@@ -1,6 +1,6 @@
+import { generateJson } from "@/features/ai/core/generate";
 import type { ProviderConfig, Question } from "@/lib/validation";
 import { questionSchema } from "@/lib/validation";
-import { generateJson } from "@/features/ai/core/generate";
 import { buildQuizSystemPrompt } from "./system-prompt";
 
 export async function generateQuizQuestions(

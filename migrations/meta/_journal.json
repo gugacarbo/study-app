@@ -36,6 +36,20 @@
       "when": 1780003745838,
       "tag": "0005_files",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1780351720428,
+      "tag": "0009_files_r2_add_r2_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1780351734412,
+      "tag": "0010_files_r2_drop_blob",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { useExplanationGeneration } from "@/features/ai/components/exam-detail/use-explanation-generation";
 import { Button } from "../ui/button";
 import {
 	DialogContent,
@@ -11,7 +12,6 @@ import { Input } from "../ui/input";
 import { MarkdownRenderer } from "../ui/markdown";
 import { Progress } from "../ui/progress";
 import { ProgressItemButton } from "./progress-item-button";
-import { useExplanationGeneration } from "@/features/ai/components/exam-detail/use-explanation-generation";
 
 interface ExplanationDialogProps {
 	open: boolean;

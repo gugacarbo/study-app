@@ -13,13 +13,19 @@ export const Route = createFileRoute("/exams")({
 function ExamsLayout() {
 	const navigate = useNavigate();
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
-	const tabValue = pathname === "/exams/stats" ? "/exams/stats" : "/exams";
+	const tabValue =
+		pathname === "/exams/ingest"
+			? "/exams/ingest"
+			: pathname === "/exams/stats"
+				? "/exams/stats"
+				: "/exams";
 
 	return (
 		<Tabs value={tabValue} onValueChange={(value) => navigate({ to: value })}>
 			<TabsList>
 				<TabsTrigger value="/exams">Exams</TabsTrigger>
 				<TabsTrigger value="/exams/stats">Stats</TabsTrigger>
+				<TabsTrigger value="/exams/ingest">Ingest</TabsTrigger>
 			</TabsList>
 			<div className="mt-6">
 				<Outlet />

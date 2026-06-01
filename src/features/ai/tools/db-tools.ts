@@ -11,7 +11,7 @@ import type {
 	ListQuestionsFilters,
 	PaginatedResult,
 	QuestionListItem,
-} from "../../../../../db/queries";
+} from "../../../db/queries";
 
 const TOOL_ERROR_CODE = "TOOL_EXECUTION_FAILED";
 const TOOL_ERROR_MESSAGE = "Unable to fetch data right now. Please try again.";

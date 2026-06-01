@@ -1,6 +1,10 @@
 import { useSelector } from "@tanstack/react-store";
 import { useRef, useState } from "react";
 import { CardContent } from "@/components/ui/card";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { useAutoScroll } from "@/features/ai/hooks/use-auto-scroll";
+import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
+import { useChatClient } from "@/features/ai/hooks/use-chat-client";
 import { chatStore, setInput } from "@/features/ai/stores/chat-store";
 import {
 	conversationsStore,
@@ -10,9 +14,6 @@ import { ChatError } from "./chat-error";
 import { ChatHeader } from "./chat-header";
 import { ChatInput } from "./chat-input";
 import { ChatSidebar } from "./chat-sidebar";
-import { useAutoScroll } from "@/features/ai/hooks/use-auto-scroll";
-import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
-import { useChatClient } from "@/features/ai/hooks/use-chat-client";
 import { ChatMessage } from "./message/chat-message";
 
 export function Chat() {
@@ -27,6 +28,7 @@ export function Chat() {
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [titleDraft, setTitleDraft] = useState("");
 	const [scrollTrigger, setScrollTrigger] = useState(0);
+	const [reviewMode, setReviewMode] = useState(false);
 
 	useAutoScroll(bottomRef, scrollTrigger);
 	useAutoTitle(activeId, messages, conversations);
@@ -43,7 +45,7 @@ export function Chat() {
 		pendingSendStartedAtRef.current = Date.now();
 		setScrollTrigger((prev) => prev + 1);
 		setInput("");
-		await chatClient.sendMessage(text);
+		await chatClient.sendMessage(text, { reviewMode });
 	}
 
 	function handleStartEdit() {
@@ -59,21 +61,24 @@ export function Chat() {
 	}
 
 	return (
-		<div data-fullwidth className="h-[calc(100dvh-4rem)] overflow-hidden">
-			<div className="mx-auto flex h-full w-full max-w-5xl overflow-hidden px-4 py-4 md:px-6">
+		<div data-fullwidth className="flex h-full overflow-hidden">
+			<SidebarProvider className="flex min-h-0 h-full">
 				<ChatSidebar />
-				<div className="rounded-none border-none flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden space-y-0 gap-0">
-					<ChatHeader
-						activeId={activeId}
-						conversations={conversations}
-						editingTitle={editingTitle}
-						titleDraft={titleDraft}
-						onStartEditing={handleStartEdit}
-						onSaveTitle={handleSaveTitle}
-						onCancelEditing={() => setEditingTitle(false)}
-						onTitleDraftChange={setTitleDraft}
-					/>
-					<CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto py-0">
+				<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+					<header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+						<SidebarTrigger />
+						<ChatHeader
+							activeId={activeId}
+							conversations={conversations}
+							editingTitle={editingTitle}
+							titleDraft={titleDraft}
+							onStartEditing={handleStartEdit}
+							onSaveTitle={handleSaveTitle}
+							onCancelEditing={() => setEditingTitle(false)}
+							onTitleDraftChange={setTitleDraft}
+						/>
+					</header>
+					<CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-2">
 						{messages.map((msg) => (
 							<ChatMessage
 								key={msg.id}
@@ -89,12 +94,14 @@ export function Chat() {
 						onInputChange={setInput}
 						onSend={handleSend}
 						isLoading={isLoading}
+						reviewMode={reviewMode}
+						onReviewModeChange={setReviewMode}
 						inputTokens={chatTokenTotals.inputTokens}
 						outputTokens={chatTokenTotals.outputTokens}
 						contextTokens={chatTokenTotals.contextTokens}
 					/>
-				</div>
-			</div>
+				</main>
+			</SidebarProvider>
 		</div>
 	);
 }

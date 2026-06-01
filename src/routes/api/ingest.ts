@@ -1,9 +1,15 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { StreamChunk } from "@tanstack/ai";
+import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import {
+	extractQuestionsFromText,
+	reviewExtractionForCriticalTopics,
+} from "@/features/ai/agents/ingest";
+import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
+import type { ExamIngestResponse } from "@/lib/validation";
 import { DBQueries } from "../../db/queries";
-import { extractQuestionsFromText } from "@/features/ai/agents/ingest";
+import { env } from "../../env";
 import { FileService } from "../../lib/file-service";
 import { MemoryManager } from "../../lib/memory";
 import { providerConfigSchema } from "../../lib/validation";
@@ -15,6 +21,9 @@ const ingestRequestSchema = z.object({
 });
 
 type IngestRequest = z.infer<typeof ingestRequestSchema>;
+type AgentTools = NonNullable<
+	Parameters<typeof extractQuestionsFromText>[3]
+>["tools"];
 
 function extractTextFromBytes(bytes: Uint8Array): string {
 	const text = new TextDecoder().decode(bytes);
@@ -23,6 +32,67 @@ function extractTextFromBytes(bytes: Uint8Array): string {
 
 function formatSSE(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+type StageStatus = "pending" | "running" | "done" | "warning" | "error";
+
+function sendStage(
+	send: (event: string, data: unknown) => void,
+	stageId: string,
+	label: string,
+	status: StageStatus,
+	meta?: Record<string, unknown>,
+) {
+	send("stage", { stageId, label, status, timestamp: Date.now(), meta });
+}
+
+function summarizeSearchResultSnippets(
+	results: Array<{ snippet: string }>,
+	maxItems: number = 3,
+): string {
+	const snippets = results
+		.map((result) => result.snippet.trim())
+		.filter(Boolean)
+		.slice(0, maxItems);
+
+	if (snippets.length === 0) {
+		return "No snippets available.";
+	}
+
+	return snippets.join("\n\n");
+}
+
+function parseCriticalTopics(value: string | null): string[] {
+	if (!value) return [];
+
+	// Accept either delimited plain text or a JSON array string.
+	const parsedJson = (() => {
+		try {
+			return JSON.parse(value) as unknown;
+		} catch {
+			return null;
+		}
+	})();
+
+	if (Array.isArray(parsedJson)) {
+		return Array.from(
+			new Set(
+				parsedJson
+					.filter((item): item is string => typeof item === "string")
+					.map((topic) => topic.trim())
+					.filter(Boolean),
+			),
+		);
+	}
+
+	return Array.from(
+		new Set(
+			value
+				.split(/[\n,;]+/)
+				.map((part) => part.trim())
+				.filter(Boolean),
+		),
+	);
 }
 
 async function getMemoryContextForTopics(
@@ -40,6 +110,7 @@ async function runIngestWithProgress(
 	abortSignal: AbortSignal,
 ) {
 	const { getDB } = await import("../../server-functions/db");
+	const { getFilesBucket } = await import("../../server-functions/storage");
 	const assertNotAborted = () => {
 		if (abortSignal.aborted) {
 			throw new Error("Upload canceled");
@@ -50,7 +121,9 @@ async function runIngestWithProgress(
 		send("progress", { step });
 	};
 
-	const onAiChunk = (chunk: StreamChunk) => {
+	const onAiChunk = (
+		chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
+	) => {
 		// Raw text from generic streaming chunks
 		if (
 			"content" in chunk &&
@@ -80,14 +153,94 @@ async function runIngestWithProgress(
 	if (!db) {
 		throw new Error("D1 database not available");
 	}
+	const queries = new DBQueries(db);
+	const config = await queries.getAllConfig();
+	const memory = new MemoryManager(db);
+	await memory.ensureStructure().catch((error) => {
+		send("warning", {
+			message: `Memory initialization failed: ${
+				error instanceof Error ? error.message : "unknown error"
+			}`,
+		});
+	});
+
+	const criticalTopics = parseCriticalTopics(
+		config.ingest_critical_topics ?? null,
+	);
+	const resolvedTools = resolveToolsForAgent({
+		agent: "ingest",
+		config,
+		context: {
+			queries,
+			providerConfig: payload.config,
+			tavilyApiKey: env.TAVILY_API_KEY,
+			webObserver: {
+				onSearch: async ({ input, output }) => {
+					try {
+						await memory.saveWebResearch({
+							query: input.query,
+							summary: summarizeSearchResultSnippets(output.results),
+							sources: output.results.map((result) => result.url),
+							conclusion:
+								"Search results collected for ingest critical-topic verification.",
+							context: "ingest",
+						});
+					} catch (error) {
+						send("warning", {
+							message: `Failed to save web search memory: ${
+								error instanceof Error ? error.message : "unknown error"
+							}`,
+						});
+					}
+				},
+				onFetch: async ({ output }) => {
+					try {
+						await memory.saveWebResearch({
+							query: `fetch ${output.url}`,
+							summary: output.content.slice(0, 1200),
+							sources: [output.url],
+							conclusion: `Fetched source content: ${output.title}`,
+							context: "ingest",
+						});
+					} catch (error) {
+						send("warning", {
+							message: `Failed to save web fetch memory: ${
+								error instanceof Error ? error.message : "unknown error"
+							}`,
+						});
+					}
+				},
+			},
+			onWarning: (message) => send("warning", { message }),
+		},
+	});
+	const webTools = resolvedTools.tools.length
+		? (resolvedTools.tools as AgentTools)
+		: undefined;
+
+	if (criticalTopics.length === 0) {
+		send("progress", {
+			step: "No critical topics configured (config key: ingest_critical_topics).",
+		});
+	} else if (!webTools?.length) {
+		send("warning", {
+			message:
+				"Web tools are unavailable for critical-topic verification. Continuing with best-effort extraction.",
+		});
+	}
+	const filesBucket = await getFilesBucket();
+	if (!filesBucket) {
+		throw new Error("R2 FILES_BUCKET binding is not available");
+	}
 	assertNotAborted();
 
-	const queries = new DBQueries(db);
-	const fileService = new FileService(db);
+	const fileService = new FileService(db, filesBucket);
 
 	onProgress("Decoding file...");
+	sendStage(send, "decode", "Decoding file", "running");
 	const bytes = new Uint8Array(payload.buffer);
 	const text = extractTextFromBytes(bytes);
+	sendStage(send, "decode", "Decoding file", "done");
 	assertNotAborted();
 
 	if (!text || text.length < 50) {
@@ -97,55 +250,217 @@ async function runIngestWithProgress(
 	}
 
 	onProgress("Extracting questions with AI...");
-	const extracted = await extractQuestionsFromText(
-		payload.config,
-		text,
-		undefined,
-		{
-			onChunk: onAiChunk,
-		},
+	sendStage(
+		send,
+		"initial_extraction",
+		"Extracting questions with AI",
+		"running",
 	);
+	let extracted: ExamIngestResponse;
+	try {
+		extracted = await extractQuestionsFromText(
+			payload.config,
+			text,
+			undefined,
+			{
+				onChunk: onAiChunk,
+				tools: webTools,
+				criticalTopics,
+				enableWebVerification: Boolean(webTools?.length),
+			},
+		);
+	} catch (err) {
+		sendStage(
+			send,
+			"initial_extraction",
+			"Extracting questions with AI",
+			"error",
+			{ error: err instanceof Error ? err.message : "unknown" },
+		);
+		throw err;
+	}
+	sendStage(send, "initial_extraction", "Extracting questions with AI", "done");
 	onProgress("Initial extraction completed");
 	assertNotAborted();
 
 	onProgress("Loading study-memory context...");
+	sendStage(send, "memory_context", "Loading study-memory context", "running");
 	const memoryContext = await getMemoryContextForTopics(
 		db,
 		extracted.topics,
 	).catch(() => "");
+	sendStage(send, "memory_context", "Loading study-memory context", "done");
 	assertNotAborted();
 
-	let finalExtracted = extracted;
+	let finalExtracted: ExamIngestResponse = extracted;
 	if (memoryContext) {
 		onProgress("Refining extraction with memory context...");
-		finalExtracted = await extractQuestionsFromText(
-			payload.config,
-			text,
-			memoryContext,
-			{ onChunk: onAiChunk },
+		sendStage(
+			send,
+			"memory_refinement",
+			"Refining extraction with memory context",
+			"running",
+		);
+		try {
+			finalExtracted = await extractQuestionsFromText(
+				payload.config,
+				text,
+				memoryContext,
+				{
+					onChunk: onAiChunk,
+					tools: webTools,
+					criticalTopics,
+					enableWebVerification: Boolean(webTools?.length),
+				},
+			);
+		} catch (err) {
+			sendStage(
+				send,
+				"memory_refinement",
+				"Refining extraction with memory context",
+				"error",
+				{ error: err instanceof Error ? err.message : "unknown" },
+			);
+			throw err;
+		}
+		sendStage(
+			send,
+			"memory_refinement",
+			"Refining extraction with memory context",
+			"done",
 		);
 		onProgress("Memory refinement completed");
 		assertNotAborted();
 	}
 
+	if (criticalTopics.length > 0) {
+		onProgress("Running critical-topic verification...");
+		sendStage(
+			send,
+			"critical_topic_verification",
+			"Critical topic verification",
+			"running",
+		);
+		let reviewResult: {
+			extracted: ExamIngestResponse;
+			reviewed: boolean;
+			criticalTopicsMatched: string[];
+			reasons: string[];
+		};
+		try {
+			reviewResult = await reviewExtractionForCriticalTopics(
+				payload.config,
+				text,
+				finalExtracted,
+				{
+					criticalTopics,
+					tools: webTools,
+					onEvent: (event) => {
+						if (event.type === "warning") {
+							send("warning", { message: event.message });
+							return;
+						}
+						onProgress(event.message);
+					},
+				},
+			);
+		} catch (err) {
+			sendStage(
+				send,
+				"critical_topic_verification",
+				"Critical topic verification",
+				"error",
+				{ error: err instanceof Error ? err.message : "unknown" },
+			);
+			throw err;
+		}
+		sendStage(
+			send,
+			"critical_topic_verification",
+			"Critical topic verification",
+			"done",
+			reviewResult.reviewed
+				? {
+						reviewed: true,
+						matchedTopics: reviewResult.criticalTopicsMatched.length,
+					}
+				: undefined,
+		);
+		finalExtracted = reviewResult.extracted;
+		if (reviewResult.reviewed) {
+			onProgress("Critical-topic review completed");
+		} else {
+			onProgress("Critical-topic review skipped");
+		}
+		if (
+			reviewResult.criticalTopicsMatched.length > 0 &&
+			reviewResult.reasons.includes("web_tools_unavailable")
+		) {
+			send("warning", {
+				message:
+					"Critical topics were detected but web verification was unavailable. Saved extraction is best-effort.",
+			});
+		}
+		assertNotAborted();
+	}
+
 	onProgress("Saving exam...");
-	const examId = await queries.insertExam(payload.fileName, "upload");
+	sendStage(send, "persist_exam", "Saving exam record", "running");
+	let examId: number;
+	try {
+		examId = await queries.insertExam(payload.fileName, "upload");
+	} catch (err) {
+		sendStage(send, "persist_exam", "Saving exam record", "error", {
+			error: err instanceof Error ? err.message : "unknown",
+		});
+		throw err;
+	}
+	sendStage(send, "persist_exam", "Saving exam record", "done");
 
 	if (finalExtracted.questions.length > 0) {
 		onProgress("Saving extracted questions...");
-		await queries.insertQuestions(examId, finalExtracted.questions);
+		sendStage(
+			send,
+			"persist_questions",
+			"Saving extracted questions",
+			"running",
+		);
+		try {
+			await queries.insertQuestions(examId, finalExtracted.questions);
+		} catch (err) {
+			sendStage(
+				send,
+				"persist_questions",
+				"Saving extracted questions",
+				"error",
+				{ error: err instanceof Error ? err.message : "unknown" },
+			);
+			throw err;
+		}
+		sendStage(send, "persist_questions", "Saving extracted questions", "done");
 	}
 
 	onProgress("Saving original file...");
+	sendStage(send, "persist_file", "Saving original file", "running");
 	const mimeType = FileService.inferMimeType(payload.fileName);
-	const fileId = await fileService.save(
-		examId,
-		payload.fileName,
-		payload.buffer,
-		mimeType,
-	);
+	let fileId: number;
+	try {
+		fileId = await fileService.save(
+			examId,
+			payload.fileName,
+			payload.buffer,
+			mimeType,
+		);
+	} catch (err) {
+		sendStage(send, "persist_file", "Saving original file", "error", {
+			error: err instanceof Error ? err.message : "unknown",
+		});
+		throw err;
+	}
+	sendStage(send, "persist_file", "Saving original file", "done");
 
 	onProgress("Completed");
+	sendStage(send, "complete", "Ingest complete", "done");
 	return {
 		questions: finalExtracted.questions.length,
 		topics: finalExtracted.topics,

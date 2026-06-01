@@ -71,7 +71,7 @@ export interface FileRecord {
 	id: number;
 	exam_id: number | null;
 	name: string;
-	content: Buffer;
+	r2_key: string;
 	mime_type: string | null;
 	size: number | null;
 	created_at: string | null;
@@ -81,6 +81,7 @@ export interface FileInfo {
 	id: number;
 	exam_id: number | null;
 	name: string;
+	r2_key: string;
 	mime_type: string | null;
 	size: number | null;
 	created_at: string | null;
@@ -241,7 +242,8 @@ export class DBQueries {
 	async insertFile(
 		examId: number,
 		name: string,
-		content: Buffer,
+		r2Key: string,
+		size: number,
 		mimeType?: string,
 	): Promise<number> {
 		const result = await this.db
@@ -249,9 +251,9 @@ export class DBQueries {
 			.values({
 				exam_id: examId,
 				name,
-				content,
+				r2_key: r2Key,
 				mime_type: mimeType || null,
-				size: content.length,
+				size,
 			})
 			.returning({ id: schema.files.id })
 			.get();
@@ -275,6 +277,7 @@ export class DBQueries {
 				id: schema.files.id,
 				exam_id: schema.files.exam_id,
 				name: schema.files.name,
+				r2_key: schema.files.r2_key,
 				mime_type: schema.files.mime_type,
 				size: schema.files.size,
 				created_at: schema.files.created_at,
@@ -380,6 +383,7 @@ export class DBQueries {
 				id: schema.files.id,
 				exam_id: schema.files.exam_id,
 				name: schema.files.name,
+				r2_key: schema.files.r2_key,
 				mime_type: schema.files.mime_type,
 				size: schema.files.size,
 				created_at: schema.files.created_at,

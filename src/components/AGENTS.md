@@ -10,28 +10,27 @@ Components are grouped into subdirectories by feature domain, plus standalone fi
 
 ## Inventory
 
-| Folder / File | Route | Entry Point | Purpose |
-|---|---|---|---|
-| `chat/` | `/chat` | `chat.tsx` | AI chat assistant with sidebar, message bubbles, inline title editing. Subdirs: `message/` (7 subcomponents), `hooks/` (3 hooks) |
-| `config-form/` | `/config` | `config-form.tsx` | AI provider/model/URL config + test connection dialog |
-| `exam-detail/` | `/exams/$id` | `exam-detail.tsx` | Exam detail with stats cards, files, topics, questions accordion, inline edit, batch explanation generation |
-| `exams-view/` | `/exams` | `exams-view.tsx` | Exam list with search, delete (inline confirm), upload dialog |
-| `memory-panel/` | — | `memory-panel.tsx` | Memory overview: learning profile, recent sessions, search, topic notes, documents |
-| `memory-visualization/` | `/memory` | `memory-visualization.tsx` | Memory dashboard: summary cards, topic performance, session history table, session detail sheet |
-| `quiz/` | `/quiz/$id` | `quiz.tsx` | Quiz player: question display, answer options, results, keyboard hotkeys |
-| `upload-form/` | — | `upload-form.tsx` | PDF file picker + streaming AI ingest with real-time token counter |
-| `dashboard.tsx` | `/` | standalone | Exam list + quick stats cards |
-| `stats-table.tsx` | `/exams/stats` | standalone | Accuracy stats by topic (plain HTML table) |
-| `theme-provider.tsx` | global (root layout) | standalone | Theme context (shadcn) with localStorage + system preference |
-| `theme-toggle.tsx` | global (nav) | standalone | Light/dark mode toggle button |
-| `ui/markdown.tsx` | global (shared) | ui component | Markdown → React via `react-markdown` + `remark-gfm` |
-| `ui/*` | global | shadcn primitives | `badge`, `button`, `card`, `dialog`, `input`, `progress`, `select`, `sheet`, `table`, `tabs`, `textarea`, etc. |
+| Folder / File           | Route                | Entry Point                | Purpose                                                                                                                          |
+| ----------------------- | -------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `chat/`                 | `/chat`              | `chat.tsx`                 | AI chat assistant with sidebar, message bubbles, inline title editing. Subdirs: `message/` (7 subcomponents), `hooks/` (3 hooks) |
+| `config-form/`          | `/config`            | `config-form.tsx`          | AI provider/model/URL config + test connection dialog                                                                            |
+| `exam-detail/`          | `/exams/$id`         | `exam-detail.tsx`          | Exam detail with stats cards, files, topics, questions accordion, inline edit, batch explanation generation                      |
+| `exams-view/`           | `/exams`             | `exams-view.tsx`           | Exam list with search, delete (inline confirm), upload dialog                                                                    |
+| `memory-visualization/` | `/memory`            | `memory-visualization.tsx` | Memory dashboard: summary cards, topic performance, session history table, session detail sheet                                  |
+| `quiz/`                 | `/quiz/$id`          | `quiz.tsx`                 | Quiz player: question display, answer options, results, keyboard hotkeys                                                         |
+| `upload-form/`          | —                    | `upload-form.tsx`          | PDF file picker + streaming AI ingest with real-time token counter                                                               |
+| `dashboard.tsx`         | `/`                  | standalone                 | Exam list + quick stats cards                                                                                                    |
+| `stats-table.tsx`       | `/exams/stats`       | standalone                 | Accuracy stats by topic (plain HTML table)                                                                                       |
+| `theme-provider.tsx`    | global (root layout) | standalone                 | Theme context (shadcn) with localStorage + system preference                                                                     |
+| `theme-toggle.tsx`      | global (nav)         | standalone                 | Light/dark mode toggle button                                                                                                    |
+| `ui/markdown.tsx`       | global (shared)      | ui component               | Markdown → React via `react-markdown` + `remark-gfm`                                                                             |
+| `ui/*`                  | global               | shadcn primitives          | `badge`, `button`, `card`, `dialog`, `input`, `progress`, `select`, `sheet`, `table`, `tabs`, `textarea`, etc.                   |
 
 ## State Conventions
 - **Ephemeral state** → TanStack Store (`quizStore`, `chatStore`, `conversationsStore`)
 - **Server data** → TanStack Query with `useSuspenseQuery` + server functions
 - **Form state** → `react-hook-form` + `@hookform/resolvers` (ConfigForm) or local `useState`
-- **No component tests** — `@testing-library/react` is installed but unused
+- **No component tests**
 
 ## Patterns
 - All components are named exports

@@ -5,13 +5,13 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
+import { TestConnectionDialog } from "@/features/ai/components/config/test-connection-dialog";
+import { useConnectionTest } from "@/features/ai/components/config/use-connection-test";
 import { cn } from "@/lib/utils";
 import type { ProviderConfig } from "../../lib/validation";
 import { getConfig, setConfig } from "../../server-functions/config";
 import { ConfigFormFields } from "./config-form-fields";
 import { formFieldsSchema } from "./config-form-schema";
-import { TestConnectionDialog } from "@/features/ai/components/config/test-connection-dialog";
-import { useConnectionTest } from "@/features/ai/components/config/use-connection-test";
 
 type FormValues = {
 	provider: "openrouter" | "openai" | "groq" | "ollama" | "custom";

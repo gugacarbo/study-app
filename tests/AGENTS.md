@@ -1,15 +1,14 @@
 # Tests
 
-Vitest v4 + jsdom. 4 test files across 2 directories.
+Vitest v4 + jsdom. 3 test files across 2 directories.
 
 ## Inventory
 
-| File | What it tests | Libs Used |
-|---|---|---|
-| `lib/validation.test.ts` | Zod schemas (ingest, config, quiz) | `vitest` |
-| `server-functions/config.test.ts` | Config DB queries | `vitest`, `#/db/queries` mock |
-| `server-functions/ingest.test.ts` | Ingestion DB queries + AI mock | `vitest`, `#/db/queries`, `#/lib/ai` |
-| `server-functions/quiz.test.ts` | Quiz DB queries + AI mock | `vitest`, `#/db/queries`, `#/lib/ai` |
+| File                              | What it tests                      | Libs Used                            |
+| --------------------------------- | ---------------------------------- | ------------------------------------ |
+| `lib/validation.test.ts`          | Zod schemas (ingest, config, quiz) | `vitest`                             |
+| `server-functions/config.test.ts` | Config DB queries                  | `vitest`, `#/db/queries` mock        |
+| `server-functions/quiz.test.ts`   | Quiz DB queries + AI mock          | `vitest`, `#/db/queries`, `#/lib/ai` |
 
 ## Conventions
 - **Path alias:** Imports use `#/` prefix (e.g., `#/db/queries`, `#/lib/validation`)

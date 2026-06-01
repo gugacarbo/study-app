@@ -1,7 +1,7 @@
 import type { ModelMessage } from "@tanstack/ai";
 import { chat } from "@tanstack/ai";
-import type { ProviderConfig } from "@/lib/validation";
 import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
+import type { ProviderConfig } from "@/lib/validation";
 
 export function streamChatMessages(
 	config: ProviderConfig,

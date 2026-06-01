@@ -17,14 +17,6 @@ const initialState: ChatState = {
 
 export const chatStore = new Store<ChatState>(initialState);
 
-export function hydrateChat(state: ChatState) {
-	chatStore.setState(() => state);
-}
-
-export function resetChat() {
-	chatStore.setState(() => ({ ...initialState }));
-}
-
 export function setMessages(messages: UIMessage[]) {
 	chatStore.setState((s) => ({ ...s, messages }));
 }
@@ -39,12 +31,4 @@ export function setError(error: Error | undefined) {
 
 export function setInput(input: string) {
 	chatStore.setState((s) => ({ ...s, input }));
-}
-
-export function appendMessage(message: UIMessage) {
-	chatStore.setState((s) => ({ ...s, messages: [...s.messages, message] }));
-}
-
-export function clearChat() {
-	chatStore.setState(() => ({ ...initialState }));
 }

@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-	blob,
 	index,
 	integer,
 	sqliteTable,
@@ -51,16 +50,19 @@ export const files = sqliteTable(
 	"files",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		exam_id: integer("exam_id").references(() => exams.id, {
-			onDelete: "cascade",
-		}),
-		name: text("name").notNull(),
-		content: blob("content", { mode: "buffer" }).notNull(),
-		mime_type: text("mime_type"),
-		size: integer("size"),
-		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+			exam_id: integer("exam_id").references(() => exams.id, {
+				onDelete: "cascade",
+			}),
+			name: text("name").notNull(),
+			r2_key: text("r2_key").notNull(),
+			mime_type: text("mime_type"),
+			size: integer("size"),
+			created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
-	(table) => [index("idx_files_exam_id").on(table.exam_id)],
+	(table) => [
+		index("idx_files_exam_id").on(table.exam_id),
+		uniqueIndex("uq_files_r2_key").on(table.r2_key),
+	],
 );
 
 export const config = sqliteTable("config", {
@@ -96,9 +98,10 @@ export const llmLogs = sqliteTable(
 
 export const memoryProfile = sqliteTable("memory_profile", {
 	id: integer("id").primaryKey(),
-	content: text("content").notNull(),
+	r2_key: text("r2_key").notNull(),
+	search_text: text("search_text").notNull().default(""),
 	updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [uniqueIndex("uq_memory_profile_r2_key").on(table.r2_key)]);
 
 export const memorySessions = sqliteTable(
 	"memory_sessions",
@@ -111,7 +114,8 @@ export const memorySessions = sqliteTable(
 		correct_answers: integer("correct_answers").notNull(),
 		accuracy: integer("accuracy").notNull(),
 		duration: integer("duration"),
-		content: text("content").notNull(),
+		r2_key: text("r2_key").notNull(),
+		search_text: text("search_text").notNull().default(""),
 		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [index("idx_memory_sessions_topic").on(table.topic)],
@@ -123,10 +127,14 @@ export const memoryTopicNotes = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		topic_slug: text("topic_slug").notNull().unique(),
 		topic: text("topic").notNull(),
-		content: text("content").notNull(),
+		r2_key: text("r2_key").notNull(),
+		search_text: text("search_text").notNull().default(""),
 		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 	},
-	(table) => [index("idx_memory_topic_notes_topic").on(table.topic)],
+	(table) => [
+		index("idx_memory_topic_notes_topic").on(table.topic),
+		uniqueIndex("uq_memory_topic_notes_r2_key").on(table.r2_key),
+	],
 );
 
 export const memoryDocuments = sqliteTable(
@@ -136,8 +144,12 @@ export const memoryDocuments = sqliteTable(
 		doc_type: text("doc_type").notNull(),
 		name: text("name").notNull(),
 		topic: text("topic"),
-		content: text("content").notNull(),
+		r2_key: text("r2_key").notNull(),
+		search_text: text("search_text").notNull().default(""),
 		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
-	(table) => [index("idx_memory_documents_type").on(table.doc_type)],
+	(table) => [
+		index("idx_memory_documents_type").on(table.doc_type),
+		uniqueIndex("uq_memory_documents_r2_key").on(table.r2_key),
+	],
 );

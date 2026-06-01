@@ -1,4 +1,4 @@
-export const BASE_SYSTEM_PROMPT = `You are an exam-question extraction agent.
+const BASE_SYSTEM_PROMPT = `You are an exam-question extraction agent.
 Your only task is to extract structured exam questions from raw text and return valid JSON.
 
 Output contract:
@@ -32,14 +32,37 @@ Fallback behavior:
 - If no valid questions are found, return:
   {"questions":[],"topics":[]}.`;
 
-export function buildSystemPrompt(memoryContext?: string) {
-	if (!memoryContext) {
-		return BASE_SYSTEM_PROMPT;
-	}
-	return `${BASE_SYSTEM_PROMPT}
+interface BuildSystemPromptOptions {
+	memoryContext?: string;
+	criticalTopics?: string[];
+	enableWebVerification?: boolean;
+}
 
+export function buildSystemPrompt(options?: BuildSystemPromptOptions) {
+	const sections = [BASE_SYSTEM_PROMPT];
+
+	if (options?.criticalTopics?.length) {
+		sections.push(`
+Critical topic checks:
+- Critical topics: ${options.criticalTopics.join(", ")}.
+- If you find uncertainty in question/answer pairs for critical topics, verify with web_search/web_fetch before finalizing output.
+- Keep extraction faithful to the source text and avoid speculative corrections.`);
+	}
+
+	if (!options?.enableWebVerification) {
+		sections.push(`
+Tooling availability:
+- Web verification tools may be unavailable.
+- If unavailable, continue extraction conservatively without blocking the response.`);
+	}
+
+	if (options?.memoryContext) {
+		sections.push(`
 Use the following student learning-history context to improve topic naming consistency.
 Do not include this context text in the output.
 
-${memoryContext}`;
+${options.memoryContext}`);
+	}
+
+	return sections.join("\n\n");
 }

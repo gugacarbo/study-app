@@ -1,16 +1,9 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Upload } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
 import { deleteExam, getExamsDetailed } from "../../server-functions/exams";
-import { UploadForm } from "@/features/ai/components/upload/upload-form";
 import { ExamCard } from "./exam-card";
 import { ExamsEmptyState } from "./exams-empty-state";
 
@@ -18,7 +11,6 @@ export function ExamsView() {
 	const queryClient = useQueryClient();
 	const [deletingId, setDeletingId] = useState<number | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
-	const [uploadOpen, setUploadOpen] = useState(false);
 
 	const { data: exams } = useSuspenseQuery({
 		queryKey: ["exams-detailed"],
@@ -48,29 +40,17 @@ export function ExamsView() {
 					<span className="text-sm text-text-muted">
 						{exams.length} {exams.length === 1 ? "exam" : "exams"}
 					</span>
-					<Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-						<DialogTrigger asChild>
-							<Button size="sm">
-								<Upload className="h-4 w-4 mr-1.5" />
-								Upload
-							</Button>
-						</DialogTrigger>
-						<DialogContent>
-							<DialogHeader>
-								<DialogTitle>Upload Exam</DialogTitle>
-							</DialogHeader>
-							<UploadForm onSuccess={() => setUploadOpen(false)} />
-						</DialogContent>
-					</Dialog>
+					<Button size="sm" asChild>
+						<Link to="/exams/ingest">
+							<Upload className="h-4 w-4 mr-1.5" />
+							Upload
+						</Link>
+					</Button>
 				</div>
 			</div>
 
 			{exams.length === 0 ? (
-				<ExamsEmptyState
-					uploadOpen={uploadOpen}
-					onUploadOpenChange={setUploadOpen}
-					onUploadSuccess={() => setUploadOpen(false)}
-				/>
+				<ExamsEmptyState />
 			) : (
 				<div className="space-y-4">
 					{exams.map((exam) => (

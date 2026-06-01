@@ -1,11 +1,14 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
+import { getMemoryBucket } from "../server-functions/storage";
 
 const TABLE_SQL = [
 	`CREATE TABLE IF NOT EXISTS memory_profile (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    content TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    search_text TEXT NOT NULL DEFAULT '',
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS uq_memory_profile_r2_key ON memory_profile (r2_key)`,
 	`CREATE TABLE IF NOT EXISTS memory_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_date TEXT NOT NULL,
@@ -15,25 +18,36 @@ const TABLE_SQL = [
     correct_answers INTEGER NOT NULL,
     accuracy INTEGER NOT NULL,
     duration INTEGER,
-    content TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    search_text TEXT NOT NULL DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`,
+	`CREATE INDEX IF NOT EXISTS idx_memory_sessions_topic ON memory_sessions (topic)`,
 	`CREATE TABLE IF NOT EXISTS memory_topic_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     topic_slug TEXT NOT NULL UNIQUE,
     topic TEXT NOT NULL,
-    content TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    search_text TEXT NOT NULL DEFAULT '',
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS uq_memory_topic_notes_r2_key ON memory_topic_notes (r2_key)`,
+	`CREATE INDEX IF NOT EXISTS idx_memory_topic_notes_topic ON memory_topic_notes (topic)`,
 	`CREATE TABLE IF NOT EXISTS memory_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     doc_type TEXT NOT NULL,
     name TEXT NOT NULL,
     topic TEXT,
-    content TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    search_text TEXT NOT NULL DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   )`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS uq_memory_documents_r2_key ON memory_documents (r2_key)`,
+	`CREATE INDEX IF NOT EXISTS idx_memory_documents_type ON memory_documents (doc_type)`,
 ];
+
+const PROFILE_KEY = "memory/profile.md";
+const SEARCH_TEXT_LIMIT = 4000;
 
 export interface QuizSessionData {
 	examName: string;
@@ -63,6 +77,12 @@ interface SearchResult {
 	content: string;
 }
 
+interface SearchIndexRow {
+	path: string;
+	r2Key: string;
+	searchText: string;
+}
+
 export interface MemoryOverview {
 	profileNotes: string;
 	recentSessions: Array<{
@@ -90,8 +110,12 @@ export interface MemoryOverview {
 
 export class MemoryManager {
 	private ensureTablesPromise: Promise<void> | null = null;
+	private bucketPromise: Promise<R2Bucket> | null = null;
 
-	constructor(private db: D1Database) {}
+	constructor(
+		private db: D1Database,
+		private bucket?: R2Bucket,
+	) {}
 
 	private async ensureTables(): Promise<void> {
 		if (!this.ensureTablesPromise) {
@@ -104,6 +128,25 @@ export class MemoryManager {
 		await this.ensureTablesPromise;
 	}
 
+	private async getBucket(): Promise<R2Bucket> {
+		if (this.bucket) {
+			return this.bucket;
+		}
+
+		if (!this.bucketPromise) {
+			this.bucketPromise = (async () => {
+				const resolved = await getMemoryBucket();
+				if (!resolved) {
+					throw new Error("R2 MEMORY_BUCKET binding is not available");
+				}
+				this.bucket = resolved;
+				return resolved;
+			})();
+		}
+
+		return this.bucketPromise;
+	}
+
 	private sessionSlug(topic: string): string {
 		return topic
 			.toLowerCase()
@@ -111,26 +154,67 @@ export class MemoryManager {
 			.replace(/(^-|-$)/g, "");
 	}
 
+	private static toSearchText(content: string): string {
+		return content.replace(/\s+/g, " ").trim().slice(0, SEARCH_TEXT_LIMIT);
+	}
+
+	private async writeToR2(key: string, content: string): Promise<void> {
+		const bucket = await this.getBucket();
+		await bucket.put(key, content, {
+			httpMetadata: { contentType: "text/markdown; charset=utf-8" },
+		});
+	}
+
+	private async readFromR2(key: string): Promise<string> {
+		const bucket = await this.getBucket();
+		const object = await bucket.get(key);
+		if (!object) {
+			return "";
+		}
+		return await object.text();
+	}
+
 	private async getProfileContent(): Promise<string> {
 		await this.ensureTables();
 		const row = await this.db
-			.prepare("SELECT content FROM memory_profile WHERE id = 1")
-			.first<{ content: string }>();
-		return row?.content ?? "";
+			.prepare("SELECT r2_key as r2Key FROM memory_profile WHERE id = 1")
+			.first<{ r2Key: string }>();
+		if (!row?.r2Key) {
+			return "";
+		}
+		return await this.readFromR2(row.r2Key);
 	}
 
 	private async setProfileContent(content: string): Promise<void> {
 		await this.ensureTables();
+		await this.writeToR2(PROFILE_KEY, content);
 		await this.db
 			.prepare(
-				`INSERT INTO memory_profile (id, content, updated_at)
-         VALUES (1, ?, CURRENT_TIMESTAMP)
+				`INSERT INTO memory_profile (id, r2_key, search_text, updated_at)
+         VALUES (1, ?, ?, CURRENT_TIMESTAMP)
          ON CONFLICT(id) DO UPDATE SET
-           content = excluded.content,
+           r2_key = excluded.r2_key,
+           search_text = excluded.search_text,
            updated_at = CURRENT_TIMESTAMP`,
 			)
-			.bind(content)
+			.bind(PROFILE_KEY, MemoryManager.toSearchText(content))
 			.run();
+	}
+
+	private async hydrateSearchResults(
+		rows: SearchIndexRow[],
+	): Promise<SearchResult[]> {
+		const entries = await Promise.all(
+			rows.map(async (row) => {
+				const content = await this.readFromR2(row.r2Key);
+				return {
+					path: row.path,
+					content: content || row.searchText,
+				};
+			}),
+		);
+
+		return entries.filter((entry) => entry.content.trim().length > 0);
 	}
 
 	async ensureStructure(): Promise<void> {
@@ -140,9 +224,11 @@ export class MemoryManager {
 	async saveQuizSession(session: QuizSessionData): Promise<string> {
 		await this.ensureTables();
 
-		const date = new Date().toISOString().slice(0, 10);
+		const now = new Date();
+		const date = now.toISOString().slice(0, 10);
 		const slug = this.sessionSlug(session.topic);
-		const fileName = `${date}-quiz-${slug}.md`;
+		const uniqueSuffix = now.toISOString().replace(/[:.]/g, "-");
+		const fileName = `${date}-quiz-${slug}-${uniqueSuffix}.md`;
 		const filePath = `memory/sessions/${fileName}`;
 		const accuracy =
 			session.totalQuestions > 0
@@ -169,18 +255,18 @@ duration: ${session.duration ?? "N/A"}
 ## Questions
 
 ${session.questions
-	.map(
-		(q, i) => `
+				.map(
+					(q, i) => `
 ### ${i + 1}. ${q.question}
 
 - **Your answer:** ${q.userAnswer}
 - **Correct answer:** ${q.correctAnswer}
-- **Result:** ${q.isCorrect ? "✅ Correct" : "❌ Incorrect"}
+- **Result:** ${q.isCorrect ? "Correct" : "Incorrect"}
 - **Explanation:** ${q.explanation}
 - **Topic:** ${q.topic}
 `,
-	)
-	.join("\n")}
+				)
+				.join("\n")}
 
 ## Summary
 
@@ -189,12 +275,14 @@ ${session.questions
 - **Total questions:** ${session.totalQuestions}
 `;
 
+		await this.writeToR2(filePath, content);
+
 		await this.db
 			.prepare(
 				`INSERT INTO memory_sessions (
           session_date, topic, exam_name, total_questions, correct_answers,
-          accuracy, duration, content
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          accuracy, duration, r2_key, search_text
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.bind(
 				date,
@@ -204,7 +292,8 @@ ${session.questions
 				session.correctAnswers,
 				accuracy,
 				session.duration ?? null,
-				content,
+				filePath,
+				MemoryManager.toSearchText(content),
 			)
 			.run();
 
@@ -293,16 +382,19 @@ updated: ${new Date().toISOString().slice(0, 10)}
 ${content}
 `;
 
+		await this.writeToR2(filePath, note);
+
 		await this.db
 			.prepare(
-				`INSERT INTO memory_topic_notes (topic_slug, topic, content, updated_at)
-         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+				`INSERT INTO memory_topic_notes (topic_slug, topic, r2_key, search_text, updated_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
          ON CONFLICT(topic_slug) DO UPDATE SET
            topic = excluded.topic,
-           content = excluded.content,
+           r2_key = excluded.r2_key,
+           search_text = excluded.search_text,
            updated_at = CURRENT_TIMESTAMP`,
 			)
-			.bind(slug, topic, note)
+			.bind(slug, topic, filePath, MemoryManager.toSearchText(note))
 			.run();
 
 		return filePath;
@@ -338,8 +430,8 @@ total: ${questions.length}
 ## Questions (${questions.length})
 
 ${questions
-	.map(
-		(q, i) => `
+				.map(
+					(q, i) => `
 ### ${i + 1}. ${q.question}
 
 ${q.options.map((o, j) => `${String.fromCharCode(97 + j)}) ${o}`).join("\n")}
@@ -347,16 +439,29 @@ ${q.options.map((o, j) => `${String.fromCharCode(97 + j)}) ${o}`).join("\n")}
 **Correct answer:** ${q.answer}
 ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 `,
-	)
-	.join("\n")}
+				)
+				.join("\n")}
 `;
+
+		await this.writeToR2(filePath, content);
 
 		await this.db
 			.prepare(
-				`INSERT INTO memory_documents (doc_type, name, topic, content)
-         VALUES (?, ?, ?, ?)`,
+				`INSERT INTO memory_documents (doc_type, name, topic, r2_key, search_text)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(r2_key) DO UPDATE SET
+           doc_type = excluded.doc_type,
+           name = excluded.name,
+           topic = excluded.topic,
+           search_text = excluded.search_text`,
 			)
-			.bind("question-bank", filePath, topic, content)
+			.bind(
+				"question-bank",
+				filePath,
+				topic,
+				filePath,
+				MemoryManager.toSearchText(content),
+			)
 			.run();
 
 		return filePath;
@@ -369,42 +474,42 @@ ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 
 		const sessions = await this.db
 			.prepare(
-				`SELECT 'memory/sessions' as path, content
+				`SELECT r2_key as path, r2_key as r2Key, search_text as searchText
          FROM memory_sessions
-         WHERE topic LIKE ? OR exam_name LIKE ? OR content LIKE ?
+         WHERE topic LIKE ? OR exam_name LIKE ? OR search_text LIKE ?
          ORDER BY created_at DESC
          LIMIT 3`,
 			)
 			.bind(like, like, like)
-			.all<{ path: string; content: string }>();
+			.all<SearchIndexRow>();
 
 		const notes = await this.db
 			.prepare(
-				`SELECT 'memory/topics/' || topic_slug || '.md' as path, content
+				`SELECT r2_key as path, r2_key as r2Key, search_text as searchText
          FROM memory_topic_notes
-         WHERE topic LIKE ? OR content LIKE ?
+         WHERE topic LIKE ? OR search_text LIKE ?
          ORDER BY updated_at DESC
          LIMIT 3`,
 			)
 			.bind(like, like)
-			.all<{ path: string; content: string }>();
+			.all<SearchIndexRow>();
 
 		const documents = await this.db
 			.prepare(
-				`SELECT name as path, content
+				`SELECT name as path, r2_key as r2Key, search_text as searchText
          FROM memory_documents
-         WHERE topic LIKE ? OR content LIKE ?
+         WHERE topic LIKE ? OR search_text LIKE ? OR name LIKE ?
          ORDER BY created_at DESC
          LIMIT 3`,
 			)
-			.bind(like, like)
-			.all<{ path: string; content: string }>();
+			.bind(like, like, like)
+			.all<SearchIndexRow>();
 
-		return [
+		return await this.hydrateSearchResults([
 			...(sessions.results ?? []),
 			...(notes.results ?? []),
 			...(documents.results ?? []),
-		];
+		]);
 	}
 
 	async getOverview(): Promise<MemoryOverview> {
@@ -469,15 +574,18 @@ ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 
 		const recentSessionsRes = await this.db
 			.prepare(
-				`SELECT content FROM memory_sessions
+				`SELECT r2_key as r2Key FROM memory_sessions
          ORDER BY created_at DESC
          LIMIT 5`,
 			)
-			.all<{ content: string }>();
+			.all<{ r2Key: string }>();
 
-		const recentSessions = (recentSessionsRes.results ?? [])
-			.map((r) => r.content)
-			.filter(Boolean)
+		const recentSessionContents = await Promise.all(
+			(recentSessionsRes.results ?? []).map((r) => this.readFromR2(r.r2Key)),
+		);
+
+		const recentSessions = recentSessionContents
+			.filter((content) => content.trim().length > 0)
 			.join("\n\n---\n\n");
 
 		const topicNotesChunks: string[] = [];
@@ -485,15 +593,18 @@ ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 			const slug = this.sessionSlug(topic);
 			const row = await this.db
 				.prepare(
-					`SELECT content
+					`SELECT r2_key as r2Key
            FROM memory_topic_notes
            WHERE topic_slug = ?
            LIMIT 1`,
 				)
 				.bind(slug)
-				.first<{ content: string }>();
-			if (row?.content) {
-				topicNotesChunks.push(row.content);
+				.first<{ r2Key: string }>();
+			if (row?.r2Key) {
+				const content = await this.readFromR2(row.r2Key);
+				if (content) {
+					topicNotesChunks.push(content);
+				}
 			}
 		}
 		const topicNotes = topicNotesChunks.join("\n\n");
@@ -542,6 +653,76 @@ ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 		return parts.join("\n\n");
 	}
 
+	async saveWebResearch(data: {
+		query: string;
+		summary: string;
+		sources: string[];
+		conclusion?: string;
+		topic?: string | null;
+		context?: "chat" | "ingest" | "reviewer";
+	}): Promise<string> {
+		await this.ensureTables();
+
+		const now = new Date();
+		const timestamp = now.toISOString();
+		const safeSlug = this.sessionSlug(data.query).slice(0, 80) || "search";
+		const unique = timestamp.replace(/[:.]/g, "-");
+		const r2Key = `memory/research/${now.toISOString().slice(0, 10)}-${safeSlug}-${unique}.md`;
+		const name = `research/${safeSlug}-${unique}.md`;
+		const uniqueSources = Array.from(
+			new Set(data.sources.map((source) => source.trim()).filter(Boolean)),
+		);
+
+		const content = `---
+type: web-research
+context: ${data.context ?? "chat"}
+query: ${data.query}
+timestamp: ${timestamp}
+sources: ${uniqueSources.length}
+topic: ${data.topic ?? "General"}
+---
+
+# Web Research
+
+## Query
+${data.query}
+
+## Summary
+${data.summary || "No summary provided."}
+
+## Conclusion
+${data.conclusion || "Best-effort evidence collected from web tools."}
+
+## Sources
+${uniqueSources.map((source) => `- ${source}`).join("\n") || "- none"}
+`;
+
+		await this.writeToR2(r2Key, content);
+
+		await this.db
+			.prepare(
+				`INSERT INTO memory_documents (doc_type, name, topic, r2_key, search_text)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(r2_key) DO UPDATE SET
+           doc_type = excluded.doc_type,
+           name = excluded.name,
+           topic = excluded.topic,
+           search_text = excluded.search_text`,
+			)
+			.bind(
+				"web-research",
+				name,
+				data.topic ?? null,
+				r2Key,
+				MemoryManager.toSearchText(
+					`${data.query}\n${data.summary}\n${data.conclusion ?? ""}\n${uniqueSources.join("\n")}`,
+				),
+			)
+			.run();
+
+		return r2Key;
+	}
+
 	async saveStatsToVault(stats: {
 		totalAttempts: number;
 		topics: Array<{
@@ -564,19 +745,19 @@ topics: ${stats.topics.length}
 
 # Progresso Geral
 
-**Última atualização:** ${date}
+**Ultima atualizacao:** ${date}
 **Total de tentativas:** ${stats.totalAttempts}
 
-## Desempenho por Tópico
+## Desempenho por Topico
 
-| Tópico | Tentativas | Acertos | Aproveitamento |
+| Topico | Tentativas | Acertos | Aproveitamento |
 |--------|-----------|---------|---------------|
 ${stats.topics.map((t) => `| ${t.topic} | ${t.total} | ${t.correct} | ${t.accuracy}% |`).join("\n")}
 
 ## Resumo
 
-- **Tópicos estudados:** ${stats.topics.length}
-- **Média geral:** ${
+- **Topicos estudados:** ${stats.topics.length}
+- **Media geral:** ${
 			stats.totalAttempts > 0
 				? Math.round(
 						(stats.topics.reduce((acc, t) => acc + t.correct, 0) /
@@ -584,21 +765,30 @@ ${stats.topics.map((t) => `| ${t.topic} | ${t.total} | ${t.correct} | ${t.accura
 							100,
 					)
 				: 0
-		}%
+			}%
 `;
+
+		await this.writeToR2(filePath, content);
 
 		await this.db
 			.prepare(
-				`INSERT INTO memory_documents (doc_type, name, content)
-         VALUES (?, ?, ?)`,
+				`INSERT INTO memory_documents (doc_type, name, topic, r2_key, search_text)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(r2_key) DO UPDATE SET
+           doc_type = excluded.doc_type,
+           name = excluded.name,
+           topic = excluded.topic,
+           search_text = excluded.search_text`,
 			)
-			.bind("stats-snapshot", filePath, content)
+			.bind(
+				"stats-snapshot",
+				filePath,
+				null,
+				filePath,
+				MemoryManager.toSearchText(content),
+			)
 			.run();
 
 		return filePath;
 	}
-}
-
-export function createMemoryManager(db: D1Database) {
-	return new MemoryManager(db);
 }

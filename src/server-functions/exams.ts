@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { generateQuestionExplanationsBatch } from "@/features/ai/agents/explanations";
 import { DBQueries } from "../db/queries";
 import { env } from "../env";
-import { generateQuestionExplanationsBatch } from "@/features/ai/agents/explanations";
 import type { ProviderConfig } from "../lib/validation";
 import { getDB } from "./db";
 import { getMemoryContext } from "./memory";
@@ -74,21 +74,6 @@ export const updateQuestion = createServerFn({ method: "POST" })
 
 		const queries = new DBQueries(db);
 		await queries.updateQuestion(ctx.data.id, ctx.data);
-		return { success: true };
-	});
-
-export const deleteQuestion = createServerFn({ method: "POST" })
-	.inputValidator(
-		z.object({
-			id: z.number(),
-		}),
-	)
-	.handler(async (ctx) => {
-		const db = await getDB(ctx);
-		if (!db) throw new Error("D1 database not available");
-
-		const queries = new DBQueries(db);
-		await queries.deleteQuestion(ctx.data.id);
 		return { success: true };
 	});
 

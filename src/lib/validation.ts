@@ -11,14 +11,6 @@ export const questionSchema = z.object({
 
 export type Question = z.infer<typeof questionSchema>;
 
-export const attemptSchema = z.object({
-	questionId: z.number(),
-	userAnswer: z.string(),
-	correct: z.boolean(),
-});
-
-export type Attempt = z.infer<typeof attemptSchema>;
-
 export const providerConfigSchema = z.object({
 	provider: z.enum(["openrouter", "openai", "groq", "ollama", "custom"]),
 	model: z.string().min(1, "Model is required"),
@@ -34,6 +26,12 @@ export const examIngestResponseSchema = z.object({
 });
 
 export type ExamIngestResponse = z.infer<typeof examIngestResponseSchema>;
+
+export const attemptSchema = z.object({
+	questionId: z.number().int().positive(),
+	userAnswer: z.string().min(1),
+	correct: z.boolean(),
+});
 
 export const memorySessionSchema = z.object({
 	examName: z.string(),
@@ -52,5 +50,3 @@ export const memorySessionSchema = z.object({
 		}),
 	),
 });
-
-export type MemorySession = z.infer<typeof memorySessionSchema>;

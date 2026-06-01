@@ -1,19 +1,43 @@
 import type { ModelMessage, StreamChunk } from "@tanstack/ai";
-import { toServerSentEventsStream } from "@tanstack/ai";
+import { chatParamsFromRequest, toServerSentEventsStream } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
-import { DBQueries } from "../../db/queries";
+import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
 import { streamChatMessages } from "@/features/ai/core/chat-stream";
-import { createChatDbTools } from "@/features/ai/agents/chat/tools/db-tools";
-import { createChatWebTools } from "@/features/ai/agents/chat/tools/web-tools";
-import { TavilyWebContentProvider } from "@/features/ai/providers/web/tavily-content";
-import { TavilyWebSearchProvider } from "@/features/ai/providers/web/tavily-search";
-import { CHAT_SYSTEM_PROMPT } from "@/features/ai/agents/chat";
-import type { ProviderConfig } from "../../lib/validation";
+import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
+import { DBQueries } from "../../db/queries";
 import { env } from "../../env";
+import { MemoryManager } from "../../lib/memory";
+import type { ProviderConfig } from "../../lib/validation";
 
 // Timeout for AI provider responses — prevents SSE connections from hanging
 // indefinitely if the upstream provider stalls.
 const AI_TIMEOUT_MS = 60_000;
+
+function toBoolean(value: unknown): boolean {
+	if (typeof value === "boolean") return value;
+	if (typeof value === "string") {
+		const normalized = value.trim().toLowerCase();
+		return normalized === "true" || normalized === "1";
+	}
+	if (typeof value === "number") return value === 1;
+	return false;
+}
+
+function summarizeSearchResultSnippets(
+	results: Array<{ snippet: string }>,
+	maxItems: number = 3,
+): string {
+	const snippets = results
+		.map((result) => result.snippet.trim())
+		.filter(Boolean)
+		.slice(0, maxItems);
+
+	if (snippets.length === 0) {
+		return "No snippets available.";
+	}
+
+	return snippets.join("\n\n");
+}
 /**
  * Wraps an async iterable with a cleanup callback that fires when the
  * iterator completes (naturally, via error, or via cancellation).
@@ -95,9 +119,15 @@ export const Route = createFileRoute("/api/chat")({
 		handlers: {
 			POST: async ({ request }: { request: Request }) => {
 				const { getDB } = await import("../../server-functions/db");
-				const body = (await request.json()) as {
-					messages: { role: string; content: string }[];
-				};
+				let params: Awaited<ReturnType<typeof chatParamsFromRequest>>;
+				try {
+					params = await chatParamsFromRequest(request);
+				} catch (error) {
+					if (error instanceof Response) {
+						return error;
+					}
+					throw error;
+				}
 
 				const db = await getDB();
 				if (!db) {
@@ -114,9 +144,10 @@ export const Route = createFileRoute("/api/chat")({
 				if (!apiKey) {
 					return new Response("AI provider not configured", { status: 400 });
 				}
+				const reviewMode = toBoolean(params.forwardedProps?.reviewMode);
 
 				console.log(
-					`[api.chat] POST model="${model}" provider="${provider}" baseUrl="${baseUrl}" messages=${body.messages.length}`,
+					`[api.chat] POST model="${model}" provider="${provider}" baseUrl="${baseUrl}" messages=${params.messages.length} reviewMode=${reviewMode}`,
 				);
 
 				// ----- AbortController with 60s timeout -----
@@ -139,29 +170,76 @@ export const Route = createFileRoute("/api/chat")({
 					apiKey,
 				};
 
-				const tavilyApiKey = env.TAVILY_API_KEY;
-				const webTools = tavilyApiKey
-					? createChatWebTools(
-							new TavilyWebSearchProvider({
-								apiKey: tavilyApiKey,
-							}),
-							new TavilyWebContentProvider({
-								apiKey: tavilyApiKey,
-							}),
-						)
-					: [];
-				const toolSet = [
-					...createChatDbTools(queries),
-					...webTools,
-				] as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
+				const memory = new MemoryManager(db);
+				void memory.ensureStructure().catch((error) => {
+					console.warn(
+						`[api.chat.memory] Unable to initialize memory structure: ${
+							error instanceof Error ? error.message : "unknown error"
+						}`,
+					);
+				});
+
+				const resolvedTools = resolveToolsForAgent({
+					agent: "chat",
+					reviewMode,
+					config,
+					context: {
+						queries,
+						providerConfig,
+						tavilyApiKey: env.TAVILY_API_KEY,
+						webObserver: {
+							onSearch: async ({ input, output }) => {
+								try {
+									await memory.saveWebResearch({
+										query: input.query,
+										summary: summarizeSearchResultSnippets(output.results),
+										sources: output.results.map((result) => result.url),
+										conclusion:
+											"Search results collected for factual verification.",
+										context: "chat",
+									});
+								} catch (error) {
+									console.warn(
+										`[api.chat.memory] Failed to save web search memory: ${
+											error instanceof Error ? error.message : "unknown error"
+										}`,
+									);
+								}
+							},
+							onFetch: async ({ output }) => {
+								try {
+									await memory.saveWebResearch({
+										query: `fetch ${output.url}`,
+										summary: output.content.slice(0, 1200),
+										sources: [output.url],
+										conclusion: `Fetched source content: ${output.title}`,
+										context: "chat",
+									});
+								} catch (error) {
+									console.warn(
+										`[api.chat.memory] Failed to save web fetch memory: ${
+											error instanceof Error ? error.message : "unknown error"
+										}`,
+									);
+								}
+							},
+						},
+						onWarning: (message) => {
+							console.warn(`[api.chat.tools] ${message}`);
+						},
+					},
+				});
 
 				const rawStream = streamChatMessages(
 					providerConfig,
-					body.messages as Array<ModelMessage>,
+					params.messages as Array<ModelMessage>,
 					{
 						abortController,
-						system: CHAT_SYSTEM_PROMPT,
-						tools: toolSet,
+						system: buildChatSystemPrompt({ reviewMode }),
+						tools:
+							resolvedTools.tools as NonNullable<
+								Parameters<typeof streamChatMessages>[2]
+							>["tools"],
 					},
 				);
 

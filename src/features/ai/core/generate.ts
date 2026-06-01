@@ -1,34 +1,39 @@
-import { chat } from "@tanstack/ai";
 import type {
 	SchemaInput,
 	StreamChunk,
 	StructuredOutputCompleteEvent,
 } from "@tanstack/ai";
+import { chat } from "@tanstack/ai";
 import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
 import type { ProviderConfig } from "@/lib/validation";
 
-export async function generateText(
-	config: ProviderConfig,
-	prompt: string,
-	options?: { system?: string },
-) {
-	const adapter = getAiAdapter(config);
+type SafeParseResult<T> =
+	| { success: true; data: T }
+	| { success: false; error: { issues?: unknown[] } };
 
-	const result = await chat({
-		adapter,
-		messages: [{ role: "user", content: prompt }],
-		systemPrompts: options?.system ? [options.system] : undefined,
-		stream: false,
-	});
+type SafeParseCapableSchema<T> = {
+	safeParse: (input: unknown) => SafeParseResult<T>;
+};
 
-	return { text: result };
+function isSafeParseCapableSchema<T>(
+	schema: SchemaInput,
+): schema is SafeParseCapableSchema<T> {
+	return (
+		typeof schema === "object" &&
+		schema !== null &&
+		"safeParse" in schema &&
+		typeof (schema as { safeParse?: unknown }).safeParse === "function"
+	);
 }
 
 export async function generateJson<T>(
 	config: ProviderConfig,
 	prompt: string,
 	outputSchema: SchemaInput,
-	options?: { system?: string },
+	options?: {
+		system?: string;
+		tools?: Parameters<typeof chat>[0]["tools"];
+	},
 ): Promise<T> {
 	const adapter = getAiAdapter(config);
 
@@ -38,6 +43,7 @@ export async function generateJson<T>(
 			messages: [{ role: "user", content: prompt }],
 			systemPrompts: options?.system ? [options.system] : undefined,
 			stream: false,
+			tools: options?.tools,
 			outputSchema,
 		});
 
@@ -48,22 +54,31 @@ export async function generateJson<T>(
 			messages: [{ role: "user", content: prompt }],
 			systemPrompts: options?.system ? [options.system] : undefined,
 			stream: false,
+			tools: options?.tools,
 		});
 
 		const cleaned = extractLikelyJson(stripThinkBlocks(String(fallback ?? "")));
 		try {
-			return JSON.parse(cleaned) as T;
+			const parsed = JSON.parse(cleaned) as unknown;
+			if (isSafeParseCapableSchema<T>(outputSchema)) {
+				const validated = outputSchema.safeParse(parsed);
+				if (!validated.success) {
+					throw new Error("Fallback JSON does not match output schema");
+				}
+				return validated.data;
+			}
+			return parsed as T;
 		} catch {
 			throw structuredError;
 		}
 	}
 }
 
-export function stripThinkBlocks(content: string): string {
+function stripThinkBlocks(content: string): string {
 	return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-export function extractLikelyJson(content: string): string {
+function extractLikelyJson(content: string): string {
 	const trimmed = content.trim();
 	if (!trimmed) return trimmed;
 
@@ -87,7 +102,7 @@ export function extractLikelyJson(content: string): string {
 	return trimmed;
 }
 
-export function isStructuredOutputCompleteEvent<T>(
+function isStructuredOutputCompleteEvent<T>(
 	chunk: StreamChunk | StructuredOutputCompleteEvent<T>,
 ): chunk is StructuredOutputCompleteEvent<T> {
 	return chunk.type === "CUSTOM" && chunk.name === "structured-output.complete";
@@ -99,6 +114,7 @@ export async function generateJsonStream<T>(
 	outputSchema: SchemaInput,
 	options?: {
 		system?: string;
+		tools?: Parameters<typeof chat>[0]["tools"];
 		onChunk?: (chunk: StreamChunk | StructuredOutputCompleteEvent<T>) => void;
 	},
 ): Promise<T> {
@@ -109,6 +125,7 @@ export async function generateJsonStream<T>(
 		messages: [{ role: "user", content: prompt }],
 		systemPrompts: options?.system ? [options.system] : undefined,
 		stream: true,
+		tools: options?.tools,
 		outputSchema,
 	});
 

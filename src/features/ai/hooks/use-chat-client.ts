@@ -1,6 +1,13 @@
 import { ChatClient, fetchServerSentEvents } from "@tanstack/ai-client";
 import { useEffect, useRef, useState } from "react";
 import {
+	estimateTokens,
+	getMessageText,
+	type PerfRuntime,
+	WELCOME,
+} from "@/features/ai/components/chat/chat-utils";
+import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message";
+import {
 	chatStore,
 	setError,
 	setIsLoading,
@@ -15,13 +22,6 @@ import {
 	saveMessagesToConversation,
 	saveTokenTotals,
 } from "@/features/ai/stores/conversations-store";
-import {
-	estimateTokens,
-	getMessageText,
-	type PerfRuntime,
-	WELCOME,
-} from "@/features/ai/components/chat/chat-utils";
-import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message";
 
 interface ChatUsage {
 	promptTokens: number;

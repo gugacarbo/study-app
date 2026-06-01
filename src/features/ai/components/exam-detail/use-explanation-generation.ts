@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
-import { generateExamQuestionExplanations } from "@/server-functions/exams";
 import type {
 	ExplanationProgressItem,
 	ExplanationProgressStatus,
 } from "@/components/exam-detail/exam-utils";
 import { chunkIds, getErrorMessage } from "@/components/exam-detail/exam-utils";
+import { generateExamQuestionExplanations } from "@/server-functions/exams";
 
 interface QuestionBrief {
 	id: number;

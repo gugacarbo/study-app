@@ -3,10 +3,13 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-05-30 — AI feature module restructure, chat perf metrics
+> **Last auto-updated:** 2026-06-01 — R2 memory storage, ingest pipeline stages, reviewer agent
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
+
+## Rules
+- **Always** Create db migrations using scripts; never edit schema or queries directly. Ensure naming is correct (may use --name=migration_name or manually rename generated file).
 
 ## Code Patterns
 > **Always read before writing or reviewing code:**
@@ -25,7 +28,7 @@ Single-user web app for studying college exams using past exams as source materi
 - **Styling:** Tailwind CSS v4
 - **Testing:** Vitest + jsdom
 - **Linting/Formatting:** Biome v2 (no ESLint/Prettier)
-- **Memory:** D1-based memory layer (sessions, topics, documents, profile)
+- **Memory:** R2 + D1 hybrid memory layer (R2 for content, D1 for metadata/search_text), MEMORY_BUCKET binding
 
 ## Environment Variables
 | Var                  | Required | Default              | Description                                                          |
@@ -36,6 +39,7 @@ Single-user web app for studying college exams using past exams as source materi
 | `AI_LOG_LLM`         | No       | `false`              | Enable LLM call logging to D1                                        |
 | `AI_LOG_LLM_CONTENT` | No       | `false`              | Log LLM request/response content (large)                             |
 | `AI_LOG_LLM_CHUNKS`  | No       | `false`              | Log streaming chunk counts                                           |
+| `TAVILY_API_KEY`      | No       | —                    | Tavily API key for web search/fetch tools (ingest & chat)            |
 
 ## Project Structure
 ```
@@ -54,11 +58,12 @@ src/
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
 ├── routes/              # File-based TanStack Router routes
-│   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts
+│   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts, IngestIndicator
 │   ├── index.tsx        # / — Dashboard
-│   ├── exams.tsx        # /exams — exam layout (Outlet)
+│   ├── exams.tsx        # /exams — exam layout (Outlet + Ingest tab)
 │   ├── exams.index.tsx  # /exams/ — exam list page
 │   ├── exams.stats.tsx  # /exams/stats — stats tab page
+│   ├── exams.ingest.tsx # /exams/ingest — ingest progress tab page
 │   ├── exams.$id.tsx    # /exams/$id — exam detail page
 │   ├── quiz.$id.tsx     # /quiz/$id — quiz by exam ID
 │   ├── config.tsx       # /config — AI provider settings
@@ -76,14 +81,14 @@ src/
 │   ├── quiz.ts          # generateQuiz, submitAnswer
 │   ├── stats.ts         # getStats, getExams
 │   ├── exams.ts         # getExamDetail, getExamsDetailed, deleteExam, updateQuestion, deleteQuestion
-│   ├── memory.ts        # Memory operations (saveQuizSession, getMemoryContext)
+│   ├── memory.ts        # Memory operations (saveQuizSession, getMemoryContext, searchMemory)
 │   └── db.ts            # NOT a server fn — D1 helper utility
 ├── db/
 │   ├── schema.ts        # Drizzle schema definitions (9 tables)
 │   └── queries.ts       # Drizzle query layer (DBQueries class)
 ├── lib/
 │   ├── file-service.ts  # File storage and retrieval service
-│   ├── memory.ts        # D1-based memory manager
+│   ├── memory.ts        # R2+D1 hybrid memory manager (content in R2, metadata in D1)
 │   ├── utils.ts         # cn() utility for shadcn/ui
 │   └── validation.ts    # Zod schemas
 ├── types/               # TypeScript type augmentation declarations
@@ -123,7 +128,9 @@ migrations/
 ├── 0005_files.sql       # files table (depends on exams)
 ├── 0006_memory.sql      # memory tables (profile, sessions, topic_notes, documents)
 ├── 0007_questions_deep_explanation.sql # adds deep_explanation column to questions
-└── 0008_llm_logs.sql      # LLM call logging table
+├── 0008_llm_logs.sql      # LLM call logging table
+└── 0011_memory_r2_metadata_index.sql # R2 key indexes + search_text columns
+└── 0011_memory_r2_metadata_index.sql # R2 key indexes + search_text columns
 ```
 
 ## Commands
@@ -162,16 +169,23 @@ migrations/
 - **Config form** uses `react-hook-form` + `@hookform/resolvers` (Zod adapter) — not `@tanstack/react-form`
 - **Markdown rendering** via `react-markdown` + `remark-gfm` with custom component overrides (inline code, blockquotes, tables, lists); used for AI-generated explanations, questions, options, and profile summaries across exam-detail, quiz, and memory-panel
 - **Multi-conversation chat** with `conversationsStore` (TanStack Store + localStorage persistence) — conversations sidebar, auto-title from first user message, new/delete/switch via `ChatSidebar`
-- **Streaming ingest progress** — upload form shows real-time AI streaming text (token-by-token), live estimated token count, and spinner instead of static progress bar; SSE `chunk` and `token` events from `/api/ingest`
-- **Full-width layout mode** — root layout uses `has-[[data-fullwidth]]:max-w-full` to allow children (e.g., chat) to opt into full-width via `data-fullwidth` attribute
+- **Streaming ingest progress** — upload form shows real-time AI streaming text (token-by-token), live estimated token count, and spinner instead of static progress bar; SSE `chunk`, `token`, `stage`, and `warning` events from `/api/ingest`
+- **Ingest pipeline stages** — multi-stage extraction: decode → initial extraction → memory refinement → critical-topic verification (reviewer agent) → persist exam/questions/file; each stage reported via SSE `stage` events
+- **Critical-topic verification** — configurable `ingest_critical_topics` config key triggers reviewer agent with web tools to verify coverage of important topics
+- **Tool resolution** — `resolveToolsForAgent()` in `src/features/ai/tools/tool-resolver.ts` assembles per-agent tool sets (chat, ingest, reviewer) with optional web search/fetch tools and DB tools
+- **Ingest job tracking** — `ingestStore` (TanStack Store + localStorage) tracks ingest job status; `IngestIndicator` component in root nav shows active/recent jobs with link to `/exams/ingest`
+- **Full-width layout mode** — root layout uses `has-[[data-fullwidth]]:max-w-full` to allow children (e.g., chat) to opt into full-width via `data-fullwidth` attribute; body uses `h-dvh overflow-hidden` for full-height layout
 
-## Memory Layer (D1-Based)
-- **Storage:** D1 database tables (`memory_profile`, `memory_sessions`, `memory_topic_notes`, `memory_documents`)
-- **Migration file:** `0006_memory.sql` — creates all 4 memory tables with indexes
-- **Schema:** Defined in `src/db/schema.ts` (10 tables total) — includes `llm_logs` for API call logging
+## Memory Layer (R2+D1 Hybrid)
+- **Storage:** R2 bucket (`MEMORY_BUCKET`) for full content, D1 for metadata + `search_text` + `r2_key` references
+- **Migration files:** `0006_memory.sql` (tables), `0011_memory_r2_metadata_index.sql` (R2 key indexes + search_text columns)
+- **Schema:** Defined in `src/db/schema.ts` — memory tables use `r2_key` instead of `content`, `search_text` for lightweight search
+- **MemoryManager:** `src/lib/memory.ts` — writes content to R2, stores only metadata/search_text in D1; `hydrateSearchResults()` fetches from R2 on demand
 - **LLM Logging:** `llm_logs` table stores AI call metadata (provider, model, duration, tokens, status). Enable via `AI_LOG_LLM`, `AI_LOG_LLM_CONTENT`, `AI_LOG_LLM_CHUNKS` env vars.
-- **Server functions:** `src/server-functions/memory.ts` — `saveQuizSessionToMemory`, `getMemoryContext`
+- **Server functions:** `src/server-functions/memory.ts` — `saveQuizSessionToMemory`, `getMemoryContext`, `searchMemory`
 - **Context injection:** Before AI calls, `getMemoryContext` queries recent sessions, topic notes, and profile → injects into system prompt
+- **Web research:** `saveWebResearch()` stores web search/fetch results in R2 as `memory/research/` documents
+- **R2 bindings:** `MEMORY_BUCKET` (wrangler.jsonc) + `getMemoryBucket()` in `src/server-functions/storage.ts`
 
 ## Known Gotchas
 - `pdf-parse` doesn't work in CF Workers — text extraction fallback

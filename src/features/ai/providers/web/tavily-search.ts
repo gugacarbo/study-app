@@ -55,8 +55,12 @@ export class TavilyWebSearchProvider implements WebSearchProvider {
 
 			const payload = (await response.json()) as TavilySearchResponse;
 			const results = (payload.results ?? [])
-				.filter((item): item is Required<Pick<TavilySearchResult, "url">> &
-					TavilySearchResult => Boolean(item.url))
+				.filter(
+					(
+						item,
+					): item is Required<Pick<TavilySearchResult, "url">> &
+						TavilySearchResult => Boolean(item.url),
+				)
 				.map((item) => ({
 					title: item.title?.trim() || "Untitled",
 					url: item.url,

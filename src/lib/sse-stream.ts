@@ -9,7 +9,7 @@ export type ConnectionResultEvent = {
 	response: string;
 };
 
-export function parseEventBlock(
+function parseEventBlock(
 	block: string,
 ): { event: string; data: string } | null {
 	const lines = block.split(/\r?\n/);
@@ -30,10 +30,6 @@ export function parseEventBlock(
 	return { event, data: dataLines.join("\n") };
 }
 
-export type IngestProgressEvent = {
-	step: string;
-};
-
 export type IngestResultEvent = {
 	questions: number;
 	topics: string[];
@@ -46,17 +42,31 @@ export async function ingestStream(
 		buffer: number[];
 		fileName: string;
 		config: ProviderConfig;
+		signal?: AbortSignal;
 	},
 	callbacks: {
 		onStep: (step: string) => void;
 		onChunk: (text: string) => void;
 		onToken: (prompt: number, completion: number, total: number) => void;
+		onWarning?: (message: string) => void;
+		onStage?: (stage: {
+			stageId: string;
+			label: string;
+			status: string;
+			timestamp: number;
+			meta?: Record<string, unknown>;
+		}) => void;
 	},
 ): Promise<IngestResultEvent> {
 	const response = await fetch("/api/ingest", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(payload),
+		body: JSON.stringify({
+			buffer: payload.buffer,
+			fileName: payload.fileName,
+			config: payload.config,
+		}),
+		signal: payload.signal,
 	});
 
 	if (!response.ok) {
@@ -115,6 +125,33 @@ export async function ingestStream(
 							tokenData.completion ?? 0,
 							tokenData.total ?? 0,
 						);
+					}
+
+					if (parsed.event === "warning" && data && typeof data === "object") {
+						const message = (data as { message?: string }).message ?? "";
+						if (message) {
+							callbacks.onWarning?.(message);
+							callbacks.onStep(`Warning: ${message}`);
+						}
+					}
+
+					if (parsed.event === "stage" && data && typeof data === "object") {
+						const stage = data as {
+							stageId?: string;
+							label?: string;
+							status?: string;
+							timestamp?: number;
+							meta?: Record<string, unknown>;
+						};
+						if (stage.stageId && stage.label && stage.status) {
+							callbacks.onStage?.({
+								stageId: stage.stageId,
+								label: stage.label,
+								status: stage.status,
+								timestamp: stage.timestamp ?? Date.now(),
+								meta: stage.meta,
+							});
+						}
 					}
 
 					if (parsed.event === "result" && data && typeof data === "object") {

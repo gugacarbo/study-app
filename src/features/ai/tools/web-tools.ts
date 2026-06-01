@@ -1,9 +1,27 @@
 import { toolDefinition } from "@tanstack/ai";
 import { z } from "zod";
-import type { WebContentProvider, WebSearchProvider } from "@/features/ai/providers/web/types";
+import type {
+	WebContentProvider,
+	WebFetchResponse,
+	WebSearchProvider,
+	WebSearchResponse,
+} from "@/features/ai/providers/web/types";
 
 const TOOL_ERROR_CODE = "TOOL_EXECUTION_FAILED";
-const TOOL_ERROR_MESSAGE = "Unable to search the web right now. Please try again.";
+const TOOL_ERROR_MESSAGE =
+	"Unable to search the web right now. Please try again.";
+
+export interface WebToolsObserver {
+	onSearch?: (payload: {
+		input: { query: string; maxResults: number };
+		output: WebSearchResponse;
+	}) => void | Promise<void>;
+	onFetch?: (payload: {
+		input: { url: string; maxChars: number };
+		output: WebFetchResponse;
+	}) => void | Promise<void>;
+	onWarning?: (message: string) => void | Promise<void>;
+}
 
 const webSearchDef = toolDefinition({
 	name: "web_search",
@@ -67,6 +85,7 @@ const webFetchDef = toolDefinition({
 export function createChatWebTools(
 	searchProvider: WebSearchProvider,
 	contentProvider: WebContentProvider,
+	observer?: WebToolsObserver,
 ) {
 	const webSearch = webSearchDef.server(async (input) => {
 		try {
@@ -74,8 +93,18 @@ export function createChatWebTools(
 				query: input.query,
 				maxResults: Number(input.maxResults),
 			});
+			await observer?.onSearch?.({
+				input: {
+					query: input.query,
+					maxResults: Number(input.maxResults),
+				},
+				output: data,
+			});
 			return { ok: true as const, data };
 		} catch {
+			await observer?.onWarning?.(
+				`web_search failed for query: "${input.query}"`,
+			);
 			return {
 				ok: false as const,
 				error: {
@@ -92,8 +121,16 @@ export function createChatWebTools(
 				url: input.url,
 				maxChars: Number(input.maxChars),
 			});
+			await observer?.onFetch?.({
+				input: {
+					url: input.url,
+					maxChars: Number(input.maxChars),
+				},
+				output: data,
+			});
 			return { ok: true as const, data };
 		} catch {
+			await observer?.onWarning?.(`web_fetch failed for URL: ${input.url}`);
 			return {
 				ok: false as const,
 				error: {

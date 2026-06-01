@@ -1,7 +1,7 @@
 import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
+import { generateJson, generateJsonStream } from "@/features/ai/core/generate";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import { examIngestResponseSchema } from "@/lib/validation";
-import { generateJson, generateJsonStream } from "@/features/ai/core/generate";
 import { buildSystemPrompt } from "./system-prompt";
 
 export async function extractQuestionsFromText(
@@ -12,9 +12,16 @@ export async function extractQuestionsFromText(
 		onChunk?: (
 			chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
 		) => void;
+		tools?: NonNullable<Parameters<typeof generateJson>[3]>["tools"];
+		criticalTopics?: string[];
+		enableWebVerification?: boolean;
 	},
 ): Promise<ExamIngestResponse> {
-	const systemPrompt = buildSystemPrompt(memoryContext);
+	const systemPrompt = buildSystemPrompt({
+		memoryContext,
+		criticalTopics: options?.criticalTopics,
+		enableWebVerification: options?.enableWebVerification,
+	});
 	const prompt = `
     Extract all exam questions from the following text.
     Return ONLY a valid JSON object with this exact structure:
@@ -40,7 +47,11 @@ export async function extractQuestionsFromText(
 			config,
 			prompt,
 			examIngestResponseSchema,
-			{ system: systemPrompt, onChunk: options.onChunk },
+			{
+				system: systemPrompt,
+				onChunk: options.onChunk,
+				tools: options.tools,
+			},
 		);
 	}
 
@@ -48,6 +59,6 @@ export async function extractQuestionsFromText(
 		config,
 		prompt,
 		examIngestResponseSchema,
-		{ system: systemPrompt },
+		{ system: systemPrompt, tools: options?.tools },
 	);
 }

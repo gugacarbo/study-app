@@ -3,8 +3,8 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { ingestStream } from "@/lib/sse-stream";
+import { cn } from "@/lib/utils";
 import { getConfig } from "@/server-functions/config";
 import { UploadStatus } from "./upload-status";
 
@@ -17,6 +17,7 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 	const [message, setMessage] = useState("");
 	const [stepText, setStepText] = useState("");
 	const [streamText, setStreamText] = useState("");
+	const [logs, setLogs] = useState<string[]>([]);
 	const [totalTokens, setTotalTokens] = useState(0);
 	const streamEndRef = useRef<HTMLDivElement>(null);
 
@@ -29,17 +30,25 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!file) return;
+		const appendLog = (line: string) =>
+			setLogs((prev) => [
+				...prev,
+				`[${new Date().toLocaleTimeString()}] ${line}`,
+			]);
 
 		setStatus("uploading");
 		setMessage("");
 		setStepText("Carregando configuração da IA...");
 		setStreamText("");
+		setLogs([]);
 		setTotalTokens(0);
 
 		try {
 			const config = await getConfig();
+			appendLog("AI config loaded");
 			setStepText("Lendo arquivo...");
 			const buffer = await file.arrayBuffer();
+			appendLog(`File read (${file.name})`);
 			setStepText("Enviando arquivo para processamento...");
 			const result = await ingestStream(
 				{
@@ -48,14 +57,23 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 					config,
 				},
 				{
-					onStep: setStepText,
 					onChunk: (text) => {
-						setStreamText(text);
-						const estimated = Math.round(text.length / 4);
-						setTotalTokens((prev) => Math.max(prev, estimated));
+						setStreamText((prev) => {
+							const next = `${prev}${text}`;
+							const estimated = Math.round(next.length / 4);
+							setTotalTokens((prevTokens) => Math.max(prevTokens, estimated));
+							return next;
+						});
+						appendLog(`Chunk received (${text.length} chars)`);
 					},
-					onToken: (_p, _c, total) =>
-						setTotalTokens((prev) => Math.max(prev, total)),
+					onStep: (step) => {
+						setStepText(step);
+						appendLog(step);
+					},
+					onToken: (_p, _c, total) => {
+						setTotalTokens((prev) => Math.max(prev, total));
+						appendLog(`Token usage updated (${total.toLocaleString()})`);
+					},
 				},
 			);
 			setStatus("success");
@@ -71,6 +89,7 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 			setStatus("error");
 			setStepText("");
 			setStreamText("");
+			appendLog("Ingest failed");
 			setMessage(err instanceof Error ? err.message : "Unknown error");
 		}
 	};
@@ -95,6 +114,7 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 									setMessage("");
 									setStepText("");
 									setStreamText("");
+									setLogs([]);
 									setTotalTokens(0);
 								}
 							}}
@@ -128,6 +148,7 @@ export function UploadForm({ onSuccess }: { onSuccess?: () => void }) {
 						stepText={stepText}
 						streamText={streamText}
 						totalTokens={totalTokens}
+						logs={logs}
 						streamEndRef={streamEndRef}
 					/>
 				)}

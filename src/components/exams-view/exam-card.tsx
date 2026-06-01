@@ -135,5 +135,3 @@ export function ExamCard({
 		</Card>
 	);
 }
-
-export { formatDate, formatFileSize } from "./exam-card-utils";

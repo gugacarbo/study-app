@@ -1,4 +1,4 @@
-import { ShimmerTextSpan } from "#/components/shimmer-text-span";
+import { ShimmerTextSpan } from "@/components/shimmer-text-span";
 import { DetailAccordion } from "../../detail-accordion/detail-accordion";
 
 interface ChatMessageThinkingProps {

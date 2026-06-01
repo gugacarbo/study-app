@@ -1,11 +1,13 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import { DBQueries, type FileInfo, type FileRecord } from "../db/queries";
 
 export class FileService {
 	private queries: DBQueries;
+	private bucket: R2Bucket;
 
-	constructor(d1: D1Database) {
+	constructor(d1: D1Database, bucket: R2Bucket) {
 		this.queries = new DBQueries(d1);
+		this.bucket = bucket;
 	}
 
 	/**
@@ -20,7 +22,19 @@ export class FileService {
 		mimeType?: string,
 	): Promise<number> {
 		const content = Buffer.from(buffer);
-		return await this.queries.insertFile(examId, name, content, mimeType);
+		const r2Key = this.buildR2Key(examId, name);
+
+		await this.bucket.put(r2Key, content, {
+			httpMetadata: mimeType ? { contentType: mimeType } : undefined,
+		});
+
+		return await this.queries.insertFile(
+			examId,
+			name,
+			r2Key,
+			content.length,
+			mimeType,
+		);
 	}
 
 	/**
@@ -41,7 +55,16 @@ export class FileService {
 	 * Delete a file by ID.
 	 */
 	async delete(id: number): Promise<void> {
+		const file = await this.queries.getFile(id);
+		if (file) {
+			await this.bucket.delete(file.r2_key);
+		}
 		await this.queries.deleteFile(id);
+	}
+
+	private buildR2Key(examId: number, fileName: string): string {
+		const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+		return `exam-${examId}/${Date.now()}-${safeFileName}`;
 	}
 
 	/**

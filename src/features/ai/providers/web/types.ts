@@ -1,19 +1,13 @@
-import { z } from "zod";
+type WebSearchResult = {
+	title: string;
+	url: string;
+	snippet: string;
+};
 
-export const webSearchResultSchema = z.object({
-	title: z.string(),
-	url: z.string().url(),
-	snippet: z.string(),
-});
-
-export type WebSearchResult = z.infer<typeof webSearchResultSchema>;
-
-export const webSearchResponseSchema = z.object({
-	query: z.string(),
-	results: z.array(webSearchResultSchema),
-});
-
-export type WebSearchResponse = z.infer<typeof webSearchResponseSchema>;
+export type WebSearchResponse = {
+	query: string;
+	results: WebSearchResult[];
+};
 
 export interface WebSearchProvider {
 	search(input: {
@@ -22,13 +16,11 @@ export interface WebSearchProvider {
 	}): Promise<WebSearchResponse>;
 }
 
-export const webFetchResponseSchema = z.object({
-	url: z.string().url(),
-	title: z.string(),
-	content: z.string(),
-});
-
-export type WebFetchResponse = z.infer<typeof webFetchResponseSchema>;
+export type WebFetchResponse = {
+	url: string;
+	title: string;
+	content: string;
+};
 
 export interface WebContentProvider {
 	fetchContent(input: {

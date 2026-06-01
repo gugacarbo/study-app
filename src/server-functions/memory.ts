@@ -46,12 +46,13 @@ export const getMemoryOverview = createServerFn({ method: "GET" }).handler(
 export const searchMemory = createServerFn({ method: "POST" })
 	.inputValidator(z.object({ query: z.string().min(1) }))
 	.handler(async (ctx) => {
+		const { data } = ctx;
 		const db = await getDB(ctx);
 		if (!db) return { results: [] };
 
 		const memory = new MemoryManager(db);
 		await memory.ensureStructure();
-		const results = await memory.search(ctx.data.query);
+		const results = await memory.search(data.query);
 
 		return { results };
 	});

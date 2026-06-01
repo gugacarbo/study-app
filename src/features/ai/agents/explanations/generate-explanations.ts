@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { ProviderConfig } from "@/lib/validation";
 import { generateJson } from "@/features/ai/core/generate";
+import type { ProviderConfig } from "@/lib/validation";
 import { buildSystemPrompt } from "./system-prompt";
 
 const explanationBatchSchema = z.object({
@@ -15,7 +15,7 @@ const explanationBatchSchema = z.object({
 
 type ExplanationBatchResult = z.infer<typeof explanationBatchSchema>;
 
-export interface ExplanationBatchInput {
+interface ExplanationBatchInput {
 	id: number;
 	question: string;
 	options: string[];

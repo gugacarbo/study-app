@@ -1,5 +1,5 @@
 import { Accordion as AccordionPrimitive } from "radix-ui";
-import { AccordionContent } from "#/components/ui/accordion";
+import { AccordionContent } from "@/components/ui/accordion";
 import type { DetailTriggerTone } from "../chat-message-utils";
 import { DetailTrigger } from "./detail-accordion-trigger";
 

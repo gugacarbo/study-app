@@ -8,7 +8,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { Accordion as AccordionPrimitive } from "radix-ui";
-import { ShimmerTextSpan } from "#/components/shimmer-text-span";
+import { ShimmerTextSpan } from "@/components/shimmer-text-span";
 import { cn } from "@/lib/utils";
 import type { DetailTriggerTone } from "../chat-message-utils";
 import { triggerToneClass } from "../chat-message-utils";
