@@ -4,7 +4,7 @@ export interface IngestTokenTotals {
 	total: number;
 }
 
-export type IngestStageStatus =
+type IngestStageStatus =
 	| "pending"
 	| "running"
 	| "done"
@@ -20,7 +20,7 @@ export interface IngestPipelineStageViewModel {
 	meta?: Record<string, unknown>;
 }
 
-export interface IngestOutputMessageEntry {
+interface IngestOutputMessageEntry {
 	id: string;
 	kind: "message";
 	stageId?: string | null;
@@ -30,7 +30,7 @@ export interface IngestOutputMessageEntry {
 	status?: "default" | "warning" | "error" | "success";
 }
 
-export interface IngestOutputEventEntry {
+interface IngestOutputEventEntry {
 	id: string;
 	kind: "event";
 	stageId?: string | null;

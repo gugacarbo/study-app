@@ -25,9 +25,9 @@ export interface FlowStage {
 	meta?: Record<string, unknown>;
 }
 
-export type IngestLogLevel = "info" | "warning" | "error";
+type IngestLogLevel = "info" | "warning" | "error";
 
-export interface IngestLogEntry {
+interface IngestLogEntry {
 	id: string;
 	timestamp: number;
 	stageId: string | null;
@@ -36,7 +36,7 @@ export interface IngestLogEntry {
 	message: string;
 }
 
-export interface IngestOutputEntry {
+interface IngestOutputEntry {
 	id: string;
 	timestamp: number;
 	stageId: string | null;
@@ -45,7 +45,7 @@ export interface IngestOutputEntry {
 	text: string;
 }
 
-export type IngestAgentStatus =
+type IngestAgentStatus =
 	| "pending"
 	| "running"
 	| "done"
@@ -711,46 +711,11 @@ export function applyTokenEvent(
 	);
 }
 
-export function getStageLogEntries(
-	job: IngestJob,
-	stageId: string | null,
-): IngestLogEntry[] {
-	if (!stageId) return job.logs;
-	return job.logs.filter((entry) => entry.stageId === stageId);
-}
-
-export function getStageOutputEntries(
-	job: IngestJob,
-	stageId: string | null,
-): IngestOutputEntry[] {
-	if (!stageId) return job.outputEntries;
-	return job.outputEntries.filter((entry) => entry.stageId === stageId);
-}
-
-export function getStageAgentRuns(
-	job: IngestJob,
-	stageId: string | null,
-): IngestAgentRun[] {
-	if (!stageId) return job.agentRuns;
-	return job.agentRuns.filter((agentRun) => agentRun.stageId === stageId);
-}
-
-export function getState(): IngestStoreState {
-	return ingestStore.state;
-}
-
-export function subscribe(
-	callback: (state: IngestStoreState) => void,
-): () => void {
-	const subscription = ingestStore.subscribe(() => callback(ingestStore.state));
-	return () => subscription.unsubscribe();
-}
-
 export function focusJob(jobId: string) {
 	ingestStore.setState((state) => ({ ...state, focusedJobId: jobId }));
 }
 
-export function getRunningJob(): IngestJob | null {
+function getRunningJob(): IngestJob | null {
 	const runningJob = ingestStore.state.jobs.find(
 		(job) => job.status === "running",
 	);

@@ -73,6 +73,7 @@ export function JobDetailPanel({
 							selectedStageId={selectedStageId}
 							selectedStageLabel={selectedStage?.label ?? null}
 							agents={job.agents}
+							logs={job.logs}
 							onClearFilter={onClearStageFilter}
 						/>
 					</TabsContent>

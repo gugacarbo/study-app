@@ -3,7 +3,6 @@ import {
 	fireEvent,
 	render,
 	screen,
-	within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { LogsPanel } from "./LogsPanel";
@@ -72,6 +71,7 @@ describe("OutputPanel", () => {
 				selectedStageId="review"
 				selectedStageLabel="Review"
 				agents={agents}
+				logs={[]}
 				onClearFilter={() => {}}
 			/>,
 		);
@@ -94,10 +94,7 @@ describe("OutputPanel", () => {
 
 		const dialog = document.querySelector('[role="dialog"]');
 		expect(dialog).toBeTruthy();
-		fireEvent.click(
-			within(dialog as HTMLElement).getByRole("tab", { name: "Raw" }),
-		);
-		expect(dialog?.textContent).toContain('"runId": "reviewer-a"');
+		expect(dialog?.textContent).toContain("System prompt");
 	});
 });
 

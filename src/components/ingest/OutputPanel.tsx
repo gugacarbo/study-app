@@ -12,11 +12,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
-import { ChatMessageTextPart } from "@/features/ai/components/chat/message/parts/chat-message-text-part";
 import { cn } from "@/lib/utils";
 import type { UIMessage } from "@tanstack/ai-client";
 import type {
 	IngestAgentRunViewModel,
+	IngestLogEntry,
 	IngestOutputEntry,
 	IngestTokenTotals,
 } from "./types";
@@ -29,6 +29,7 @@ interface OutputPanelProps {
 	selectedStageId: string | null;
 	selectedStageLabel: string | null;
 	agents: IngestAgentRunViewModel[];
+	logs: IngestLogEntry[];
 	onClearFilter: () => void;
 }
 
@@ -40,6 +41,7 @@ export function OutputPanel({
 	selectedStageId,
 	selectedStageLabel,
 	agents,
+	logs,
 	onClearFilter,
 }: OutputPanelProps) {
 	const [mode, setMode] = useState<"treated" | "raw">("treated");
@@ -65,6 +67,14 @@ export function OutputPanel({
 		selectedAgentId == null
 			? null
 			: (filteredAgents.find((agent) => agent.id === selectedAgentId) ?? null);
+
+	const agentLogs = useMemo(
+		() =>
+			selectedAgentId == null
+				? []
+				: logs.filter((log) => log.agentId === selectedAgentId),
+		[logs, selectedAgentId],
+	);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
@@ -168,6 +178,7 @@ export function OutputPanel({
 
 					<AgentDetailDialog
 						agent={selectedAgent}
+						logs={agentLogs}
 						open={selectedAgent != null}
 						onOpenChange={(open) => {
 							if (!open) setSelectedAgentId(null);
@@ -260,10 +271,12 @@ function EmptyOutputState({
 
 function AgentDetailDialog({
 	agent,
+	logs,
 	open,
 	onOpenChange,
 }: {
 	agent: IngestAgentRunViewModel | null;
+	logs: IngestLogEntry[];
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }) {
@@ -274,35 +287,35 @@ function AgentDetailDialog({
 					<DialogTitle>{agent?.name ?? ""}</DialogTitle>
 					<DialogDescription className="text-slate-400">
 						{agent?.summary ??
-							"Inspect prompts, response, and raw agent state."}
+							"Inspect prompts, response, and agent state."}
 					</DialogDescription>
 				</DialogHeader>
 				{agent ? (
 					<Tabs
-						defaultValue="chat"
+						defaultValue="output"
 						className="mt-2 flex min-h-0 flex-1 flex-col"
 					>
 						<TabsList className="w-fit bg-[#0b1424]">
-							<TabsTrigger value="chat">Chat</TabsTrigger>
-							<TabsTrigger value="raw">Raw</TabsTrigger>
+							<TabsTrigger value="output">Output</TabsTrigger>
+							<TabsTrigger value="log">Log</TabsTrigger>
 						</TabsList>
 						<TabsContent
-							value="chat"
+							value="output"
 							forceMount
 							className="mt-4 min-h-0 flex-1 overflow-auto data-[state=active]:flex data-[state=active]:flex-col"
 						>
 							<div className="flex flex-col gap-3 pr-1">
-								<PromptBubble
+								<AgentMessageBubble
 									messageRole="system"
 									label="System prompt"
 									content={agent.systemPrompt}
 								/>
-								<PromptBubble
+								<AgentMessageBubble
 									messageRole="user"
 									label="User prompt"
 									content={agent.userPrompt}
 								/>
-								<PromptBubble
+								<AgentMessageBubble
 									messageRole="assistant"
 									label="Agent response"
 									content={agent.response}
@@ -310,18 +323,39 @@ function AgentDetailDialog({
 							</div>
 						</TabsContent>
 						<TabsContent
-							value="raw"
+							value="log"
 							forceMount
-							className="mt-4 min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 data-[state=active]:block"
+							className="mt-4 min-h-0 flex-1 overflow-auto data-[state=active]:block"
 						>
-							<pre className="text-[0.7rem] leading-relaxed whitespace-pre-wrap text-slate-200">
-								{safeJson({
-									state: agent.state,
-									tokens: agent.tokens,
-									error: agent.error,
-									raw: agent.raw,
-								})}
-							</pre>
+							{logs.length === 0 ? (
+								<div className="flex h-full min-h-32 items-center justify-center rounded-md border border-white/10 bg-[#0b1424] text-[0.7rem] text-slate-500">
+									No logs for this agent
+								</div>
+							) : (
+								<div className="flex min-h-0 flex-1 flex-col gap-1 rounded-md border border-white/10 bg-[#0b1424] p-3">
+									{logs.map((log) => (
+										<div
+											key={log.id}
+											className={cn(
+												"flex items-start gap-2 whitespace-pre-wrap pr-4",
+												logLevelClass(log.level),
+											)}
+										>
+											<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-slate-500">
+												{log.level}
+											</span>
+											<div className="min-w-0 flex-1">
+												<div className="text-[0.7rem]">{log.message}</div>
+												{log.timestamp ? (
+													<div className="text-[0.625rem] text-slate-500">
+														{new Date(log.timestamp).toLocaleTimeString()}
+													</div>
+												) : null}
+											</div>
+										</div>
+									))}
+								</div>
+							)}
 						</TabsContent>
 					</Tabs>
 				) : null}
@@ -330,7 +364,20 @@ function AgentDetailDialog({
 	);
 }
 
-function PromptBubble({
+function logLevelClass(level: IngestLogEntry["level"]): string {
+	switch (level) {
+		case "error":
+			return "text-red-300";
+		case "warning":
+			return "text-amber-300";
+		case "debug":
+			return "text-slate-400";
+		default:
+			return "text-slate-200";
+	}
+}
+
+function AgentMessageBubble({
 	messageRole,
 	label,
 	content,
@@ -341,36 +388,18 @@ function PromptBubble({
 }) {
 	if (!content) return null;
 
-	const isUser = messageRole === "user";
+	const uiMessage: UIMessage = {
+		id: `agent-${messageRole}`,
+		role: messageRole,
+		parts: [{ type: "text", content }],
+	};
+
 	return (
-		<div
-			className={cn(
-				"flex flex-col gap-1",
-				isUser ? "items-end" : "items-start",
-			)}
-		>
+		<div className="flex flex-col gap-1">
 			<div className="px-1 text-[0.625rem] uppercase tracking-wide text-slate-500">
 				{label}
 			</div>
-			<div
-				className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}
-			>
-				<div
-					className={cn(
-						"wrap-break-word whitespace-pre-wrap rounded-lg px-4 py-2 text-sm leading-relaxed",
-						isUser
-							? "min-w-1/2 max-w-3/5 bg-primary text-primary-foreground"
-							: messageRole === "system"
-								? "w-4/5 max-w-4/5 border border-dashed border-slate-600 bg-[#111b2c] text-slate-200"
-								: "w-4/5 max-w-4/5 border border-border bg-card text-card-foreground",
-					)}
-				>
-					<ChatMessageTextPart
-						content={content}
-						msgRole={messageRole === "system" ? "assistant" : messageRole}
-					/>
-				</div>
-			</div>
+			<ChatMessage message={uiMessage} />
 		</div>
 	);
 }
