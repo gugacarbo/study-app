@@ -42,6 +42,7 @@ export function ExamCard({
 		<Card>
 			<div className="flex items-start justify-between gap-4 px-4 py-3">
 				<Link
+					from="/exams"
 					to="/exams/$id"
 					params={{ id: exam.id.toString() }}
 					className="flex flex-col gap-3 flex-1 min-w-0 group"
@@ -95,13 +96,13 @@ export function ExamCard({
 				</Link>
 				<div className="flex flex-col gap-2 shrink-0">
 					<Button variant="default" size="sm" asChild>
-						<Link to="/quiz/$id" params={{ id: exam.id.toString() }}>
+						<Link from="/exams" to="/quiz/$id" params={{ id: exam.id.toString() }}>
 							<Play data-icon="inline-start" />
 							Quiz
 						</Link>
 					</Button>
 					<Button variant="outline" size="sm" asChild>
-						<Link to="/exams/$id" params={{ id: exam.id.toString() }}>
+						<Link from="/exams" to="/exams/$id" params={{ id: exam.id.toString() }}>
 							<ChevronRight data-icon="inline-start" />
 							Details
 						</Link>

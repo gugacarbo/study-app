@@ -57,7 +57,7 @@ export function Dashboard() {
 					<CardContent className="text-center text-muted-foreground">
 						No exams imported yet.{" "}
 						<Button asChild variant="link">
-							<Link to="/exams">Upload one now</Link>
+							<Link from="/" to="/exams">Upload one now</Link>
 						</Button>
 					</CardContent>
 				</Card>
@@ -76,7 +76,7 @@ export function Dashboard() {
 								</CardDescription>
 								<CardAction>
 									<Button asChild variant="default" size="sm">
-										<Link to="/quiz/$id" params={{ id: exam.id.toString() }}>
+										<Link from="/" to="/quiz/$id" params={{ id: exam.id.toString() }}>
 											Start Quiz
 										</Link>
 									</Button>

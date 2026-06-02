@@ -52,6 +52,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	return (
 		<div>
 			<Link
+				from="/exams/$id"
 				to="/exams"
 				className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
 			>

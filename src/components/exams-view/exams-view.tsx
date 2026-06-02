@@ -41,7 +41,7 @@ export function ExamsView() {
 						{exams.length} {exams.length === 1 ? "exam" : "exams"}
 					</span>
 					<Button size="sm" asChild>
-						<Link to="/exams/ingest">
+						<Link from="/exams" to="/exams/upload">
 							<Upload className="h-4 w-4 mr-1.5" />
 							Upload
 						</Link>

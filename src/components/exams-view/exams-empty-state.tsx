@@ -9,7 +9,7 @@ export function ExamsEmptyState() {
 			<FileText className="h-12 w-12 text-muted-foreground" />
 			<p className="text-muted-foreground">No exams uploaded yet.</p>
 			<Button asChild>
-				<Link to="/exams/ingest">Upload your first exam</Link>
+				<Link from="/exams" to="/exams/upload">Upload your first exam</Link>
 			</Button>
 		</Card>
 	);

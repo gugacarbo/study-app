@@ -20,7 +20,7 @@ export function useExamDelete({ examId }: UseExamDeleteProps) {
 			queryClient.invalidateQueries({ queryKey: ["exams-detailed"] });
 			queryClient.invalidateQueries({ queryKey: ["exams"] });
 			queryClient.invalidateQueries({ queryKey: ["stats"] });
-			router.navigate({ to: "/exams" });
+			router.navigate({ from: "/exams/$id", to: "/exams" });
 		} catch (err) {
 			console.error("Failed to delete exam:", err);
 		} finally {

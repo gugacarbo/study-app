@@ -65,7 +65,7 @@ export function ExamHeader({
 				</Dialog>
 
 				<Button asChild variant="default" size="sm">
-					<Link to="/quiz/$id" params={{ id: exam.id.toString() }}>
+					<Link from="/exams/$id" to="/quiz/$id" params={{ id: exam.id.toString() }}>
 						<Play className="h-4 w-4" />
 						Start Quiz
 					</Link>
