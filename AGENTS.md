@@ -22,7 +22,7 @@ Single-user web app for studying college exams using past exams as source materi
 - **Backend:** Cloudflare Workers + D1 (SQLite)
 - **ORM:** Drizzle (`drizzle-orm`) with `drizzle-orm/d1` driver
 - **Migrations:** Drizzle Kit (`drizzle-kit`) + wrangler D1 migrations
-- **AI:** OpenRouter SDK (`@openrouter/sdk`) — configurable provider/model
+- **AI:** OpenRouter (via `@tanstack/ai`) — configurable provider/model
 - **Validation:** Zod
 - **Forms:** react-hook-form + @hookform/resolvers (Zod adapter)
 - **Styling:** Tailwind CSS v4
@@ -55,7 +55,7 @@ src/
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
 │   ├── theme-provider.tsx # Theme context provider (shadcn)
-│   ├── ingest/           # Ingest UI components (JobDetailPanel, LogsPanel, OutputPanel, PipelineFlow, QueueList, UploadCard, VirtualizedLogLines, VirtualizedOutputText)
+│   ├── ingest/           # Ingest UI components (JobDetailPanel, LogsPanel, OutputPanel, PipelineFlow, QueueList, UploadCard, VirtualizedLogLines)
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
 ├── routes/              # File-based TanStack Router routes
@@ -82,7 +82,7 @@ src/
 │   ├── quiz.ts          # generateQuiz, submitAnswer
 │   ├── stats.ts         # getStats, getExams
 │   ├── exams.ts         # getExamDetail, getExamsDetailed, deleteExam, updateQuestion, deleteQuestion
-│   ├── memory.ts        # Memory operations (saveQuizSession, getMemoryContext, searchMemory)
+│   ├── memory.ts        # Memory operations (saveQuizSession, getMemoryContext)
 │   └── db.ts            # NOT a server fn — D1 helper utility
 ├── db/
 │   ├── schema.ts        # Drizzle schema definitions (9 tables)
@@ -184,7 +184,7 @@ migrations/
 - **Schema:** Defined in `src/db/schema.ts` — memory tables use `r2_key` instead of `content`, `search_text` for lightweight search
 - **MemoryManager:** `src/lib/memory.ts` — writes content to R2, stores only metadata/search_text in D1; `hydrateSearchResults()` fetches from R2 on demand
 - **LLM Logging:** `llm_logs` table stores AI call metadata (provider, model, duration, tokens, status). Enable via `AI_LOG_LLM`, `AI_LOG_LLM_CONTENT`, `AI_LOG_LLM_CHUNKS` env vars.
-- **Server functions:** `src/server-functions/memory.ts` — `saveQuizSessionToMemory`, `getMemoryContext`, `searchMemory`
+- **Server functions:** `src/server-functions/memory.ts` — `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`
 - **Context injection:** Before AI calls, `getMemoryContext` queries recent sessions, topic notes, and profile → injects into system prompt
 - **Web research:** `saveWebResearch()` stores web search/fetch results in R2 as `memory/research/` documents
 - **R2 bindings:** `MEMORY_BUCKET` (wrangler.jsonc) + `getMemoryBucket()` in `src/server-functions/storage.ts`
@@ -193,7 +193,6 @@ migrations/
 - `pdf-parse` doesn't work in CF Workers — text extraction fallback
 - OpenRouter rate limits may require retry logic
 - Biome VCS integration disabled — ignores `.gitignore`
-- `@tanstack/react-router-ssr-query` and `axios` are unused dependencies
 - `#/*` path alias in `package.json` imports is unused — use `@/*` instead
 - No CI pipeline — quality checks are manual
 - D1 `database_id: "DEV"` hardcoded in wrangler.jsonc; production DB injected at deploy

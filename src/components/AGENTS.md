@@ -18,7 +18,6 @@ Components are grouped into subdirectories by feature domain, plus standalone fi
 | `exams-view/`           | `/exams`             | `exams-view.tsx`           | Exam list with search, delete (inline confirm), upload dialog                                                                    |
 | `memory-visualization/` | `/memory`            | `memory-visualization.tsx` | Memory dashboard: summary cards, topic performance, session history table, session detail sheet                                  |
 | `quiz/`                 | `/quiz/$id`          | `quiz.tsx`                 | Quiz player: question display, answer options, results, keyboard hotkeys                                                         |
-| `upload-form/`          | —                    | `upload-form.tsx`          | PDF file picker + streaming AI ingest with real-time token counter                                                               |
 | `dashboard.tsx`         | `/`                  | standalone                 | Exam list + quick stats cards                                                                                                    |
 | `stats-table.tsx`       | `/exams/stats`       | standalone                 | Accuracy stats by topic (plain HTML table)                                                                                       |
 | `theme-provider.tsx`    | global (root layout) | standalone                 | Theme context (shadcn) with localStorage + system preference                                                                     |
@@ -38,5 +37,5 @@ Components are grouped into subdirectories by feature domain, plus standalone fi
 - Max ~150 lines per file — split at logical boundaries
 - **shadcn/ui** primitives used for all UI elements (Button, Card, Input, Badge, Progress, etc.)
 - **Markdown rendering** via `MarkdownRenderer` (`ui/markdown.tsx`) — used across exam-detail, quiz, and memory components
-- **SSE streaming** utilities in `src/lib/sse-stream.ts` — shared by `upload-form` and `config-form`
+- **SSE streaming** utilities in `src/lib/sse-stream.ts` — shared by upload form and `config-form`
 - Inline hover styles (onMouseEnter/onMouseLeave) prohibited — use shadcn Button variants instead
