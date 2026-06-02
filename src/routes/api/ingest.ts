@@ -2,12 +2,12 @@ import type { D1Database } from "@cloudflare/workers-types";
 import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import {
-	extractQuestionsFromText,
-	reviewExtractionForCriticalTopics,
-} from "@/features/ai/agents/ingest";
+import { reviewExtraction } from "@/features/ai/agents/ingest";
+import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
+import { generateJsonStream } from "@/features/ai/core/generate";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import type { ExamIngestResponse } from "@/lib/validation";
+import { examIngestResponseSchema } from "@/lib/validation";
 import { DBQueries } from "../../db/queries";
 import { env } from "../../env";
 import { FileService } from "../../lib/file-service";
@@ -23,7 +23,7 @@ const ingestRequestSchema = z.object({
 
 type IngestRequest = z.infer<typeof ingestRequestSchema>;
 type AgentTools = NonNullable<
-	Parameters<typeof extractQuestionsFromText>[3]
+	Parameters<typeof generateJsonStream>[3]
 >["tools"];
 
 function extractTextFromBytes(bytes: Uint8Array): string {
@@ -35,7 +35,51 @@ function formatSSE(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-type StageStatus = "pending" | "running" | "done" | "warning" | "error";
+type StageStatus =
+	| "pending"
+	| "running"
+	| "done"
+	| "warning"
+	| "error"
+	| "skipped";
+type AgentRunStatus = "pending" | "running" | "done" | "error" | "skipped";
+type AgentRunEventType = "lifecycle" | "result" | "warning" | "token";
+
+interface AgentRunDescriptor {
+	stageId: string;
+	agentRunId: string;
+	label: string;
+}
+
+interface AgentRunEvent {
+	eventType: AgentRunEventType;
+	stageId: string;
+	agentRunId: string;
+	label: string;
+	timestamp: number;
+	status?: AgentRunStatus;
+	systemPrompt?: string;
+	userPrompt?: string;
+	rawText?: string;
+	finalObject?: unknown;
+	error?: string;
+	warning?: string;
+	tokens?: unknown;
+	meta?: Record<string, unknown>;
+}
+
+function isTextChunk(
+	chunk: unknown,
+): chunk is { type: "TEXT_MESSAGE_CONTENT"; delta: string } {
+	return (
+		typeof chunk === "object" &&
+		chunk !== null &&
+		"type" in chunk &&
+		chunk.type === "TEXT_MESSAGE_CONTENT" &&
+		"delta" in chunk &&
+		typeof chunk.delta === "string"
+	);
+}
 
 function sendStage(
 	send: (event: string, data: unknown) => void,
@@ -45,6 +89,113 @@ function sendStage(
 	meta?: Record<string, unknown>,
 ) {
 	send("stage", { stageId, label, status, timestamp: Date.now(), meta });
+}
+
+function buildExtractionUserPrompt(text: string): string {
+	return `
+    Extract all exam questions from the following text.
+    Return ONLY a valid JSON object with this exact structure:
+    {
+      "questions": [
+        {
+          "question": "the question text",
+          "options": ["option a", "option b", "option c", "option d"],
+          "answer": "the correct answer text",
+          "explanation": "",
+          "topic": "subject/topic name"
+        }
+      ],
+      "topics": ["list", "of", "unique", "topics"]
+    }
+
+    Text to extract from:
+    ${text}
+  `;
+}
+
+function createAgentRunHelpers(send: (event: string, data: unknown) => void) {
+	let runCounter = 0;
+
+	const sendAgentRun = (event: Omit<AgentRunEvent, "timestamp">) => {
+		send("agent", { ...event, timestamp: Date.now() });
+	};
+
+	return {
+		createRun(stageId: string, label: string): AgentRunDescriptor {
+			runCounter += 1;
+			return {
+				stageId,
+				label,
+				agentRunId: `${stageId}-${runCounter}`,
+			};
+		},
+		lifecycle(
+			run: AgentRunDescriptor,
+			status: AgentRunStatus,
+			meta?: Omit<
+				AgentRunEvent,
+				| "eventType"
+				| "stageId"
+				| "agentRunId"
+				| "label"
+				| "timestamp"
+				| "status"
+			>,
+		) {
+			sendAgentRun({
+				eventType: "lifecycle",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				status,
+				...meta,
+			});
+		},
+		result(
+			run: AgentRunDescriptor,
+			finalObject: unknown,
+			rawText?: string,
+			meta?: Record<string, unknown>,
+		) {
+			sendAgentRun({
+				eventType: "result",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				finalObject,
+				rawText,
+				meta,
+			});
+		},
+		warning(
+			run: AgentRunDescriptor,
+			warning: string,
+			meta?: Record<string, unknown>,
+		) {
+			sendAgentRun({
+				eventType: "warning",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				warning,
+				meta,
+			});
+		},
+		token(
+			run: AgentRunDescriptor,
+			tokens: unknown,
+			meta?: Record<string, unknown>,
+		) {
+			sendAgentRun({
+				eventType: "token",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				tokens,
+				meta,
+			});
+		},
+	};
 }
 
 function summarizeSearchResultSnippets(
@@ -121,33 +272,7 @@ async function runIngestWithProgress(
 	const onProgress = (step: string) => {
 		send("progress", { step });
 	};
-
-	const onAiChunk = (
-		chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
-	) => {
-		// Raw text from generic streaming chunks
-		if (
-			"content" in chunk &&
-			typeof chunk.content === "string" &&
-			chunk.content
-		) {
-			send("chunk", { text: chunk.content });
-		}
-		// Raw JSON from structured-output chunks (the actual extraction text)
-		if (
-			"value" in chunk &&
-			chunk.value &&
-			typeof chunk.value === "object" &&
-			"raw" in chunk.value &&
-			typeof chunk.value.raw === "string"
-		) {
-			send("chunk", { text: chunk.value.raw });
-		}
-		// Token usage at end of AI run
-		if ("usage" in chunk && chunk.usage) {
-			send("token", chunk.usage);
-		}
-	};
+	const agentRuns = createAgentRunHelpers(send);
 
 	onProgress("Connecting to database...");
 	const db = await getDB();
@@ -182,8 +307,7 @@ async function runIngestWithProgress(
 							query: input.query,
 							summary: summarizeSearchResultSnippets(output.results),
 							sources: output.results.map((result) => result.url),
-							conclusion:
-								"Search results collected for ingest critical-topic verification.",
+							conclusion: "Search results collected for ingest review.",
 							context: "ingest",
 						});
 					} catch (error) {
@@ -233,6 +357,87 @@ async function runIngestWithProgress(
 
 	const fileService = new FileService(db, filesBucket);
 
+	const runExtractionPass = async (
+		stageId: string,
+		stageLabel: string,
+		options?: {
+			memoryContext?: string;
+		},
+	) => {
+		const systemPrompt = buildSystemPrompt({
+			memoryContext: options?.memoryContext,
+			criticalTopics,
+			enableWebVerification: Boolean(webTools?.length),
+		});
+		const userPrompt = buildExtractionUserPrompt(text);
+		const run = agentRuns.createRun(stageId, stageLabel);
+		let rawText = "";
+		let emittedResult = false;
+
+		agentRuns.lifecycle(run, "pending", {
+			systemPrompt,
+			userPrompt,
+		});
+		agentRuns.lifecycle(run, "running");
+
+		try {
+			const result = await generateJsonStream<ExamIngestResponse>(
+				payload.config,
+				userPrompt,
+				examIngestResponseSchema,
+				{
+					system: systemPrompt,
+					tools: webTools,
+					onChunk: (
+						chunk:
+							| StreamChunk
+							| StructuredOutputCompleteEvent<ExamIngestResponse>,
+					) => {
+						if (isTextChunk(chunk) && chunk.delta) {
+							rawText += chunk.delta;
+							send("chunk", {
+								stageId: run.stageId,
+								agentRunId: run.agentRunId,
+								text: chunk.delta,
+							});
+						}
+						if ("usage" in chunk && chunk.usage) {
+							send("token", {
+								stageId: run.stageId,
+								agentRunId: run.agentRunId,
+								usage: chunk.usage,
+							});
+							agentRuns.token(run, chunk.usage);
+						}
+						if (
+							chunk.type === "CUSTOM" &&
+							chunk.name === "structured-output.complete"
+						) {
+							emittedResult = true;
+							agentRuns.result(run, chunk.value.object, rawText);
+						}
+					},
+				},
+			);
+			if (!emittedResult) {
+				agentRuns.result(run, result, rawText);
+			}
+			agentRuns.lifecycle(run, "done", {
+				meta: {
+					questionCount: result.questions.length,
+					topicCount: result.topics.length,
+				},
+			});
+			return result;
+		} catch (error) {
+			agentRuns.lifecycle(run, "error", {
+				error: error instanceof Error ? error.message : "unknown error",
+				rawText,
+			});
+			throw error;
+		}
+	};
+
 	onProgress("Decoding file...");
 	sendStage(send, "decode", "Decoding file", "running");
 	const bytes = new Uint8Array(payload.buffer);
@@ -255,16 +460,9 @@ async function runIngestWithProgress(
 	);
 	let extracted: ExamIngestResponse;
 	try {
-		extracted = await extractQuestionsFromText(
-			payload.config,
-			text,
-			undefined,
-			{
-				onChunk: onAiChunk,
-				tools: webTools,
-				criticalTopics,
-				enableWebVerification: Boolean(webTools?.length),
-			},
+		extracted = await runExtractionPass(
+			"initial_extraction",
+			"Initial extraction agent",
 		);
 	} catch (err) {
 		sendStage(
@@ -299,15 +497,11 @@ async function runIngestWithProgress(
 			"running",
 		);
 		try {
-			finalExtracted = await extractQuestionsFromText(
-				payload.config,
-				text,
-				memoryContext,
+			finalExtracted = await runExtractionPass(
+				"memory_refinement",
+				"Memory refinement agent",
 				{
-					onChunk: onAiChunk,
-					tools: webTools,
-					criticalTopics,
-					enableWebVerification: Boolean(webTools?.length),
+					memoryContext,
 				},
 			);
 		} catch (err) {
@@ -331,30 +525,22 @@ async function runIngestWithProgress(
 	}
 
 	if (payload.enableReview) {
-		const reviewTopics =
-			criticalTopics.length > 0
-				? criticalTopics
-				: finalExtracted.topics;
-		onProgress("Running critical-topic verification...");
-		sendStage(
-			send,
-			"critical_topic_verification",
-			"Critical topic verification",
-			"running",
-		);
+		onProgress("Running review...");
+		sendStage(send, "review", "Review", "running");
 		let reviewResult: {
 			extracted: ExamIngestResponse;
 			reviewed: boolean;
-			criticalTopicsMatched: string[];
+			reviewedQuestionCount: number;
+			failedQuestionCount: number;
 			reasons: string[];
 		};
 		try {
-			reviewResult = await reviewExtractionForCriticalTopics(
+			reviewResult = await reviewExtraction(
 				payload.config,
 				text,
 				finalExtracted,
 				{
-					criticalTopics: reviewTopics,
+					reviewTopics: criticalTopics,
 					tools: webTools,
 					onEvent: (event) => {
 						if (event.type === "warning") {
@@ -363,95 +549,70 @@ async function runIngestWithProgress(
 						}
 						onProgress(event.message);
 					},
+					onAgentEvent: (event) => {
+						send("agent", {
+							...event,
+							timestamp: Date.now(),
+						});
+					},
+					createAgentRunId: (label) =>
+						agentRuns.createRun("review", label).agentRunId,
 				},
 			);
 		} catch (err) {
-			sendStage(
-				send,
-				"critical_topic_verification",
-				"Critical topic verification",
-				"error",
-				{ error: err instanceof Error ? err.message : "unknown" },
-			);
+			sendStage(send, "review", "Review", "error", {
+				error: err instanceof Error ? err.message : "unknown",
+			});
 			throw err;
 		}
-		sendStage(
-			send,
-			"critical_topic_verification",
-			"Critical topic verification",
-			"done",
-			reviewResult.reviewed
-				? {
-						reviewed: true,
-						matchedTopics: reviewResult.criticalTopicsMatched.length,
-					}
-				: undefined,
-		);
+		sendStage(send, "review", "Review", "done", {
+			reviewed: reviewResult.reviewed,
+			reviewedQuestionCount: reviewResult.reviewedQuestionCount,
+			failedQuestionCount: reviewResult.failedQuestionCount,
+		});
 		finalExtracted = reviewResult.extracted;
 		if (reviewResult.reviewed) {
-			onProgress("Critical-topic review completed");
+			onProgress("Review completed");
 		} else {
-			onProgress("Critical-topic review skipped");
-		}
-		if (
-			reviewResult.criticalTopicsMatched.length > 0 &&
-			reviewResult.reasons.includes("web_tools_unavailable")
-		) {
-			send("warning", {
-				message:
-					"Critical topics were detected but web verification was unavailable. Saved extraction is best-effort.",
-			});
+			onProgress("Review skipped");
 		}
 		assertNotAborted();
 	} else {
-		onProgress("Critical-topic review disabled for this ingest.");
-		sendStage(
-			send,
-			"critical_topic_verification",
-			"Critical topic verification",
-			"warning",
-			{ disabled: true },
-		);
+		onProgress("Review disabled for this ingest.");
+		sendStage(send, "review", "Review", "skipped", { disabled: true });
+		const skippedRun = agentRuns.createRun("review", "Review disabled");
+		agentRuns.lifecycle(skippedRun, "skipped", {
+			meta: { disabled: true },
+		});
+		agentRuns.warning(skippedRun, "Review disabled for this ingest.", {
+			disabled: true,
+		});
 	}
 
-	onProgress("Saving exam...");
-	sendStage(send, "persist_exam", "Saving exam record", "running");
+	onProgress("Saving to database...");
+	sendStage(send, "persist", "Saving to database", "running");
+
 	let examId: number;
 	try {
 		examId = await queries.insertExam(payload.fileName, "upload");
 	} catch (err) {
-		sendStage(send, "persist_exam", "Saving exam record", "error", {
+		sendStage(send, "persist", "Saving to database", "error", {
 			error: err instanceof Error ? err.message : "unknown",
 		});
 		throw err;
 	}
-	sendStage(send, "persist_exam", "Saving exam record", "done");
 
 	if (finalExtracted.questions.length > 0) {
-		onProgress("Saving extracted questions...");
-		sendStage(
-			send,
-			"persist_questions",
-			"Saving extracted questions",
-			"running",
-		);
 		try {
 			await queries.insertQuestions(examId, finalExtracted.questions);
 		} catch (err) {
-			sendStage(
-				send,
-				"persist_questions",
-				"Saving extracted questions",
-				"error",
-				{ error: err instanceof Error ? err.message : "unknown" },
-			);
+			sendStage(send, "persist", "Saving to database", "error", {
+				error: err instanceof Error ? err.message : "unknown",
+			});
 			throw err;
 		}
-		sendStage(send, "persist_questions", "Saving extracted questions", "done");
 	}
 
-	onProgress("Saving original file...");
-	sendStage(send, "persist_file", "Saving original file", "running");
 	const mimeType = FileService.inferMimeType(payload.fileName);
 	let fileId: number;
 	try {
@@ -462,12 +623,13 @@ async function runIngestWithProgress(
 			mimeType,
 		);
 	} catch (err) {
-		sendStage(send, "persist_file", "Saving original file", "error", {
+		sendStage(send, "persist", "Saving to database", "error", {
 			error: err instanceof Error ? err.message : "unknown",
 		});
 		throw err;
 	}
-	sendStage(send, "persist_file", "Saving original file", "done");
+
+	sendStage(send, "persist", "Saving to database", "done");
 
 	onProgress("Completed");
 	sendStage(send, "complete", "Ingest complete", "done");

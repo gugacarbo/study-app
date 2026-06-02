@@ -1,6 +1,7 @@
 export { extractQuestionsFromText } from "./extract-questions";
 export {
-	reviewExtractionForCriticalTopics,
+	type IngestReviewAgentEvent,
 	type IngestReviewEvent,
 	type IngestReviewResult,
+	reviewExtraction,
 } from "./review-extraction";

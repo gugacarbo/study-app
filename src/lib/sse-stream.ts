@@ -30,11 +30,84 @@ function parseEventBlock(
 	return { event, data: dataLines.join("\n") };
 }
 
+function toNumber(value: unknown): number | undefined {
+	return typeof value === "number" ? value : undefined;
+}
+
+function readTokenValue(value: unknown, keys: string[]): number | undefined {
+	if (typeof value !== "object" || value === null) return undefined;
+
+	for (const key of keys) {
+		if (key in value) {
+			const candidate = toNumber((value as Record<string, unknown>)[key]);
+			if (candidate != null) {
+				return candidate;
+			}
+		}
+	}
+
+	return undefined;
+}
+
 export type IngestResultEvent = {
 	questions: number;
 	topics: string[];
 	examId: number;
 	fileId: number;
+};
+
+export type IngestChunkEvent = {
+	stageId?: string;
+	agentRunId?: string;
+	text: string;
+	timestamp?: number;
+};
+
+export type IngestTokenEvent = {
+	prompt: number;
+	completion: number;
+	total: number;
+	stageId?: string;
+	agentRunId?: string;
+	timestamp?: number;
+};
+
+export type IngestWarningEvent = {
+	message: string;
+	stageId?: string;
+	agentRunId?: string;
+	timestamp?: number;
+};
+
+export type IngestStageEvent = {
+	stageId: string;
+	label: string;
+	status: string;
+	timestamp: number;
+	meta?: Record<string, unknown>;
+};
+
+export type IngestAgentEvent = {
+	eventType?: "lifecycle" | "result" | "warning" | "token";
+	agentRunId: string;
+	stageId: string;
+	label: string;
+	status?: string;
+	timestamp?: number;
+	systemPrompt?: string;
+	userPrompt?: string;
+	rawText?: string;
+	finalObject?: unknown;
+	error?: string;
+	warning?: string;
+	tokens?:
+		| {
+				prompt?: number;
+				completion?: number;
+				total?: number;
+		  }
+		| unknown;
+	meta?: Record<string, unknown>;
 };
 
 export async function ingestStream(
@@ -47,16 +120,16 @@ export async function ingestStream(
 	},
 	callbacks: {
 		onStep: (step: string) => void;
-		onChunk: (text: string) => void;
-		onToken: (prompt: number, completion: number, total: number) => void;
-		onWarning?: (message: string) => void;
-		onStage?: (stage: {
-			stageId: string;
-			label: string;
-			status: string;
-			timestamp: number;
-			meta?: Record<string, unknown>;
-		}) => void;
+		onChunk?: (text: string, event?: IngestChunkEvent) => void;
+		onToken: (
+			prompt: number,
+			completion: number,
+			total: number,
+			event?: IngestTokenEvent,
+		) => void;
+		onWarning?: (message: string, event?: IngestWarningEvent) => void;
+		onStage?: (stage: IngestStageEvent) => void;
+		onAgent?: (event: IngestAgentEvent) => void;
 	},
 ): Promise<IngestResultEvent> {
 	const response = await fetch("/api/ingest", {
@@ -112,8 +185,21 @@ export async function ingestStream(
 					}
 
 					if (parsed.event === "chunk" && data && typeof data === "object") {
-						const text = (data as { text?: string }).text ?? "";
-						if (text) callbacks.onChunk(text);
+						const chunkData = data as {
+							text?: string;
+							stageId?: string;
+							agentRunId?: string;
+							timestamp?: number;
+						};
+						const text = chunkData.text ?? "";
+						if (text) {
+							callbacks.onChunk?.(text, {
+								text,
+								stageId: chunkData.stageId,
+								agentRunId: chunkData.agentRunId,
+								timestamp: chunkData.timestamp,
+							});
+						}
 					}
 
 					if (parsed.event === "token" && data && typeof data === "object") {
@@ -121,30 +207,63 @@ export async function ingestStream(
 							prompt?: number;
 							completion?: number;
 							total?: number;
+							stageId?: string;
+							agentRunId?: string;
+							timestamp?: number;
+							usage?: unknown;
 						};
-						callbacks.onToken(
-							tokenData.prompt ?? 0,
-							tokenData.completion ?? 0,
-							tokenData.total ?? 0,
-						);
+						const usage = tokenData.usage;
+						const prompt =
+							tokenData.prompt ??
+							readTokenValue(usage, [
+								"prompt",
+								"promptTokens",
+								"inputTokens",
+							]) ??
+							0;
+						const completion =
+							tokenData.completion ??
+							readTokenValue(usage, [
+								"completion",
+								"completionTokens",
+								"outputTokens",
+							]) ??
+							0;
+						const total =
+							tokenData.total ??
+							readTokenValue(usage, ["total", "totalTokens"]) ??
+							prompt + completion;
+						callbacks.onToken(prompt, completion, total, {
+							prompt,
+							completion,
+							total,
+							stageId: tokenData.stageId,
+							agentRunId: tokenData.agentRunId,
+							timestamp: tokenData.timestamp,
+						});
 					}
 
 					if (parsed.event === "warning" && data && typeof data === "object") {
-						const message = (data as { message?: string }).message ?? "";
+						const warningData = data as {
+							message?: string;
+							stageId?: string;
+							agentRunId?: string;
+							timestamp?: number;
+						};
+						const message = warningData.message ?? "";
 						if (message) {
-							callbacks.onWarning?.(message);
+							callbacks.onWarning?.(message, {
+								message,
+								stageId: warningData.stageId,
+								agentRunId: warningData.agentRunId,
+								timestamp: warningData.timestamp,
+							});
 							callbacks.onStep(`Warning: ${message}`);
 						}
 					}
 
 					if (parsed.event === "stage" && data && typeof data === "object") {
-						const stage = data as {
-							stageId?: string;
-							label?: string;
-							status?: string;
-							timestamp?: number;
-							meta?: Record<string, unknown>;
-						};
+						const stage = data as Partial<IngestStageEvent>;
 						if (stage.stageId && stage.label && stage.status) {
 							callbacks.onStage?.({
 								stageId: stage.stageId,
@@ -152,6 +271,28 @@ export async function ingestStream(
 								status: stage.status,
 								timestamp: stage.timestamp ?? Date.now(),
 								meta: stage.meta,
+							});
+						}
+					}
+
+					if (parsed.event === "agent" && data && typeof data === "object") {
+						const agent = data as Partial<IngestAgentEvent>;
+						if (agent.agentRunId && agent.stageId && agent.label) {
+							callbacks.onAgent?.({
+								eventType: agent.eventType,
+								agentRunId: agent.agentRunId,
+								stageId: agent.stageId,
+								label: agent.label,
+								status: agent.status,
+								timestamp: agent.timestamp,
+								systemPrompt: agent.systemPrompt,
+								userPrompt: agent.userPrompt,
+								rawText: agent.rawText,
+								finalObject: agent.finalObject,
+								error: agent.error,
+								warning: agent.warning,
+								tokens: agent.tokens,
+								meta: agent.meta,
 							});
 						}
 					}

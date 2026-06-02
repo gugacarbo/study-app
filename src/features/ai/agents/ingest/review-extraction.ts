@@ -1,122 +1,165 @@
 import { z } from "zod";
 import { generateJson } from "@/features/ai/core/generate";
-import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
-import { examIngestResponseSchema } from "@/lib/validation";
-
-const uncertaintyAssessmentSchema = z.object({
-	hasUncertainty: z.boolean(),
-	reasons: z.array(z.string()).default([]),
-});
+import type {
+	ExamIngestResponse,
+	ProviderConfig,
+	Question,
+} from "@/lib/validation";
+import { questionSchema } from "@/lib/validation";
 
 export interface IngestReviewEvent {
 	type: "step" | "warning";
 	message: string;
 }
 
+type AgentRunStatus = "pending" | "running" | "done" | "error" | "skipped";
+type AgentRunEventType = "lifecycle" | "result" | "warning" | "token";
+
+export interface IngestReviewAgentEvent {
+	eventType: AgentRunEventType;
+	stageId: "review";
+	agentRunId: string;
+	label: string;
+	status?: AgentRunStatus;
+	systemPrompt?: string;
+	userPrompt?: string;
+	rawText?: string;
+	finalObject?: unknown;
+	error?: string;
+	warning?: string;
+	tokens?: unknown;
+	meta?: Record<string, unknown>;
+}
+
 export interface IngestReviewResult {
 	extracted: ExamIngestResponse;
 	reviewed: boolean;
-	uncertaintyDetected: boolean;
-	criticalTopicsMatched: string[];
+	reviewedQuestionCount: number;
+	failedQuestionCount: number;
 	reasons: string[];
 }
 
 interface ReviewExtractionOptions {
-	criticalTopics: string[];
+	reviewTopics: string[];
 	tools?: NonNullable<Parameters<typeof generateJson>[3]>["tools"];
-	reviewerCount?: number;
 	onEvent?: (event: IngestReviewEvent) => void;
+	onAgentEvent?: (event: IngestReviewAgentEvent) => void;
+	createAgentRunId?: (label: string) => string;
 }
 
-function normalizeTopic(value: string): string {
-	return value.trim().toLowerCase();
-}
+const reviewerQuestionSchema = questionSchema.extend({
+	explanation: z.string().default(""),
+	deepExplanation: z.string().optional(),
+	topic: z.string().default("General"),
+});
+
+const REVIEW_CONCURRENCY = 4;
 
 function unique<T>(items: T[]): T[] {
 	return Array.from(new Set(items));
 }
 
-function topicMatchesCriticalTopic(topic: string, criticalTopic: string): boolean {
-	const normalizedTopic = normalizeTopic(topic);
-	const normalizedCritical = normalizeTopic(criticalTopic);
-	return (
-		normalizedTopic === normalizedCritical ||
-		normalizedTopic.includes(normalizedCritical) ||
-		normalizedCritical.includes(normalizedTopic)
-	);
-}
-
-function getMatchedCriticalTopics(
-	extracted: ExamIngestResponse,
-	criticalTopics: string[],
+function deriveTopics(
+	questions: Question[],
+	fallbackTopics: string[],
 ): string[] {
-	const extractedTopics = unique([
-		...extracted.topics,
-		...extracted.questions.map((question) => question.topic),
-	]).filter(Boolean);
+	const questionTopics = questions
+		.map((question) => question.topic?.trim())
+		.filter((topic): topic is string => Boolean(topic));
 
-	const matches = criticalTopics.filter((criticalTopic) =>
-		extractedTopics.some((topic) =>
-			topicMatchesCriticalTopic(topic, criticalTopic),
+	return unique(
+		[...questionTopics, ...fallbackTopics.map((topic) => topic.trim())].filter(
+			Boolean,
 		),
 	);
-
-	return unique(matches.map((topic) => topic.trim()).filter(Boolean));
 }
 
-async function assessUncertainty(
-	config: ProviderConfig,
-	sourceText: string,
-	extracted: ExamIngestResponse,
-	criticalTopicsMatched: string[],
-	options?: {
-		tools?: NonNullable<Parameters<typeof generateJson>[3]>["tools"];
-	},
-) {
-	const prompt = `You are evaluating extraction quality for critical study topics.
+function buildReviewerSystemPrompt(reviewTopics: string[]): string {
+	const sections = [
+		"You are a reviewer for a single extracted exam question.",
+		"Your only task is to verify and correct one question object while preserving the original language from the source text.",
+		'Return ONLY one valid JSON object with the exact keys "question", "options", "answer", "explanation", and "topic".',
+		'Always set "explanation" to "".',
+		"Do not invent extra fields or commentary.",
+	];
 
-Critical topics:
-${criticalTopicsMatched.map((topic) => `- ${topic}`).join("\n")}
+	if (reviewTopics.length > 0) {
+		sections.push(
+			`Priority topics for extra care: ${reviewTopics.join(", ")}.`,
+		);
+	}
+
+	return sections.join("\n");
+}
+
+function buildReviewerUserPrompt(
+	sourceText: string,
+	question: Question,
+	index: number,
+): string {
+	return `Review extracted question #${index + 1}.
 
 Source text:
 ${sourceText.slice(0, 45_000)}
 
-Extracted JSON:
-${JSON.stringify(extracted)}
+Current extracted question JSON:
+${JSON.stringify(question)}
 
 Task:
-- Return hasUncertainty=true if there are likely factual mismatches, ambiguous answers, OCR confusion, or missing context for critical topics.
-- Return hasUncertainty=false only if extracted critical-topic items are clearly reliable.
-- Keep reasons short and concrete.`;
-
-	return await generateJson<z.infer<typeof uncertaintyAssessmentSchema>>(
-		config,
-		prompt,
-		uncertaintyAssessmentSchema,
-		{
-			tools: options?.tools,
-		},
-	);
+- Check whether the question text, options, answer, and topic are faithful to the source.
+- Fix OCR issues or obvious extraction mistakes when the source supports it.
+- Preserve the original language from the source text.
+- Keep the structure fully compatible with the existing question schema.
+- Return only the corrected JSON object.`;
 }
 
-export async function reviewExtractionForCriticalTopics(
+function emitAgentEvent(
+	options: ReviewExtractionOptions,
+	event: IngestReviewAgentEvent,
+) {
+	options.onAgentEvent?.(event);
+}
+
+async function mapWithConcurrency<T, R>(
+	items: T[],
+	concurrency: number,
+	mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+	const results = new Array<R>(items.length);
+	let nextIndex = 0;
+
+	async function worker() {
+		while (nextIndex < items.length) {
+			const currentIndex = nextIndex;
+			nextIndex += 1;
+			results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+		}
+	}
+
+	const workerCount = Math.min(concurrency, items.length);
+	await Promise.all(Array.from({ length: workerCount }, () => worker()));
+	return results;
+}
+
+export async function reviewExtraction(
 	config: ProviderConfig,
 	sourceText: string,
 	extracted: ExamIngestResponse,
 	options: ReviewExtractionOptions,
 ): Promise<IngestReviewResult> {
-	const criticalTopicsMatched = getMatchedCriticalTopics(
-		extracted,
-		options.criticalTopics,
-	);
+	const totalQuestions = extracted.questions.length;
 
-	if (criticalTopicsMatched.length === 0) {
+	if (totalQuestions === 0) {
+		options.onEvent?.({
+			type: "warning",
+			message: "No extracted questions were available for review.",
+		});
 		return {
 			extracted,
 			reviewed: false,
-			uncertaintyDetected: false,
-			criticalTopicsMatched: [],
-			reasons: [],
+			reviewedQuestionCount: 0,
+			failedQuestionCount: 0,
+			reasons: ["no_questions"],
 		};
 	}
 
@@ -130,126 +173,139 @@ export async function reviewExtractionForCriticalTopics(
 
 	options.onEvent?.({
 		type: "step",
-		message: `Checking uncertainty for critical topics (${criticalTopicsMatched.join(", ")})...`,
+		message: `Reviewing ${totalQuestions} extracted question${totalQuestions === 1 ? "" : "s"} in parallel...`,
 	});
 
-	const uncertainty = await assessUncertainty(
-		config,
-		sourceText,
-		extracted,
-		criticalTopicsMatched,
-		{ tools: options.tools },
-	).catch((error) => {
-		options.onEvent?.({
-			type: "warning",
-			message: `Failed to assess uncertainty for critical topics: ${error instanceof Error ? error.message : "unknown error"}`,
-		});
-		return { hasUncertainty: true, reasons: ["uncertainty_assessment_failed"] };
-	});
+	const reviewedQuestions = await mapWithConcurrency(
+		extracted.questions,
+		REVIEW_CONCURRENCY,
+		async (question, index) => {
+			const label = `Reviewer Q${index + 1}`;
+			const agentRunId =
+				options.createAgentRunId?.(label) ?? `review-question-${index + 1}`;
+			const systemPrompt = buildReviewerSystemPrompt(options.reviewTopics);
+			const userPrompt = buildReviewerUserPrompt(sourceText, question, index);
 
-	if (!uncertainty.hasUncertainty) {
-		return {
-			extracted,
-			reviewed: false,
-			uncertaintyDetected: false,
-			criticalTopicsMatched,
-			reasons: uncertainty.reasons,
-		};
-	}
-
-	options.onEvent?.({
-		type: "step",
-		message: "Uncertainty detected. Running parallel critical-topic review...",
-	});
-
-	const reviewerCount = Math.max(2, options.reviewerCount ?? 3);
-
-	const reviewerPrompt = (reviewerId: number) => `You are Reviewer #${reviewerId} for exam ingestion quality.
-
-Critical topics:
-${criticalTopicsMatched.map((topic) => `- ${topic}`).join("\n")}
-
-Source text:
-${sourceText.slice(0, 45_000)}
-
-Current extraction JSON:
-${JSON.stringify(extracted)}
-
-Rules:
-- Validate only factual correctness and answer accuracy.
-- Focus on critical topics first.
-- Use web_search and web_fetch when uncertain.
-- Preserve original language from source text.
-- Keep structure exactly compatible with the schema.
-- Return ONLY valid JSON.`;
-
-	const reviewerDrafts = await Promise.all(
-		Array.from({ length: reviewerCount }, (_, index) =>
-			generateJson<ExamIngestResponse>(
-				config,
-				reviewerPrompt(index + 1),
-				examIngestResponseSchema,
-				{
-					tools: options.tools,
+			emitAgentEvent(options, {
+				eventType: "lifecycle",
+				stageId: "review",
+				agentRunId,
+				label,
+				status: "pending",
+				systemPrompt,
+				userPrompt,
+				meta: {
+					questionIndex: index,
+					questionNumber: index + 1,
+					topic: question.topic ?? "General",
 				},
-			),
-		),
-	).catch((error) => {
-		options.onEvent?.({
-			type: "warning",
-			message: `Parallel reviewer execution failed. Using original extraction: ${error instanceof Error ? error.message : "unknown error"}`,
-		});
-		return null;
-	});
+			});
+			emitAgentEvent(options, {
+				eventType: "lifecycle",
+				stageId: "review",
+				agentRunId,
+				label,
+				status: "running",
+				meta: {
+					questionIndex: index,
+					questionNumber: index + 1,
+				},
+			});
 
-	if (!reviewerDrafts?.length) {
-		return {
-			extracted,
-			reviewed: false,
-			uncertaintyDetected: true,
-			criticalTopicsMatched,
-			reasons: [...uncertainty.reasons, "parallel_review_failed"],
-		};
-	}
+			try {
+				const reviewedQuestion = await generateJson<Question>(
+					config,
+					userPrompt,
+					reviewerQuestionSchema,
+					{
+						system: systemPrompt,
+						tools: options.tools,
+					},
+				);
 
-	const arbiterPrompt = `You are the final arbiter for exam ingestion.
+				emitAgentEvent(options, {
+					eventType: "result",
+					stageId: "review",
+					agentRunId,
+					label,
+					finalObject: reviewedQuestion,
+					rawText: JSON.stringify(reviewedQuestion),
+					meta: {
+						questionIndex: index,
+						questionNumber: index + 1,
+					},
+				});
+				emitAgentEvent(options, {
+					eventType: "lifecycle",
+					stageId: "review",
+					agentRunId,
+					label,
+					status: "done",
+					meta: {
+						questionIndex: index,
+						questionNumber: index + 1,
+					},
+				});
 
-Critical topics:
-${criticalTopicsMatched.map((topic) => `- ${topic}`).join("\n")}
+				return {
+					question: reviewedQuestion,
+					success: true,
+				};
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "unknown error";
 
-Original extraction:
-${JSON.stringify(extracted)}
+				emitAgentEvent(options, {
+					eventType: "lifecycle",
+					stageId: "review",
+					agentRunId,
+					label,
+					status: "error",
+					error: message,
+					meta: {
+						questionIndex: index,
+						questionNumber: index + 1,
+					},
+				});
+				emitAgentEvent(options, {
+					eventType: "warning",
+					stageId: "review",
+					agentRunId,
+					label,
+					warning: `Review failed for question #${index + 1}. Keeping the original extracted question.`,
+					meta: {
+						questionIndex: index,
+						questionNumber: index + 1,
+					},
+				});
 
-Reviewer drafts:
-${reviewerDrafts
-	.map((draft, index) => `Reviewer ${index + 1}:\n${JSON.stringify(draft)}`)
-	.join("\n\n---\n\n")}
-
-Task:
-- Resolve disagreements and choose the most accurate final extraction.
-- Prefer outputs consistent with source text and externally verifiable facts.
-- Return ONLY valid JSON matching the exact schema.`;
-
-	const reviewed = await generateJson<ExamIngestResponse>(
-		config,
-		arbiterPrompt,
-		examIngestResponseSchema,
-		{
-			tools: options.tools,
+				return {
+					question,
+					success: false,
+					reason: message,
+				};
+			}
 		},
-	).catch((error) => {
-		options.onEvent?.({
-			type: "warning",
-			message: `Arbiter failed. Using first reviewer draft: ${error instanceof Error ? error.message : "unknown error"}`,
-		});
-		return reviewerDrafts[0];
-	});
+	);
+
+	const failedQuestionCount = reviewedQuestions.filter(
+		(result) => !result.success,
+	).length;
+	const reviewedQuestionCount = reviewedQuestions.length - failedQuestionCount;
+	const questions = reviewedQuestions.map((result) => result.question);
 
 	return {
-		extracted: reviewed,
+		extracted: {
+			questions,
+			topics: deriveTopics(questions, extracted.topics),
+		},
 		reviewed: true,
-		uncertaintyDetected: true,
-		criticalTopicsMatched,
-		reasons: uncertainty.reasons,
+		reviewedQuestionCount,
+		failedQuestionCount,
+		reasons: reviewedQuestions
+			.flatMap((result) =>
+				"reason" in result && result.reason ? [result.reason] : [],
+			)
+			.filter(Boolean),
 	};
 }

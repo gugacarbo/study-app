@@ -108,6 +108,19 @@ function isStructuredOutputCompleteEvent<T>(
 	return chunk.type === "CUSTOM" && chunk.name === "structured-output.complete";
 }
 
+function isTextMessageChunk(
+	chunk: unknown,
+): chunk is { type: "TEXT_MESSAGE_CONTENT"; delta: string } {
+	return (
+		typeof chunk === "object" &&
+		chunk !== null &&
+		"type" in chunk &&
+		chunk.type === "TEXT_MESSAGE_CONTENT" &&
+		"delta" in chunk &&
+		typeof chunk.delta === "string"
+	);
+}
+
 export async function generateJsonStream<T>(
 	config: ProviderConfig,
 	prompt: string,
@@ -138,14 +151,9 @@ export async function generateJsonStream<T>(
 			return chunk.value.object;
 		}
 
-		// Accumulate text content from streaming chunks for fallback parsing
-		if (
-			"type" in chunk &&
-			chunk.type === "TEXT_MESSAGE_CONTENT" &&
-			"content" in chunk &&
-			typeof chunk.content === "string"
-		) {
-			accumulatedText += chunk.content;
+		// Accumulate incremental deltas for fallback parsing.
+		if (isTextMessageChunk(chunk)) {
+			accumulatedText += chunk.delta;
 		}
 	}
 
