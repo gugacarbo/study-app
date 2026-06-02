@@ -1,14 +1,19 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
-    "entry": [
-        "src/router.ts",
-        "src/**/index.ts"
-    ],
+	"entry": [
+		"src/**/index.ts"
+	],
     "project": [
         "**/*.{ts,tsx}"
     ],
-    "ignore": [
-        ".agents/**",
-        "src/components/ui/**"
-    ]
+	"ignore": [
+		"src/components/ui/**"
+	],
+	"ignoreDependencies": [
+		"@fontsource-variable/inter",
+		"shadcn",
+		"tailwindcss",
+		"tw-animate-css",
+		"@tailwindcss/typography"
+	]
 }
