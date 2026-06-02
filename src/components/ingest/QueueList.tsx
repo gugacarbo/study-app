@@ -10,6 +10,7 @@ interface QueueListProps {
 	focusedJobId: string | null;
 	onFocusJob: (jobId: string) => void;
 	onCancelJob: (jobId: string) => void;
+	onClearSaved: () => void;
 }
 
 export function QueueList({
@@ -17,13 +18,30 @@ export function QueueList({
 	focusedJobId,
 	onFocusJob,
 	onCancelJob,
+	onClearSaved,
 }: QueueListProps) {
+	const hasSavedLogs = jobs.some((job) =>
+		["success", "error", "canceled"].includes(job.status),
+	);
+
 	return (
 		<Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-white/10 bg-[#1b2638] text-slate-100 shadow-sm">
 			<CardHeader className="shrink-0">
-				<CardTitle className="text-sm font-semibold">
-					Queue ({jobs.length})
-				</CardTitle>
+				<div className="flex items-center justify-between gap-2">
+					<CardTitle className="text-sm font-semibold">
+						Queue ({jobs.length})
+					</CardTitle>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						className="h-6 px-2 text-[0.625rem] text-slate-300 hover:bg-slate-700/50 hover:text-white disabled:opacity-50"
+						onClick={onClearSaved}
+						disabled={!hasSavedLogs}
+					>
+						Excluir logs
+					</Button>
+				</div>
 			</CardHeader>
 			<CardContent className="min-h-0 flex-1 overflow-auto">
 				{jobs.length === 0 ? (

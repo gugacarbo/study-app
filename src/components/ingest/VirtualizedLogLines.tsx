@@ -1,8 +1,10 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
+import { cn } from "@/lib/utils";
+import type { IngestLogEntry } from "./types";
 
 interface VirtualizedLogLinesProps {
-	logs: string[];
+	logs: IngestLogEntry[];
 	className?: string;
 }
 
@@ -11,13 +13,42 @@ export function VirtualizedLogLines({
 	className,
 }: VirtualizedLogLinesProps) {
 	const parentRef = useRef<HTMLDivElement>(null);
-
 	const virtualizer = useVirtualizer({
 		count: logs.length,
 		getScrollElement: () => parentRef.current,
-		estimateSize: () => 20, // ~0.7rem * 16px with leading = ~20px per line
+		estimateSize: () => 24,
 		overscan: 20,
 	});
+
+	if (logs.length <= 200) {
+		return (
+			<div ref={parentRef} className={className}>
+				<div className="flex flex-col gap-1">
+					{logs.map((log) => (
+						<div
+							key={log.id}
+							className={cn(
+								"flex items-start gap-2 whitespace-pre-wrap pr-4",
+								logLevelClass(log.level),
+							)}
+						>
+							<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-slate-500">
+								{log.level}
+							</span>
+							<div className="min-w-0 flex-1">
+								<div>{log.message}</div>
+								{log.agentId ? (
+									<div className="text-[0.625rem] text-slate-500">
+										Agent: {log.agentId}
+									</div>
+								) : null}
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div ref={parentRef} className={className}>
@@ -29,30 +60,54 @@ export function VirtualizedLogLines({
 						position: "relative",
 					}}
 				>
-					{virtualizer.getVirtualItems().map((virtualItem) => (
-						<div
-							key={virtualItem.key}
-							data-index={virtualItem.index}
-							style={{
-								position: "absolute",
-								top: 0,
-								left: 0,
-								width: "100%",
-								height: `${virtualItem.size}px`,
-								transform: `translateY(${virtualItem.start}px)`,
-							}}
-							className={
-								logs[virtualItem.index].includes("Error") ||
-								logs[virtualItem.index].includes("Warning")
-									? "text-red-300"
-									: ""
-							}
-						>
-							{logs[virtualItem.index]}
-						</div>
-					))}
+					{virtualizer.getVirtualItems().map((virtualItem) => {
+						const log = logs[virtualItem.index];
+						return (
+							<div
+								key={virtualItem.key}
+								data-index={virtualItem.index}
+								style={{
+									position: "absolute",
+									top: 0,
+									left: 0,
+									width: "100%",
+									height: `${virtualItem.size}px`,
+									transform: `translateY(${virtualItem.start}px)`,
+								}}
+								className={cn(
+									"flex items-start gap-2 whitespace-pre-wrap pr-4",
+									logLevelClass(log.level),
+								)}
+							>
+								<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-slate-500">
+									{log.level}
+								</span>
+								<div className="min-w-0 flex-1">
+									<div>{log.message}</div>
+									{log.agentId ? (
+										<div className="text-[0.625rem] text-slate-500">
+											Agent: {log.agentId}
+										</div>
+									) : null}
+								</div>
+							</div>
+						);
+					})}
 				</div>
 			)}
 		</div>
 	);
+}
+
+function logLevelClass(level: IngestLogEntry["level"]): string {
+	switch (level) {
+		case "error":
+			return "text-red-300";
+		case "warning":
+			return "text-amber-300";
+		case "debug":
+			return "text-slate-400";
+		default:
+			return "text-slate-200";
+	}
 }

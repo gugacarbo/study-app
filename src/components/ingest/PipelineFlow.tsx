@@ -1,29 +1,32 @@
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { FlowStage } from "@/stores/ingestStore";
+import type { IngestPipelineStageViewModel } from "./types";
 
 interface PipelineFlowProps {
-	stages: FlowStage[];
+	stages: IngestPipelineStageViewModel[];
 	activeStageId: string | null;
 	onStageClick: (stageId: string) => void;
 }
 
-const statusColors: Record<FlowStage["status"], string> = {
+const statusColors: Record<IngestPipelineStageViewModel["status"], string> = {
 	done: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200",
 	running: "border-blue-500/40 bg-blue-500/15 text-blue-200",
 	warning: "border-amber-500/40 bg-amber-500/10 text-amber-200",
 	error: "border-red-500/40 bg-red-500/10 text-red-200",
+	skipped: "border-slate-500/40 bg-slate-700/25 text-slate-300",
 	pending: "border-slate-600/40 bg-slate-800/30 text-slate-400",
 };
 
-const indicatorColors: Record<FlowStage["status"], string> = {
-	done: "bg-emerald-400",
-	running: "bg-blue-400",
-	warning: "bg-amber-400",
-	error: "bg-red-400",
-	pending: "bg-slate-500",
-};
+const indicatorColors: Record<IngestPipelineStageViewModel["status"], string> =
+	{
+		done: "bg-emerald-400",
+		running: "bg-blue-400",
+		warning: "bg-amber-400",
+		error: "bg-red-400",
+		skipped: "bg-slate-300",
+		pending: "bg-slate-500",
+	};
 
 export function PipelineFlow({
 	stages,
@@ -40,7 +43,7 @@ export function PipelineFlow({
 
 	return (
 		<div className="flex flex-wrap items-center gap-1">
-			{stages.map((stage, i) => (
+			{stages.map((stage, index) => (
 				<div key={stage.stageId} className="flex items-center gap-0.5">
 					<Card
 						size="sm"
@@ -65,9 +68,9 @@ export function PipelineFlow({
 							{stage.label}
 						</span>
 					</Card>
-					{i < stages.length - 1 && (
+					{index < stages.length - 1 ? (
 						<span className="text-[0.625rem] text-slate-500">→</span>
-					)}
+					) : null}
 				</div>
 			))}
 		</div>

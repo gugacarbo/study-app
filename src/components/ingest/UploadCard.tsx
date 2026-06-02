@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -42,9 +42,7 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 						onClick={() => fileInputRef.current?.click()}
 					>
 						<Upload className="size-3.5" />
-						{selectedFile
-							? selectedFile.name
-							: "Drop file"}
+						{selectedFile ? selectedFile.name : "Drop file"}
 					</Button>
 				</div>
 				<input
@@ -55,7 +53,10 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 					className="hidden"
 				/>
 				<div className="flex items-center justify-between rounded-md border border-white/10 bg-[#111b2c] px-3 py-2">
-					<Label htmlFor="ingest-review-toggle" className="text-xs text-slate-300">
+					<Label
+						htmlFor="ingest-review-toggle"
+						className="text-xs text-slate-300"
+					>
 						Revisao critica
 					</Label>
 					<button

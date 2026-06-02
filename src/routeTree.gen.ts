@@ -17,8 +17,8 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExamsIndexRouteImport } from './routes/exams.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
+import { Route as ExamsUploadRouteImport } from './routes/exams.upload'
 import { Route as ExamsStatsRouteImport } from './routes/exams.stats'
-import { Route as ExamsIngestRouteImport } from './routes/exams.ingest'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
 import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connection'
 import { Route as ApiIngestRouteImport } from './routes/api/ingest'
@@ -64,14 +64,14 @@ const QuizIdRoute = QuizIdRouteImport.update({
   path: '/quiz/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExamsUploadRoute = ExamsUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => ExamsRoute,
+} as any)
 const ExamsStatsRoute = ExamsStatsRouteImport.update({
   id: '/stats',
   path: '/stats',
-  getParentRoute: () => ExamsRoute,
-} as any)
-const ExamsIngestRoute = ExamsIngestRouteImport.update({
-  id: '/ingest',
-  path: '/ingest',
   getParentRoute: () => ExamsRoute,
 } as any)
 const ExamsIdRoute = ExamsIdRouteImport.update({
@@ -106,8 +106,8 @@ export interface FileRoutesByFullPath {
   '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/exams/$id': typeof ExamsIdRoute
-  '/exams/ingest': typeof ExamsIngestRoute
   '/exams/stats': typeof ExamsStatsRoute
+  '/exams/upload': typeof ExamsUploadRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
 }
@@ -121,8 +121,8 @@ export interface FileRoutesByTo {
   '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/exams/$id': typeof ExamsIdRoute
-  '/exams/ingest': typeof ExamsIngestRoute
   '/exams/stats': typeof ExamsStatsRoute
+  '/exams/upload': typeof ExamsUploadRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams': typeof ExamsIndexRoute
 }
@@ -138,8 +138,8 @@ export interface FileRoutesById {
   '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/exams/$id': typeof ExamsIdRoute
-  '/exams/ingest': typeof ExamsIngestRoute
   '/exams/stats': typeof ExamsStatsRoute
+  '/exams/upload': typeof ExamsUploadRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
 }
@@ -156,8 +156,8 @@ export interface FileRouteTypes {
     | '/api/ingest'
     | '/api/test-connection'
     | '/exams/$id'
-    | '/exams/ingest'
     | '/exams/stats'
+    | '/exams/upload'
     | '/quiz/$id'
     | '/exams/'
   fileRoutesByTo: FileRoutesByTo
@@ -171,8 +171,8 @@ export interface FileRouteTypes {
     | '/api/ingest'
     | '/api/test-connection'
     | '/exams/$id'
-    | '/exams/ingest'
     | '/exams/stats'
+    | '/exams/upload'
     | '/quiz/$id'
     | '/exams'
   id:
@@ -187,8 +187,8 @@ export interface FileRouteTypes {
     | '/api/ingest'
     | '/api/test-connection'
     | '/exams/$id'
-    | '/exams/ingest'
     | '/exams/stats'
+    | '/exams/upload'
     | '/quiz/$id'
     | '/exams/'
   fileRoutesById: FileRoutesById
@@ -264,18 +264,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exams/upload': {
+      id: '/exams/upload'
+      path: '/upload'
+      fullPath: '/exams/upload'
+      preLoaderRoute: typeof ExamsUploadRouteImport
+      parentRoute: typeof ExamsRoute
+    }
     '/exams/stats': {
       id: '/exams/stats'
       path: '/stats'
       fullPath: '/exams/stats'
       preLoaderRoute: typeof ExamsStatsRouteImport
-      parentRoute: typeof ExamsRoute
-    }
-    '/exams/ingest': {
-      id: '/exams/ingest'
-      path: '/ingest'
-      fullPath: '/exams/ingest'
-      preLoaderRoute: typeof ExamsIngestRouteImport
       parentRoute: typeof ExamsRoute
     }
     '/exams/$id': {
@@ -311,15 +311,15 @@ declare module '@tanstack/react-router' {
 
 interface ExamsRouteChildren {
   ExamsIdRoute: typeof ExamsIdRoute
-  ExamsIngestRoute: typeof ExamsIngestRoute
   ExamsStatsRoute: typeof ExamsStatsRoute
+  ExamsUploadRoute: typeof ExamsUploadRoute
   ExamsIndexRoute: typeof ExamsIndexRoute
 }
 
 const ExamsRouteChildren: ExamsRouteChildren = {
   ExamsIdRoute: ExamsIdRoute,
-  ExamsIngestRoute: ExamsIngestRoute,
   ExamsStatsRoute: ExamsStatsRoute,
+  ExamsUploadRoute: ExamsUploadRoute,
   ExamsIndexRoute: ExamsIndexRoute,
 }
 

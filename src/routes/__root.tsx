@@ -25,6 +25,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { IngestJob } from "@/stores/ingestStore";
 import { focusJob, ingestStore } from "@/stores/ingestStore";
+import type { FileRoutesByTo } from "@/routeTree.gen";
 import appCss from "../globals.css?url";
 
 export const queryClient = new QueryClient({
@@ -42,7 +43,7 @@ const navItems = [
 	{ to: "/memory", label: "Memory" },
 	{ to: "/chat", label: "Chat" },
 	{ to: "/config", label: "Config" },
-];
+] as const satisfies ReadonlyArray<{ to: keyof FileRoutesByTo; label: string }>;
 
 function IngestIndicator() {
 	const jobs = useStore(ingestStore, (s) => s.jobs);
@@ -105,7 +106,7 @@ function IngestIndicator() {
 	function handleItemClick(job: IngestJob) {
 		focusJob(job.id);
 		setOpen(false);
-		navigate({ to: "/exams/ingest" });
+		navigate({ to: "/exams/upload" });
 	}
 
 	return (
@@ -116,7 +117,7 @@ function IngestIndicator() {
 				className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
 			>
 				<Upload className="size-4" />
-				<span className="hidden sm:inline">Ingest</span>
+				<span className="hidden sm:inline">Upload</span>
 				{activeCount > 0 && (
 					<Badge
 						variant="default"
@@ -131,12 +132,12 @@ function IngestIndicator() {
 				<div className="absolute right-0 top-full mt-1 w-72 rounded-md border border-border bg-popover shadow-lg z-50">
 					<div className="p-2 border-b border-border">
 						<span className="text-xs font-semibold text-foreground">
-							Recent Ingest Jobs
+							Recent Upload Jobs
 						</span>
 					</div>
 					{recentJobs.length === 0 ? (
 						<div className="p-4 text-center text-sm text-muted-foreground">
-							No ingest jobs yet
+							No upload jobs yet
 						</div>
 					) : (
 						<div className="max-h-80 overflow-y-auto">

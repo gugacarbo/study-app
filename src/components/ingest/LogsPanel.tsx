@@ -1,35 +1,31 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { FlowStage } from "@/stores/ingestStore";
+import type { IngestLogEntry } from "./types";
 import { VirtualizedLogLines } from "./VirtualizedLogLines";
 
 interface LogsPanelProps {
-	logs: string[];
-	stages: FlowStage[];
+	logs: IngestLogEntry[];
 	filteredStageId: string | null;
+	filteredStageLabel: string | null;
 	onClearFilter: () => void;
 }
 
 export function LogsPanel({
 	logs,
-	stages,
 	filteredStageId,
+	filteredStageLabel,
 	onClearFilter,
 }: LogsPanelProps) {
-	const filteredStage = stages.find((s) => s.stageId === filteredStageId);
-
-	const displayLogs = filteredStage
-		? logs.filter((log) =>
-				log.toLowerCase().includes(filteredStage.label.toLowerCase()),
-			)
+	const displayLogs = filteredStageId
+		? logs.filter((log) => log.stageId === filteredStageId)
 		: logs;
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			{filteredStage && (
+			{filteredStageLabel ? (
 				<div className="mb-2 flex items-center gap-2">
 					<Badge variant="secondary" className="text-[0.625rem]">
-						Logs: {filteredStage.label} stage
+						Logs: {filteredStageLabel}
 					</Badge>
 					<button
 						type="button"
@@ -40,15 +36,15 @@ export function LogsPanel({
 						Clear filter
 					</button>
 				</div>
-			)}
+			) : null}
 			{displayLogs.length === 0 ? (
-				<div className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 font-mono text-[0.7rem] leading-relaxed text-slate-500">
-					{filteredStage ? "No logs for this stage yet" : "No logs yet"}
+				<div className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 text-[0.7rem] leading-relaxed text-slate-500">
+					{filteredStageId ? "No logs for this stage yet" : "No logs yet"}
 				</div>
 			) : (
 				<VirtualizedLogLines
 					logs={displayLogs}
-					className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 font-mono text-[0.7rem] leading-relaxed text-slate-200"
+					className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 text-[0.7rem] leading-relaxed text-slate-200"
 				/>
 			)}
 		</div>

@@ -1,13 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { IngestJob } from "@/stores/ingestStore";
 import { LogsPanel } from "./LogsPanel";
 import { OutputPanel } from "./OutputPanel";
 import { PipelineFlow } from "./PipelineFlow";
+import type { IngestJobViewModel } from "./types";
 
 interface JobDetailPanelProps {
-	job: IngestJob;
+	job: IngestJobViewModel;
 	activeTab: "output" | "logs";
 	selectedStageId: string | null;
 	onTabChange: (tab: "output" | "logs") => void;
@@ -23,6 +23,11 @@ export function JobDetailPanel({
 	onStageClick,
 	onClearStageFilter,
 }: JobDetailPanelProps) {
+	const selectedStage =
+		selectedStageId == null
+			? null
+			: (job.stages.find((stage) => stage.stageId === selectedStageId) ?? null);
+
 	return (
 		<Card className="flex h-full min-h-0 flex-1 flex-col overflow-hidden border-white/10 bg-[#0f1a2e] text-slate-100 shadow-sm">
 			<CardHeader className="border-b border-white/10 pb-3">
@@ -34,13 +39,13 @@ export function JobDetailPanel({
 					</Badge>
 				</CardTitle>
 				<p className="mt-1 text-[0.625rem] text-slate-400">
-					Pipeline Flow — click a stage to view its logs
+					Pipeline flow. Click a stage to scope output, logs, and review agents.
 				</p>
 			</CardHeader>
 			<CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-3">
 				<div className="rounded-md border border-white/10 bg-[#0b1424] p-2.5">
 					<PipelineFlow
-						stages={job.flowStages}
+						stages={job.stages}
 						activeStageId={selectedStageId}
 						onStageClick={onStageClick}
 					/>
@@ -48,7 +53,7 @@ export function JobDetailPanel({
 
 				<Tabs
 					value={activeTab}
-					onValueChange={(v) => onTabChange(v as "output" | "logs")}
+					onValueChange={(value) => onTabChange(value as "output" | "logs")}
 					className="flex min-h-0 flex-1 flex-col overflow-hidden"
 				>
 					<TabsList className="mb-2 bg-[#0b1424]">
@@ -61,9 +66,14 @@ export function JobDetailPanel({
 						className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
 					>
 						<OutputPanel
-							text={job.streamText}
+							entries={job.outputEntries}
+							rawOutput={job.rawOutput}
 							tokenTotals={job.tokenTotals}
 							isRunning={job.status === "running"}
+							selectedStageId={selectedStageId}
+							selectedStageLabel={selectedStage?.label ?? null}
+							agents={job.agents}
+							onClearFilter={onClearStageFilter}
 						/>
 					</TabsContent>
 
@@ -73,8 +83,8 @@ export function JobDetailPanel({
 					>
 						<LogsPanel
 							logs={job.logs}
-							stages={job.flowStages}
 							filteredStageId={selectedStageId}
+							filteredStageLabel={selectedStage?.label ?? null}
 							onClearFilter={onClearStageFilter}
 						/>
 					</TabsContent>
@@ -84,9 +94,9 @@ export function JobDetailPanel({
 	);
 }
 
-function StatusBadge({ status }: { status: IngestJob["status"] }) {
+function StatusBadge({ status }: { status: IngestJobViewModel["status"] }) {
 	const variantMap: Record<
-		IngestJob["status"],
+		IngestJobViewModel["status"],
 		{
 			variant: "default" | "secondary" | "destructive" | "outline";
 			label: string;
