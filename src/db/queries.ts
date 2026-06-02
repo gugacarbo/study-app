@@ -21,13 +21,6 @@ export interface ExamRecord {
 	created_at: string | null;
 }
 
-export interface AttemptRecord {
-	id: number;
-	question_id: number | null;
-	user_answer: string;
-	correct: number; // 0 | 1 in SQLite
-	timestamp: string | null;
-}
 
 export interface TopicStats {
 	topic: string;
@@ -114,7 +107,7 @@ export interface LLMLogInsert {
 	status?: "pending" | "success" | "failed" | "cancelled";
 }
 
-export interface PaginationMeta {
+interface PaginationMeta {
 	page: number;
 	pageSize: number;
 	totalItems: number;
