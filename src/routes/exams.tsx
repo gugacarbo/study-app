@@ -21,13 +21,17 @@ function ExamsLayout() {
 				: "/exams";
 
 	return (
-		<Tabs value={tabValue} onValueChange={(value) => navigate({ to: value })}>
+		<Tabs
+			value={tabValue}
+			onValueChange={(value) => navigate({ to: value })}
+			className="flex-1 overflow-hidden"
+		>
 			<TabsList>
 				<TabsTrigger value="/exams">Exams</TabsTrigger>
 				<TabsTrigger value="/exams/stats">Stats</TabsTrigger>
 				<TabsTrigger value="/exams/ingest">Ingest</TabsTrigger>
 			</TabsList>
-			<div className="mt-6">
+			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 				<Outlet />
 			</div>
 		</Tabs>

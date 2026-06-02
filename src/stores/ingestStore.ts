@@ -34,6 +34,7 @@ export interface IngestJob {
 	error: string | null;
 	flowStages: FlowStage[];
 	buffer: number[];
+	enableReview: boolean;
 }
 
 export interface IngestStoreState {
@@ -45,6 +46,7 @@ function createEmptyJob(
 	id: string,
 	fileName: string,
 	buffer: number[],
+	enableReview: boolean,
 ): IngestJob {
 	return {
 		id,
@@ -62,6 +64,7 @@ function createEmptyJob(
 		error: null,
 		flowStages: [],
 		buffer,
+		enableReview,
 	};
 }
 
@@ -170,6 +173,7 @@ async function runJob(jobId: string) {
 				buffer: currentJob.buffer,
 				fileName: currentJob.fileName,
 				config,
+				enableReview: currentJob.enableReview,
 				signal: controller.signal,
 			},
 			{
@@ -210,6 +214,7 @@ async function runJob(jobId: string) {
 						const existingIndex = j.flowStages.findIndex(
 							(fs) => fs.stageId === stage.stageId,
 						);
+						const stageDesc = `${stage.label}: ${stage.status}`;
 						if (existingIndex >= 0) {
 							const updated = [...j.flowStages];
 							updated[existingIndex] = {
@@ -226,7 +231,11 @@ async function runJob(jobId: string) {
 								timestamp: stage.timestamp,
 								meta: stage.meta,
 							};
-							return { ...j, flowStages: updated };
+							return {
+								...j,
+								flowStages: updated,
+								logs: appendLog(j.logs, stageDesc),
+							};
 						}
 						return {
 							...j,
@@ -247,6 +256,7 @@ async function runJob(jobId: string) {
 									meta: stage.meta,
 								},
 							],
+							logs: appendLog(j.logs, stageDesc),
 						};
 					});
 				},
@@ -322,9 +332,13 @@ function runNextJob() {
 	runJob(nextQueued.id);
 }
 
-export function enqueueIngest(fileName: string, buffer: number[]) {
+export function enqueueIngest(
+	fileName: string,
+	buffer: number[],
+	enableReview: boolean = true,
+) {
 	const id = generateId();
-	const job = createEmptyJob(id, fileName, buffer);
+	const job = createEmptyJob(id, fileName, buffer, enableReview);
 
 	ingestStore.setState((s) => {
 		const updated = trimCompletedJobs([...s.jobs, job]);

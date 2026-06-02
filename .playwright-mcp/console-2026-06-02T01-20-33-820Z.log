@@ -1,0 +1,15 @@
+[     500ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=6cf0ebe1:14337
+[  120307ms] [LOG] %c[Server]%c color: #9333ea; font-weight: bold; color: inherit; [vite] hot updated: virtual:cloudflare/worker-entry @ http://localhost:3000/src/routes/__root.tsx?t=1780363118488:260
+[  120989ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=6cf0ebe1:14337
+[  500730ms] [LOG] %c[Server]%c color: #9333ea; font-weight: bold; color: inherit; [vite] hot updated: virtual:cloudflare/worker-entry @ http://localhost:3000/src/routes/__root.tsx?t=1780363353779:260
+[  501501ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=6cf0ebe1:14337
+[  552750ms] [LOG] %c[Server]%c color: #9333ea; font-weight: bold; color: inherit; [vite] hot updated: virtual:cloudflare/worker-entry @ http://localhost:3000/src/routes/__root.tsx?t=1780363353779:260
+[  553347ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=6cf0ebe1:14337
+[  560657ms] [LOG] %c[Server]%c color: #9333ea; font-weight: bold; color: inherit; [vite] hot updated: virtual:cloudflare/worker-entry @ http://localhost:3000/src/routes/__root.tsx?t=1780363353779:260
+[  561273ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=6cf0ebe1:14337
+[  898482ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:3000/src/routes/__root.tsx?t=1780363353779:194
+[  898486ms] [ERROR] Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING @ http://localhost:3000/__tsd/console-pipe/sse:0
+[  898586ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/__tsd/console-pipe:0
+[  901487ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/__tsd/console-pipe/sse:0
+[  904488ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/__tsd/console-pipe/sse:0
+[  907490ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/__tsd/console-pipe/sse:0

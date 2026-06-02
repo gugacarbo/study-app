@@ -42,6 +42,7 @@ export async function ingestStream(
 		buffer: number[];
 		fileName: string;
 		config: ProviderConfig;
+		enableReview?: boolean;
 		signal?: AbortSignal;
 	},
 	callbacks: {
@@ -65,6 +66,7 @@ export async function ingestStream(
 			buffer: payload.buffer,
 			fileName: payload.fileName,
 			config: payload.config,
+			enableReview: payload.enableReview ?? true,
 		}),
 		signal: payload.signal,
 	});

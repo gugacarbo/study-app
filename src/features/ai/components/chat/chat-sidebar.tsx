@@ -1,5 +1,6 @@
 import { useSelector } from "@tanstack/react-store";
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
+import { Button } from "#/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
 	Tooltip,
@@ -16,18 +17,16 @@ import { cn } from "@/lib/utils";
 
 function NewChatButton({ collapsed }: { collapsed: boolean }) {
 	const btn = (
-		<button
+		<Button
+			variant="outline"
 			type="button"
 			onClick={() => createConversation()}
-			className={cn(
-				"flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-				collapsed ? "h-8 w-8 justify-center p-2" : "justify-start",
-			)}
+			className={cn(collapsed ? "" : "justify-start")}
 			title="New Chat"
 		>
 			<Plus className="h-4 w-4 shrink-0" />
 			{!collapsed && <span>New Chat</span>}
-		</button>
+		</Button>
 	);
 
 	if (collapsed) {

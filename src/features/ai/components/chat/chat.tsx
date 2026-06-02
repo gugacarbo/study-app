@@ -1,8 +1,6 @@
 import { useSelector } from "@tanstack/react-store";
-import { useRef, useState } from "react";
-import { CardContent } from "@/components/ui/card";
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { useAutoScroll } from "@/features/ai/hooks/use-auto-scroll";
 import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
 import { useChatClient } from "@/features/ai/hooks/use-chat-client";
 import { chatStore, setInput } from "@/features/ai/stores/chat-store";
@@ -14,7 +12,7 @@ import { ChatError } from "./chat-error";
 import { ChatHeader } from "./chat-header";
 import { ChatInput } from "./chat-input";
 import { ChatSidebar } from "./chat-sidebar";
-import { ChatMessage } from "./message/chat-message";
+import { VirtualizedChatMessages } from "./virtualized-chat-messages";
 
 export function Chat() {
 	const messages = useSelector(chatStore, (s) => s.messages);
@@ -24,13 +22,10 @@ export function Chat() {
 	const activeId = useSelector(conversationsStore, (s) => s.activeId);
 	const conversations = useSelector(conversationsStore, (s) => s.conversations);
 
-	const bottomRef = useRef<HTMLDivElement>(null);
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [titleDraft, setTitleDraft] = useState("");
-	const [scrollTrigger, setScrollTrigger] = useState(0);
 	const [reviewMode, setReviewMode] = useState(false);
 
-	useAutoScroll(bottomRef, scrollTrigger);
 	useAutoTitle(activeId, messages, conversations);
 	const {
 		chatClient,
@@ -43,7 +38,6 @@ export function Chat() {
 		const text = input.trim();
 		if (!text || isLoading || !chatClient) return;
 		pendingSendStartedAtRef.current = Date.now();
-		setScrollTrigger((prev) => prev + 1);
 		setInput("");
 		await chatClient.sendMessage(text, { reviewMode });
 	}
@@ -78,17 +72,11 @@ export function Chat() {
 							onTitleDraftChange={setTitleDraft}
 						/>
 					</header>
-					<CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-2">
-						{messages.map((msg) => (
-							<ChatMessage
-								key={msg.id}
-								message={msg}
-								metrics={assistantMetrics[msg.id]}
-							/>
-						))}
-						{error && <ChatError error={error} />}
-						<div ref={bottomRef} />
-					</CardContent>
+					<VirtualizedChatMessages
+						messages={messages}
+						metrics={assistantMetrics}
+					/>
+					{error && <ChatError error={error} />}
 					<ChatInput
 						input={input}
 						onInputChange={setInput}

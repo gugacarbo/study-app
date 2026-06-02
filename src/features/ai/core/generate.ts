@@ -129,13 +129,46 @@ export async function generateJsonStream<T>(
 		outputSchema,
 	});
 
+	let accumulatedText = "";
+
 	for await (const chunk of stream) {
 		options?.onChunk?.(chunk);
 
 		if (isStructuredOutputCompleteEvent<T>(chunk)) {
 			return chunk.value.object;
 		}
+
+		// Accumulate text content from streaming chunks for fallback parsing
+		if (
+			"type" in chunk &&
+			chunk.type === "TEXT_MESSAGE_CONTENT" &&
+			"content" in chunk &&
+			typeof chunk.content === "string"
+		) {
+			accumulatedText += chunk.content;
+		}
 	}
 
-	throw new Error("Structured output stream ended without completion event");
+	// Fallback: stream ended without structured-output.complete event.
+	// Try to parse accumulated text as JSON.
+	if (accumulatedText) {
+		const cleaned = extractLikelyJson(stripThinkBlocks(accumulatedText));
+		try {
+			const parsed = JSON.parse(cleaned) as unknown;
+			if (isSafeParseCapableSchema<T>(outputSchema)) {
+				const validated = outputSchema.safeParse(parsed);
+				if (validated.success) {
+					return validated.data;
+				}
+			} else {
+				return parsed as T;
+			}
+		} catch {
+			// Fall through to error
+		}
+	}
+
+	throw new Error(
+		"Structured output stream ended without completion event. No valid JSON could be extracted from the streamed content.",
+	);
 }

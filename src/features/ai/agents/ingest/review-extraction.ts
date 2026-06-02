@@ -124,15 +124,8 @@ export async function reviewExtractionForCriticalTopics(
 		options.onEvent?.({
 			type: "warning",
 			message:
-				"Web verification tools are unavailable. Continuing without critical-topic verification.",
+				"Web verification tools are unavailable. Continuing with LLM-only review (no web search/fetch).",
 		});
-		return {
-			extracted,
-			reviewed: false,
-			uncertaintyDetected: false,
-			criticalTopicsMatched,
-			reasons: ["web_tools_unavailable"],
-		};
 	}
 
 	options.onEvent?.({

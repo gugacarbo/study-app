@@ -18,6 +18,7 @@ const ingestRequestSchema = z.object({
 	buffer: z.array(z.number()),
 	fileName: z.string(),
 	config: providerConfigSchema,
+	enableReview: z.boolean().optional().default(true),
 });
 
 type IngestRequest = z.infer<typeof ingestRequestSchema>;
@@ -218,14 +219,10 @@ async function runIngestWithProgress(
 		? (resolvedTools.tools as AgentTools)
 		: undefined;
 
-	if (criticalTopics.length === 0) {
-		send("progress", {
-			step: "No critical topics configured (config key: ingest_critical_topics).",
-		});
-	} else if (!webTools?.length) {
+	if (!webTools?.length && criticalTopics.length > 0) {
 		send("warning", {
 			message:
-				"Web tools are unavailable for critical-topic verification. Continuing with best-effort extraction.",
+				"Web tools are unavailable. Review will proceed without web verification.",
 		});
 	}
 	const filesBucket = await getFilesBucket();
@@ -333,7 +330,11 @@ async function runIngestWithProgress(
 		assertNotAborted();
 	}
 
-	if (criticalTopics.length > 0) {
+	if (payload.enableReview) {
+		const reviewTopics =
+			criticalTopics.length > 0
+				? criticalTopics
+				: finalExtracted.topics;
 		onProgress("Running critical-topic verification...");
 		sendStage(
 			send,
@@ -353,7 +354,7 @@ async function runIngestWithProgress(
 				text,
 				finalExtracted,
 				{
-					criticalTopics,
+					criticalTopics: reviewTopics,
 					tools: webTools,
 					onEvent: (event) => {
 						if (event.type === "warning") {
@@ -402,6 +403,15 @@ async function runIngestWithProgress(
 			});
 		}
 		assertNotAborted();
+	} else {
+		onProgress("Critical-topic review disabled for this ingest.");
+		sendStage(
+			send,
+			"critical_topic_verification",
+			"Critical topic verification",
+			"warning",
+			{ disabled: true },
+		);
 	}
 
 	onProgress("Saving exam...");

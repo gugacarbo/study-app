@@ -241,7 +241,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 						<QueryClientProvider client={queryClient}>
 							<div className="flex h-full flex-col">
 								<AppNav />
-								<main className="mx-auto flex-1 overflow-y-auto px-4 py-8 max-w-3xl w-full has-data-fullwidth:max-w-full has-data-fullwidth:px-0 has-data-fullwidth:py-0 has-data-fullwidth:overflow-hidden has-data-fullwidth:min-h-0">
+								<main className="mx-auto flex-1 overflow-y-auto px-4 py-8 max-w-3xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
 									{children}
 								</main>
 							</div>

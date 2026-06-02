@@ -1,0 +1,51 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - navigation "Main" [ref=e5]:
+          - list [ref=e7]:
+            - listitem [ref=e8]:
+              - link "Dashboard" [ref=e9] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e10]:
+              - link "Exams" [ref=e11] [cursor=pointer]:
+                - /url: /exams
+            - listitem [ref=e12]:
+              - link "Memory" [ref=e13] [cursor=pointer]:
+                - /url: /memory
+            - listitem [ref=e14]:
+              - link "Chat" [ref=e15] [cursor=pointer]:
+                - /url: /chat
+            - listitem [ref=e16]:
+              - link "Config" [ref=e17] [cursor=pointer]:
+                - /url: /config
+        - generic [ref=e18]:
+          - button "Ingest" [ref=e20]:
+            - img [ref=e21]
+            - generic [ref=e24]: Ingest
+          - button "Toggle theme" [ref=e25]:
+            - img
+    - main [ref=e26]:
+      - generic [ref=e27]:
+        - tablist [ref=e28]:
+          - tab "Exams" [ref=e29]
+          - tab "Stats" [ref=e30]
+          - tab "Ingest" [selected] [ref=e31]
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - generic [ref=e63]: Upload
+              - generic [ref=e64]:
+                - button "Drop file" [active] [ref=e66]:
+                  - img
+                  - text: Drop file
+                - generic [ref=e67]:
+                  - generic [ref=e68]: Revisao critica
+                  - switch "Revisao critica" [checked] [ref=e69]
+                - button "Upload & Extract" [disabled]
+            - generic [ref=e71]:
+              - generic [ref=e73]: Queue (0)
+              - paragraph [ref=e75]: No jobs yet
+          - generic [ref=e78]: Select a job from the queue
+  - button "Open TanStack Devtools" [ref=e56] [cursor=pointer]:
+    - img "TanStack Devtools" [ref=e57]

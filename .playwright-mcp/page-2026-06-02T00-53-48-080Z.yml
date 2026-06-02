@@ -1,0 +1,107 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "Superpowers Brainstorming" [level=1] [ref=e3]:
+      - link "Superpowers Brainstorming" [ref=e4] [cursor=pointer]:
+        - /url: https://github.com/obra/superpowers
+    - generic [ref=e5]: Connected
+  - generic [ref=e7]:
+    - 'heading "Interactive Flow: Click Stage → See Logs" [level=2] [ref=e8]'
+    - paragraph [ref=e9]: Two ways to show stage-specific logs. Which feels better?
+    - generic [ref=e10]:
+      - generic [ref=e11]: "Option 1: Inline Log Panel Below Flow"
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: Upload
+          - generic [ref=e16]:
+            - generic [ref=e17]: ↑
+            - generic [ref=e18]: Drop file
+          - generic [ref=e19]: Queue (1)
+          - generic [ref=e20]:
+            - text: exam.pdf
+            - generic [ref=e21]: Running
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]: exam.pdf
+            - generic [ref=e25]: Running
+          - generic [ref=e26]:
+            - generic [ref=e27]: Pipeline Flow — click a stage to view its logs
+            - generic [ref=e28]:
+              - generic [ref=e31] [cursor=pointer]: Decode
+              - generic [ref=e32]: →
+              - generic [ref=e35] [cursor=pointer]: Extract
+              - generic [ref=e36]: →
+              - generic [ref=e39] [cursor=pointer]: Refine
+              - generic [ref=e40]: →
+              - generic [ref=e43] [cursor=pointer]: Verify
+              - generic [ref=e44]: →
+              - generic [ref=e47] [cursor=pointer]: Persist
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - generic [ref=e50]: "Logs: Refine stage"
+              - generic [ref=e51]: 3 entries
+            - generic [ref=e52]:
+              - generic [ref=e53]: 14:32:01 Starting memory refinement...
+              - generic [ref=e54]: 14:32:05 Analyzing topic coverage
+              - generic [ref=e55]: 14:32:12 Refined 12 questions
+          - generic [ref=e56]:
+            - generic [ref=e57]: "Tokens: 1,234"
+            - generic [ref=e58]: "[streaming output...]"
+            - generic [ref=e59]: "[more content...]"
+            - generic [ref=e60]: ← scrolls here
+    - generic [ref=e61]:
+      - generic [ref=e62]: "Option 2: Filter Logs Tab by Stage"
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]: Upload
+          - generic [ref=e67]:
+            - generic [ref=e68]: ↑
+            - generic [ref=e69]: Drop file
+          - generic [ref=e70]: Queue (1)
+          - generic [ref=e71]:
+            - text: exam.pdf
+            - generic [ref=e72]: Running
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - generic [ref=e75]: exam.pdf
+            - generic [ref=e76]: Running
+          - generic [ref=e77]:
+            - generic [ref=e78]: Pipeline Flow — click a stage to filter logs
+            - generic [ref=e79]:
+              - generic [ref=e82] [cursor=pointer]: Decode
+              - generic [ref=e83]: →
+              - generic [ref=e86] [cursor=pointer]: Extract
+              - generic [ref=e87]: →
+              - generic [ref=e90] [cursor=pointer]: Refine
+              - generic [ref=e91]: →
+              - generic [ref=e94] [cursor=pointer]: Verify
+              - generic [ref=e95]: →
+              - generic [ref=e98] [cursor=pointer]: Persist
+          - generic [ref=e99]:
+            - generic [ref=e100]: Output
+            - generic [ref=e101]: Logs
+            - generic [ref=e102]: "Filtered: Refine"
+            - generic [ref=e103] [cursor=pointer]: ✕ Clear filter
+          - generic [ref=e104]:
+            - generic [ref=e105]: Showing logs for "Refine" stage only
+            - generic [ref=e106]: 14:32:01 Starting memory refinement...
+            - generic [ref=e107]: 14:32:05 Analyzing topic coverage
+            - generic [ref=e108]: 14:32:12 Refined 12 questions
+    - generic [ref=e109]:
+      - heading "Which interaction pattern do you prefer?" [level=3] [ref=e110]
+      - generic [ref=e111]:
+        - generic [ref=e112] [cursor=pointer]:
+          - generic [ref=e113]: A
+          - generic [ref=e114]:
+            - 'heading "Option 1: Inline Panel" [level=3] [ref=e115]'
+            - paragraph [ref=e116]: Clicking a stage expands a log panel directly below the flow card. Always visible, no tab switching needed.
+        - generic [ref=e117] [cursor=pointer]:
+          - generic [ref=e118]: B
+          - generic [ref=e119]:
+            - 'heading "Option 2: Filter Logs Tab" [level=3] [ref=e120]'
+            - paragraph [ref=e121]: Clicking a stage switches to the Logs tab and filters it. Keeps output area clean, but requires a tab switch.
+        - generic [ref=e122] [cursor=pointer]:
+          - generic [ref=e123]: C
+          - generic [ref=e124]:
+            - heading "Both" [level=3] [ref=e125]
+            - paragraph [ref=e126]: Clicking a stage shows a small inline preview (latest 3 logs) AND highlights/filteres the full logs tab.
+  - generic [ref=e127]: Click an option above, then return to the terminal

@@ -1,6 +1,7 @@
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -39,6 +40,10 @@ export function TestConnectionDialog({
 							? "Connection Failed"
 							: "Connection Test Result"}
 					</DialogTitle>
+					<DialogDescription>
+						Tests the AI provider connection by sending a prompt and streaming
+						the response.
+					</DialogDescription>
 				</DialogHeader>
 				{testStatus === "error" ? (
 					<div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
