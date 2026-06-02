@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-06-01 — R2 memory storage, ingest pipeline stages, reviewer agent
+> **Last auto-updated:** 2026-06-02 — Ingest pipeline refactoring, agent run tracking, upload route
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -55,15 +55,16 @@ src/
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
 │   ├── theme-provider.tsx # Theme context provider (shadcn)
+│   ├── ingest/           # Ingest UI components (JobDetailPanel, LogsPanel, OutputPanel, PipelineFlow, QueueList, UploadCard, VirtualizedLogLines, VirtualizedOutputText)
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
 ├── routes/              # File-based TanStack Router routes
 │   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts, IngestIndicator
 │   ├── index.tsx        # / — Dashboard
-│   ├── exams.tsx        # /exams — exam layout (Outlet + Ingest tab)
+│   ├── exams.tsx        # /exams — exam layout (Outlet)
 │   ├── exams.index.tsx  # /exams/ — exam list page
 │   ├── exams.stats.tsx  # /exams/stats — stats tab page
-│   ├── exams.ingest.tsx # /exams/ingest — ingest progress tab page
+│   ├── exams.upload.tsx # /exams/upload — upload page with streaming ingest
 │   ├── exams.$id.tsx    # /exams/$id — exam detail page
 │   ├── quiz.$id.tsx     # /quiz/$id — quiz by exam ID
 │   ├── config.tsx       # /config — AI provider settings
@@ -94,6 +95,7 @@ src/
 ├── types/               # TypeScript type augmentation declarations
 ├── stores/
 │   └── quizStore.ts          # TanStack Store — quiz session state
+│   └── ingestStore.ts        # TanStack Store — ingest job queue, state, persistence
 ├── features/            # Feature modules
 │   └── ai/              # AI feature module — adapters, agents, core, providers, components
 │       ├── adapters/
@@ -169,11 +171,11 @@ migrations/
 - **Config form** uses `react-hook-form` + `@hookform/resolvers` (Zod adapter) — not `@tanstack/react-form`
 - **Markdown rendering** via `react-markdown` + `remark-gfm` with custom component overrides (inline code, blockquotes, tables, lists); used for AI-generated explanations, questions, options, and profile summaries across exam-detail, quiz, and memory-panel
 - **Multi-conversation chat** with `conversationsStore` (TanStack Store + localStorage persistence) — conversations sidebar, auto-title from first user message, new/delete/switch via `ChatSidebar`
-- **Streaming ingest progress** — upload form shows real-time AI streaming text (token-by-token), live estimated token count, and spinner instead of static progress bar; SSE `chunk`, `token`, `stage`, and `warning` events from `/api/ingest`
-- **Ingest pipeline stages** — multi-stage extraction: decode → initial extraction → memory refinement → critical-topic verification (reviewer agent) → persist exam/questions/file; each stage reported via SSE `stage` events
+- **Streaming ingest progress** — upload form shows real-time AI streaming text (token-by-token), live estimated token count, and spinner instead of static progress bar; SSE `chunk`, `token`, `stage`, `warning`, and `agent` events from `/api/ingest`
+- **Ingest pipeline stages** — multi-stage extraction: decode → initial extraction → memory refinement → review → persist; each stage reported via SSE `stage` events with per-agent-run `agent` events for lifecycle/result/warning/token tracking
 - **Critical-topic verification** — configurable `ingest_critical_topics` config key triggers reviewer agent with web tools to verify coverage of important topics
 - **Tool resolution** — `resolveToolsForAgent()` in `src/features/ai/tools/tool-resolver.ts` assembles per-agent tool sets (chat, ingest, reviewer) with optional web search/fetch tools and DB tools
-- **Ingest job tracking** — `ingestStore` (TanStack Store + localStorage) tracks ingest job status; `IngestIndicator` component in root nav shows active/recent jobs with link to `/exams/ingest`
+- **Ingest job tracking** — `ingestStore` (TanStack Store + localStorage persistence) tracks ingest job status; `IngestIndicator` component in root nav shows active/recent jobs with link to `/exams/upload`
 - **Full-width layout mode** — root layout uses `has-[[data-fullwidth]]:max-w-full` to allow children (e.g., chat) to opt into full-width via `data-fullwidth` attribute; body uses `h-dvh overflow-hidden` for full-height layout
 
 ## Memory Layer (R2+D1 Hybrid)
