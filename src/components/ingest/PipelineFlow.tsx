@@ -11,9 +11,12 @@ interface PipelineFlowProps {
 
 const statusColors: Record<IngestPipelineStageViewModel["status"], string> = {
 	done: "border-emerald-500/40 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
-	running: "border-blue-500/40 bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
-	warning: "border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200",
-	error: "border-red-500/40 bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200",
+	running:
+		"border-blue-500/40 bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
+	warning:
+		"border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200",
+	error:
+		"border-red-500/40 bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200",
 	skipped: "border-border bg-muted text-muted-foreground",
 	pending: "border-border bg-muted text-muted-foreground",
 };
@@ -50,7 +53,8 @@ export function PipelineFlow({
 						className={cn(
 							"flex cursor-pointer flex-row items-center gap-1.5 rounded-md border px-2 py-1 text-center transition-all",
 							statusColors[stage.status],
-							activeStageId === stage.stageId && "ring-2 ring-blue-500/40 dark:ring-blue-400/60",
+							activeStageId === stage.stageId &&
+								"ring-2 ring-blue-500/40 dark:ring-blue-400/60",
 						)}
 						onClick={() => onStageClick(stage.stageId)}
 					>

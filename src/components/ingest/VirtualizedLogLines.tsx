@@ -99,7 +99,7 @@ export function VirtualizedLogLines({
 	);
 }
 
-	function logLevelClass(level: IngestLogEntry["level"]): string {
+function logLevelClass(level: IngestLogEntry["level"]): string {
 	switch (level) {
 		case "error":
 			return "text-red-600 dark:text-red-400";

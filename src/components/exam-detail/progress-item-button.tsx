@@ -6,6 +6,7 @@ interface ProgressItemButtonProps {
 	item: ExplanationProgressItem;
 	questionOrder: Map<number, number>;
 	isSelected: boolean;
+	canOpenDialog?: boolean;
 	onSelect: (id: number) => void;
 	onClick?: (item: ExplanationProgressItem) => void;
 }
@@ -14,11 +15,11 @@ export function ProgressItemButton({
 	item,
 	questionOrder,
 	isSelected,
+	canOpenDialog = false,
 	onSelect,
 	onClick,
 }: ProgressItemButtonProps) {
 	const isDone = item.status === "done";
-	const canOpenDialog = Boolean(item.response?.agentRun);
 	const isClickable = isDone || canOpenDialog;
 
 	return (

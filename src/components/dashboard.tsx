@@ -26,27 +26,35 @@ export function Dashboard() {
 		<div>
 			<h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
-			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+			<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-3xl font-bold">
 							{stats.totalAttempts}
 						</CardTitle>
-						<CardDescription>Total Attempts</CardDescription>
+						<CardDescription>Quiz Attempts</CardDescription>
+					</CardHeader>
+				</Card>
+				<Card>
+					<CardHeader>
+						<CardTitle className="text-3xl font-bold">
+							{stats.incompleteAttempts}
+						</CardTitle>
+						<CardDescription>Incomplete Attempts</CardDescription>
+					</CardHeader>
+				</Card>
+				<Card>
+					<CardHeader>
+						<CardTitle className="text-3xl font-bold">
+							{stats.overallAccuracy}%
+						</CardTitle>
+						<CardDescription>Completed Accuracy</CardDescription>
 					</CardHeader>
 				</Card>
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-3xl font-bold">{exams.length}</CardTitle>
 						<CardDescription>Exams Imported</CardDescription>
-					</CardHeader>
-				</Card>
-				<Card>
-					<CardHeader>
-						<CardTitle className="text-3xl font-bold">
-							{stats.topics.length}
-						</CardTitle>
-						<CardDescription>Topics Covered</CardDescription>
 					</CardHeader>
 				</Card>
 			</div>
@@ -57,7 +65,9 @@ export function Dashboard() {
 					<CardContent className="text-center text-muted-foreground">
 						No exams imported yet.{" "}
 						<Button asChild variant="link">
-							<Link from="/" to="/exams">Upload one now</Link>
+							<Link from="/" to="/exams">
+								Upload one now
+							</Link>
 						</Button>
 					</CardContent>
 				</Card>
@@ -76,7 +86,11 @@ export function Dashboard() {
 								</CardDescription>
 								<CardAction>
 									<Button asChild variant="default" size="sm">
-										<Link from="/" to="/quiz/$id" params={{ id: exam.id.toString() }}>
+										<Link
+											from="/"
+											to="/quiz/$id"
+											params={{ id: exam.id.toString() }}
+										>
 											Start Quiz
 										</Link>
 									</Button>

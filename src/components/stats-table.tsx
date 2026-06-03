@@ -35,7 +35,8 @@ export function StatsTable() {
 						<TableRow>
 							<TableHead>Topic</TableHead>
 							<TableHead>Attempts</TableHead>
-							<TableHead>Correct</TableHead>
+							<TableHead>Completed Answers</TableHead>
+							<TableHead>Correct Answers</TableHead>
 							<TableHead>Accuracy</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -43,8 +44,9 @@ export function StatsTable() {
 						{stats.topics.map((topic) => (
 							<TableRow key={topic.topic}>
 								<TableCell className="font-medium">{topic.topic}</TableCell>
-								<TableCell>{topic.total}</TableCell>
-								<TableCell>{topic.correct}</TableCell>
+								<TableCell>{topic.attempts}</TableCell>
+								<TableCell>{topic.completedAnswers}</TableCell>
+								<TableCell>{topic.correctAnswers}</TableCell>
 								<TableCell>
 									<Badge
 										variant={

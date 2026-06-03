@@ -22,7 +22,9 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 	const qc = useQueryClient();
 	const [config, setConfig] = useState<ProviderConfig | null>(null);
 	const [longExp, setLongExp] = useState("");
+	const [attemptId, setAttemptId] = useState<number | null>(null);
 	const ans = useRef<QA[]>([]);
+	const attemptIdRef = useRef<number | null>(null);
 
 	const { data: questions } = useQuery({
 		queryKey: ["quiz", examId, topic],
@@ -35,6 +37,9 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 
 	const mut = useMutation({
 		mutationFn: (v: {
+			attemptId?: number | null;
+			examId?: number;
+			totalQuestions: number;
 			questionId: number;
 			userAnswer: string;
 			correctAnswer: string;
@@ -42,9 +47,17 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 			topic?: string;
 		}) =>
 			submitAnswer({
-				data: { questionId: v.questionId, userAnswer: v.userAnswer },
+				data: {
+					attemptId: v.attemptId ?? undefined,
+					examId: v.examId,
+					topic: v.topic,
+					totalQuestions: v.totalQuestions,
+					questionId: v.questionId,
+					userAnswer: v.userAnswer,
+				},
 			}),
 		onSuccess: (data, v) => {
+			setAttemptId(data.attemptId);
 			ans.current.push({
 				question: v.question,
 				userAnswer: v.userAnswer,
@@ -75,6 +88,7 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 		qr.current = questions;
 		sr.current = st;
 		mr.current = mut;
+		attemptIdRef.current = attemptId;
 	});
 
 	const { init } = useQuizPersistence({
@@ -82,8 +96,17 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 		topic,
 		questions,
 		answersRef: ans,
+		attemptId,
+		setAttemptId,
 	});
-	useQuizKeyboard({ questionsRef: qr, stateRef: sr, mutationRef: mr });
+	useQuizKeyboard({
+		questionsRef: qr,
+		stateRef: sr,
+		mutationRef: mr,
+		attemptIdRef,
+		examId,
+		topic,
+	});
 
 	if (!config || !init || !questions) return <QuizLoading withButton />;
 
@@ -109,11 +132,14 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 					onSubmit={() => {
 						if (st.selectedAnswer)
 							mut.mutate({
+								attemptId,
+								examId,
+								totalQuestions: st.total,
 								questionId: cq.id,
 								userAnswer: st.selectedAnswer,
 								correctAnswer: cq.answer,
 								question: cq.question,
-								topic: cq.topic,
+								topic,
 							});
 					}}
 					onSelectAnswer={selectAnswer}

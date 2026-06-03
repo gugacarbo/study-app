@@ -814,8 +814,7 @@ async function runJob(jobId: string) {
 							),
 							`Token usage updated (${total.toLocaleString()})`,
 							{
-								agentRunId:
-									event?.agentRunId ?? ("__meta__" as string),
+								agentRunId: event?.agentRunId ?? ("__meta__" as string),
 							},
 						),
 					);

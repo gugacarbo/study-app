@@ -80,8 +80,8 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 							<TopicStatsCard
 								topicStats={stats.topicStats}
 								overallAccuracy={stats.overallAccuracy}
-								totalAttempts={stats.totalAttempts}
-								correctAttempts={stats.correctAttempts}
+								completedAttempts={stats.completedAttempts}
+								incompleteAttempts={stats.incompleteAttempts}
 							/>
 						)}
 					</div>

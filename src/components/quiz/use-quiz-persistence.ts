@@ -17,11 +17,15 @@ export function useQuizPersistence({
 	topic,
 	questions,
 	answersRef,
+	attemptId,
+	setAttemptId,
 }: {
 	examId?: number;
 	topic?: string;
 	questions: Question[] | undefined;
 	answersRef: React.MutableRefObject<QA[]>;
+	attemptId: number | null;
+	setAttemptId: React.Dispatch<React.SetStateAction<number | null>>;
 }) {
 	const [init, setInit] = useState(false);
 	const sk = `study-app:quiz:${examId ?? "topic"}:${topic ?? "general"}`;
@@ -31,6 +35,7 @@ export function useQuizPersistence({
 		const fb = () => {
 			resetQuiz(questions.length);
 			answersRef.current = [];
+			setAttemptId(null);
 			setInit(true);
 		};
 		try {
@@ -51,11 +56,12 @@ export function useQuizPersistence({
 			}
 			hydrateQuiz(p.quizState);
 			answersRef.current = Array.isArray(p.answers) ? p.answers : [];
+			setAttemptId(typeof p.attemptId === "number" ? p.attemptId : null);
 			setInit(true);
 		} catch {
 			fb();
 		}
-	}, [questions, init, sk, answersRef]);
+	}, [questions, init, sk, answersRef, setAttemptId]);
 
 	useEffect(() => {
 		if (!init) return;
@@ -63,7 +69,11 @@ export function useQuizPersistence({
 			const s = quizStore.state;
 			localStorage.setItem(
 				sk,
-				JSON.stringify({ quizState: s, answers: answersRef.current }),
+				JSON.stringify({
+					quizState: s,
+					answers: answersRef.current,
+					attemptId,
+				}),
 			);
 			if (
 				s.isComplete &&
@@ -79,11 +89,12 @@ export function useQuizPersistence({
 						questions: answersRef.current,
 					},
 				}).catch(() => {});
+				setAttemptId(null);
 				localStorage.removeItem(sk);
 			}
 		});
 		return () => sub.unsubscribe();
-	}, [init, sk, examId, topic, answersRef]);
+	}, [init, sk, examId, topic, answersRef, attemptId, setAttemptId]);
 
 	return { init };
 }

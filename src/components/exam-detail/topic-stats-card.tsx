@@ -5,22 +5,23 @@ import { accuracyColor } from "./exam-utils";
 interface TopicStat {
 	topic: string;
 	accuracy: number;
-	correct: number;
-	total: number;
+	attempts: number;
+	completedAnswers: number;
+	correctAnswers: number;
 }
 
 interface TopicStatsCardProps {
 	topicStats: TopicStat[];
 	overallAccuracy: number;
-	totalAttempts: number;
-	correctAttempts: number;
+	completedAttempts: number;
+	incompleteAttempts: number;
 }
 
 export function TopicStatsCard({
 	topicStats,
 	overallAccuracy,
-	totalAttempts,
-	correctAttempts,
+	completedAttempts,
+	incompleteAttempts,
 }: TopicStatsCardProps) {
 	return (
 		<Card>
@@ -39,7 +40,8 @@ export function TopicStatsCard({
 								<span
 									className={`font-medium text-xs ${accuracyColor(topic.accuracy)}`}
 								>
-									{topic.correct}/{topic.total} ({topic.accuracy}%)
+									{topic.attempts} attempts • {topic.correctAnswers}/
+									{topic.completedAnswers} ({topic.accuracy}%)
 								</span>
 							</div>
 							<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -63,7 +65,8 @@ export function TopicStatsCard({
 							<span
 								className={`font-semibold text-xs ${accuracyColor(overallAccuracy)}`}
 							>
-								{correctAttempts}/{totalAttempts} ({overallAccuracy}%)
+								{completedAttempts} complete • {incompleteAttempts} incomplete •{" "}
+								{overallAccuracy}%
 							</span>
 						</div>
 						<div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">

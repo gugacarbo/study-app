@@ -4,7 +4,11 @@ import { accuracyColor, formatDate } from "./exam-utils";
 
 interface StatsCardsProps {
 	exam: { created_at: string | null; questionCount: number };
-	stats: { totalAttempts: number; overallAccuracy: number };
+	stats: {
+		totalAttempts: number;
+		incompleteAttempts: number;
+		overallAccuracy: number;
+	};
 }
 
 export function StatsCards({ exam, stats }: StatsCardsProps) {
@@ -34,7 +38,7 @@ export function StatsCards({ exam, stats }: StatsCardsProps) {
 				<CardContent className="flex flex-col gap-1.5">
 					<div className="flex items-center gap-2 text-muted-foreground text-xs">
 						<BarChart3 className="h-3.5 w-3.5" />
-						Total Attempts
+						Quiz Attempts
 					</div>
 					<div className="font-medium text-sm">{stats.totalAttempts}</div>
 				</CardContent>
@@ -43,12 +47,14 @@ export function StatsCards({ exam, stats }: StatsCardsProps) {
 				<CardContent className="flex flex-col gap-1.5">
 					<div className="flex items-center gap-2 text-muted-foreground text-xs">
 						<HelpCircle className="h-3.5 w-3.5" />
-						Accuracy
+						Incomplete / Accuracy
 					</div>
 					<div
 						className={`font-medium text-sm ${accuracyColor(stats.overallAccuracy)}`}
 					>
-						{stats.totalAttempts > 0 ? `${stats.overallAccuracy}%` : "—"}
+						{stats.totalAttempts > 0
+							? `${stats.incompleteAttempts} / ${stats.overallAccuracy}%`
+							: "—"}
 					</div>
 				</CardContent>
 			</Card>
