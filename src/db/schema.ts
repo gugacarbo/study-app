@@ -36,28 +36,64 @@ export const attempts = sqliteTable(
 	"attempts",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		question_id: integer("question_id").references(() => questions.id, {
+		exam_id: integer("exam_id").references(() => exams.id, {
 			onDelete: "cascade",
 		}),
+		topic: text("topic"),
+		total_questions: integer("total_questions").notNull(),
+		answered_questions: integer("answered_questions").notNull().default(0),
+		correct_answers: integer("correct_answers").notNull().default(0),
+		status: text("status").notNull().default("in_progress"),
+		started_at: text("started_at").default(sql`CURRENT_TIMESTAMP`),
+		completed_at: text("completed_at"),
+		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_attempts_exam_id").on(table.exam_id),
+		index("idx_attempts_status").on(table.status),
+	],
+);
+
+export const attemptAnswers = sqliteTable(
+	"attempt_answers",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		attempt_id: integer("attempt_id")
+			.notNull()
+			.references(() => attempts.id, {
+				onDelete: "cascade",
+			}),
+		question_id: integer("question_id")
+			.notNull()
+			.references(() => questions.id, {
+				onDelete: "cascade",
+			}),
 		user_answer: text("user_answer").notNull(),
 		correct: integer("correct", { mode: "boolean" }).notNull(),
-		timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`),
+		answered_at: text("answered_at").default(sql`CURRENT_TIMESTAMP`),
 	},
-	(table) => [index("idx_attempts_question_id").on(table.question_id)],
+	(table) => [
+		index("idx_attempt_answers_attempt_id").on(table.attempt_id),
+		index("idx_attempt_answers_question_id").on(table.question_id),
+		uniqueIndex("uq_attempt_answers_attempt_question").on(
+			table.attempt_id,
+			table.question_id,
+		),
+	],
 );
 
 export const files = sqliteTable(
 	"files",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-			exam_id: integer("exam_id").references(() => exams.id, {
-				onDelete: "cascade",
-			}),
-			name: text("name").notNull(),
-			r2_key: text("r2_key").notNull(),
-			mime_type: text("mime_type"),
-			size: integer("size"),
-			created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+		exam_id: integer("exam_id").references(() => exams.id, {
+			onDelete: "cascade",
+		}),
+		name: text("name").notNull(),
+		r2_key: text("r2_key").notNull(),
+		mime_type: text("mime_type"),
+		size: integer("size"),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [
 		index("idx_files_exam_id").on(table.exam_id),
@@ -96,12 +132,16 @@ export const llmLogs = sqliteTable(
 	],
 );
 
-export const memoryProfile = sqliteTable("memory_profile", {
-	id: integer("id").primaryKey(),
-	r2_key: text("r2_key").notNull(),
-	search_text: text("search_text").notNull().default(""),
-	updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [uniqueIndex("uq_memory_profile_r2_key").on(table.r2_key)]);
+export const memoryProfile = sqliteTable(
+	"memory_profile",
+	{
+		id: integer("id").primaryKey(),
+		r2_key: text("r2_key").notNull(),
+		search_text: text("search_text").notNull().default(""),
+		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [uniqueIndex("uq_memory_profile_r2_key").on(table.r2_key)],
+);
 
 export const memorySessions = sqliteTable(
 	"memory_sessions",
