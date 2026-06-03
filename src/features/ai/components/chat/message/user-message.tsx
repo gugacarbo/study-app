@@ -1,6 +1,6 @@
+import type { UIMessage } from "@tanstack/ai-client";
 import { ChevronDownIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
-import type { UIMessage } from "@tanstack/ai-client";
 import { MarkdownRenderer } from "@/components/ui/markdown";
 
 interface UserMessageProps {
@@ -16,10 +16,7 @@ export function UserMessage({ message }: UserMessageProps) {
 	return (
 		<div className="flex flex-col items-end gap-1.5">
 			<div className="flex items-center gap-1.5 px-1">
-				<UserIcon
-					className="size-3 shrink-0 text-slate-500"
-					aria-hidden
-				/>
+				<UserIcon className="size-3 shrink-0 text-slate-500" aria-hidden />
 				<span className="text-[0.625rem] uppercase tracking-wide text-slate-500">
 					User Prompt
 				</span>

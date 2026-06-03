@@ -18,6 +18,7 @@ export function ChatMessageThinking({
 			value="think"
 			label="Raciocínio"
 			tone="neutral"
+			defaultOpen={isPending}
 			className="border-0 px-0"
 		>
 			{isPending ? (
