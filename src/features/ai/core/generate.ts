@@ -83,12 +83,42 @@ function stripThinkBlocks(content: string): string {
 	let result = content.replace(/<think>[\s\S]*?<\/think>/gi, "");
 	// Remove orphaned closing tags (model sometimes emits </think> without <think>)
 	result = result.replace(/<\/think>/gi, "");
-	// Remove unclosed <think> blocks — keep content after the think block.
-	// Some models emit <think> followed by reasoning text, then JSON on new lines.
-	// We remove the think opening tag and everything up to the first '{' or '[' that
-	// starts a JSON structure, preserving the JSON after it.
-	result = result.replace(/<think>[^{}[]*/gi, "");
+	// Remove unclosed <think> blocks while preserving the JSON that follows.
+	result = stripUnclosedThinkBlocks(result);
 	return result.trim();
+}
+
+function stripUnclosedThinkBlocks(content: string): string {
+	let result = content;
+	const thinkTag = /<think>/i;
+
+	while (true) {
+		const match = thinkTag.exec(result);
+		if (!match || match.index === undefined) {
+			return result;
+		}
+
+		const thinkStart = match.index;
+		const afterThink = result.slice(thinkStart + match[0].length);
+		const jsonStart = findLikelyJsonStart(afterThink);
+
+		if (jsonStart === -1) {
+			result = `${result.slice(0, thinkStart)}${afterThink}`;
+			continue;
+		}
+
+		result = `${result.slice(0, thinkStart)}${afterThink.slice(jsonStart)}`;
+	}
+}
+
+function findLikelyJsonStart(content: string): number {
+	const candidates = [
+		content.indexOf("{"),
+		content.search(/"[^"]+"\s*:/),
+		content.indexOf("["),
+	].filter((index) => index >= 0);
+
+	return candidates.length > 0 ? Math.min(...candidates) : -1;
 }
 
 function extractLikelyJson(content: string): string {

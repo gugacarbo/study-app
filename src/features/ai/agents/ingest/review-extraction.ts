@@ -1,11 +1,10 @@
-import { z } from "zod";
 import { generateJson } from "@/features/ai/core/generate";
 import type {
 	ExamIngestResponse,
 	ProviderConfig,
 	Question,
 } from "@/lib/validation";
-import { questionSchema } from "@/lib/validation";
+import { ingestQuestionSchema } from "@/lib/validation";
 
 export interface IngestReviewEvent {
 	type: "step" | "warning";
@@ -47,11 +46,7 @@ interface ReviewExtractionOptions {
 	createAgentRunId?: (label: string) => string;
 }
 
-const reviewerQuestionSchema = questionSchema.extend({
-	explanation: z.string().default(""),
-	deepExplanation: z.string().optional(),
-	topic: z.string().default("General"),
-});
+const reviewerQuestionSchema = ingestQuestionSchema;
 
 const REVIEW_CONCURRENCY = 10;
 
@@ -79,6 +74,7 @@ function buildReviewerSystemPrompt(reviewTopics: string[]): string {
 		"You are a reviewer for a single extracted exam question.",
 		"Your only task is to verify and correct one question object while preserving the original language from the source text.",
 		'Return ONLY one valid JSON object with the exact keys "question", "options", "answer", "explanation", and "topic".',
+		'Always keep "options" with at least 2 items. For open-ended questions, include the exact correct answer plus at least one short incorrect distractor.',
 		'Always set "explanation" to "".',
 		"Do not invent extra fields or commentary.",
 	];

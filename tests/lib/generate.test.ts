@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { examIngestResponseSchema } from "@/lib/validation";
 
 const { chatMock } = vi.hoisted(() => ({
 	chatMock: vi.fn(),
@@ -401,6 +402,117 @@ describe("generateJsonStream", () => {
 				},
 			],
 			topics: ["Hierarquia e função da memória"],
+		});
+	});
+
+	it("recovers when an unclosed think block precedes an object body missing the opening brace", async () => {
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "CUSTOM",
+					name: "structured-output.start",
+					value: { messageId: "m1" },
+				};
+				yield {
+					type: "TEXT_MESSAGE_START",
+					messageId: "m1",
+				};
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta:
+						'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
+					content:
+						'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
+				};
+				yield { type: "TEXT_MESSAGE_END", messageId: "m1" };
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message:
+						'Failed to parse structured output as JSON. Content: <think>..."questions": [...]',
+					code: "parse-error",
+				};
+			})(),
+		);
+
+		const result = await generateJsonStream(
+			{
+				provider: "custom",
+				model: "MiniMax-M2.7-highspeed",
+				apiKey: "test-key",
+				baseUrl: "https://example.com/v1",
+			},
+			"Return JSON",
+			examIngestResponseSchema,
+		);
+
+		expect(result).toEqual({
+			questions: [
+				{
+					question: "O que e E/S mapeada em memoria?",
+					options: [
+						"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.",
+						"Usa apenas portas dedicadas de E/S.",
+						"Desativa interrupcoes do dispositivo.",
+						"E um tipo de memoria cache.",
+					],
+					answer:
+						"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.",
+					explanation: "",
+					topic: "Gerencia de E/S",
+				},
+			],
+			topics: ["Gerencia de E/S"],
+		});
+	});
+
+	it("normalizes open-ended ingest questions after think-block fallback parsing", async () => {
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta:
+						'<think>Analisando a prova dissertativa.</think>{"questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
+					content:
+						'<think>Analisando a prova dissertativa.</think>{"questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
+				};
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message:
+						"Failed to parse structured output as JSON. Content: <think>...",
+					code: "parse-error",
+				};
+			})(),
+		);
+
+		const result = await generateJsonStream(
+			{
+				provider: "custom",
+				model: "MiniMax-M2.7-highspeed",
+				apiKey: "test-key",
+				baseUrl: "https://example.com/v1",
+			},
+			"Return JSON",
+			examIngestResponseSchema,
+		);
+
+		expect(result).toEqual({
+			questions: [
+				{
+					question: "Explique o modelo OSI.",
+					options: [
+						"O modelo OSI possui sete camadas.",
+						"Resposta incorreta.",
+					],
+					answer: "O modelo OSI possui sete camadas.",
+					explanation: "",
+					topic: "Redes",
+				},
+			],
+			topics: ["Redes"],
 		});
 	});
 

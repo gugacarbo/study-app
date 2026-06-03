@@ -19,7 +19,10 @@ Extraction rules:
 - Extract all questions present in the input text.
 - Preserve the original language of the source text.
 - Keep wording faithful to the source whenever possible.
-- If options are present, include them; if not explicit, infer only when clearly implied.
+- If options are present, include them.
+- If the source question is open-ended or dissertative, still return at least 2 options:
+  - include the exact correct answer as one option
+  - add at least one short, clearly incorrect distractor
 - During ingestion, never generate explanations. Always set "explanation" to "".
 - Do not invent extra sections or keys.
 
