@@ -175,7 +175,12 @@ export async function ingestStream(
 					let data: unknown;
 					try {
 						data = JSON.parse(parsed.data);
-					} catch {
+					} catch (parseError) {
+						console.warn(
+							"SSE stream JSON parse failed:",
+							parsed.data,
+							parseError,
+						);
 						data = null;
 					}
 
@@ -365,7 +370,12 @@ export async function testConnectionWithStream(
 					let data: unknown;
 					try {
 						data = JSON.parse(parsed.data);
-					} catch {
+					} catch (parseError) {
+						console.warn(
+							"SSE stream JSON parse failed:",
+							parsed.data,
+							parseError,
+						);
 						data = null;
 					}
 

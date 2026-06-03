@@ -11,6 +11,7 @@ import { examIngestResponseSchema } from "@/lib/validation";
 import { DBQueries } from "../../db/queries";
 import { env } from "../../env";
 import { FileService } from "../../lib/file-service";
+import { createIngestLogger } from "../../lib/logger";
 import { MemoryManager } from "../../lib/memory";
 import { providerConfigSchema } from "../../lib/validation";
 
@@ -233,7 +234,8 @@ function parseCriticalTopics(value: string | null): string[] {
 	const parsedJson = (() => {
 		try {
 			return JSON.parse(value) as unknown;
-		} catch {
+		} catch (parseError) {
+			console.warn("Failed to parse critical topics as JSON:", parseError);
 			return null;
 		}
 	})();
@@ -292,9 +294,13 @@ async function runIngestWithProgress(
 		throw new Error("D1 database not available");
 	}
 	const queries = new DBQueries(db);
+	const log = createIngestLogger("ingest-pipeline", db);
 	const config = await queries.getAllConfig();
 	const memory = new MemoryManager(db);
 	await memory.ensureStructure().catch((error) => {
+		log.error("Memory ensureStructure failed", error, {
+			stage: "init",
+		});
 		send("warning", {
 			message: `Memory initialization failed: ${
 				error instanceof Error ? error.message : "unknown error"
@@ -323,6 +329,10 @@ async function runIngestWithProgress(
 							context: "ingest",
 						});
 					} catch (error) {
+						log.error("Failed to save web search memory", error, {
+							stage: "web_observer",
+							query: input.query,
+						});
 						send("warning", {
 							message: `Failed to save web search memory: ${
 								error instanceof Error ? error.message : "unknown error"
@@ -340,6 +350,10 @@ async function runIngestWithProgress(
 							context: "ingest",
 						});
 					} catch (error) {
+						log.error("Failed to save web fetch memory", error, {
+							stage: "web_observer",
+							url: output.url,
+						});
 						send("warning", {
 							message: `Failed to save web fetch memory: ${
 								error instanceof Error ? error.message : "unknown error"
@@ -392,56 +406,86 @@ async function runIngestWithProgress(
 		});
 		agentRuns.lifecycle(run, "running");
 
-		try {
-			const result = await generateJsonStream<ExamIngestResponse>(
-				payload.config,
-				userPrompt,
-				examIngestResponseSchema,
-				{
-					system: systemPrompt,
-					tools: webTools,
-					onChunk: (
-						chunk:
-							| StreamChunk
-							| StructuredOutputCompleteEvent<ExamIngestResponse>,
-					) => {
-						if (isTextChunk(chunk) && chunk.delta) {
-							rawText += chunk.delta;
-							send("chunk", {
-								stageId: run.stageId,
+			try {
+				const result = await generateJsonStream<ExamIngestResponse>(
+					payload.config,
+					userPrompt,
+					examIngestResponseSchema,
+					{
+						system: systemPrompt,
+						tools: webTools,
+						onChunk: (
+							chunk:
+								| StreamChunk
+								| StructuredOutputCompleteEvent<ExamIngestResponse>,
+						) => {
+							if (isTextChunk(chunk) && chunk.delta) {
+								rawText += chunk.delta;
+								send("chunk", {
+									stageId: run.stageId,
+									agentRunId: run.agentRunId,
+									text: chunk.delta,
+								});
+							}
+							if ("usage" in chunk && chunk.usage) {
+								send("token", {
+									stageId: run.stageId,
+									agentRunId: run.agentRunId,
+									usage: chunk.usage,
+								});
+								agentRuns.token(run, chunk.usage);
+							}
+							if (
+								chunk.type === "CUSTOM" &&
+								chunk.name === "structured-output.complete"
+							) {
+								emittedResult = true;
+								agentRuns.result(run, chunk.value.object, rawText);
+							}
+						},
+						onError: (info) => {
+							log.error("AI generation error in extraction pass", info.error, {
+								stage: stageId,
 								agentRunId: run.agentRunId,
-								text: chunk.delta,
+								label: stageLabel,
+								provider: info.provider,
+								model: info.model,
+								rawOutputLength: info.rawOutput?.length ?? 0,
+								rawOutputPreview: info.rawOutput
+									? info.rawOutput.length > 2000
+										? `${info.rawOutput.slice(0, 2000)}...`
+										: info.rawOutput
+									: "(no output)",
 							});
-						}
-						if ("usage" in chunk && chunk.usage) {
-							send("token", {
-								stageId: run.stageId,
-								agentRunId: run.agentRunId,
-								usage: chunk.usage,
-							});
-							agentRuns.token(run, chunk.usage);
-						}
-						if (
-							chunk.type === "CUSTOM" &&
-							chunk.name === "structured-output.complete"
-						) {
-							emittedResult = true;
-							agentRuns.result(run, chunk.value.object, rawText);
-						}
+						},
 					},
-				},
-			);
-			if (!emittedResult) {
-				agentRuns.result(run, result, rawText);
+				);
+				if (!emittedResult) {
+					agentRuns.result(run, result, rawText);
+				}
+				agentRuns.lifecycle(run, "done", {
+					meta: {
+						questionCount: result.questions.length,
+						topicCount: result.topics.length,
+					},
+				});
+				return result;
 			}
-			agentRuns.lifecycle(run, "done", {
-				meta: {
-					questionCount: result.questions.length,
-					topicCount: result.topics.length,
-				},
-			});
-			return result;
 		} catch (error) {
+			log.error("AI extraction pass failed", error, {
+				stage: stageId,
+				agentRunId: run.agentRunId,
+				label: stageLabel,
+				rawTextLength: rawText.length,
+				rawTextPreview:
+					rawText.length > 1000
+						? `${rawText.slice(0, 1000)}...`
+						: rawText,
+				systemPrompt,
+				userPromptPreview: userPrompt.length > 500
+					? `${userPrompt.slice(0, 500)}...`
+					: userPrompt,
+			});
 			agentRuns.lifecycle(run, "error", {
 				error: error instanceof Error ? error.message : "unknown error",
 				rawText,
@@ -477,6 +521,11 @@ async function runIngestWithProgress(
 			"Initial extraction agent",
 		);
 	} catch (err) {
+		log.error("Initial extraction failed", err, {
+			stage: "initial_extraction",
+			textLength: text.length,
+			textPreview: text.length > 500 ? `${text.slice(0, 500)}...` : text,
+		});
 		sendStage(
 			send,
 			"initial_extraction",
@@ -495,7 +544,14 @@ async function runIngestWithProgress(
 	const memoryContext = await getMemoryContextForTopics(
 		db,
 		extracted.topics,
-	).catch(() => "");
+	).catch((error) => {
+		log.warn("Failed to get memory context", {
+			stage: "memory_context",
+			topics: extracted.topics,
+			error: error instanceof Error ? error.message : "unknown",
+		});
+		return "";
+	});
 	sendStage(send, "memory_context", "Loading study-memory context", "done");
 	assertNotAborted();
 
@@ -517,6 +573,11 @@ async function runIngestWithProgress(
 				},
 			);
 		} catch (err) {
+			log.error("Memory refinement failed", err, {
+				stage: "memory_refinement",
+				questionCount: finalExtracted.questions.length,
+				topics: finalExtracted.topics,
+			});
 			sendStage(
 				send,
 				"memory_refinement",
@@ -572,6 +633,11 @@ async function runIngestWithProgress(
 				},
 			);
 		} catch (err) {
+			log.error("Review failed", err, {
+				stage: "review",
+				questionCount: finalExtracted.questions.length,
+				criticalTopics,
+			});
 			sendStage(send, "review", "Review", "error", {
 				error: err instanceof Error ? err.message : "unknown",
 			});
@@ -608,6 +674,11 @@ async function runIngestWithProgress(
 	try {
 		examId = await queries.insertExam(payload.fileName, "upload");
 	} catch (err) {
+		log.error("Failed to insert exam", err, {
+			stage: "persist",
+			fileName: payload.fileName,
+			questionCount: finalExtracted.questions.length,
+		});
 		sendStage(send, "persist", "Saving to database", "error", {
 			error: err instanceof Error ? err.message : "unknown",
 		});
@@ -618,6 +689,11 @@ async function runIngestWithProgress(
 		try {
 			await queries.insertQuestions(examId, finalExtracted.questions);
 		} catch (err) {
+			log.error("Failed to insert questions", err, {
+				stage: "persist",
+				examId,
+				questionCount: finalExtracted.questions.length,
+			});
 			sendStage(send, "persist", "Saving to database", "error", {
 				error: err instanceof Error ? err.message : "unknown",
 			});
@@ -635,6 +711,13 @@ async function runIngestWithProgress(
 			mimeType,
 		);
 	} catch (err) {
+		log.error("Failed to save file", err, {
+			stage: "persist",
+			examId,
+			fileName: payload.fileName,
+			mimeType,
+			bufferSize: payload.buffer.length,
+		});
 		sendStage(send, "persist", "Saving to database", "error", {
 			error: err instanceof Error ? err.message : "unknown",
 		});
@@ -689,6 +772,11 @@ export const Route = createFileRoute("/api/ingest")({
 								);
 								send("result", result);
 							} catch (error) {
+								console.error(
+									`[${new Date().toISOString()} ERROR ingest-handler] Ingest job failed:`,
+									error,
+									`fileName=${parsed.data.fileName}`,
+								);
 								send("error", {
 									message:
 										error instanceof Error
