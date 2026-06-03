@@ -182,6 +182,128 @@ describe("generateJsonStream", () => {
 		).rejects.toThrow(/Structured output stream ended/);
 	});
 
+	it("recovers from structured-output-parse-failed RUN_ERROR by extracting JSON from think-block content", async () => {
+		// Reasoning models (DeepSeek R1, Qwen QwQ) emit `<think>...</think>`
+		// inline with the final JSON. The TanStack AI library surfaces this
+		// as a synthetic RUN_ERROR with code 'structured-output-parse-failed'
+		// because JSON.parse() can't handle the leading think block. Our
+		// code should treat that error as recoverable and try the fallback
+		// JSON extractor on the accumulated text.
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "TEXT_MESSAGE_START",
+					messageId: "m1",
+				};
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta: "<think>Let me analyze the questions carefully.\n",
+					content: "<think>Let me analyze the questions carefully.\n",
+				};
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta: 'I need to extract them as JSON.\n</think>\n{"name":"Recovered"}',
+					content: 'I need to extract them as JSON.\n</think>\n{"name":"Recovered"}',
+				};
+				yield { type: "TEXT_MESSAGE_END", messageId: "m1" };
+				yield {
+					type: "CUSTOM",
+					name: "structured-output.start",
+					value: { messageId: "m1" },
+				};
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message:
+						'Failed to parse structured output as JSON. Content: <think>Let me analyze...',
+					code: "structured-output-parse-failed",
+				};
+			})(),
+		);
+
+		const result = await generateJsonStream(
+			{
+				provider: "openrouter",
+				model: "deepseek/deepseek-r1",
+				apiKey: "test-key",
+				baseUrl: "",
+			},
+			"Return JSON",
+			z.object({ name: z.string() }),
+		);
+
+		expect(result).toEqual({ name: "Recovered" });
+	});
+
+	it("recovers from structured-output-parse-failed RUN_ERROR when think-wrapped JSON arrives as reasoning chunks", async () => {
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "REASONING_MESSAGE_CONTENT",
+					delta: "<think>Let me analyze this carefully.\n",
+				};
+				yield {
+					type: "REASONING_MESSAGE_CONTENT",
+					delta: 'I will now return the object.\n</think>\n{"name":"Reasoned"}',
+				};
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message:
+						"Failed to parse structured output as JSON from reasoning content.",
+					code: "structured-output-parse-failed",
+				};
+			})(),
+		);
+
+		const result = await generateJsonStream(
+			{
+				provider: "openrouter",
+				model: "deepseek/deepseek-r1",
+				apiKey: "test-key",
+				baseUrl: "",
+			},
+			"Return JSON",
+			z.object({ name: z.string() }),
+		);
+
+		expect(result).toEqual({ name: "Reasoned" });
+	});
+
+	it("throws when structured-output-parse-failed RUN_ERROR has no recoverable JSON", async () => {
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta: "<think>I refuse to answer as JSON</think>",
+					content: "<think>I refuse to answer as JSON</think>",
+				};
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message: "Failed to parse structured output as JSON.",
+					code: "structured-output-parse-failed",
+				};
+			})(),
+		);
+
+		await expect(
+			generateJsonStream(
+				{
+					provider: "openrouter",
+					model: "deepseek/deepseek-r1",
+					apiKey: "test-key",
+					baseUrl: "",
+				},
+				"Return JSON",
+				z.object({ name: z.string() }),
+			),
+		).rejects.toThrow(/Structured output stream ended/);
+	});
+
 	it("returns structured output when complete event is received", async () => {
 		chatMock.mockReturnValue(
 			(async function* () {
