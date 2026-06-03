@@ -272,6 +272,138 @@ describe("generateJsonStream", () => {
 		expect(result).toEqual({ name: "Reasoned" });
 	});
 
+	it("recovers from parse-error RUN_ERROR when valid JSON text was already streamed", async () => {
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "CUSTOM",
+					name: "structured-output.start",
+					value: { messageId: "m1" },
+				};
+				yield {
+					type: "TEXT_MESSAGE_START",
+					messageId: "m1",
+				};
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta:
+						'{\n  "questions": [\n    {\n      "question": "Qual é a derivada de f(x) = x²?",\n      "options": ["1", "2x", "x²", "2"],\n      "answer": "2x",\n      "explanation": "A derivada de x² é 2x.",\n      "topic": "Derivadas"\n    }\n  ],\n  "topics": ["Derivadas"]\n}',
+					content:
+						'{\n  "questions": [\n    {\n      "question": "Qual é a derivada de f(x) = x²?",\n      "options": ["1", "2x", "x²", "2"],\n      "answer": "2x",\n      "explanation": "A derivada de x² é 2x.",\n      "topic": "Derivadas"\n    }\n  ],\n  "topics": ["Derivadas"]\n}',
+				};
+				yield { type: "TEXT_MESSAGE_END", messageId: "m1" };
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message:
+						'Failed to parse structured output as JSON. Content: { "questions": [...] }',
+					code: "parse-error",
+				};
+			})(),
+		);
+
+		const result = await generateJsonStream(
+			{
+				provider: "openrouter",
+				model: "some-provider/some-model",
+				apiKey: "test-key",
+				baseUrl: "",
+			},
+			"Return JSON",
+			z.object({
+				questions: z.array(
+					z.object({
+						question: z.string(),
+						options: z.array(z.string()),
+						answer: z.string(),
+						explanation: z.string(),
+						topic: z.string(),
+					}),
+				),
+				topics: z.array(z.string()),
+			}),
+		);
+
+		expect(result).toEqual({
+			questions: [
+				{
+					question: "Qual é a derivada de f(x) = x²?",
+					options: ["1", "2x", "x²", "2"],
+					answer: "2x",
+					explanation: "A derivada de x² é 2x.",
+					topic: "Derivadas",
+				},
+			],
+			topics: ["Derivadas"],
+		});
+	});
+
+	it("repairs streamed object bodies that are missing the opening brace", async () => {
+		chatMock.mockReturnValue(
+			(async function* () {
+				yield { type: "RUN_STARTED", runId: "r1" };
+				yield {
+					type: "TEXT_MESSAGE_CONTENT",
+					delta:
+						'"questions": [\n  {\n    "question": "Sobre os diferentes tipos de memória apresentados no conteúdo, assinale a alternativa correta.",\n    "options": [\n      "A memória RAM é classificada como armazenamento não volátil, destinado principalmente à persistência permanente de arquivos.",\n      "A cache L1 apresenta maior capacidade e menor velocidade que a memória RAM, pois fica mais distante da CPU.",\n      "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n      "Na hierarquia de memórias, quanto mais próximo da base da pirâmide estiver um dispositivo, maior tende a ser sua velocidade e seu custo por byte.",\n      "Apenas registradores, caches e RAM podem ser considerados memórias; discos e unidades externas não entram nessa classificação."\n    ],\n    "answer": "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n    "explanation": "",\n    "topic": "Hierarquia e função da memória"\n  }\n],\n"topics": [\n  "Hierarquia e função da memória"\n]\n}',
+					content:
+						'"questions": [\n  {\n    "question": "Sobre os diferentes tipos de memória apresentados no conteúdo, assinale a alternativa correta.",\n    "options": [\n      "A memória RAM é classificada como armazenamento não volátil, destinado principalmente à persistência permanente de arquivos.",\n      "A cache L1 apresenta maior capacidade e menor velocidade que a memória RAM, pois fica mais distante da CPU.",\n      "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n      "Na hierarquia de memórias, quanto mais próximo da base da pirâmide estiver um dispositivo, maior tende a ser sua velocidade e seu custo por byte.",\n      "Apenas registradores, caches e RAM podem ser considerados memórias; discos e unidades externas não entram nessa classificação."\n    ],\n    "answer": "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n    "explanation": "",\n    "topic": "Hierarquia e função da memória"\n  }\n],\n"topics": [\n  "Hierarquia e função da memória"\n]\n}',
+				};
+				yield {
+					type: "RUN_ERROR",
+					runId: "r1",
+					message:
+						'Failed to parse structured output as JSON. Content: "questions": [...]',
+					code: "parse-error",
+				};
+			})(),
+		);
+
+		const result = await generateJsonStream(
+			{
+				provider: "custom",
+				model: "glm-5.1:ollama",
+				apiKey: "test-key",
+				baseUrl: "http://localhost:11434",
+			},
+			"Return JSON",
+			z.object({
+				questions: z.array(
+					z.object({
+						question: z.string(),
+						options: z.array(z.string()),
+						answer: z.string(),
+						explanation: z.string(),
+						topic: z.string(),
+					}),
+				),
+				topics: z.array(z.string()),
+			}),
+		);
+
+		expect(result).toEqual({
+			questions: [
+				{
+					question:
+						"Sobre os diferentes tipos de memória apresentados no conteúdo, assinale a alternativa correta.",
+					options: [
+						"A memória RAM é classificada como armazenamento não volátil, destinado principalmente à persistência permanente de arquivos.",
+						"A cache L1 apresenta maior capacidade e menor velocidade que a memória RAM, pois fica mais distante da CPU.",
+						"A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",
+						"Na hierarquia de memórias, quanto mais próximo da base da pirâmide estiver um dispositivo, maior tende a ser sua velocidade e seu custo por byte.",
+						"Apenas registradores, caches e RAM podem ser considerados memórias; discos e unidades externas não entram nessa classificação.",
+					],
+					answer:
+						"A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",
+					explanation: "",
+					topic: "Hierarquia e função da memória",
+				},
+			],
+			topics: ["Hierarquia e função da memória"],
+		});
+	});
+
 	it("throws when structured-output-parse-failed RUN_ERROR has no recoverable JSON", async () => {
 		chatMock.mockReturnValue(
 			(async function* () {

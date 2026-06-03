@@ -53,7 +53,7 @@ const reviewerQuestionSchema = questionSchema.extend({
 	topic: z.string().default("General"),
 });
 
-const REVIEW_CONCURRENCY = 4;
+const REVIEW_CONCURRENCY = 10;
 
 function unique<T>(items: T[]): T[] {
 	return Array.from(new Set(items));

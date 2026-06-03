@@ -100,8 +100,16 @@ function extractLikelyJson(content: string): string {
 		return codeFenceMatch[1].trim();
 	}
 
-	const objectStart = trimmed.indexOf("{");
 	const objectEnd = trimmed.lastIndexOf("}");
+	// Some providers stream only the inside of an object, e.g.
+	// `"questions": [...], "topics": [...] }` with the opening brace missing.
+	// If it looks like JSON object properties and ends with `}`, wrap it
+	// before trying to lock onto inner `{` characters from array items.
+	if (objectEnd !== -1 && /^"[^"]+"\s*:/.test(trimmed)) {
+		return `{${trimmed.slice(0, objectEnd + 1).trim()}`;
+	}
+
+	const objectStart = trimmed.indexOf("{");
 	if (objectStart !== -1 && objectEnd > objectStart) {
 		return trimmed.slice(objectStart, objectEnd + 1).trim();
 	}
@@ -198,6 +206,7 @@ export interface GenerateJsonStreamOnErrorInfo {
  * must be thrown unchanged.
  */
 const RECOVERABLE_STRUCTURED_OUTPUT_CODES = new Set<string>([
+	"parse-error",
 	"structured-output-parse-failed",
 	"structured-output-validation-failed",
 	"structured-output-missing-result",
