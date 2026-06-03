@@ -29,7 +29,11 @@ export function AgentRunDetailDialog({
 	open,
 	onOpenChange,
 }: AgentRunDetailDialogProps) {
-	const systemMessage = createTextMessage("agent-system", "system", systemPrompt);
+	const systemMessage = createTextMessage(
+		"agent-system",
+		"system",
+		systemPrompt,
+	);
 	const userMessage = createTextMessage("agent-user", "user", userPrompt);
 	const assistantMessage = createTextMessage(
 		"agent-assistant",
@@ -50,7 +54,9 @@ export function AgentRunDetailDialog({
 					<div className="flex flex-col gap-3 pr-1">
 						{systemMessage ? <SystemMessage message={systemMessage} /> : null}
 						{userMessage ? <UserMessage message={userMessage} /> : null}
-						{assistantMessage ? <ChatMessage message={assistantMessage} /> : null}
+						{assistantMessage ? (
+							<ChatMessage message={assistantMessage} />
+						) : null}
 					</div>
 				</div>
 			</DialogContent>

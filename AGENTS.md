@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-06-03 — Light/dark theme, explanation agent event tracking, agent-run-detail-dialog
+> **Last auto-updated:** 2026-06-03 — File refactoring: domain folders, barrel exports, 150L max per file
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -55,64 +55,78 @@ src/
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
 │   ├── theme-provider.tsx # Theme context provider (shadcn)
-│   ├── ingest/           # Ingest UI components (JobDetailPanel, LogsPanel, OutputPanel, PipelineFlow, ProcessLogsPanel, QueueList, UploadCard, VirtualizedLogLines)
+│   ├── ingest/           # Ingest UI components
+│   │   ├── ingest-chat-view/ # IngestChatView split (chat-panel, log-panel, use-ingest-chat)
+│   │   ├── OutputPanel.tsx, OutputPanelAgentRuns.tsx, OutputPanelLogs.tsx
+│   │   └── ... (JobDetailPanel, LogsPanel, PipelineFlow, QueueList, UploadCard, VirtualizedLogLines)
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
 ├── routes/              # File-based TanStack Router routes
-│   ├── __root.tsx       # Root layout: nav, QueryClient, theme, Scripts, IngestIndicator
+│   ├── __root.tsx       # Thin root layout (delegates to root-nav, root-providers)
+│   ├── root-nav.tsx     # Nav bar + IngestIndicator (extracted from __root)
+│   ├── root-providers.tsx # QueryClient, theme, Scripts (extracted from __root)
 │   ├── index.tsx        # / — Dashboard
 │   ├── exams.tsx        # /exams — exam layout (Outlet)
 │   ├── exams.index.tsx  # /exams/ — exam list page
 │   ├── exams.stats.tsx  # /exams/stats — stats tab page
-│   ├── exams.upload.tsx # /exams/upload — upload page with streaming ingest
+│   ├── exams.upload/    # /exams/upload — split into upload-form, ingest-progress, job-list, use-upload
 │   ├── exams.$id.tsx    # /exams/$id — exam detail page
 │   ├── quiz.$id.tsx     # /quiz/$id — quiz by exam ID
 │   ├── config.tsx       # /config — AI provider settings
 │   ├── chat.tsx         # /chat — AI chat interface
 │   ├── about.tsx        # /about
-│   ├── memory.tsx       # /memory — memory overview (now uses MemoryVisualization)
+│   ├── memory.tsx       # /memory — memory overview
 │   ├── memory-viz.tsx   # /memory-viz — memory visualization dashboard
-│   ├── api/             # API route directory (chat, ingest, test-connection)
-│   │   ├── chat.ts      # /api/chat — POST handler (server-side API)
-│   │   ├── ingest.ts    # /api/ingest — POST handler (streaming ingest)
+│   ├── api/             # API route directory
+│   │   ├── chat/        # /api/chat — split into handlers, streaming, tools
+│   │   ├── ingest/      # /api/ingest — split into pipeline stages (pipeline, extract-text, memory-refinement, review, persist, sse-emitter)
 │   │   ├── test-connection.ts # /api/test-connection — SSE streaming test
-│   │   └── exams.explanations.tsx # /exams/explanations — explanation pipeline page
+│   │   └── exams.explanations/ # /exams/explanations — split into pipeline-controls, explanation-results, use-explanation-pipeline
 ├── server-functions/    # Server functions + utilities
 │   ├── config.ts        # getConfig, setConfig, testConnection
 │   ├── ingest.ts        # ingestExam (PDF → questions)
 │   ├── quiz.ts          # generateQuiz, submitAnswer
 │   ├── stats.ts         # getStats, getExams
-│   ├── exams.ts         # getExamDetail, getExamsDetailed, deleteExam, updateQuestion, deleteQuestion
+│   ├── exams/           # getExamDetail, getExamsDetailed, deleteExam, updateQuestion, deleteQuestion
 │   ├── memory.ts        # Memory operations (saveQuizSession, getMemoryContext)
 │   └── db.ts            # NOT a server fn — D1 helper utility
 ├── db/
 │   ├── schema.ts        # Drizzle schema definitions (9 tables)
-│   └── queries.ts       # Drizzle query layer (DBQueries class)
+│   └── queries/         # Drizzle query layer — split by entity (base, exams, questions, attempts, config, files, memory, llm-logs, types, helpers)
 ├── lib/
 │   ├── file-service.ts  # File storage and retrieval service
-│   ├── memory.ts        # R2+D1 hybrid memory manager (content in R2, metadata in D1)
+│   ├── memory/          # R2+D1 hybrid memory manager — split (types, manager, r2-operations, d1-operations, search, queries, content, pipeline)
+│   ├── sse-stream/      # SSE streaming — split (types, emitter, parser, ingest-stream, connection-stream)
 │   ├── utils.ts         # cn() utility for shadcn/ui
 │   └── validation.ts    # Zod schemas
 ├── types/               # TypeScript type augmentation declarations
 ├── stores/
-│   └── quizStore.ts          # TanStack Store — quiz session state
-│   └── ingestStore.ts        # TanStack Store — ingest job queue, state, persistence
+│   ├── quizStore.ts     # TanStack Store — quiz session state
+│   └── ingestStore/     # TanStack Store — ingest job queue (types, store, actions, selectors, persistence, job-utils)
 ├── features/            # Feature modules
 │   └── ai/              # AI feature module — adapters, agents, core, providers, components
 │       ├── adapters/
 │       │   └── provider-adapter.ts
 │       ├── core/
-│       │   ├── generate.ts
+│       │   ├── generate/  # AI generation — split (types, generate-text, generate-structured, generate-stream, provider, json-extract)
 │       │   └── chat-stream.ts
 │       ├── agents/        # Domain agents (chat, ingest, explanations, quiz)
+│       │   ├── ingest/review-extraction/ # Review extraction agent — split (prompt, execute, types, review-question)
+│       │   └── explanations/generate-explanations/ # Explanations agent — split (prompt, batch-generator, types)
 │       ├── providers/     # Web search/content provider interfaces + Tavily impl
-│       ├── components/    # AI-related UI (chat, upload, config test, exam-detail gen)
+│       ├── components/    # AI-related UI (chat, config, exam-detail gen)
 │       │   ├── chat/      # Chat UI components
 │       │   ├── config/    # Test connection dialog
-│       │   ├── exam-detail/ # Explanation generation hook
+│       │   ├── exam-detail/ # Explanation generation (use-explanation-generation, explanation-queue, explanation-generator)
 │       │   └── agent-run-detail-dialog.tsx # Agent run inspector dialog
 │       ├── hooks/         # AI chat hooks
+│       │   └── use-chat-client/ # Chat client hook — split (types, send-message, tool-calls, streaming, callbacks, message-callbacks)
 │       ├── stores/        # AI chat stores
+│       │   └── conversations-store/ # Conversations store — split (types, actions, selectors)
+│       ├── tools/         # Tool resolution + registries
+│       │   ├── db-tools/  # DB query tools — split by entity (exam-tools, question-list-tools, question-keys-tools, attempt-tools)
+│       │   ├── tool-resolver.ts, tool-definitions.ts
+│       │   └── ... (web-tools, reviewer-tool)
 │       └── utils/
 ├── router.tsx           # createTanStackRouter + getRouter()
 ├── routeTree.gen.ts     # Auto-generated by TanStack Router plugin

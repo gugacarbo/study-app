@@ -1,0 +1,127 @@
+import type { UIMessage } from "@tanstack/ai-client";
+import { Store } from "@tanstack/store";
+import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message-utils";
+
+export interface Conversation {
+	id: string;
+	title: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface ChatTokenTotals {
+	inputTokens: number;
+	outputTokens: number;
+	contextTokens: number;
+}
+
+export interface PersistedData {
+	conversations: Conversation[];
+	activeId: string | null;
+	messagesMap: Record<string, UIMessage[]>;
+	tokenTotalsMap: Record<string, ChatTokenTotals>;
+	metricsMap: Record<string, Record<string, AssistantPerfMetrics>>;
+}
+
+const STORAGE_KEY = "chat-conversations";
+
+let idCounter = 0;
+function generateId(): string {
+	return `conv_${Date.now()}_${idCounter++}`;
+}
+
+const WELCOME_MESSAGE: UIMessage = {
+	id: "welcome",
+	role: "assistant",
+	parts: [
+		{
+			type: "text",
+			content:
+				"Hi! I'm your study assistant. Ask me anything about your subjects.",
+		},
+	],
+};
+
+function ensureWelcomeMessage(messages: UIMessage[]): UIMessage[] {
+	if (messages.length === 0) {
+		return [WELCOME_MESSAGE];
+	}
+	return messages;
+}
+
+function loadFromStorage(): PersistedData {
+	try {
+		const saved = localStorage.getItem(STORAGE_KEY);
+		if (saved) {
+			const parsed = JSON.parse(saved);
+			if (parsed && typeof parsed === "object") {
+				return {
+					conversations: Array.isArray(parsed.conversations)
+						? parsed.conversations
+						: [],
+					activeId:
+						typeof parsed.activeId === "string" ? parsed.activeId : null,
+					messagesMap:
+						parsed.messagesMap && typeof parsed.messagesMap === "object"
+							? parsed.messagesMap
+							: {},
+					tokenTotalsMap:
+						parsed.tokenTotalsMap && typeof parsed.tokenTotalsMap === "object"
+							? parsed.tokenTotalsMap
+							: {},
+					metricsMap:
+						parsed.metricsMap && typeof parsed.metricsMap === "object"
+							? parsed.metricsMap
+							: {},
+				};
+			}
+		}
+	} catch {
+		// corrupt data
+	}
+	return {
+		conversations: [],
+		activeId: null,
+		messagesMap: {},
+		tokenTotalsMap: {},
+		metricsMap: {},
+	};
+}
+
+const initial = loadFromStorage();
+
+if (initial.conversations.length > 0 && !initial.activeId) {
+	initial.activeId = initial.conversations[0].id;
+}
+
+export const conversationsStore = new Store<PersistedData>(initial);
+
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+conversationsStore.subscribe(() => {
+	if (persistTimer) clearTimeout(persistTimer);
+	persistTimer = setTimeout(() => {
+		try {
+			const {
+				conversations,
+				activeId,
+				messagesMap,
+				tokenTotalsMap,
+				metricsMap,
+			} = conversationsStore.state;
+			localStorage.setItem(
+				STORAGE_KEY,
+				JSON.stringify({
+					conversations,
+					activeId,
+					messagesMap,
+					tokenTotalsMap,
+					metricsMap,
+				}),
+			);
+		} catch {
+			// localStorage full or unavailable
+		}
+	}, 0);
+});
+
+export { ensureWelcomeMessage, generateId, WELCOME_MESSAGE };

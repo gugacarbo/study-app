@@ -17,13 +17,13 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExamsIndexRouteImport } from './routes/exams.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
-import { Route as ExamsUploadRouteImport } from './routes/exams.upload'
 import { Route as ExamsStatsRouteImport } from './routes/exams.stats'
-import { Route as ExamsExplanationsRouteImport } from './routes/exams.explanations'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
 import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connection'
-import { Route as ApiIngestRouteImport } from './routes/api/ingest'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ExamsUploadIndexRouteImport } from './routes/exams.upload/index'
+import { Route as ExamsExplanationsIndexRouteImport } from './routes/exams.explanations/index'
+import { Route as ApiIngestIndexRouteImport } from './routes/api/ingest/index'
+import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 
 const MemoryRoute = MemoryRouteImport.update({
   id: '/memory',
@@ -65,19 +65,9 @@ const QuizIdRoute = QuizIdRouteImport.update({
   path: '/quiz/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExamsUploadRoute = ExamsUploadRouteImport.update({
-  id: '/upload',
-  path: '/upload',
-  getParentRoute: () => ExamsRoute,
-} as any)
 const ExamsStatsRoute = ExamsStatsRouteImport.update({
   id: '/stats',
   path: '/stats',
-  getParentRoute: () => ExamsRoute,
-} as any)
-const ExamsExplanationsRoute = ExamsExplanationsRouteImport.update({
-  id: '/explanations',
-  path: '/explanations',
   getParentRoute: () => ExamsRoute,
 } as any)
 const ExamsIdRoute = ExamsIdRouteImport.update({
@@ -90,15 +80,25 @@ const ApiTestConnectionRoute = ApiTestConnectionRouteImport.update({
   path: '/api/test-connection',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiIngestRoute = ApiIngestRouteImport.update({
-  id: '/api/ingest',
-  path: '/api/ingest',
-  getParentRoute: () => rootRouteImport,
+const ExamsUploadIndexRoute = ExamsUploadIndexRouteImport.update({
+  id: '/upload/',
+  path: '/upload/',
+  getParentRoute: () => ExamsRoute,
 } as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
-  getParentRoute: () => rootRouteImport,
+const ExamsExplanationsIndexRoute = ExamsExplanationsIndexRouteImport.update({
+  id: '/explanations/',
+  path: '/explanations/',
+  getParentRoute: () => ExamsRoute,
+} as any)
+const ApiIngestIndexRoute = ApiIngestIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ApiIngestRoute,
+} as any)
+const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ApiChatRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -108,15 +108,15 @@ export interface FileRoutesByFullPath {
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
-  '/api/chat': typeof ApiChatRoute
-  '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/exams/$id': typeof ExamsIdRoute
-  '/exams/explanations': typeof ExamsExplanationsRoute
   '/exams/stats': typeof ExamsStatsRoute
-  '/exams/upload': typeof ExamsUploadRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
+  '/api/chat/': typeof ApiChatIndexRoute
+  '/api/ingest/': typeof ApiIngestIndexRoute
+  '/exams/explanations/': typeof ExamsExplanationsIndexRoute
+  '/exams/upload/': typeof ExamsUploadIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,15 +124,15 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/memory': typeof MemoryRoute
-  '/api/chat': typeof ApiChatRoute
-  '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/exams/$id': typeof ExamsIdRoute
-  '/exams/explanations': typeof ExamsExplanationsRoute
   '/exams/stats': typeof ExamsStatsRoute
-  '/exams/upload': typeof ExamsUploadRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams': typeof ExamsIndexRoute
+  '/api/chat': typeof ApiChatIndexRoute
+  '/api/ingest': typeof ApiIngestIndexRoute
+  '/exams/explanations': typeof ExamsExplanationsIndexRoute
+  '/exams/upload': typeof ExamsUploadIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,15 +142,15 @@ export interface FileRoutesById {
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
-  '/api/chat': typeof ApiChatRoute
-  '/api/ingest': typeof ApiIngestRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/exams/$id': typeof ExamsIdRoute
-  '/exams/explanations': typeof ExamsExplanationsRoute
   '/exams/stats': typeof ExamsStatsRoute
-  '/exams/upload': typeof ExamsUploadRoute
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
+  '/api/chat/': typeof ApiChatIndexRoute
+  '/api/ingest/': typeof ApiIngestIndexRoute
+  '/exams/explanations/': typeof ExamsExplanationsIndexRoute
+  '/exams/upload/': typeof ExamsUploadIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,15 +161,15 @@ export interface FileRouteTypes {
     | '/config'
     | '/exams'
     | '/memory'
-    | '/api/chat'
-    | '/api/ingest'
     | '/api/test-connection'
     | '/exams/$id'
-    | '/exams/explanations'
     | '/exams/stats'
-    | '/exams/upload'
     | '/quiz/$id'
     | '/exams/'
+    | '/api/chat/'
+    | '/api/ingest/'
+    | '/exams/explanations/'
+    | '/exams/upload/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,15 +177,15 @@ export interface FileRouteTypes {
     | '/chat'
     | '/config'
     | '/memory'
-    | '/api/chat'
-    | '/api/ingest'
     | '/api/test-connection'
     | '/exams/$id'
-    | '/exams/explanations'
     | '/exams/stats'
-    | '/exams/upload'
     | '/quiz/$id'
     | '/exams'
+    | '/api/chat'
+    | '/api/ingest'
+    | '/exams/explanations'
+    | '/exams/upload'
   id:
     | '__root__'
     | '/'
@@ -194,15 +194,15 @@ export interface FileRouteTypes {
     | '/config'
     | '/exams'
     | '/memory'
-    | '/api/chat'
-    | '/api/ingest'
     | '/api/test-connection'
     | '/exams/$id'
-    | '/exams/explanations'
     | '/exams/stats'
-    | '/exams/upload'
     | '/quiz/$id'
     | '/exams/'
+    | '/api/chat/'
+    | '/api/ingest/'
+    | '/exams/explanations/'
+    | '/exams/upload/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -212,8 +212,6 @@ export interface RootRouteChildren {
   ConfigRoute: typeof ConfigRoute
   ExamsRoute: typeof ExamsRouteWithChildren
   MemoryRoute: typeof MemoryRoute
-  ApiChatRoute: typeof ApiChatRoute
-  ApiIngestRoute: typeof ApiIngestRoute
   ApiTestConnectionRoute: typeof ApiTestConnectionRoute
   QuizIdRoute: typeof QuizIdRoute
 }
@@ -276,25 +274,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuizIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/exams/upload': {
-      id: '/exams/upload'
-      path: '/upload'
-      fullPath: '/exams/upload'
-      preLoaderRoute: typeof ExamsUploadRouteImport
-      parentRoute: typeof ExamsRoute
-    }
     '/exams/stats': {
       id: '/exams/stats'
       path: '/stats'
       fullPath: '/exams/stats'
       preLoaderRoute: typeof ExamsStatsRouteImport
-      parentRoute: typeof ExamsRoute
-    }
-    '/exams/explanations': {
-      id: '/exams/explanations'
-      path: '/explanations'
-      fullPath: '/exams/explanations'
-      preLoaderRoute: typeof ExamsExplanationsRouteImport
       parentRoute: typeof ExamsRoute
     }
     '/exams/$id': {
@@ -311,37 +295,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTestConnectionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ingest': {
-      id: '/api/ingest'
-      path: '/api/ingest'
-      fullPath: '/api/ingest'
-      preLoaderRoute: typeof ApiIngestRouteImport
-      parentRoute: typeof rootRouteImport
+    '/exams/upload/': {
+      id: '/exams/upload/'
+      path: '/upload'
+      fullPath: '/exams/upload/'
+      preLoaderRoute: typeof ExamsUploadIndexRouteImport
+      parentRoute: typeof ExamsRoute
     }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/exams/explanations/': {
+      id: '/exams/explanations/'
+      path: '/explanations'
+      fullPath: '/exams/explanations/'
+      preLoaderRoute: typeof ExamsExplanationsIndexRouteImport
+      parentRoute: typeof ExamsRoute
+    }
+    '/api/ingest/': {
+      id: '/api/ingest/'
+      path: '/'
+      fullPath: '/api/ingest/'
+      preLoaderRoute: typeof ApiIngestIndexRouteImport
+      parentRoute: typeof ApiIngestRoute
+    }
+    '/api/chat/': {
+      id: '/api/chat/'
+      path: '/'
+      fullPath: '/api/chat/'
+      preLoaderRoute: typeof ApiChatIndexRouteImport
+      parentRoute: typeof ApiChatRoute
     }
   }
 }
 
 interface ExamsRouteChildren {
   ExamsIdRoute: typeof ExamsIdRoute
-  ExamsExplanationsRoute: typeof ExamsExplanationsRoute
   ExamsStatsRoute: typeof ExamsStatsRoute
-  ExamsUploadRoute: typeof ExamsUploadRoute
   ExamsIndexRoute: typeof ExamsIndexRoute
+  ExamsExplanationsIndexRoute: typeof ExamsExplanationsIndexRoute
+  ExamsUploadIndexRoute: typeof ExamsUploadIndexRoute
 }
 
 const ExamsRouteChildren: ExamsRouteChildren = {
   ExamsIdRoute: ExamsIdRoute,
-  ExamsExplanationsRoute: ExamsExplanationsRoute,
   ExamsStatsRoute: ExamsStatsRoute,
-  ExamsUploadRoute: ExamsUploadRoute,
   ExamsIndexRoute: ExamsIndexRoute,
+  ExamsExplanationsIndexRoute: ExamsExplanationsIndexRoute,
+  ExamsUploadIndexRoute: ExamsUploadIndexRoute,
 }
 
 const ExamsRouteWithChildren = ExamsRoute._addFileChildren(ExamsRouteChildren)
@@ -353,8 +351,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConfigRoute: ConfigRoute,
   ExamsRoute: ExamsRouteWithChildren,
   MemoryRoute: MemoryRoute,
-  ApiChatRoute: ApiChatRoute,
-  ApiIngestRoute: ApiIngestRoute,
   ApiTestConnectionRoute: ApiTestConnectionRoute,
   QuizIdRoute: QuizIdRoute,
 }
