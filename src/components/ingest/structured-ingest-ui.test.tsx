@@ -67,10 +67,13 @@ describe("OutputPanel", () => {
 				entries={outputEntries}
 				rawOutput={"Decoded file contents\nReviewer found a missing topic"}
 				tokenTotals={tokenTotals}
-				isRunning
 				selectedStageId="review"
 				selectedStageLabel="Review"
 				agents={agents}
+				stages={[
+					{ stageId: "decode", label: "Decode", status: "done", timestamp: 1 },
+					{ stageId: "review", label: "Review", status: "running", timestamp: 2 },
+				]}
 				onClearFilter={() => {}}
 			/>,
 		);

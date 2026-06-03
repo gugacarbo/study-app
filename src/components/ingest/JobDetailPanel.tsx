@@ -69,10 +69,10 @@ export function JobDetailPanel({
 							entries={job.outputEntries}
 							rawOutput={job.rawOutput}
 							tokenTotals={job.tokenTotals}
-							isRunning={job.status === "running"}
 							selectedStageId={selectedStageId}
 							selectedStageLabel={selectedStage?.label ?? null}
 							agents={job.agents}
+							stages={job.stages}
 							onClearFilter={onClearStageFilter}
 						/>
 					</TabsContent>

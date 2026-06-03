@@ -1,5 +1,5 @@
 import type { UIMessage } from "@tanstack/ai-client";
-import { Filter, PanelRightOpen, Sparkles } from "lucide-react";
+import { Filter, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,21 +13,26 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
 import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
+import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
 import { cn } from "@/lib/utils";
+import { IngestChatView } from "./IngestChatView";
 import type {
 	IngestAgentRunViewModel,
 	IngestOutputEntry,
+	IngestPipelineStageViewModel,
 	IngestTokenTotals,
 } from "./types";
+
+type OutputMode = "chat" | "treated" | "raw";
 
 interface OutputPanelProps {
 	entries: IngestOutputEntry[];
 	rawOutput: string;
 	tokenTotals: IngestTokenTotals;
-	isRunning: boolean;
 	selectedStageId: string | null;
 	selectedStageLabel: string | null;
 	agents: IngestAgentRunViewModel[];
+	stages: IngestPipelineStageViewModel[];
 	onClearFilter: () => void;
 }
 
@@ -35,13 +40,13 @@ export function OutputPanel({
 	entries,
 	rawOutput,
 	tokenTotals,
-	isRunning,
 	selectedStageId,
 	selectedStageLabel,
 	agents,
+	stages,
 	onClearFilter,
 }: OutputPanelProps) {
-	const [mode, setMode] = useState<"treated" | "raw">("treated");
+	const [mode, setMode] = useState<OutputMode>("chat");
 	const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
 	const filteredEntries = useMemo(
@@ -91,9 +96,12 @@ export function OutputPanel({
 				<div className="ml-auto">
 					<Tabs
 						value={mode}
-						onValueChange={(value) => setMode(value as "treated" | "raw")}
+						onValueChange={(value) => setMode(value as OutputMode)}
 					>
 						<TabsList className="h-8 bg-[#0b1424]">
+							<TabsTrigger value="chat" className="px-3 text-[0.7rem]">
+								Chat
+							</TabsTrigger>
 							<TabsTrigger value="treated" className="px-3 text-[0.7rem]">
 								Treated
 							</TabsTrigger>
@@ -105,7 +113,13 @@ export function OutputPanel({
 				</div>
 			</div>
 
-			{mode === "treated" ? (
+			{mode === "chat" ? (
+				<IngestChatView
+					agents={filteredAgents}
+					stages={stages}
+					selectedStageId={selectedStageId}
+				/>
+			) : mode === "treated" ? (
 				<div className="flex min-h-0 flex-1 flex-col gap-3">
 					{filteredAgents.length > 0 ? (
 						<div className="max-h-52 overflow-y-auto rounded-md border border-white/10 bg-[#0b1424] p-2">
@@ -139,25 +153,6 @@ export function OutputPanel({
 						</div>
 					) : null}
 
-					<div className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3">
-						{filteredEntries.length === 0 ? (
-							<EmptyOutputState
-								isRunning={isRunning}
-								hasStageFilter={Boolean(selectedStageId)}
-							/>
-						) : (
-							<div className="flex flex-col gap-3">
-								{filteredEntries.map((entry) =>
-									entry.kind === "message" ? (
-										<TranscriptMessage key={entry.id} entry={entry} />
-									) : (
-										<TranscriptEvent key={entry.id} entry={entry} />
-									),
-								)}
-							</div>
-						)}
-					</div>
-
 					<AgentDetailDialog
 						agent={selectedAgent}
 						open={selectedAgent != null}
@@ -182,76 +177,6 @@ export function OutputPanel({
 	);
 }
 
-function TranscriptMessage({
-	entry,
-}: {
-	entry: Extract<IngestOutputEntry, { kind: "message" }>;
-}) {
-	const roleLabel = entry.label ?? defaultRoleLabel(entry.role);
-
-	const uiMessage: UIMessage = {
-		id: entry.id,
-		role: entry.role,
-		parts: [{ type: "text", content: entry.content }],
-	};
-
-	return (
-		<div className="flex flex-col gap-1">
-			<div className="px-1 text-[0.625rem] uppercase tracking-wide text-slate-500">
-				{roleLabel}
-			</div>
-			<div
-				className={cn(
-					entry.status === "warning" &&
-						"rounded-lg border-amber-500/30 bg-amber-500/10",
-					entry.status === "error" &&
-						"rounded-lg border-red-500/30 bg-red-500/10",
-				)}
-			>
-				<ChatMessage message={uiMessage} />
-			</div>
-		</div>
-	);
-}
-
-function TranscriptEvent({
-	entry,
-}: {
-	entry: Extract<IngestOutputEntry, { kind: "event" }>;
-}) {
-	return (
-		<div className="rounded-md border border-dashed border-white/10 bg-[#111b2c] px-3 py-2">
-			<div className="flex items-center gap-2 text-xs font-medium text-slate-200">
-				<PanelRightOpen className="size-3.5 text-slate-400" />
-				{entry.label}
-			</div>
-			{entry.content ? (
-				<p className="mt-1 text-[0.7rem] leading-relaxed text-slate-400">
-					{entry.content}
-				</p>
-			) : null}
-		</div>
-	);
-}
-
-function EmptyOutputState({
-	isRunning,
-	hasStageFilter,
-}: {
-	isRunning: boolean;
-	hasStageFilter: boolean;
-}) {
-	return (
-		<div className="flex h-full min-h-40 items-center justify-center rounded-md text-[0.7rem] text-slate-500">
-			{hasStageFilter
-				? "No output for this stage yet"
-				: isRunning
-					? "Waiting for output..."
-					: "No output yet"}
-		</div>
-	);
-}
-
 function AgentDetailDialog({
 	agent,
 	open,
@@ -263,7 +188,7 @@ function AgentDetailDialog({
 }) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="flex h-[92vh] w-[98vw] max-w-[98vw] flex-col border-white/10 bg-[#0f1a2e] p-6 text-slate-100 sm:h-[90vh] sm:max-w-[1400px]">
+			<DialogContent className="flex h-[92vh] w-[98vw] max-w-[98vw] flex-col border-white/10 bg-[#0f1a2e] p-6 text-slate-100 sm:h-[90vh] sm:max-w-350">
 				<DialogHeader>
 					<DialogTitle>{agent?.name ?? ""}</DialogTitle>
 					<DialogDescription className="text-slate-400">
@@ -273,10 +198,12 @@ function AgentDetailDialog({
 				{agent ? (
 					<div className="mt-2 min-h-0 flex-1 overflow-auto">
 						<div className="flex flex-col gap-3 pr-1">
-							<AgentMessageBubble
-								messageRole="system"
-								label="System prompt"
-								content={agent.systemPrompt}
+							<SystemMessage
+								message={{
+									id: "agent-system",
+									role: "system",
+									parts: [{ type: "text", content: agent.systemPrompt ?? "" }],
+								}}
 							/>
 							<AgentMessageBubble
 								messageRole="user"
@@ -321,17 +248,6 @@ function AgentMessageBubble({
 			<ChatMessage message={uiMessage} />
 		</div>
 	);
-}
-
-function defaultRoleLabel(role: "system" | "user" | "assistant") {
-	switch (role) {
-		case "system":
-			return "System";
-		case "user":
-			return "User";
-		default:
-			return "Assistant";
-	}
 }
 
 function agentStateBadgeClass(state: IngestAgentRunViewModel["state"]): string {
