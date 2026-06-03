@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ExplanationProgressItem } from "@/components/exam-detail/exam-utils";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
-import { useExplanationGeneration } from "@/features/ai/components/exam-detail/use-explanation-generation";
+import { useExplanationGeneration } from "@/features/ai/components/exam-detail/explanation-generation";
 
 interface UseExplanationPipelineProps {
 	examId: number;

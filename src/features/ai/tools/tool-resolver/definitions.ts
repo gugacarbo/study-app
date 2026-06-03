@@ -1,5 +1,5 @@
-import type { AgentName, AgentToolName, BaseToolName } from "./tool-registry";
-import { BASE_TOOL_REGISTRY } from "./tool-registry";
+import type { AgentName, AgentToolName, BaseToolName } from "../tool-registry";
+import { BASE_TOOL_REGISTRY } from "../tool-registry";
 
 const VALID_BASE_TOOL_NAMES = Object.keys(BASE_TOOL_REGISTRY) as BaseToolName[];
 

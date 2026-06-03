@@ -1,8 +1,8 @@
 import { X } from "lucide-react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
-import type { EditFormData, QuestionData } from "./exam-utils";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Textarea } from "../../ui/textarea";
+import type { EditFormData, QuestionData } from "../exam-utils";
 
 interface QuestionEditFieldsProps {
 	question: QuestionData;

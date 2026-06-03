@@ -1,5 +1,5 @@
 import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
-import { useExplanationGeneration } from "@/features/ai/components/exam-detail/use-explanation-generation";
+import { useExplanationGeneration } from "@/features/ai/components/exam-detail/explanation-generation";
 import {
 	DialogContent as DialogContentShell,
 	DialogDescription,

@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
 import { cn } from "@/lib/utils";
-import type { IngestAgentRunViewModel } from "./types";
+import type { IngestAgentRunViewModel } from "../types";
 
 interface OutputPanelAgentRunsProps {
 	filteredAgents: IngestAgentRunViewModel[];

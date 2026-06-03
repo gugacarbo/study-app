@@ -1,17 +1,17 @@
-import { createParallelReviewTool } from "./reviewer-tool";
+import { createParallelReviewTool } from "../reviewer-tool";
 import {
 	DEFAULT_AGENT_TOOL_NAMES,
 	parseConfiguredToolNames,
 	VALID_BASE_TOOL_NAMES,
-} from "./tool-definitions";
+} from "./definitions";
 import type {
 	AgentName,
 	AgentToolName,
 	AgentToolSet,
 	BaseToolName,
 	ToolResolverContext,
-} from "./tool-registry";
-import { BASE_TOOL_REGISTRY, DEFAULT_AGENT_BASE_TOOLS } from "./tool-registry";
+} from "../tool-registry";
+import { BASE_TOOL_REGISTRY, DEFAULT_AGENT_BASE_TOOLS } from "../tool-registry";
 
 interface ResolveAgentToolsOptions {
 	agent: AgentName;

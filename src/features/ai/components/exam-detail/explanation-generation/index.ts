@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { ExplanationProgressItem } from "@/components/exam-detail/exam-utils";
 import { chunkIds, getErrorMessage } from "@/components/exam-detail/exam-utils";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
-import { processExplanationBatch } from "./explanation-generator";
-import { buildProgressItems, computeProgressStats } from "./explanation-queue";
+import { processExplanationBatch } from "./generator";
+import { buildProgressItems, computeProgressStats } from "./queue";
 
 interface QuestionBrief {
 	id: number;

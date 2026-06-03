@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { OutputPanel } from "./OutputPanel";
+import { OutputPanel } from "./output-panel";
 import { PipelineFlow } from "./PipelineFlow";
 import { ProcessLogsPanel } from "./ProcessLogsPanel";
 import type { IngestJobViewModel } from "./types";

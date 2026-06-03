@@ -6,11 +6,11 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import appCss from "../globals.css?url";
-import { RootNav } from "./root-nav";
-import { RootProviders } from "./root-providers";
+import appCss from "../../globals.css?url";
+import { RootNav } from "./nav";
+import { RootProviders } from "./providers";
 
-export { queryClient } from "./root-providers";
+export { queryClient } from "./providers";
 
 function DefaultNotFound() {
 	return (

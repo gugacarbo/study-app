@@ -1,232 +1,88 @@
-# Study App — Agent Context
+# Study App
 
-**Generated:** 2026-05-28
-**Commit:** 6067b81
+**Generated:** 2026-06-03
+**Commit:** 965592d
 
-> **Last auto-updated:** 2026-06-03 — File refactoring: domain folders, barrel exports, 150L max per file
-
-## Overview
-Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
-
-## Rules
-- **Always** Create db migrations using scripts; never edit schema or queries directly. Ensure naming is correct (may use --name=migration_name or manually rename generated file).
-
-## Code Patterns
-> **Always read before writing or reviewing code:**
-> [`docs/codebase-patterns.md`](docs/codebase-patterns.md)
-
-## Stack
-- **Framework:** TanStack Start (SPA mode), React 19
-- **Routing:** TanStack Router (file-based, `src/routes/`)
-- **State:** TanStack Store (quiz), TanStack Query (server data)
-- **Backend:** Cloudflare Workers + D1 (SQLite)
-- **ORM:** Drizzle (`drizzle-orm`) with `drizzle-orm/d1` driver
-- **Migrations:** Drizzle Kit (`drizzle-kit`) + wrangler D1 migrations
-- **AI:** OpenRouter (via `@tanstack/ai`) — configurable provider/model
-- **Validation:** Zod
-- **Forms:** react-hook-form + @hookform/resolvers (Zod adapter)
-- **Styling:** Tailwind CSS v4
-- **Testing:** Vitest + jsdom
-- **Linting/Formatting:** Biome v2 (no ESLint/Prettier)
-- **Memory:** R2 + D1 hybrid memory layer (R2 for content, D1 for metadata/search_text), MEMORY_BUCKET binding
-
-## Environment Variables
-| Var                  | Required | Default              | Description                                                          |
-| -------------------- | -------- | -------------------- | -------------------------------------------------------------------- |
-| `OPENROUTER_API_KEY` | No       | —                    | OpenRouter API key (now optional — config-driven API keys supported) |
-| `AI_PROVIDER`        | No       | `openrouter`         | AI provider name                                                     |
-| `AI_MODEL`           | No       | `openai/gpt-4o-mini` | Model identifier                                                     |
-| `AI_LOG_LLM`         | No       | `false`              | Enable LLM call logging to D1                                        |
-| `AI_LOG_LLM_CONTENT` | No       | `false`              | Log LLM request/response content (large)                             |
-| `AI_LOG_LLM_CHUNKS`  | No       | `false`              | Log streaming chunk counts                                           |
-| `TAVILY_API_KEY`      | No       | —                    | Tavily API key for web search/fetch tools (ingest & chat)            |
-
-## Project Structure
-```
-src/
-├── components/          # UI components
-│   ├── ui/              # shadcn/ui primitives (button, card, dialog, etc.)
-│   ├── Dashboard.tsx    # Home page — exam list + quick stats
-│   ├── ExamDetail.tsx   # Exam detail view with stats, files, questions
-│   ├── ExamsView.tsx    # Exam list view with search and delete
-│   ├── UploadForm.tsx   # PDF upload + text paste (streaming progress)
-│   ├── Quiz.tsx         # Quiz player (question nav, timer, scoring)
-│   ├── StatsTable.tsx   # Stats display (plain HTML table)
-│   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
-│   ├── ThemeToggle.tsx  # Light/dark mode toggle
-│   ├── theme-provider.tsx # Theme context provider (shadcn)
-│   ├── ingest/           # Ingest UI components
-│   │   ├── ingest-chat-view/ # IngestChatView split (chat-panel, log-panel, use-ingest-chat)
-│   │   ├── OutputPanel.tsx, OutputPanelAgentRuns.tsx, OutputPanelLogs.tsx
-│   │   └── ... (JobDetailPanel, LogsPanel, PipelineFlow, QueueList, UploadCard, VirtualizedLogLines)
-│   ├── MemoryPanel.tsx  # Memory overview and search
-│   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
-├── routes/              # File-based TanStack Router routes
-│   ├── __root.tsx       # Thin root layout (delegates to root-nav, root-providers)
-│   ├── root-nav.tsx     # Nav bar + IngestIndicator (extracted from __root)
-│   ├── root-providers.tsx # QueryClient, theme, Scripts (extracted from __root)
-│   ├── index.tsx        # / — Dashboard
-│   ├── exams.tsx        # /exams — exam layout (Outlet)
-│   ├── exams.index.tsx  # /exams/ — exam list page
-│   ├── exams.stats.tsx  # /exams/stats — stats tab page
-│   ├── exams.upload/    # /exams/upload — split into upload-form, ingest-progress, job-list, use-upload
-│   ├── exams.$id.tsx    # /exams/$id — exam detail page
-│   ├── quiz.$id.tsx     # /quiz/$id — quiz by exam ID
-│   ├── config.tsx       # /config — AI provider settings
-│   ├── chat.tsx         # /chat — AI chat interface
-│   ├── about.tsx        # /about
-│   ├── memory.tsx       # /memory — memory overview
-│   ├── memory-viz.tsx   # /memory-viz — memory visualization dashboard
-│   ├── api/             # API route directory
-│   │   ├── chat/        # /api/chat — split into handlers, streaming, tools
-│   │   ├── ingest/      # /api/ingest — split into pipeline stages (pipeline, extract-text, memory-refinement, review, persist, sse-emitter)
-│   │   ├── test-connection.ts # /api/test-connection — SSE streaming test
-│   │   └── exams.explanations/ # /exams/explanations — split into pipeline-controls, explanation-results, use-explanation-pipeline
-├── server-functions/    # Server functions + utilities
-│   ├── config.ts        # getConfig, setConfig, testConnection
-│   ├── ingest.ts        # ingestExam (PDF → questions)
-│   ├── quiz.ts          # generateQuiz, submitAnswer
-│   ├── stats.ts         # getStats, getExams
-│   ├── exams/           # getExamDetail, getExamsDetailed, deleteExam, updateQuestion, deleteQuestion
-│   ├── memory.ts        # Memory operations (saveQuizSession, getMemoryContext)
-│   └── db.ts            # NOT a server fn — D1 helper utility
-├── db/
-│   ├── schema.ts        # Drizzle schema definitions (9 tables)
-│   └── queries/         # Drizzle query layer — split by entity (base, exams, questions, attempts, config, files, memory, llm-logs, types, helpers)
-├── lib/
-│   ├── file-service.ts  # File storage and retrieval service
-│   ├── memory/          # R2+D1 hybrid memory manager — split (types, manager, r2-operations, d1-operations, search, queries, content, pipeline)
-│   ├── sse-stream/      # SSE streaming — split (types, emitter, parser, ingest-stream, connection-stream)
-│   ├── utils.ts         # cn() utility for shadcn/ui
-│   └── validation.ts    # Zod schemas
-├── types/               # TypeScript type augmentation declarations
-├── stores/
-│   ├── quizStore.ts     # TanStack Store — quiz session state
-│   └── ingestStore/     # TanStack Store — ingest job queue (types, store, actions, selectors, persistence, job-utils)
-├── features/            # Feature modules
-│   └── ai/              # AI feature module — adapters, agents, core, providers, components
-│       ├── adapters/
-│       │   └── provider-adapter.ts
-│       ├── core/
-│       │   ├── generate/  # AI generation — split (types, generate-text, generate-structured, generate-stream, provider, json-extract)
-│       │   └── chat-stream.ts
-│       ├── agents/        # Domain agents (chat, ingest, explanations, quiz)
-│       │   ├── ingest/review-extraction/ # Review extraction agent — split (prompt, execute, types, review-question)
-│       │   └── explanations/generate-explanations/ # Explanations agent — split (prompt, batch-generator, types)
-│       ├── providers/     # Web search/content provider interfaces + Tavily impl
-│       ├── components/    # AI-related UI (chat, config, exam-detail gen)
-│       │   ├── chat/      # Chat UI components
-│       │   ├── config/    # Test connection dialog
-│       │   ├── exam-detail/ # Explanation generation (use-explanation-generation, explanation-queue, explanation-generator)
-│       │   └── agent-run-detail-dialog.tsx # Agent run inspector dialog
-│       ├── hooks/         # AI chat hooks
-│       │   └── use-chat-client/ # Chat client hook — split (types, send-message, tool-calls, streaming, callbacks, message-callbacks)
-│       ├── stores/        # AI chat stores
-│       │   └── conversations-store/ # Conversations store — split (types, actions, selectors)
-│       ├── tools/         # Tool resolution + registries
-│       │   ├── db-tools/  # DB query tools — split by entity (exam-tools, question-list-tools, question-keys-tools, attempt-tools)
-│       │   ├── tool-resolver.ts, tool-definitions.ts
-│       │   └── ... (web-tools, reviewer-tool)
-│       └── utils/
-├── router.tsx           # createTanStackRouter + getRouter()
-├── routeTree.gen.ts     # Auto-generated by TanStack Router plugin
-└── globals.css          # Global styles + Tailwind CSS v4
-tests/
-├── db/
-│   └── db.queries.pagination.test.ts # Paginated list queries tests
-├── lib/
-│   ├── chat-db-tools.test.ts # Chat AI DB tools tests
-│   └── validation.test.ts
-├── components/
-│   ├── exam-detail/
-│   └── ingest/
-├── features/
-│   └── ai/
-└── server-functions/
-    ├── config.test.ts
-    ├── ingest.test.ts
-    └── quiz.test.ts
-migrations/
-├── 0001_exams.sql       # exams table
-├── 0002_questions.sql   # questions table (depends on exams)
-├── 0003_attempts.sql    # attempts table (depends on questions)
-├── 0004_config.sql      # config table + seed data
-├── 0005_files.sql       # files table (depends on exams)
-├── 0006_memory.sql      # memory tables (profile, sessions, topic_notes, documents)
-├── 0007_questions_deep_explanation.sql # adds deep_explanation column to questions
-├── 0008_llm_logs.sql      # LLM call logging table
-└── 0011_memory_r2_metadata_index.sql # R2 key indexes + search_text columns
-└── 0011_memory_r2_metadata_index.sql # R2 key indexes + search_text columns
-```
+Single-user web app: upload past-exam PDFs → AI extracts questions → quiz mode → progress tracking. TanStack Start + Cloudflare Workers.
 
 ## Commands
-| Command                     | Action                                            |
-| --------------------------- | ------------------------------------------------- |
-| `npm run dev`               | Local dev server (port 3000)                      |
-| `npm run wrangler:dev`      | Wrangler dev mode                                 |
-| `npm run build`             | Production build                                  |
-| `npm run deploy`            | Build + wrangler deploy                           |
-| `npm run test`              | Vitest run                                        |
-| `npm run lint`              | Biome lint                                        |
-| `npm run format`            | Biome format                                      |
-| `npm run check`             | Biome lint + format check                         |
-| `npm run typecheck`         | `tsc --noEmit`                                    |
-| `npm run db:generate`       | Drizzle Kit — generate migration from schema diff |
-| `npm run db:generate:local` | Drizzle Kit — generate with explicit config path  |
-| `npm run db:migrate`        | Wrangler D1 migrations (local)                    |
-| `npm run db:migrate:prod`   | Wrangler D1 migrations (remote)                   |
-| `npm run db:reset`          | Wrangler D1 migrations reset (local)              |
-| `npm run db:reset:prod`     | Wrangler D1 migrations reset (remote)             |
 
-**Note:** `postinstall` runs `cf-typegen` + `db:migrate` automatically.
+| Command | Action |
+|---------|--------|
+| `npm run dev` | Dev server (port 3000) |
+| `npm run test` | Vitest |
+| `npm run lint` / `check` | Biome lint / lint+format |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run build` / `deploy` | Prod build / wrangler deploy |
+| `npm run db:generate` | Drizzle Kit migration from schema diff |
+| `npm run db:migrate[:prod]` | Wrangler D1 migrate (local/remote) |
+| `npm run db:reset[:prod]` | Wrangler D1 reset (local/remote) |
 
-## Key Architectural Decisions
-- **Single-user, local-first** — no auth, no multi-tenancy
-- **All AI calls server-side** — never in browser
-- **D1 via Drizzle ORM** — `src/db/schema.ts` defines tables, `src/db/queries.ts` wraps Drizzle operations
-- **Migrations managed by wrangler** — each table has its own migration file (\`0001_exams.sql\` → \`0006_memory.sql\`)
-- **SPA mode** (no SSR) — appropriate for single-user app
-- **TanStack Store** for quiz state (ephemeral + localStorage persistence) and chat state, **TanStack Query** for server data
-- **PDF parsing** via text extraction; fallback to manual paste
-- **Server functions** use `createServerFn` from `@tanstack/react-start` with `data` parameter pattern
-- **Deep explanations** generated in batches by AI agent, stored in `deep_explanation` column; shown as collapsible in quiz results
-- **Quiz answer evaluation** uses direct string comparison (not AI) — faster, cheaper, deterministic
-- **Quiz state persisted** to localStorage — survives page refresh, keyed by exam/topic
-- **Config form** uses `react-hook-form` + `@hookform/resolvers` (Zod adapter) — not `@tanstack/react-form`
-- **Markdown rendering** via `react-markdown` + `remark-gfm` with custom component overrides (inline code, blockquotes, tables, lists); used for AI-generated explanations, questions, options, and profile summaries across exam-detail, quiz, and memory-panel
-- **Multi-conversation chat** with `conversationsStore` (TanStack Store + localStorage persistence) — conversations sidebar, auto-title from first user message, new/delete/switch via `ChatSidebar`
-- **Streaming ingest progress** — upload form shows real-time AI streaming text (token-by-token), live estimated token count, and spinner instead of static progress bar; SSE `chunk`, `token`, `stage`, `warning`, and `agent` events from `/api/ingest`
-- **Ingest pipeline stages** — multi-stage extraction: decode → initial extraction → memory refinement → review → persist; each stage reported via SSE `stage` events with per-agent-run `agent` events for lifecycle/result/warning/token tracking
-- **Critical-topic verification** — configurable `ingest_critical_topics` config key triggers reviewer agent with web tools to verify coverage of important topics
-- **Tool resolution** — `resolveToolsForAgent()` in `src/features/ai/tools/tool-resolver.ts` assembles per-agent tool sets (chat, ingest, reviewer) with optional web search/fetch tools and DB tools
-- **Ingest job tracking** — `ingestStore` (TanStack Store + localStorage persistence) tracks ingest job status; `IngestIndicator` component in root nav shows active/recent jobs with link to `/exams/upload`
-- **Light/dark mode** — Full light/dark theme support via Tailwind CSS v4 `@custom-variant dark` and shadcn CSS variables; `ThemeToggle` in nav, `theme-provider.tsx` context
-- **Agent run detail dialog** — `agent-run-detail-dialog.tsx` shows system prompt, user prompt, and response for each agent run; used by explanation pipeline and OutputPanel
-- **Full-width layout mode** — root layout uses `has-[[data-fullwidth]]:max-w-full` to allow children (e.g., chat) to opt into full-width via `data-fullwidth` attribute; body uses `h-dvh overflow-hidden` for full-height layout
+`postinstall` runs `cf-typegen` + `db:migrate`.
 
-## Memory Layer (R2+D1 Hybrid)
-- **Storage:** R2 bucket (`MEMORY_BUCKET`) for full content, D1 for metadata + `search_text` + `r2_key` references
-- **Migration files:** `0006_memory.sql` (tables), `0011_memory_r2_metadata_index.sql` (R2 key indexes + search_text columns)
-- **Schema:** Defined in `src/db/schema.ts` — memory tables use `r2_key` instead of `content`, `search_text` for lightweight search
-- **MemoryManager:** `src/lib/memory.ts` — writes content to R2, stores only metadata/search_text in D1; `hydrateSearchResults()` fetches from R2 on demand
-- **LLM Logging:** `llm_logs` table stores AI call metadata (provider, model, duration, tokens, status). Enable via `AI_LOG_LLM`, `AI_LOG_LLM_CONTENT`, `AI_LOG_LLM_CHUNKS` env vars.
-- **Server functions:** `src/server-functions/memory.ts` — `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`
-- **Context injection:** Before AI calls, `getMemoryContext` queries recent sessions, topic notes, and profile → injects into system prompt
-- **Web research:** `saveWebResearch()` stores web search/fetch results in R2 as `memory/research/` documents
-- **R2 bindings:** `MEMORY_BUCKET` (wrangler.jsonc) + `getMemoryBucket()` in `src/server-functions/storage.ts`
+## Stack
 
-## Known Gotchas
-- `pdf-parse` doesn't work in CF Workers — text extraction fallback
-- OpenRouter rate limits may require retry logic
+- **Framework:** TanStack Start (SPA), React 19, TanStack Router + Query + Store
+- **Backend:** Cloudflare Workers + D1 (SQLite via Drizzle ORM), R2 (memory content)
+- **AI:** OpenRouter (configurable provider/model), Tavily web search
+- **UI:** Tailwind CSS v4, shadcn/ui, react-hook-form + Zod
+- **Quality:** Biome (lint/format), Vitest + jsdom, `tsc --noEmit`
+
+## Env Vars
+
+| Var | Default | Notes |
+|-----|---------|-------|
+| `OPENROUTER_API_KEY` | — | Optional (config-driven) |
+| `AI_PROVIDER` | `openrouter` | |
+| `AI_MODEL` | `openai/gpt-4o-mini` | |
+| `AI_LOG_LLM` | `false` | Log AI calls to D1 |
+| `TAVILY_API_KEY` | — | Web search for ingest & chat |
+
+## Structure
+
+```
+src/
+├── components/         # UI components (feature folders + ui/ shadcn)
+├── routes/             # File-based TanStack Router routes + API handlers
+├── server-functions/   # createServerFn wrappers (config, quiz, stats, exams, memory)
+├── db/                 # Drizzle schema + queries (DBQueries class with Object.assign mixin)
+├── lib/                # Infrastructure (memory/R2+D1, SSE streaming, validation, file-service)
+├── stores/             # TanStack Store (quizStore, ingestStore)
+├── features/ai/        # AI module: agents, core, tools, providers, components, hooks, stores
+├── types/              # Module augmentation (.d.ts only)
+tests/                  # Vitest tests (db, lib, components, features, server-functions)
+migrations/             # Drizzle Kit SQL migrations (0001-0012)
+```
+
+## Where to Look
+
+| Task | Location |
+|------|----------|
+| Add/edit DB query | `src/db/queries/{entity}.ts` |
+| Add route / page | `src/routes/` (file-based naming) |
+| Add server fn | `src/server-functions/{domain}.ts` |
+| Modify AI agent prompt | `src/features/ai/agents/{agent}/prompt.ts` |
+| Add shadcn component | `src/components/ui/` |
+| Modify ingest state | `src/stores/ingestStore/{actions,types,utils}.ts` |
+
+## Architecture
+
+- **All AI server-side** — never in browser
+- **SPA mode** (no SSR) — single-user app
+- **Quiz eval:** string comparison (not AI) — faster, deterministic
+- **Ingest pipeline:** decode → initial extraction → memory refinement → review → persist (SSE streamed)
+- **Memory:** R2 for content, D1 for metadata/search_text (hybrid)
+- **Chat:** multi-conversation with TanStack Store + localStorage
+- **Agent tools:** `resolveToolsForAgent()` assembles per-agent tool sets (DB + web)
+
+## Anti-Patterns
+
+- `#/*` path alias unused — use `@/*`
 - Biome VCS integration disabled — ignores `.gitignore`
-- `#/*` path alias in `package.json` imports is unused — use `@/*` instead
-- No CI pipeline — quality checks are manual
-- D1 `database_id: "DEV"` hardcoded in wrangler.jsonc; production DB injected at deploy
-- Drizzle `d1-http` driver is for migration generation only; runtime uses `drizzle-orm/d1`
-- Test mocks must support `stmt.bind(...).raw()` for Drizzle D1 compatibility
-- `db:reset` drops all tables — use with caution (local only)
-- File blobs stored in D1 `files` table (content column) — large files may hit D1's 1MB row limit
-- `getDB()` in `src/server-functions/db.ts` uses dynamic `import("cloudflare:workers")` with `/* @vite-ignore */` — required because static imports of Workers-only modules break Vite bundling in non-Workers contexts. API routes (`chat.ts`, `ingest.ts`, `test-connection.ts`) also use dynamic imports of `getDB` at the call site.
+- No CI pipeline — manual quality checks
+- `db:reset` drops all tables (local only)
+- D1 1MB row limit on `files` table (content column)
+- `getDB()` uses dynamic `import("cloudflare:workers")` with `/* @vite-ignore */` — required for Vite bundling compat
 
 <!-- intent-skills:start -->
 # Skill mappings - load `use` with `npx @tanstack/intent@latest load <use>`.

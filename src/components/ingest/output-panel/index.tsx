@@ -3,13 +3,13 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { OutputPanelAgentRuns } from "./OutputPanelAgentRuns";
-import { OutputPanelLogs } from "./OutputPanelLogs";
+import { OutputPanelAgentRuns } from "./agent-runs";
+import { OutputPanelLogs } from "./logs";
 import type {
 	IngestAgentRunViewModel,
 	IngestOutputEntry,
 	IngestTokenTotals,
-} from "./types";
+} from "../types";
 
 interface OutputPanelProps {
 	entries: IngestOutputEntry[];

@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplanationDialog } from "@/components/exam-detail/explanation-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
-import { useExplanationGeneration } from "@/features/ai/components/exam-detail/use-explanation-generation";
+import { useExplanationGeneration } from "@/features/ai/components/exam-detail/explanation-generation";
 
-vi.mock("@/features/ai/components/exam-detail/use-explanation-generation", () => ({
+vi.mock("@/features/ai/components/exam-detail/explanation-generation", () => ({
 	useExplanationGeneration: vi.fn(),
 }));
 

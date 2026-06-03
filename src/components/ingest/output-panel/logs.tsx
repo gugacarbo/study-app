@@ -5,7 +5,7 @@ import type {
 	IngestAgentRunViewModel,
 	IngestOutputEntry,
 	IngestTokenTotals,
-} from "./types";
+} from "../types";
 
 interface OutputPanelLogsProps {
 	rawStreamText: string;
