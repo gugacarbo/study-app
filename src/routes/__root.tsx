@@ -23,9 +23,9 @@ import {
 	navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { FileRoutesByTo } from "@/routeTree.gen";
 import type { IngestJob } from "@/stores/ingestStore";
 import { focusJob, ingestStore } from "@/stores/ingestStore";
-import type { FileRoutesByTo } from "@/routeTree.gen";
 import appCss from "../globals.css?url";
 
 export const queryClient = new QueryClient({

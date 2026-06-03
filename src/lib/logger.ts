@@ -4,11 +4,7 @@ import { env } from "../env";
 export interface Logger {
 	info(message: string, data?: Record<string, unknown>): void;
 	warn(message: string, data?: Record<string, unknown>): void;
-	error(
-		message: string,
-		error?: unknown,
-		data?: Record<string, unknown>,
-	): void;
+	error(message: string, error?: unknown, data?: Record<string, unknown>): void;
 }
 
 interface ErrorDetails {
@@ -43,10 +39,7 @@ function safeStringify(value: unknown): string {
 	}
 }
 
-export function createIngestLogger(
-	module: string,
-	db?: D1Database,
-): Logger {
+export function createIngestLogger(module: string, db?: D1Database): Logger {
 	return {
 		info(message, data) {
 			console.log(

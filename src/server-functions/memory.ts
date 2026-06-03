@@ -42,5 +42,3 @@ export const getMemoryOverview = createServerFn({ method: "GET" }).handler(
 		return await memory.getOverview();
 	},
 );
-
-

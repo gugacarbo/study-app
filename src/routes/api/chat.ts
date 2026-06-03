@@ -236,10 +236,9 @@ export const Route = createFileRoute("/api/chat")({
 					{
 						abortController,
 						system: buildChatSystemPrompt({ reviewMode }),
-						tools:
-							resolvedTools.tools as NonNullable<
-								Parameters<typeof streamChatMessages>[2]
-							>["tools"],
+						tools: resolvedTools.tools as NonNullable<
+							Parameters<typeof streamChatMessages>[2]
+						>["tools"],
 					},
 				);
 
@@ -252,4 +251,4 @@ export const Route = createFileRoute("/api/chat")({
 			},
 		},
 	},
-} as any);
+} as never);

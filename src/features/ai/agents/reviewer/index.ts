@@ -1,1 +1,4 @@
-export { runParallelReview, type ParallelReviewResult } from "./run-parallel-review";
+export {
+	type ParallelReviewResult,
+	runParallelReview,
+} from "./run-parallel-review";

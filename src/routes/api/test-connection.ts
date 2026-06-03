@@ -135,4 +135,4 @@ export const Route = createFileRoute("/api/test-connection")({
 			},
 		},
 	},
-} as any);
+} as never);

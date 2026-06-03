@@ -59,9 +59,9 @@ async function getBucket(
 	const fromContext = ctx?.context?.[binding];
 	if (fromContext) return fromContext;
 
-	const fromCloudflareWorkersModule = (await getBucketFromCloudflareWorkersModule())?.[
-		binding
-	];
+	const fromCloudflareWorkersModule = (
+		await getBucketFromCloudflareWorkersModule()
+	)?.[binding];
 	if (fromCloudflareWorkersModule) return fromCloudflareWorkersModule;
 
 	const fromGlobalBucket = (

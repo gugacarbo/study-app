@@ -292,8 +292,9 @@ async function runIngestWithProgress(
 			stage: "init",
 		});
 		send("warning", {
-			message: `Memory initialization failed: ${error instanceof Error ? error.message : "unknown error"
-				}`,
+			message: `Memory initialization failed: ${
+				error instanceof Error ? error.message : "unknown error"
+			}`,
 		});
 	});
 
@@ -323,8 +324,9 @@ async function runIngestWithProgress(
 							query: input.query,
 						});
 						send("warning", {
-							message: `Failed to save web search memory: ${error instanceof Error ? error.message : "unknown error"
-								}`,
+							message: `Failed to save web search memory: ${
+								error instanceof Error ? error.message : "unknown error"
+							}`,
 						});
 					}
 				},
@@ -343,8 +345,9 @@ async function runIngestWithProgress(
 							url: output.url,
 						});
 						send("warning", {
-							message: `Failed to save web fetch memory: ${error instanceof Error ? error.message : "unknown error"
-								}`,
+							message: `Failed to save web fetch memory: ${
+								error instanceof Error ? error.message : "unknown error"
+							}`,
 						});
 					}
 				},
@@ -370,10 +373,7 @@ async function runIngestWithProgress(
 
 	const fileService = new FileService(db, filesBucket);
 
-	const runExtractionPass = async (
-		stageId: string,
-		stageLabel: string,
-	) => {
+	const runExtractionPass = async (stageId: string, stageLabel: string) => {
 		// Extraction pass does NOT need web tools — that's the reviewer's job.
 		// Passing both tools + outputSchema to @tanstack/ai's chat() triggers a
 		// two-pass agent loop (tools call + structured-output finalization call),
@@ -463,13 +463,12 @@ async function runIngestWithProgress(
 				label: stageLabel,
 				rawTextLength: rawText.length,
 				rawTextPreview:
-					rawText.length > 1000
-						? `${rawText.slice(0, 1000)}...`
-						: rawText,
+					rawText.length > 1000 ? `${rawText.slice(0, 1000)}...` : rawText,
 				systemPrompt,
-				userPromptPreview: userPrompt.length > 500
-					? `${userPrompt.slice(0, 500)}...`
-					: userPrompt,
+				userPromptPreview:
+					userPrompt.length > 500
+						? `${userPrompt.slice(0, 500)}...`
+						: userPrompt,
 			});
 			agentRuns.lifecycle(run, "error", {
 				error: error instanceof Error ? error.message : "unknown error",
@@ -729,4 +728,4 @@ export const Route = createFileRoute("/api/ingest")({
 			},
 		},
 	},
-} as any);
+} as never);

@@ -41,4 +41,3 @@ export const setConfig = createServerFn({ method: "POST" })
 
 		return { success: true };
 	});
-

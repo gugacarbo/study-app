@@ -55,16 +55,18 @@ Your assigned perspective: ${role}
 Return ONLY a valid JSON object with these exact keys:
 
 ${JSON.stringify(
-		{
-			verdict: "CORRECT | PARTIALLY_CORRECT | INCORRECT | UNVERIFIABLE",
-			answer: "The corrected or confirmed answer. If correct, repeat it. If incorrect, provide the corrected version.",
-			reasoning: "Brief explanation of why you reached this verdict. Cite specific evidence.",
-			confidence: "HIGH | MEDIUM | LOW",
-			sources: ["URL 1", "URL 2"],
-		},
-		null,
-		2,
-	)}
+	{
+		verdict: "CORRECT | PARTIALLY_CORRECT | INCORRECT | UNVERIFIABLE",
+		answer:
+			"The corrected or confirmed answer. If correct, repeat it. If incorrect, provide the corrected version.",
+		reasoning:
+			"Brief explanation of why you reached this verdict. Cite specific evidence.",
+		confidence: "HIGH | MEDIUM | LOW",
+		sources: ["URL 1", "URL 2"],
+	},
+	null,
+	2,
+)}
 
 - "verdict": must be one of CORRECT, PARTIALLY_CORRECT, INCORRECT, or UNVERIFIABLE.
 - "sources": list every URL you consulted or that supports your answer. Use an empty array [] if none found — never invent URLs.`;

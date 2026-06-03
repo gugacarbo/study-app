@@ -1,12 +1,12 @@
 import { generateJson } from "@/features/ai/core/generate";
 import type { ProviderConfig } from "@/lib/validation";
 import {
+	type ArbiterResult,
+	arbiterResultSchema,
 	buildReviewerSystemPrompt,
 	REVIEW_ARBITER_SYSTEM_PROMPT,
-	reviewerDraftSchema,
-	arbiterResultSchema,
-	type ArbiterResult,
 	type ReviewerDraft,
+	reviewerDraftSchema,
 } from "./system-prompt";
 
 interface ParallelReviewOptions {
@@ -36,7 +36,7 @@ export async function runParallelReview(
 		async (_, index) => {
 			try {
 				const systemPrompt = buildReviewerSystemPrompt(index + 1);
-				const reviewerResult = await generateJson(
+				const reviewerResult = (await generateJson(
 					config,
 					question,
 					reviewerDraftSchema,
@@ -44,7 +44,7 @@ export async function runParallelReview(
 						system: systemPrompt,
 						tools: options?.tools,
 					},
-				) as { finalObject: ReviewerDraft };
+				)) as { finalObject: ReviewerDraft };
 				return { ok: true as const, draft: reviewerResult.finalObject };
 			} catch (error) {
 				const message =
@@ -95,12 +95,12 @@ ${JSON.stringify(draft, null, 2)}`,
 
 ${failedReviewerCount > 0 ? `Note: ${failedReviewerCount} reviewer(s) failed — rely on the available drafts.` : ""}`;
 
-	const arbiterResult = await generateJson(
+	const arbiterResult = (await generateJson(
 		config,
 		arbiterPrompt,
 		arbiterResultSchema,
 		{ system: REVIEW_ARBITER_SYSTEM_PROMPT, tools: options?.tools },
-	) as { finalObject: ArbiterResult };
+	)) as { finalObject: ArbiterResult };
 
 	const finalAnswer = arbiterResult.finalObject;
 

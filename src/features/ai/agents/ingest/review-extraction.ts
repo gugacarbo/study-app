@@ -252,7 +252,7 @@ export async function reviewExtraction(
 					error instanceof Error ? error.message : "unknown error";
 				console.error(
 					`[${new Date().toISOString()} ERROR review-extraction] ` +
-					`Review Q${index + 1}/${totalQuestions} failed: ${message}`,
+						`Review Q${index + 1}/${totalQuestions} failed: ${message}`,
 					`question="${question.question.slice(0, 120)}..."`,
 					`topic=${question.topic ?? "General"}`,
 				);
