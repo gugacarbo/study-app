@@ -116,7 +116,8 @@ function ExplanationContent({ examId }: { examId: number }) {
 	}
 
 	function handleProgressItemClick(item: ExplanationProgressItem) {
-		const agentRun = item.response?.agentRun;
+		const agentRun =
+			item.response?.agentRun ?? gen.findAgentRunForQuestionId(item.id);
 		if (!agentRun) return;
 		handleSelectAgentRun(agentRun);
 	}
@@ -217,6 +218,10 @@ function ExplanationContent({ examId }: { examId: number }) {
 								item={item}
 								questionOrder={gen.questionOrder}
 								isSelected={gen.selectedResponseItemId === item.id}
+								canOpenDialog={Boolean(
+									item.response?.agentRun ??
+										gen.findAgentRunForQuestionId(item.id),
+								)}
 								onSelect={gen.setSelectedResponseItemId}
 								onClick={handleProgressItemClick}
 							/>

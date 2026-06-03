@@ -29,6 +29,14 @@ export function AgentRunDetailDialog({
 	open,
 	onOpenChange,
 }: AgentRunDetailDialogProps) {
+	const systemMessage = createTextMessage("agent-system", "system", systemPrompt);
+	const userMessage = createTextMessage("agent-user", "user", userPrompt);
+	const assistantMessage = createTextMessage(
+		"agent-assistant",
+		"assistant",
+		response,
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="flex h-[92vh] w-[98vw] max-w-[98vw] flex-col border-border bg-card p-6 text-foreground sm:h-[90vh] sm:max-w-350">
@@ -38,27 +46,11 @@ export function AgentRunDetailDialog({
 						{summary ?? "Inspect prompts, response, and agent state."}
 					</DialogDescription>
 				</DialogHeader>
-				<div className="mt-2 min-h-0 flex-1 overflow-auto">
+				<div className="mt-2 min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
 					<div className="flex flex-col gap-3 pr-1">
-						<SystemMessage
-							message={{
-								id: "agent-system",
-								role: "system",
-								parts: [{ type: "text", content: systemPrompt ?? "" }],
-							}}
-						/>
-						<UserMessage
-							message={{
-								id: "agent-user",
-								role: "user",
-								parts: [{ type: "text", content: userPrompt ?? "" }],
-							}}
-						/>
-						<AgentMessageBubble
-							messageRole="assistant"
-							label="Agent response"
-							content={response}
-						/>
+						{systemMessage ? <SystemMessage message={systemMessage} /> : null}
+						{userMessage ? <UserMessage message={userMessage} /> : null}
+						{assistantMessage ? <ChatMessage message={assistantMessage} /> : null}
 					</div>
 				</div>
 			</DialogContent>
@@ -66,29 +58,16 @@ export function AgentRunDetailDialog({
 	);
 }
 
-function AgentMessageBubble({
-	messageRole,
-	label,
-	content,
-}: {
-	messageRole: "assistant";
-	label: string;
-	content?: string;
-}) {
+function createTextMessage(
+	id: string,
+	role: UIMessage["role"],
+	content?: string,
+): UIMessage | null {
 	if (!content) return null;
 
-	const uiMessage: UIMessage = {
-		id: `agent-${messageRole}`,
-		role: messageRole,
+	return {
+		id,
+		role,
 		parts: [{ type: "text", content }],
 	};
-
-	return (
-		<div className="flex flex-col gap-1">
-			<div className="px-1 text-[0.625rem] uppercase tracking-wide text-muted-foreground">
-				{label}
-			</div>
-			<ChatMessage message={uiMessage} />
-		</div>
-	);
 }

@@ -1,4 +1,4 @@
-import { chat } from "@tanstack/ai";
+import type { chat } from "@tanstack/ai";
 import type { DBQueries } from "@/db/queries";
 import { TavilyWebContentProvider } from "@/features/ai/providers/web/tavily-content";
 import { TavilyWebSearchProvider } from "@/features/ai/providers/web/tavily-search";

@@ -75,6 +75,12 @@ export function useExplanationGeneration({
 		[questions, overwriteExplanations],
 	);
 
+	const findAgentRunForQuestionId = useCallback(
+		(questionId: number) =>
+			agentRuns.find((agentRun) => agentRun.meta?.questionIds.includes(questionId)),
+		[agentRuns],
+	);
+
 	useEffect(() => {
 		if (!open || generatingExplanations) return;
 		setProgressItems(buildProgressItems());
@@ -100,7 +106,27 @@ export function useExplanationGeneration({
 		let updatedCount = 0;
 		let failedCount = 0;
 		try {
-			for (const batchIds of idBatches) {
+			for (const [batchIndex, batchIds] of idBatches.entries()) {
+				const optimisticAgentRun: ExplanationAgentRunSummary = {
+					agentRunId: `explanations-batch-${batchIndex + 1}:explanation-batch-1`,
+					label: "Explanation batch 1",
+					status: "running",
+					systemPrompt: "",
+					userPrompt: "",
+					meta: {
+						questionCount: batchIds.length,
+						questionIds: batchIds,
+					},
+				};
+
+				setAgentRuns((prev) => {
+					const next = new Map(
+						prev.map((agentRun) => [agentRun.agentRunId, agentRun]),
+					);
+					next.set(optimisticAgentRun.agentRunId, optimisticAgentRun);
+					return Array.from(next.values());
+				});
+
 				setProgressItems((prev) =>
 					prev.map((item) =>
 						batchIds.includes(item.id)
@@ -164,6 +190,17 @@ export function useExplanationGeneration({
 				} catch (batchError) {
 					failedCount += batchIds.length;
 					const msg = getErrorMessage(batchError);
+					setAgentRuns((prev) =>
+						prev.map((agentRun) =>
+							agentRun.agentRunId === optimisticAgentRun.agentRunId
+								? {
+										...agentRun,
+										status: "error",
+										error: msg,
+									}
+								: agentRun,
+						),
+					);
 					setProgressItems((prev) =>
 						prev.map((item) =>
 							batchIds.includes(item.id)
@@ -225,6 +262,7 @@ export function useExplanationGeneration({
 		errorCount,
 		finishedCount,
 		progressPercent,
+		findAgentRunForQuestionId,
 		selectedResponseItem: progressItems.find(
 			(i) => i.id === selectedResponseItemId,
 		),

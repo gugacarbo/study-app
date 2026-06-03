@@ -1,4 +1,4 @@
-import { BASE_TOOL_REGISTRY, DEFAULT_AGENT_BASE_TOOLS } from "./tool-registry";
+import { createParallelReviewTool } from "./reviewer-tool";
 import type {
 	AgentName,
 	AgentToolName,
@@ -6,7 +6,7 @@ import type {
 	BaseToolName,
 	ToolResolverContext,
 } from "./tool-registry";
-import { createParallelReviewTool } from "./reviewer-tool";
+import { BASE_TOOL_REGISTRY, DEFAULT_AGENT_BASE_TOOLS } from "./tool-registry";
 
 interface ResolveAgentToolsOptions {
 	agent: AgentName;
@@ -149,11 +149,7 @@ export function resolveToolsForAgent(
 	const tools = [...resolvedBase.tools] as AgentToolSet;
 
 	const parallelReviewEnabled = configuredNames.includes("parallel_review");
-	if (
-		options.agent === "chat" &&
-		parallelReviewEnabled &&
-		options.reviewMode
-	) {
+	if (options.agent === "chat" && parallelReviewEnabled && options.reviewMode) {
 		const reviewerConfigured = parseConfiguredToolNames(
 			options.config["agent.reviewer.tools"],
 			DEFAULT_AGENT_TOOL_NAMES.reviewer,

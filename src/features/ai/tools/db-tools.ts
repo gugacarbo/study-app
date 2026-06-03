@@ -165,22 +165,24 @@ const listAttemptsDef = toolDefinition({
 		page: pageSchema,
 		pageSize: pageSizeSchema,
 		examId: z.coerce.number().int().positive().optional(),
-		questionId: z.coerce.number().int().positive().optional(),
-		correct: z.boolean().optional(),
-		answeredFrom: optionalTrimmedString,
-		answeredTo: optionalTrimmedString,
+		status: z.enum(["in_progress", "completed", "abandoned"]).optional(),
+		startedFrom: optionalTrimmedString,
+		startedTo: optionalTrimmedString,
 	}),
 	outputSchema: z.union([
 		paginatedSuccessSchema(
 			z.object({
 				id: z.number(),
-				question_id: z.number().nullable(),
-				user_answer: z.string(),
-				correct: z.boolean(),
-				timestamp: z.string().nullable(),
 				exam_id: z.number().nullable(),
-				question: z.string(),
 				topic: z.string().nullable(),
+				total_questions: z.number(),
+				answered_questions: z.number(),
+				correct_answers: z.number(),
+				status: z.enum(["in_progress", "completed", "abandoned"]),
+				started_at: z.string().nullable(),
+				completed_at: z.string().nullable(),
+				updated_at: z.string().nullable(),
+				accuracy: z.number(),
 			}),
 		),
 		toolFailureSchema,
@@ -271,19 +273,16 @@ export function createChatDbTools(queries: DBQueries) {
 		page?: unknown;
 		pageSize?: unknown;
 		examId?: unknown;
-		questionId?: unknown;
-		correct?: boolean;
-		answeredFrom?: string;
-		answeredTo?: string;
+		status?: "in_progress" | "completed" | "abandoned";
+		startedFrom?: string;
+		startedTo?: string;
 	}): ListAttemptsFilters => ({
 		page: Number(input.page ?? 1),
 		pageSize: Number(input.pageSize ?? 20),
 		examId: input.examId === undefined ? undefined : Number(input.examId),
-		questionId:
-			input.questionId === undefined ? undefined : Number(input.questionId),
-		correct: input.correct,
-		answeredFrom: input.answeredFrom,
-		answeredTo: input.answeredTo,
+		status: input.status,
+		startedFrom: input.startedFrom,
+		startedTo: input.startedTo,
 	});
 
 	const listExams = listExamsDef.server(async (input) =>
