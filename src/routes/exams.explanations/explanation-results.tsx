@@ -1,10 +1,10 @@
 import { Sparkles } from "lucide-react";
-import type { ExplanationProgressItem } from "@/components/exam-detail/exam-utils";
-import { ProgressItemButton } from "@/components/exam-detail/progress-item-button";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/ui/markdown";
 import { Progress } from "@/components/ui/progress";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import type { ExplanationProgressItem } from "@/features/exams/components/detail/exam-utils";
+import { ProgressItemButton } from "@/features/exams/components/detail/progress-item-button";
 import { cn } from "@/lib/utils";
 
 interface ExplanationResultsProps {

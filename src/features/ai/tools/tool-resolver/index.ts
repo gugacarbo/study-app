@@ -1,9 +1,4 @@
 import { createParallelReviewTool } from "../reviewer-tool";
-import {
-	DEFAULT_AGENT_TOOL_NAMES,
-	parseConfiguredToolNames,
-	VALID_BASE_TOOL_NAMES,
-} from "./definitions";
 import type {
 	AgentName,
 	AgentToolName,
@@ -12,6 +7,11 @@ import type {
 	ToolResolverContext,
 } from "../tool-registry";
 import { BASE_TOOL_REGISTRY, DEFAULT_AGENT_BASE_TOOLS } from "../tool-registry";
+import {
+	DEFAULT_AGENT_TOOL_NAMES,
+	parseConfiguredToolNames,
+	VALID_BASE_TOOL_NAMES,
+} from "./definitions";
 
 interface ResolveAgentToolsOptions {
 	agent: AgentName;

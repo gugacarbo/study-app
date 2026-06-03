@@ -2,8 +2,8 @@ import type {
 	IngestLogEntry,
 	IngestOutputEntry,
 	IngestPipelineStageViewModel,
-} from "@/components/ingest/types";
-import type { FlowStage } from "@/stores/ingestStore";
+} from "@/features/ingest/components/types";
+import type { FlowStage } from "@/features/ingest/store";
 import {
 	isRecord,
 	normalizeEventTone,

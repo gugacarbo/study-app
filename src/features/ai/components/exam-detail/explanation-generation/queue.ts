@@ -1,7 +1,7 @@
 import type {
 	ExplanationProgressItem,
 	ExplanationProgressStatus,
-} from "@/components/exam-detail/exam-utils";
+} from "@/features/exams/components/detail/exam-utils";
 
 interface QuestionBrief {
 	id: number;

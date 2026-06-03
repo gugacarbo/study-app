@@ -1,6 +1,6 @@
-import type { ExplanationProgressItem } from "@/components/exam-detail/exam-utils";
-import { getErrorMessage } from "@/components/exam-detail/exam-utils";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import type { ExplanationProgressItem } from "@/features/exams/components/detail/exam-utils";
+import { getErrorMessage } from "@/features/exams/components/detail/exam-utils";
 import { generateExamQuestionExplanations } from "@/server-functions/exams";
 
 interface ExplanationGenerationResult {

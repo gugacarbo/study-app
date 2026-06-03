@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ExplanationDialog } from "@/components/exam-detail/explanation-dialog";
+import { ExplanationDialog } from "@/features/exams/components/detail/explanation-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
 import { useExplanationGeneration } from "@/features/ai/components/exam-detail/explanation-generation";

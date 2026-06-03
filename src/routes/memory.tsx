@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MemoryVisualization } from "../components/memory-visualization/memory-visualization";
+import { MemoryVisualization } from "@/features/memory/components/memory-visualization";
 
 export const Route = createFileRoute("/memory")({
 	component: MemoryVizPage,

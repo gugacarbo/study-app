@@ -52,15 +52,15 @@ export function createOnMessagesChange(
 			if (text.length > 0 && runtime.firstTokenAt === null) {
 				runtime.firstTokenAt = now;
 			}
-		if (runtime.firstTokenAt !== null && hasNewContent) {
-			const firstTokenAt = runtime.firstTokenAt;
-			const elapsedSec = Math.max(0.001, (now - firstTokenAt) / 1000);
-			setAssistantMetrics((prev) => {
-				const existing = prev[latestAssistant.id];
-				return {
-					...prev,
-					[latestAssistant.id]: {
-						ttftMs: Math.max(0, firstTokenAt - runtime.startedAt),
+			if (runtime.firstTokenAt !== null && hasNewContent) {
+				const firstTokenAt = runtime.firstTokenAt;
+				const elapsedSec = Math.max(0.001, (now - firstTokenAt) / 1000);
+				setAssistantMetrics((prev) => {
+					const existing = prev[latestAssistant.id];
+					return {
+						...prev,
+						[latestAssistant.id]: {
+							ttftMs: Math.max(0, firstTokenAt - runtime.startedAt),
 							tokensPerSecond: estimateTokens(text) / elapsedSec,
 							isStreaming: true,
 							inputTokens: existing?.inputTokens,

@@ -1,8 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
-import type { ExplanationProgressItem } from "@/components/exam-detail/exam-utils";
-import { chunkIds, getErrorMessage } from "@/components/exam-detail/exam-utils";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import type { ExplanationProgressItem } from "@/features/exams/components/detail/exam-utils";
+import {
+	chunkIds,
+	getErrorMessage,
+} from "@/features/exams/components/detail/exam-utils";
 import { processExplanationBatch } from "./generator";
 import { buildProgressItems, computeProgressStats } from "./queue";
 

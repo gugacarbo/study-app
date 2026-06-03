@@ -4,8 +4,8 @@ import type {
 	IngestOutputEntry,
 	IngestPipelineStageViewModel,
 	IngestTokenTotals,
-} from "@/components/ingest/types";
-import type { TokenTotals } from "@/stores/ingestStore";
+} from "@/features/ingest/components/types";
+import type { TokenTotals } from "@/features/ingest/store";
 
 export function normalizeTokenTotals(value: TokenTotals): IngestTokenTotals {
 	return {

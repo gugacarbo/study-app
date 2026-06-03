@@ -2,7 +2,6 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 import { Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import ThemeToggle from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import {
 	NavigationMenu,
@@ -11,9 +10,10 @@ import {
 	NavigationMenuList,
 	navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import type { IngestJob } from "@/features/ingest/store";
+import { focusJob, ingestStore } from "@/features/ingest/store";
+import ThemeToggle from "@/features/theme/components/theme-toggle";
 import type { FileRoutesByTo } from "@/routeTree.gen";
-import type { IngestJob } from "@/stores/ingestStore";
-import { focusJob, ingestStore } from "@/stores/ingestStore";
 
 const navItems = [
 	{ to: "/", label: "Dashboard" },

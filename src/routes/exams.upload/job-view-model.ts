@@ -3,8 +3,8 @@ import type {
 	IngestJobViewModel,
 	IngestLogEntry,
 	IngestPipelineStageViewModel,
-} from "@/components/ingest/types";
-import type { IngestJob } from "@/stores/ingestStore";
+} from "@/features/ingest/components/types";
+import type { IngestJob } from "@/features/ingest/store";
 import { toAgentRun } from "./agent-converter";
 import {
 	toLegacyStage,

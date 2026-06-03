@@ -42,14 +42,23 @@ Single-user web app: upload past-exam PDFs → AI extracts questions → quiz mo
 
 ```
 src/
-├── components/         # UI components (feature folders + ui/ shadcn)
+├── components/         # Shared UI primitives (ui/ shadcn, markdown, shimmer-text-span)
 ├── routes/             # File-based TanStack Router routes + API handlers
 ├── server-functions/   # createServerFn wrappers (config, quiz, stats, exams, memory)
 ├── db/                 # Drizzle schema + queries (DBQueries class with Object.assign mixin)
 ├── lib/                # Infrastructure (memory/R2+D1, SSE streaming, validation, file-service)
-├── stores/             # TanStack Store (quizStore, ingestStore)
-├── features/ai/        # AI module: agents, core, tools, providers, components, hooks, stores
+├── hooks/              # Shared hooks (use-mobile)
+├── stores/             # Deprecated — stores moved to feature folders
 ├── types/              # Module augmentation (.d.ts only)
+├── features/           # Feature-based modules (components, hooks, stores co-located)
+│   ├── ai/             # AI module: agents, core, tools, providers, components, hooks, stores
+│   ├── config/         # AI provider configuration form
+│   ├── dashboard/      # Home dashboard
+│   ├── exams/          # Exam detail, list, stats, explanations
+│   ├── ingest/         # PDF upload job queue, SSE pipeline UI
+│   ├── memory/         # Memory visualization dashboard
+│   ├── quiz/           # Quiz player + quizStore
+│   └── theme/          # Theme provider, toggle, use-theme hook
 tests/                  # Vitest tests (db, lib, components, features, server-functions)
 migrations/             # Drizzle Kit SQL migrations (0001-0012)
 ```
@@ -63,7 +72,9 @@ migrations/             # Drizzle Kit SQL migrations (0001-0012)
 | Add server fn | `src/server-functions/{domain}.ts` |
 | Modify AI agent prompt | `src/features/ai/agents/{agent}/prompt.ts` |
 | Add shadcn component | `src/components/ui/` |
-| Modify ingest state | `src/stores/ingestStore/{actions,types,utils}.ts` |
+| Modify ingest state | `src/features/ingest/store/{actions,types,utils}.ts` |
+| Exam detail UI | `src/features/exams/components/detail/` |
+| Quiz UI + store | `src/features/quiz/components/` + `src/features/quiz/store/` |
 
 ## Architecture
 

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { OutputPanel } from "@/components/ingest/output-panel";
+import { OutputPanel } from "@/features/ingest/components/output-panel";
 
 describe("OutputPanel", () => {
 	it("opens the agent detail dialog when clicking an ingest agent card", () => {

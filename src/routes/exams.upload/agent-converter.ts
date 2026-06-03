@@ -1,4 +1,4 @@
-import type { IngestAgentRunViewModel } from "@/components/ingest/types";
+import type { IngestAgentRunViewModel } from "@/features/ingest/components/types";
 import {
 	isRecord,
 	normalizeAgentState,

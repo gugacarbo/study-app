@@ -55,23 +55,31 @@ import { ExamHeader } from "./exam-header";
 | Type              | Location                |
 | ----------------- | ----------------------- |
 | Routes            | `src/routes/`           |
-| Components        | `src/components/`       |
+| Shared components | `src/components/`       |
 | Server functions  | `src/server-functions/` |
 | DB schema/queries | `src/db/`               |
 | Shared utilities  | `src/lib/`              |
-| Stores            | `src/stores/`           |
+| Shared hooks      | `src/hooks/`            |
 | Types             | `src/types/`            |
-| Hooks             | `src/hooks/`            |
 | Feature modules   | `src/features/`          |
 | AI integration    | `src/features/ai/`      |
 
 ### Feature Module Structure
 
-- `src/features/ai/` — AI feature module (agents, core, providers, components, hooks, stores)
+- `src/features/ai/` — AI feature module (agents, core, adapters, providers, tools, components, hooks, stores)
   - `agents/` — Domain-specific AI agents (chat, ingest, explanations, quiz) with tools + prompts
   - `core/` — Core generation functions (generate, chat-stream)
   - `adapters/` — Provider adapter factory
   - `providers/` — Web search/content provider interfaces + implementations
+- `src/features/config/` — AI provider config form (components, schema)
+- `src/features/dashboard/` — Home dashboard components
+- `src/features/exams/` — Exam list, detail, stats, explanations (components/list/, components/detail/, components/stats/)
+- `src/features/ingest/` — PDF upload job queue UI + store (components/, store/)
+- `src/features/memory/` — Memory visualization dashboard components
+- `src/features/quiz/` — Quiz player components + quiz store (components/, store/)
+- `src/features/theme/` — Theme provider, toggle, use-theme hook (components/, hooks/)
+
+Each feature follows a colocation pattern: components, hooks, and stores specific to the feature live together under `src/features/{feature}/`.
 
 ## Testing Patterns
 

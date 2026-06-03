@@ -8,12 +8,12 @@ import {
 	serializeIngestStateForStorage,
 	syncJobTokenTotals,
 	upsertAgentRun,
-} from "@/stores/ingestStore";
+} from "@/features/ingest/store";
 import type {
 	IngestAgentRun,
 	IngestJob,
 	IngestStoreState,
-} from "@/stores/ingestStore";
+} from "@/features/ingest/store";
 import type { IngestAgentEvent, IngestTokenEvent } from "@/lib/sse-stream";
 
 function createJob(overrides?: Partial<IngestJob>): IngestJob {

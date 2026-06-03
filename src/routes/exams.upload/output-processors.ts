@@ -1,8 +1,8 @@
 import type {
 	IngestOutputEntry,
 	IngestPipelineStageViewModel,
-} from "@/components/ingest/types";
-import type { IngestJob } from "@/stores/ingestStore";
+} from "@/features/ingest/components/types";
+import type { IngestJob } from "@/features/ingest/store";
 import { toOutputEntry, toStoreOutputEntry } from "./job-view-model-converters";
 import { readArray, readString } from "./job-view-model-utils";
 

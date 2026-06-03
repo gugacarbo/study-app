@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ExamsView } from "../components/exams-view/exams-view";
+import { ExamsView } from "@/features/exams/components/list/exams-view";
 
 export const Route = createFileRoute("/exams/")({
 	component: ExamsIndexPage,

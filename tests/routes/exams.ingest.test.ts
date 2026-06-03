@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toIngestJobViewModel } from "@/routes/exams.upload";
-import type { IngestJob } from "@/stores/ingestStore";
+import type { IngestJob } from "@/features/ingest/store";
 
 function createJob(overrides?: Partial<IngestJob>): IngestJob {
 	return {

@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { JobDetailPanel } from "@/components/ingest/JobDetailPanel";
-import { QueueList } from "@/components/ingest/QueueList";
-import { UploadCard } from "@/components/ingest/UploadCard";
 import { Card, CardContent } from "@/components/ui/card";
+import { JobDetailPanel } from "@/features/ingest/components/JobDetailPanel";
+import { QueueList } from "@/features/ingest/components/QueueList";
+import { UploadCard } from "@/features/ingest/components/UploadCard";
 import {
 	cancelJob,
 	clearSavedIngestJobs,
 	focusJob,
-} from "@/stores/ingestStore";
+} from "@/features/ingest/store";
 import { useUpload } from "./use-upload";
 
 export { toIngestJobViewModel } from "./job-view-model";
