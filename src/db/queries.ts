@@ -491,10 +491,13 @@ export class DBQueries {
 	async insertQuestions(examId: number, questions: Question[]): Promise<void> {
 		if (questions.length === 0) return;
 
-		await this.db
-			.insert(schema.questions)
-			.values(
-				questions.map((q) => ({
+		// Insert one-by-one to avoid D1/SQLite bug where bulk insert
+		// generates `id = null` in the VALUES clause, which fails with
+		// PRIMARY KEY AUTOINCREMENT.
+		for (const q of questions) {
+			await this.db
+				.insert(schema.questions)
+				.values({
 					exam_id: examId,
 					question: q.question,
 					options: JSON.stringify(q.options),
@@ -502,9 +505,9 @@ export class DBQueries {
 					explanation: q.explanation || "",
 					deep_explanation: q.deepExplanation || "",
 					topic: q.topic || "General",
-				})),
-			)
-			.run();
+				})
+				.run();
+		}
 	}
 
 	async updateQuestion(

@@ -117,6 +117,7 @@ export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 						: `${entry.label}${entry.content ? `: ${entry.content}` : ""}`,
 				)
 				.join("\n\n"),
+		rawStreamText: job.rawStreamText ?? "",
 		logs,
 		stages,
 		agents,

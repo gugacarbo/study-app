@@ -65,16 +65,16 @@ export function JobDetailPanel({
 						value="output"
 						className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
 					>
-						<OutputPanel
-							entries={job.outputEntries}
-							rawOutput={job.rawOutput}
-							tokenTotals={job.tokenTotals}
-							selectedStageId={selectedStageId}
-							selectedStageLabel={selectedStage?.label ?? null}
-							agents={job.agents}
-							stages={job.stages}
-							onClearFilter={onClearStageFilter}
-						/>
+					<OutputPanel
+						entries={job.outputEntries}
+						rawOutput={job.rawOutput}
+						rawStreamText={job.rawStreamText}
+						tokenTotals={job.tokenTotals}
+						selectedStageId={selectedStageId}
+						selectedStageLabel={selectedStage?.label ?? null}
+						agents={job.agents}
+						onClearFilter={onClearStageFilter}
+					/>
 					</TabsContent>
 
 					<TabsContent

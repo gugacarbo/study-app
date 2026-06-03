@@ -1,5 +1,6 @@
+import type { UIMessage } from "@tanstack/ai-client";
 import { Filter, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,9 +11,10 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CollapsibleMessage } from "@/features/ai/components/chat/message/collapsible-message";
+import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
 import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
 import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
+import { UserMessage } from "@/features/ai/components/chat/message/user-message";
 import { cn } from "@/lib/utils";
 import type {
 	IngestAgentRunViewModel,
@@ -23,6 +25,7 @@ import type {
 interface OutputPanelProps {
 	entries: IngestOutputEntry[];
 	rawOutput: string;
+	rawStreamText: string;
 	tokenTotals: IngestTokenTotals;
 	selectedStageId: string | null;
 	selectedStageLabel: string | null;
@@ -33,6 +36,7 @@ interface OutputPanelProps {
 export function OutputPanel({
 	entries,
 	rawOutput,
+	rawStreamText,
 	tokenTotals,
 	selectedStageId,
 	selectedStageLabel,
@@ -41,6 +45,7 @@ export function OutputPanel({
 }: OutputPanelProps) {
 	const [mode, setMode] = useState<"treated" | "raw">("treated");
 	const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+	const rawPreRef = useRef<HTMLPreElement>(null);
 
 	const filteredEntries = useMemo(
 		() =>
@@ -62,6 +67,12 @@ export function OutputPanel({
 		selectedAgentId == null
 			? null
 			: (filteredAgents.find((agent) => agent.id === selectedAgentId) ?? null);
+
+	useEffect(() => {
+		if (mode === "raw" && rawPreRef.current && rawStreamText) {
+			rawPreRef.current.scrollTop = rawPreRef.current.scrollHeight;
+		}
+	}, [mode, rawStreamText]);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
@@ -146,16 +157,29 @@ export function OutputPanel({
 					/>
 				</div>
 			) : (
-				<pre className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-slate-200">
-					{safeJson({
-						stageId: selectedStageId,
-						stageLabel: selectedStageLabel,
-						tokenTotals,
-						rawOutput,
-						entries: filteredEntries,
-						agents: filteredAgents,
-					})}
-				</pre>
+				<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+					<pre
+						ref={rawPreRef}
+						className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-slate-200"
+					>
+						{rawStreamText || "Waiting for stream..."}
+					</pre>
+					<details className="rounded-md border border-white/10 bg-[#0b1424]">
+						<summary className="cursor-pointer px-3 py-1.5 text-[0.65rem] text-slate-400 hover:text-slate-300">
+							Debug JSON
+						</summary>
+						<pre className="max-h-96 overflow-auto border-t border-white/10 p-3 text-[0.65rem] leading-relaxed whitespace-pre-wrap text-slate-300">
+							{safeJson({
+								stageId: selectedStageId,
+								stageLabel: selectedStageLabel,
+								tokenTotals,
+								rawOutput,
+								entries: filteredEntries,
+								agents: filteredAgents,
+							})}
+						</pre>
+					</details>
+				</div>
 			)}
 		</div>
 	);
@@ -189,27 +213,50 @@ function AgentDetailDialog({
 									parts: [{ type: "text", content: agent.systemPrompt ?? "" }],
 								}}
 							/>
-							<CollapsibleMessage
+							<UserMessage
 								message={{
 									id: "agent-user",
 									role: "user",
 									parts: [{ type: "text", content: agent.userPrompt ?? "" }],
 								}}
-								label="User prompt"
 							/>
-							<CollapsibleMessage
-								message={{
-									id: "agent-assistant",
-									role: "assistant",
-									parts: [{ type: "text", content: agent.response ?? "" }],
-								}}
+							<AgentMessageBubble
+								messageRole="assistant"
 								label="Agent response"
+								content={agent.response}
 							/>
 						</div>
 					</div>
 				) : null}
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+function AgentMessageBubble({
+	messageRole,
+	label,
+	content,
+}: {
+	messageRole: "assistant";
+	label: string;
+	content?: string;
+}) {
+	if (!content) return null;
+
+	const uiMessage: UIMessage = {
+		id: `agent-${messageRole}`,
+		role: messageRole,
+		parts: [{ type: "text", content }],
+	};
+
+	return (
+		<div className="flex flex-col gap-1">
+			<div className="px-1 text-[0.625rem] uppercase tracking-wide text-slate-500">
+				{label}
+			</div>
+			<ChatMessage message={uiMessage} />
+		</div>
 	);
 }
 

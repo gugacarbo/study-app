@@ -102,6 +102,7 @@ export interface IngestJob {
 	flowStages: FlowStage[];
 	buffer: number[];
 	enableReview: boolean;
+	rawStreamText: string;
 }
 
 export interface IngestStoreState {
@@ -147,6 +148,7 @@ function createEmptyJob(
 		flowStages: [],
 		buffer,
 		enableReview,
+		rawStreamText: "",
 	};
 }
 
@@ -786,9 +788,15 @@ async function runJob(jobId: string) {
 				},
 				onChunk: (_text, event) => {
 					updateJobInState(jobId, (runningJob) => {
-						const nextJob = applyChunkEvent(runningJob, event);
+						let nextJob = {
+							...runningJob,
+							rawStreamText: event?.text
+								? runningJob.rawStreamText + event.text
+								: runningJob.rawStreamText,
+						};
+						nextJob = applyChunkEvent(nextJob, event);
 						if (event?.agentRunId && event.text) {
-							return appendChunkToAgentRun(
+							nextJob = appendChunkToAgentRun(
 								nextJob,
 								event.agentRunId,
 								event.text,

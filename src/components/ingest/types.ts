@@ -86,6 +86,7 @@ export interface IngestJobViewModel {
 	tokenTotals: IngestTokenTotals;
 	outputEntries: IngestOutputEntry[];
 	rawOutput: string;
+	rawStreamText: string;
 	logs: IngestLogEntry[];
 	stages: IngestPipelineStageViewModel[];
 	agents: IngestAgentRunViewModel[];
