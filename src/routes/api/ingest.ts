@@ -302,9 +302,8 @@ async function runIngestWithProgress(
 			stage: "init",
 		});
 		send("warning", {
-			message: `Memory initialization failed: ${
-				error instanceof Error ? error.message : "unknown error"
-			}`,
+			message: `Memory initialization failed: ${error instanceof Error ? error.message : "unknown error"
+				}`,
 		});
 	});
 
@@ -334,9 +333,8 @@ async function runIngestWithProgress(
 							query: input.query,
 						});
 						send("warning", {
-							message: `Failed to save web search memory: ${
-								error instanceof Error ? error.message : "unknown error"
-							}`,
+							message: `Failed to save web search memory: ${error instanceof Error ? error.message : "unknown error"
+								}`,
 						});
 					}
 				},
@@ -355,9 +353,8 @@ async function runIngestWithProgress(
 							url: output.url,
 						});
 						send("warning", {
-							message: `Failed to save web fetch memory: ${
-								error instanceof Error ? error.message : "unknown error"
-							}`,
+							message: `Failed to save web fetch memory: ${error instanceof Error ? error.message : "unknown error"
+								}`,
 						});
 					}
 				},
@@ -406,71 +403,70 @@ async function runIngestWithProgress(
 		});
 		agentRuns.lifecycle(run, "running");
 
-			try {
-				const result = await generateJsonStream<ExamIngestResponse>(
-					payload.config,
-					userPrompt,
-					examIngestResponseSchema,
-					{
-						system: systemPrompt,
-						tools: webTools,
-						onChunk: (
-							chunk:
-								| StreamChunk
-								| StructuredOutputCompleteEvent<ExamIngestResponse>,
-						) => {
-							if (isTextChunk(chunk) && chunk.delta) {
-								rawText += chunk.delta;
-								send("chunk", {
-									stageId: run.stageId,
-									agentRunId: run.agentRunId,
-									text: chunk.delta,
-								});
-							}
-							if ("usage" in chunk && chunk.usage) {
-								send("token", {
-									stageId: run.stageId,
-									agentRunId: run.agentRunId,
-									usage: chunk.usage,
-								});
-								agentRuns.token(run, chunk.usage);
-							}
-							if (
-								chunk.type === "CUSTOM" &&
-								chunk.name === "structured-output.complete"
-							) {
-								emittedResult = true;
-								agentRuns.result(run, chunk.value.object, rawText);
-							}
-						},
-						onError: (info) => {
-							log.error("AI generation error in extraction pass", info.error, {
-								stage: stageId,
+		try {
+			const result = await generateJsonStream<ExamIngestResponse>(
+				payload.config,
+				userPrompt,
+				examIngestResponseSchema,
+				{
+					system: systemPrompt,
+					tools: webTools,
+					onChunk: (
+						chunk:
+							| StreamChunk
+							| StructuredOutputCompleteEvent<ExamIngestResponse>,
+					) => {
+						if (isTextChunk(chunk) && chunk.delta) {
+							rawText += chunk.delta;
+							send("chunk", {
+								stageId: run.stageId,
 								agentRunId: run.agentRunId,
-								label: stageLabel,
-								provider: info.provider,
-								model: info.model,
-								rawOutputLength: info.rawOutput?.length ?? 0,
-								rawOutputPreview: info.rawOutput
-									? info.rawOutput.length > 2000
-										? `${info.rawOutput.slice(0, 2000)}...`
-										: info.rawOutput
-									: "(no output)",
+								text: chunk.delta,
 							});
-						},
+						}
+						if ("usage" in chunk && chunk.usage) {
+							send("token", {
+								stageId: run.stageId,
+								agentRunId: run.agentRunId,
+								usage: chunk.usage,
+							});
+							agentRuns.token(run, chunk.usage);
+						}
+						if (
+							chunk.type === "CUSTOM" &&
+							chunk.name === "structured-output.complete"
+						) {
+							emittedResult = true;
+							agentRuns.result(run, chunk.value.object, rawText);
+						}
 					},
-				);
-				if (!emittedResult) {
-					agentRuns.result(run, result, rawText);
-				}
-				agentRuns.lifecycle(run, "done", {
-					meta: {
-						questionCount: result.questions.length,
-						topicCount: result.topics.length,
+					onError: (info) => {
+						log.error("AI generation error in extraction pass", info.error, {
+							stage: stageId,
+							agentRunId: run.agentRunId,
+							label: stageLabel,
+							provider: info.provider,
+							model: info.model,
+							rawOutputLength: info.rawOutput?.length ?? 0,
+							rawOutputPreview: info.rawOutput
+								? info.rawOutput.length > 2000
+									? `${info.rawOutput.slice(0, 2000)}...`
+									: info.rawOutput
+								: "(no output)",
+						});
 					},
-				});
-				return result;
+				},
+			);
+			if (!emittedResult) {
+				agentRuns.result(run, result, rawText);
 			}
+			agentRuns.lifecycle(run, "done", {
+				meta: {
+					questionCount: result.questions.length,
+					topicCount: result.topics.length,
+				},
+			});
+			return result;
 		} catch (error) {
 			log.error("AI extraction pass failed", error, {
 				stage: stageId,

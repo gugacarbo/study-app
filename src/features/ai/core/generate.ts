@@ -71,7 +71,7 @@ export async function generateJson<T>(
 					tools: options?.tools,
 				}),
 			);
-		} catch (fallbackError) {
+		} catch (_fallbackError) {
 			const err = structuredError instanceof Error ? structuredError : new Error(String(structuredError));
 			options?.onError?.({
 				provider: config.provider,

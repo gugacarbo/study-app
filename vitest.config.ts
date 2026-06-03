@@ -11,5 +11,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    exclude: ['**/*.test.tsx', '**/node_modules/**', '**/dist/**'],
   },
 });

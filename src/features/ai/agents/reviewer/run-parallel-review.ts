@@ -5,11 +5,12 @@ import {
 	REVIEW_ARBITER_SYSTEM_PROMPT,
 	reviewerDraftSchema,
 	arbiterResultSchema,
+	type ArbiterResult,
 	type ReviewerDraft,
 } from "./system-prompt";
 
 interface ParallelReviewOptions {
-	tools?: Parameters<typeof generateJson>[3]["tools"];
+	tools?: NonNullable<Parameters<typeof generateJson>[3]>["tools"];
 	reviewerCount?: number;
 	onWarning?: (message: string) => void;
 }
@@ -43,7 +44,7 @@ export async function runParallelReview(
 						system: systemPrompt,
 						tools: options?.tools,
 					},
-				);
+				) as { finalObject: ReviewerDraft };
 				return { ok: true as const, draft: reviewerResult.finalObject };
 			} catch (error) {
 				const message =
@@ -99,7 +100,7 @@ ${failedReviewerCount > 0 ? `Note: ${failedReviewerCount} reviewer(s) failed —
 		arbiterPrompt,
 		arbiterResultSchema,
 		{ system: REVIEW_ARBITER_SYSTEM_PROMPT, tools: options?.tools },
-	);
+	) as { finalObject: ArbiterResult };
 
 	const finalAnswer = arbiterResult.finalObject;
 
