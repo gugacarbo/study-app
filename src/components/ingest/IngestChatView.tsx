@@ -1,6 +1,7 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { useEffect, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
 import { cn } from "@/lib/utils";
 import type {
@@ -32,15 +33,15 @@ function agentStateLabel(state: IngestAgentRunViewModel["state"]): {
 } {
 	switch (state) {
 		case "running":
-			return { text: "Running", className: "bg-sky-500/15 text-sky-200" };
+			return { text: "Running", className: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200" };
 		case "success":
-			return { text: "Done", className: "bg-emerald-500/15 text-emerald-200" };
+			return { text: "Done", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" };
 		case "warning":
-			return { text: "Warning", className: "bg-amber-500/15 text-amber-200" };
+			return { text: "Warning", className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200" };
 		case "error":
-			return { text: "Error", className: "bg-red-500/15 text-red-200" };
+			return { text: "Error", className: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200" };
 		default:
-			return { text: "Pending", className: "bg-slate-700 text-slate-300" };
+			return { text: "Pending", className: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" };
 	}
 }
 
@@ -50,17 +51,17 @@ function stageStatusLabel(status: IngestPipelineStageViewModel["status"]): {
 } {
 	switch (status) {
 		case "running":
-			return { text: "Running", className: "bg-sky-500/15 text-sky-200" };
+			return { text: "Running", className: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200" };
 		case "done":
-			return { text: "Done", className: "bg-emerald-500/15 text-emerald-200" };
+			return { text: "Done", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" };
 		case "warning":
-			return { text: "Warning", className: "bg-amber-500/15 text-amber-200" };
+			return { text: "Warning", className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200" };
 		case "error":
-			return { text: "Error", className: "bg-red-500/15 text-red-200" };
+			return { text: "Error", className: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200" };
 		case "skipped":
-			return { text: "Skipped", className: "bg-slate-700 text-slate-300" };
+			return { text: "Skipped", className: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" };
 		default:
-			return { text: "Pending", className: "bg-slate-700 text-slate-300" };
+			return { text: "Pending", className: "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300" };
 	}
 }
 
@@ -213,10 +214,10 @@ export function IngestChatView({
 	return (
 		<div
 			ref={scrollRef}
-			className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-md border border-white/10 bg-[#0b1424] p-3"
+			className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-md border border-border bg-muted p-3"
 		>
 			{groupedBubbles.length === 0 && (
-				<div className="flex flex-1 items-center justify-center text-xs text-slate-500">
+				<div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
 					Waiting for agent output...
 				</div>
 			)}
@@ -228,7 +229,7 @@ export function IngestChatView({
 							key={`stage-${item.stageId}`}
 							className="flex items-center gap-2 py-1"
 						>
-							<div className="h-px flex-1 bg-white/10" />
+							<Separator className="flex-1" />
 							<Badge
 								variant="secondary"
 								className={cn(
@@ -238,7 +239,7 @@ export function IngestChatView({
 							>
 								{item.stageLabel}
 							</Badge>
-							<div className="h-px flex-1 bg-white/10" />
+							<Separator className="flex-1" />
 						</div>
 					);
 				}
@@ -267,7 +268,7 @@ function BubbleMessage({ bubble }: { bubble: ChatBubble }) {
 		return (
 			<div className="flex flex-col gap-1">
 				<div className="flex items-center gap-2 px-1">
-					<span className="text-[0.625rem] uppercase tracking-wide text-slate-500">
+					<span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 						{bubble.agentName}
 					</span>
 					<Badge
@@ -277,7 +278,7 @@ function BubbleMessage({ bubble }: { bubble: ChatBubble }) {
 						{stateInfo.text}
 					</Badge>
 				</div>
-				<div className="rounded-md border border-amber-500/20 bg-amber-950/20 px-3 py-2 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-slate-300">
+				<div className="rounded-md border border-amber-500/20 bg-amber-100 dark:bg-amber-500/10 px-3 py-2 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-foreground/80">
 					{bubble.content}
 				</div>
 			</div>
@@ -287,11 +288,11 @@ function BubbleMessage({ bubble }: { bubble: ChatBubble }) {
 	return (
 		<div className="flex flex-col gap-1">
 			<div className="flex items-center gap-2 px-1">
-				<span className="text-[0.625rem] uppercase tracking-wide text-slate-500">
+				<span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 					{bubble.agentName}
 				</span>
 				{bubble.role === "assistant" && bubble.isStreaming && (
-					<span className="inline-block size-1.5 animate-pulse rounded-full bg-sky-400" />
+					<span className="inline-block size-1.5 animate-pulse rounded-full bg-sky-500 dark:bg-sky-400" />
 				)}
 			</div>
 			<ChatMessage message={uiMessage} />

@@ -30,7 +30,7 @@ export function QuestionsCard({
 	toggleQuestion,
 }: QuestionsCardProps) {
 	return (
-		<Card className="mb-4">
+		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
 					Questions ({questions.length})

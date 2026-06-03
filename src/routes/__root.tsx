@@ -82,11 +82,11 @@ function IngestIndicator() {
 	};
 
 	const statusColor: Record<IngestJob["status"], string> = {
-		running: "bg-blue-500 text-white",
-		queued: "bg-amber-500 text-white",
-		success: "bg-green-500 text-white",
-		error: "bg-red-500 text-white",
-		canceled: "bg-gray-400 text-white",
+		running: "bg-blue-500 text-white dark:bg-blue-600 dark:text-blue-100",
+		queued: "bg-amber-500 text-white dark:bg-amber-600 dark:text-amber-100",
+		success: "bg-green-500 text-white dark:bg-green-600 dark:text-green-100",
+		error: "bg-red-500 text-white dark:bg-red-600 dark:text-red-100",
+		canceled: "bg-gray-400 text-white dark:bg-gray-600 dark:text-gray-200",
 	};
 
 	function formatTime(ts: number) {
@@ -242,7 +242,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 						<QueryClientProvider client={queryClient}>
 							<div className="flex h-full flex-col">
 								<AppNav />
-								<main className="mx-auto flex-1 overflow-y-auto px-4 py-8 max-w-3xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
+								<main className="mx-auto flex-1 overflow-y-auto px-4 py-8 max-w-5xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
 									{children}
 								</main>
 							</div>

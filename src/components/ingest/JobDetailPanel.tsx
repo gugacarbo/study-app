@@ -29,8 +29,11 @@ export function JobDetailPanel({
 			: (job.stages.find((stage) => stage.stageId === selectedStageId) ?? null);
 
 	return (
-		<Card className="flex h-full min-h-0 flex-1 flex-col overflow-hidden border-white/10 bg-[#0f1a2e] text-slate-100 shadow-sm">
-			<CardHeader className="border-b border-white/10 pb-3">
+		<Card
+			size="sm"
+			className="flex h-full min-h-0 flex-1 flex-col overflow-hidden shadow-sm"
+		>
+			<CardHeader className="border-b pb-3">
 				<CardTitle className="flex items-center gap-2 text-sm font-semibold">
 					<span className="truncate">{job.fileName}</span>
 					<StatusBadge status={job.status} />
@@ -38,12 +41,12 @@ export function JobDetailPanel({
 						Review: {job.enableReview ? "on" : "off"}
 					</Badge>
 				</CardTitle>
-				<p className="mt-1 text-[0.625rem] text-slate-400">
+				<p className="mt-1 text-[0.625rem] text-muted-foreground">
 					Pipeline flow. Click a stage to scope output and process logs.
 				</p>
 			</CardHeader>
 			<CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-3">
-				<div className="rounded-md border border-white/10 bg-[#0b1424] p-2.5">
+				<div className="rounded-md border border-border bg-muted p-2.5">
 					<PipelineFlow
 						stages={job.stages}
 						activeStageId={selectedStageId}
@@ -56,7 +59,7 @@ export function JobDetailPanel({
 					onValueChange={(value) => onTabChange(value as "output" | "process")}
 					className="flex min-h-0 flex-1 flex-col overflow-hidden"
 				>
-					<TabsList className="mb-2 bg-[#0b1424]">
+					<TabsList className="mb-2">
 						<TabsTrigger value="output">Output</TabsTrigger>
 						<TabsTrigger value="process">Process</TabsTrigger>
 					</TabsList>
@@ -65,16 +68,16 @@ export function JobDetailPanel({
 						value="output"
 						className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
 					>
-					<OutputPanel
-						entries={job.outputEntries}
-						rawOutput={job.rawOutput}
-						rawStreamText={job.rawStreamText}
-						tokenTotals={job.tokenTotals}
-						selectedStageId={selectedStageId}
-						selectedStageLabel={selectedStage?.label ?? null}
-						agents={job.agents}
-						onClearFilter={onClearStageFilter}
-					/>
+						<OutputPanel
+							entries={job.outputEntries}
+							rawOutput={job.rawOutput}
+							rawStreamText={job.rawStreamText}
+							tokenTotals={job.tokenTotals}
+							selectedStageId={selectedStageId}
+							selectedStageLabel={selectedStage?.label ?? null}
+							agents={job.agents}
+							onClearFilter={onClearStageFilter}
+						/>
 					</TabsContent>
 
 					<TabsContent

@@ -32,13 +32,13 @@ export function VirtualizedLogLines({
 								logLevelClass(log.level),
 							)}
 						>
-							<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-slate-500">
+							<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 								{log.level}
 							</span>
 							<div className="min-w-0 flex-1">
 								<div>{log.message}</div>
 								{log.agentId ? (
-									<div className="text-[0.625rem] text-slate-500">
+									<div className="text-[0.625rem] text-muted-foreground">
 										Agent: {log.agentId}
 									</div>
 								) : null}
@@ -79,13 +79,13 @@ export function VirtualizedLogLines({
 									logLevelClass(log.level),
 								)}
 							>
-								<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-slate-500">
+								<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 									{log.level}
 								</span>
 								<div className="min-w-0 flex-1">
 									<div>{log.message}</div>
 									{log.agentId ? (
-										<div className="text-[0.625rem] text-slate-500">
+										<div className="text-[0.625rem] text-muted-foreground">
 											Agent: {log.agentId}
 										</div>
 									) : null}
@@ -99,15 +99,15 @@ export function VirtualizedLogLines({
 	);
 }
 
-function logLevelClass(level: IngestLogEntry["level"]): string {
+	function logLevelClass(level: IngestLogEntry["level"]): string {
 	switch (level) {
 		case "error":
-			return "text-red-300";
+			return "text-red-600 dark:text-red-400";
 		case "warning":
-			return "text-amber-300";
+			return "text-amber-600 dark:text-amber-400";
 		case "debug":
-			return "text-slate-400";
+			return "text-muted-foreground";
 		default:
-			return "text-slate-200";
+			return "text-foreground/80";
 	}
 }

@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { IngestLogEntry } from "./types";
 import { VirtualizedLogLines } from "./VirtualizedLogLines";
 
@@ -27,24 +28,26 @@ export function LogsPanel({
 					<Badge variant="secondary" className="text-[0.625rem]">
 						Logs: {filteredStageLabel}
 					</Badge>
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="xs"
+						className="h-auto p-0 text-[0.625rem] text-muted-foreground hover:text-foreground"
 						onClick={onClearFilter}
-						className="inline-flex items-center gap-1 text-[0.625rem] text-slate-400 hover:text-slate-100"
 					>
 						<X className="size-3" />
 						Clear filter
-					</button>
+					</Button>
 				</div>
 			) : null}
 			{displayLogs.length === 0 ? (
-				<div className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 text-[0.7rem] leading-relaxed text-slate-500">
+				<div className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3 text-[0.7rem] leading-relaxed text-muted-foreground">
 					{filteredStageId ? "No logs for this stage yet" : "No logs yet"}
 				</div>
 			) : (
 				<VirtualizedLogLines
 					logs={displayLogs}
-					className="min-h-0 flex-1 overflow-auto rounded-md border border-white/10 bg-[#0b1424] p-3 text-[0.7rem] leading-relaxed text-slate-200"
+					className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3 text-[0.7rem] leading-relaxed text-slate-200"
 				/>
 			)}
 		</div>

@@ -14,7 +14,7 @@ interface FileListProps {
 
 export function FileList({ files }: FileListProps) {
 	return (
-		<Card className="mb-4">
+		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
 					<FileText className="h-4 w-4" />

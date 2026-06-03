@@ -56,8 +56,8 @@ function IngestPage() {
 
 	return (
 		<div data-fullwidth className="flex min-h-0 w-full flex-1 flex-col">
-			<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 md:p-6 xl:flex-row">
-				<div className="flex shrink-0 flex-col gap-3 overflow-hidden xl:w-55">
+			<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-1.5 xl:flex-row">
+				<div className="flex shrink-0 flex-col gap-2 overflow-hidden xl:w-55">
 					<UploadCard onUpload={handleUpload} />
 					<QueueList
 						jobs={jobs}
@@ -70,9 +70,11 @@ function IngestPage() {
 
 				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 					{!focusedJob ? (
-						<Card className="flex h-full min-h-0 flex-1 flex-col border-white/15 bg-[#0b1730] text-slate-100">
-							<CardContent className="flex flex-1 items-center justify-center text-xs text-slate-400">
-								Select a job from the queue
+						<Card size="sm" className="flex h-full min-h-0 flex-1 flex-col">
+							<CardContent className="flex flex-1 items-center justify-center">
+								<p className="text-xs text-muted-foreground">
+									Select a job from the queue
+								</p>
 							</CardContent>
 						</Card>
 					) : (

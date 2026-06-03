@@ -7,6 +7,7 @@ interface ProgressItemButtonProps {
 	questionOrder: Map<number, number>;
 	isSelected: boolean;
 	onSelect: (id: number) => void;
+	onClick?: (item: ExplanationProgressItem) => void;
 }
 
 export function ProgressItemButton({
@@ -14,20 +15,24 @@ export function ProgressItemButton({
 	questionOrder,
 	isSelected,
 	onSelect,
+	onClick,
 }: ProgressItemButtonProps) {
 	const isDone = item.status === "done";
+	const canOpenDialog = Boolean(item.response?.agentRun);
+	const isClickable = isDone || canOpenDialog;
 
 	return (
 		<button
 			type="button"
-			disabled={!isDone}
+			disabled={!isClickable}
 			className={cn(
 				"w-full text-left rounded-md border border-border bg-muted px-2 py-1.5",
-				isDone ? "cursor-pointer hover:bg-card" : "cursor-default",
+				isClickable ? "cursor-pointer hover:bg-card" : "cursor-default",
 				isSelected && "ring-1 ring-primary/40",
 			)}
 			onClick={() => {
 				if (isDone) onSelect(item.id);
+				onClick?.(item);
 			}}
 		>
 			<div className="flex items-start gap-1.5">

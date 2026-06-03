@@ -3,7 +3,7 @@
 **Generated:** 2026-05-28
 **Commit:** 6067b81
 
-> **Last auto-updated:** 2026-06-02 — Ingest pipeline refactoring, agent run tracking, upload route
+> **Last auto-updated:** 2026-06-03 — Light/dark theme, explanation agent event tracking, agent-run-detail-dialog
 
 ## Overview
 Single-user web app for studying college exams using past exams as source material. Upload PDFs → AI extracts questions → interactive quiz mode → progress tracking. Built with TanStack Start + Cloudflare Workers.
@@ -75,7 +75,8 @@ src/
 │   ├── api/             # API route directory (chat, ingest, test-connection)
 │   │   ├── chat.ts      # /api/chat — POST handler (server-side API)
 │   │   ├── ingest.ts    # /api/ingest — POST handler (streaming ingest)
-│   │   └── test-connection.ts # /api/test-connection — SSE streaming test
+│   │   ├── test-connection.ts # /api/test-connection — SSE streaming test
+│   │   └── exams.explanations.tsx # /exams/explanations — explanation pipeline page
 ├── server-functions/    # Server functions + utilities
 │   ├── config.ts        # getConfig, setConfig, testConnection
 │   ├── ingest.ts        # ingestExam (PDF → questions)
@@ -106,6 +107,10 @@ src/
 │       ├── agents/        # Domain agents (chat, ingest, explanations, quiz)
 │       ├── providers/     # Web search/content provider interfaces + Tavily impl
 │       ├── components/    # AI-related UI (chat, upload, config test, exam-detail gen)
+│       │   ├── chat/      # Chat UI components
+│       │   ├── config/    # Test connection dialog
+│       │   ├── exam-detail/ # Explanation generation hook
+│       │   └── agent-run-detail-dialog.tsx # Agent run inspector dialog
 │       ├── hooks/         # AI chat hooks
 │       ├── stores/        # AI chat stores
 │       └── utils/
@@ -118,6 +123,11 @@ tests/
 ├── lib/
 │   ├── chat-db-tools.test.ts # Chat AI DB tools tests
 │   └── validation.test.ts
+├── components/
+│   ├── exam-detail/
+│   └── ingest/
+├── features/
+│   └── ai/
 └── server-functions/
     ├── config.test.ts
     ├── ingest.test.ts
@@ -176,6 +186,8 @@ migrations/
 - **Critical-topic verification** — configurable `ingest_critical_topics` config key triggers reviewer agent with web tools to verify coverage of important topics
 - **Tool resolution** — `resolveToolsForAgent()` in `src/features/ai/tools/tool-resolver.ts` assembles per-agent tool sets (chat, ingest, reviewer) with optional web search/fetch tools and DB tools
 - **Ingest job tracking** — `ingestStore` (TanStack Store + localStorage persistence) tracks ingest job status; `IngestIndicator` component in root nav shows active/recent jobs with link to `/exams/upload`
+- **Light/dark mode** — Full light/dark theme support via Tailwind CSS v4 `@custom-variant dark` and shadcn CSS variables; `ThemeToggle` in nav, `theme-provider.tsx` context
+- **Agent run detail dialog** — `agent-run-detail-dialog.tsx` shows system prompt, user prompt, and response for each agent run; used by explanation pipeline and OutputPanel
 - **Full-width layout mode** — root layout uses `has-[[data-fullwidth]]:max-w-full` to allow children (e.g., chat) to opt into full-width via `data-fullwidth` attribute; body uses `h-dvh overflow-hidden` for full-height layout
 
 ## Memory Layer (R2+D1 Hybrid)

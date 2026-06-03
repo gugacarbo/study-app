@@ -122,7 +122,7 @@ export function ConfigForm() {
 						className={cn(
 							"mt-4 rounded-md border p-3 text-sm",
 							status === "success" &&
-								"border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
+								"border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
 							status === "error" &&
 								"border-destructive/20 bg-destructive/10 text-destructive",
 						)}

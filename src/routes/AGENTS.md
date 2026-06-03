@@ -1,6 +1,6 @@
 # Routes
 
-**Last updated:** 2026-05-28 — removed memory-viz route, updated component paths
+**Last updated:** 2026-06-03 — added exams.explanations route
 
 TanStack Router file-based routing. Entries in `src/routes/`.
 
@@ -20,6 +20,7 @@ TanStack Router file-based routing. Entries in `src/routes/`.
 | `chat.tsx` | `/chat` | Page | Chat API stream |
 | `about.tsx` | `/about` | Page | — |
 | `memory.tsx` | `/memory` | Page | Memory visualization dashboard (uses MemoryVisualization from `components/memory-visualization/`) |
+| `exams.explanations.tsx` | `/exams/explanations` | Page | Explanation pipeline UI agent run tracking |
 | `api/chat.ts` | `/api/chat` | **API** (POST) | Server-side handler via `server.handlers` |
 | `api/ingest.ts` | `/api/ingest` | **API** (POST, SSE) | Server-side handler via `server.handlers` |
 | `api/test-connection.ts` | `/api/test-connection` | **API** (POST, SSE) | Server-side handler via `server.handlers` |

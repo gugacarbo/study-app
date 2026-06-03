@@ -23,7 +23,7 @@ export function TopicStatsCard({
 	correctAttempts,
 }: TopicStatsCardProps) {
 	return (
-		<Card className="mb-4">
+		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
 					<BarChart3 className="h-4 w-4" />

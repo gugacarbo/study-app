@@ -1,6 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { generateQuestionExplanationsBatch } from "@/features/ai/agents/explanations";
+import {
+	type ExplanationAgentRunSummary,
+	runBatchQuestionExplanations,
+} from "@/features/ai/agents/explanations";
 import { DBQueries } from "../db/queries";
 import { env } from "../env";
 import type { ProviderConfig } from "../lib/validation";
@@ -131,6 +134,9 @@ export const generateExamQuestionExplanations = createServerFn({
 				totalQuestions: exam.questions.length,
 				processedQuestions: 0,
 				batches: 0,
+				updatedQuestionIds: [],
+				generatedResponses: [],
+				agentRuns: [],
 			};
 		}
 
@@ -148,9 +154,10 @@ export const generateExamQuestionExplanations = createServerFn({
 			explanation: string;
 			deepExplanation: string;
 		}> = [];
+		const agentRuns: ExplanationAgentRunSummary[] = [];
 
-		for (const chunk of questionChunks) {
-			const generated = await generateQuestionExplanationsBatch(
+		for (const [batchIndex, chunk] of questionChunks.entries()) {
+			const batchResult = await runBatchQuestionExplanations(
 				providerConfig,
 				chunk.map((question) => ({
 					id: question.id,
@@ -160,10 +167,17 @@ export const generateExamQuestionExplanations = createServerFn({
 					topic: question.topic,
 					explanation: question.explanation,
 				})),
-				memoryResult.context || undefined,
+				{
+					memoryContext: memoryResult.context || undefined,
+					createAgentRunId: (label) =>
+						`explanations-batch-${batchIndex + 1}:${label.toLowerCase().replaceAll(" ", "-")}`,
+				},
 			);
+			agentRuns.push(...batchResult.agentRuns);
 
-			const generatedById = new Map(generated.map((item) => [item.id, item]));
+			const generatedById = new Map(
+				batchResult.questions.map((item) => [item.id, item]),
+			);
 
 			for (const question of chunk) {
 				const generatedItem = generatedById.get(question.id);
@@ -193,5 +207,6 @@ export const generateExamQuestionExplanations = createServerFn({
 			batches: questionChunks.length,
 			updatedQuestionIds,
 			generatedResponses,
+			agentRuns,
 		};
 	});

@@ -1,3 +1,5 @@
+import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+
 export function formatDate(dateStr: string | null): string {
 	if (!dateStr) return "—";
 	try {
@@ -55,6 +57,7 @@ export interface ExplanationProgressItem {
 	response?: {
 		explanation: string;
 		deepExplanation: string;
+		agentRun?: ExplanationAgentRunSummary;
 	};
 }
 

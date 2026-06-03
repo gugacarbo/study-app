@@ -25,7 +25,10 @@ export function QueueList({
 	);
 
 	return (
-		<Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-white/10 bg-[#1b2638] text-slate-100 shadow-sm">
+		<Card
+			size="sm"
+			className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card text-card-foreground shadow-sm"
+		>
 			<CardHeader className="shrink-0">
 				<div className="flex items-center justify-between gap-2">
 					<CardTitle className="text-sm font-semibold">
@@ -35,7 +38,7 @@ export function QueueList({
 						type="button"
 						variant="ghost"
 						size="sm"
-						className="h-6 px-2 text-[0.625rem] text-slate-300 hover:bg-slate-700/50 hover:text-white disabled:opacity-50"
+						className="h-6 px-2 text-[0.625rem] text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
 						onClick={onClearSaved}
 						disabled={!hasSavedLogs}
 					>
@@ -45,7 +48,7 @@ export function QueueList({
 			</CardHeader>
 			<CardContent className="min-h-0 flex-1 overflow-auto">
 				{jobs.length === 0 ? (
-					<p className="text-xs text-slate-400">No jobs yet</p>
+					<p className="text-xs text-muted-foreground">No jobs yet</p>
 				) : (
 					<div className="flex flex-col gap-1.5">
 						{[...jobs].reverse().map((job) => (
@@ -83,8 +86,8 @@ function JobRow({
 				className={cn(
 					"flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-left transition-colors",
 					isFocused
-						? "bg-blue-500/20 ring-1 ring-blue-400/30"
-						: "hover:bg-slate-700/40",
+						? "bg-primary/10 ring-1 ring-primary/30 dark:bg-blue-500/20 dark:ring-blue-400/30"
+						: "hover:bg-accent",
 				)}
 			>
 				<span className="truncate font-medium">{job.fileName}</span>
@@ -94,7 +97,7 @@ function JobRow({
 				<Button
 					variant="ghost"
 					size="sm"
-					className="ml-2 h-5 px-1.5 text-[0.625rem] text-slate-300 hover:bg-slate-700/50 hover:text-white"
+					className="ml-2 h-5 px-1.5 text-[0.625rem] text-muted-foreground hover:bg-accent hover:text-foreground"
 					onClick={(e) => {
 						e.stopPropagation();
 						onCancel();

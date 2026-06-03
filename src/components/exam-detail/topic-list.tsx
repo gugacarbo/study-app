@@ -8,7 +8,7 @@ interface TopicListProps {
 
 export function TopicList({ topics }: TopicListProps) {
 	return (
-		<Card className="mb-4">
+		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
 					<Tag className="h-4 w-4" />

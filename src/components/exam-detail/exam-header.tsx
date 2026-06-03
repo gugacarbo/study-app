@@ -1,8 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Play, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
-import { Dialog, DialogTrigger } from "../ui/dialog";
-import { ExplanationDialog } from "./explanation-dialog";
 
 interface ExamHeaderProps {
 	exam: {
@@ -20,9 +18,6 @@ interface ExamHeaderProps {
 	setConfirmDelete: (v: boolean) => void;
 	deleting: boolean;
 	handleDelete: () => void;
-	explanationsDialogOpen: boolean;
-	setExplanationsDialogOpen: (v: boolean) => void;
-	examId: number;
 }
 
 export function ExamHeader({
@@ -31,9 +26,6 @@ export function ExamHeader({
 	setConfirmDelete,
 	deleting,
 	handleDelete,
-	explanationsDialogOpen,
-	setExplanationsDialogOpen,
-	examId,
 }: ExamHeaderProps) {
 	return (
 		<div className="flex items-start justify-between gap-4 mb-6">
@@ -47,25 +39,12 @@ export function ExamHeader({
 			</div>
 
 			<div className="flex gap-2 shrink-0">
-				<Dialog
-					open={explanationsDialogOpen}
-					onOpenChange={setExplanationsDialogOpen}
-				>
-					<DialogTrigger asChild>
-						<Button variant="outline" size="sm">
-							Explicações
-						</Button>
-					</DialogTrigger>
-					<ExplanationDialog
-						open={explanationsDialogOpen}
-						examId={examId}
-						questions={exam.questions}
-						questionCount={exam.questions.length}
-					/>
-				</Dialog>
-
 				<Button asChild variant="default" size="sm">
-					<Link from="/exams/$id" to="/quiz/$id" params={{ id: exam.id.toString() }}>
+					<Link
+						from="/exams/$id"
+						to="/quiz/$id"
+						params={{ id: exam.id.toString() }}
+					>
 						<Play className="h-4 w-4" />
 						Start Quiz
 					</Link>

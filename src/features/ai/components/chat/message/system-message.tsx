@@ -17,29 +17,29 @@ export function SystemMessage({ message }: SystemMessageProps) {
 		<div className="flex flex-col gap-1.5">
 			<div className="flex items-center gap-1.5 px-1">
 				<BotMessageSquare
-					className="size-3 shrink-0 text-slate-500"
+					className="size-3 shrink-0 text-muted-foreground"
 					aria-hidden
 				/>
-				<span className="text-[0.625rem] uppercase tracking-wide text-slate-500">
+				<span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 					System Prompt
 				</span>
 			</div>
 
-			<div className="relative rounded-lg border border-dashed border-slate-600 bg-slate-800/50">
+			<div className="relative rounded-lg border border-dashed border-border bg-muted">
 				{/* Collapsed: 96px max-height with gradient mask */}
 				{!expanded && (
-					<div className="relative max-h-24 overflow-hidden px-4 pt-2.5 text-xs leading-relaxed text-slate-300 font-mono">
+					<div className="relative max-h-24 overflow-hidden px-4 pt-2.5 text-xs leading-relaxed text-foreground/70 font-mono">
 						<MarkdownRenderer content={textPart.content} />
 						{/* Gradient mask at bottom, overlapping the trigger */}
 						<div
-							className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent to-slate-800 mask-[linear-gradient(to_bottom,transparent_30%,black_85%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_30%,black_100%)]"
+							className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent to-muted mask-[linear-gradient(to_bottom,transparent_30%,black_85%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_30%,black_100%)]"
 							aria-hidden
 						/>
 						{/* Trigger button overlaid at the bottom of the collapsed box */}
 						<button
 							type="button"
 							onClick={() => setExpanded((v) => !v)}
-							className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1.5 py-1.5 text-[0.625rem] uppercase tracking-wide text-slate-400 transition-colors hover:text-slate-200"
+							className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1.5 py-1.5 text-[0.625rem] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
 						>
 							<ChevronDownIcon className="size-3 shrink-0" aria-hidden />
 							Abrir mensagem
@@ -50,14 +50,14 @@ export function SystemMessage({ message }: SystemMessageProps) {
 				{/* Expanded: full content */}
 				{expanded && (
 					<>
-						<div className="px-4 py-2.5 text-xs leading-relaxed text-slate-300 font-mono">
+						<div className="px-4 py-2.5 text-xs leading-relaxed text-foreground/70 font-mono">
 							<MarkdownRenderer content={textPart.content} />
 						</div>
 						{/* Trigger to collapse */}
 						<button
 							type="button"
 							onClick={() => setExpanded((v) => !v)}
-							className="flex w-full items-center justify-center gap-1.5 py-1.5 text-[0.625rem] uppercase tracking-wide text-slate-400 transition-colors hover:text-slate-200"
+							className="flex w-full items-center justify-center gap-1.5 py-1.5 text-[0.625rem] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
 						>
 							<ChevronDownIcon
 								className="size-3 shrink-0 rotate-180"

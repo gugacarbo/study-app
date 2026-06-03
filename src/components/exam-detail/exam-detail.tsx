@@ -18,7 +18,6 @@ interface ExamDetailProps {
 
 export function ExamDetail({ examId }: ExamDetailProps) {
 	const [expandedQuestions, setExpandedQuestions] = useState(new Set<number>());
-	const [explanationsDialogOpen, setExplanationsDialogOpen] = useState(false);
 
 	const { data: exam } = useSuspenseQuery({
 		queryKey: ["exam-detail", examId],
@@ -66,41 +65,46 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				setConfirmDelete={setConfirmDelete}
 				deleting={deleting}
 				handleDelete={handleDelete}
-				explanationsDialogOpen={explanationsDialogOpen}
-				setExplanationsDialogOpen={setExplanationsDialogOpen}
-				examId={examId}
 			/>
 
-			<StatsCards exam={exam} stats={stats} />
+			<div className="flex flex-col lg:flex-row gap-6">
+				<aside className="w-full lg:w-72 shrink-0">
+					<div className="space-y-4 lg:sticky lg:top-20">
+						<StatsCards exam={exam} stats={stats} />
 
-			{exam.files.length > 0 && <FileList files={exam.files} />}
+						{exam.files.length > 0 && <FileList files={exam.files} />}
 
-			{exam.topics.length > 0 && <TopicList topics={exam.topics} />}
+						{exam.topics.length > 0 && <TopicList topics={exam.topics} />}
 
-			{stats.topicStats.length > 0 && stats.totalAttempts > 0 && (
-				<TopicStatsCard
-					topicStats={stats.topicStats}
-					overallAccuracy={stats.overallAccuracy}
-					totalAttempts={stats.totalAttempts}
-					correctAttempts={stats.correctAttempts}
-				/>
-			)}
+						{stats.topicStats.length > 0 && stats.totalAttempts > 0 && (
+							<TopicStatsCard
+								topicStats={stats.topicStats}
+								overallAccuracy={stats.overallAccuracy}
+								totalAttempts={stats.totalAttempts}
+								correctAttempts={stats.correctAttempts}
+							/>
+						)}
+					</div>
+				</aside>
 
-			<QuestionsCard
-				questions={exam.questions}
-				expandedQuestions={expandedQuestions}
-				setExpandedQuestions={setExpandedQuestions}
-				editingQuestionId={editingQuestionId}
-				editForm={editForm}
-				onStartEdit={startEditing}
-				onSave={handleSave}
-				onCancel={cancelEditing}
-				onFormChange={(updates) =>
-					setEditForm((prev) => (prev ? { ...prev, ...updates } : prev))
-				}
-				saving={saving}
-				toggleQuestion={toggleQuestion}
-			/>
+				<div className="flex-1 min-w-0">
+					<QuestionsCard
+						questions={exam.questions}
+						expandedQuestions={expandedQuestions}
+						setExpandedQuestions={setExpandedQuestions}
+						editingQuestionId={editingQuestionId}
+						editForm={editForm}
+						onStartEdit={startEditing}
+						onSave={handleSave}
+						onCancel={cancelEditing}
+						onFormChange={(updates) =>
+							setEditForm((prev) => (prev ? { ...prev, ...updates } : prev))
+						}
+						saving={saving}
+						toggleQuestion={toggleQuestion}
+					/>
+				</div>
+			</div>
 		</div>
 	);
 }

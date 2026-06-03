@@ -5,6 +5,7 @@ import type {
 	ExplanationProgressStatus,
 } from "@/components/exam-detail/exam-utils";
 import { chunkIds, getErrorMessage } from "@/components/exam-detail/exam-utils";
+import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
 import { generateExamQuestionExplanations } from "@/server-functions/exams";
 
 interface QuestionBrief {
@@ -13,6 +14,17 @@ interface QuestionBrief {
 	explanation: string;
 	deepExplanation: string;
 }
+
+interface ExplanationGenerationResult {
+	updatedQuestionIds?: number[];
+	generatedResponses?: Array<{
+		id: number;
+		explanation: string;
+		deepExplanation: string;
+	}>;
+	agentRuns?: ExplanationAgentRunSummary[];
+}
+
 interface UseExplanationGenerationProps {
 	examId: number;
 	questions: QuestionBrief[];
@@ -34,6 +46,7 @@ export function useExplanationGeneration({
 	const [progressItems, setProgressItems] = useState<ExplanationProgressItem[]>(
 		[],
 	);
+	const [agentRuns, setAgentRuns] = useState<ExplanationAgentRunSummary[]>([]);
 	const [selectedResponseItemId, setSelectedResponseItemId] = useState<
 		number | null
 	>(null);
@@ -65,6 +78,7 @@ export function useExplanationGeneration({
 	useEffect(() => {
 		if (!open || generatingExplanations) return;
 		setProgressItems(buildProgressItems());
+		setAgentRuns([]);
 		setSelectedResponseItemId(null);
 	}, [open, generatingExplanations, buildProgressItems]);
 
@@ -73,6 +87,7 @@ export function useExplanationGeneration({
 		setGenerationMessage(null);
 		const initialProgress = buildProgressItems();
 		setProgressItems(initialProgress);
+		setAgentRuns([]);
 		const targetIds = initialProgress
 			.filter((item) => item.status === "pending")
 			.map((item) => item.id);
@@ -94,18 +109,31 @@ export function useExplanationGeneration({
 					),
 				);
 				try {
-					const result = await generateExamQuestionExplanations({
+					const result = (await generateExamQuestionExplanations({
 						data: {
 							examId,
 							overwrite: true,
 							batchSize: batchIds.length,
 							questionIds: batchIds,
 						},
-					});
+					})) as ExplanationGenerationResult;
 					const updatedIds = new Set(result.updatedQuestionIds || []);
 					const generatedById = new Map(
 						(result.generatedResponses || []).map((i) => [i.id, i]),
 					);
+					setAgentRuns((prev) => {
+						const next = new Map(
+							prev.map((agentRun) => [agentRun.agentRunId, agentRun]),
+						);
+						for (const agentRun of result.agentRuns || []) {
+							next.set(agentRun.agentRunId, agentRun);
+						}
+						return Array.from(next.values());
+					});
+					const successfulAgentRun =
+						(result.agentRuns || []).find(
+							(run: ExplanationAgentRunSummary) => run.status === "done",
+						) ?? null;
 					updatedCount += updatedIds.size;
 					failedCount += batchIds.filter((id) => !updatedIds.has(id)).length;
 					setProgressItems((prev) =>
@@ -121,6 +149,7 @@ export function useExplanationGeneration({
 										? {
 												explanation: gen.explanation,
 												deepExplanation: gen.deepExplanation,
+												agentRun: successfulAgentRun ?? undefined,
 											}
 										: undefined,
 								};
@@ -186,6 +215,7 @@ export function useExplanationGeneration({
 		setBatchSize,
 		generationMessage,
 		progressItems,
+		agentRuns,
 		selectedResponseItemId,
 		setSelectedResponseItemId,
 		pendingExplanationCount,

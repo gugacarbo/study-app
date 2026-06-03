@@ -60,6 +60,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | `components/chat/` | Chat UI: sidebar, messages, input, virtualized list |
 | `components/config/` | Test connection dialog |
 | `components/exam-detail/` | Explanation generation hook |
+| `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
 
 ## Key Patterns
 - **Agent isolation:** Each agent has its own system prompt + domain logic — don't mix

@@ -19,8 +19,11 @@ function ExamsLayout() {
 		return <Outlet />;
 	}
 
-	const tabValue: keyof FileRoutesByTo =
-		pathname === "/exams/stats" ? "/exams/stats" : "/exams";
+	const tabValue: keyof FileRoutesByTo = (() => {
+		if (pathname === "/exams/stats") return "/exams/stats";
+		if (pathname === "/exams/explanations") return "/exams/explanations";
+		return "/exams";
+	})();
 
 	return (
 		<Tabs
@@ -31,6 +34,7 @@ function ExamsLayout() {
 			<TabsList>
 				<TabsTrigger value="/exams">Exams</TabsTrigger>
 				<TabsTrigger value="/exams/stats">Stats</TabsTrigger>
+				<TabsTrigger value="/exams/explanations">Explicações</TabsTrigger>
 			</TabsList>
 			<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 				<Outlet />
