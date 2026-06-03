@@ -1,4 +1,3 @@
-import type { D1Database } from "@cloudflare/workers-types";
 import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
@@ -261,15 +260,6 @@ function parseCriticalTopics(value: string | null): string[] {
 	);
 }
 
-async function getMemoryContextForTopics(
-	db: D1Database,
-	topics: string[],
-): Promise<string> {
-	const memory = new MemoryManager(db);
-	await memory.ensureStructure();
-	return await memory.buildMemoryPrompt(topics);
-}
-
 async function runIngestWithProgress(
 	payload: IngestRequest,
 	send: (event: string, data: unknown) => void,
@@ -383,14 +373,14 @@ async function runIngestWithProgress(
 	const runExtractionPass = async (
 		stageId: string,
 		stageLabel: string,
-		options?: {
-			memoryContext?: string;
-		},
 	) => {
+		// Extraction pass does NOT need web tools — that's the reviewer's job.
+		// Passing both tools + outputSchema to @tanstack/ai's chat() triggers a
+		// two-pass agent loop (tools call + structured-output finalization call),
+		// causing duplicate LLM calls with identical reasoning traces.
 		const systemPrompt = buildSystemPrompt({
-			memoryContext: options?.memoryContext,
 			criticalTopics,
-			enableWebVerification: Boolean(webTools?.length),
+			enableWebVerification: false,
 		});
 		const userPrompt = buildExtractionUserPrompt(text);
 		const run = agentRuns.createRun(stageId, stageLabel);
@@ -410,7 +400,6 @@ async function runIngestWithProgress(
 				examIngestResponseSchema,
 				{
 					system: systemPrompt,
-					tools: webTools,
 					onChunk: (
 						chunk:
 							| StreamChunk
@@ -535,63 +524,7 @@ async function runIngestWithProgress(
 	onProgress("Initial extraction completed");
 	assertNotAborted();
 
-	onProgress("Loading study-memory context...");
-	sendStage(send, "memory_context", "Loading study-memory context", "running");
-	const memoryContext = await getMemoryContextForTopics(
-		db,
-		extracted.topics,
-	).catch((error) => {
-		log.warn("Failed to get memory context", {
-			stage: "memory_context",
-			topics: extracted.topics,
-			error: error instanceof Error ? error.message : "unknown",
-		});
-		return "";
-	});
-	sendStage(send, "memory_context", "Loading study-memory context", "done");
-	assertNotAborted();
-
 	let finalExtracted: ExamIngestResponse = extracted;
-	if (memoryContext) {
-		onProgress("Refining extraction with memory context...");
-		sendStage(
-			send,
-			"memory_refinement",
-			"Refining extraction with memory context",
-			"running",
-		);
-		try {
-			finalExtracted = await runExtractionPass(
-				"memory_refinement",
-				"Memory refinement agent",
-				{
-					memoryContext,
-				},
-			);
-		} catch (err) {
-			log.error("Memory refinement failed", err, {
-				stage: "memory_refinement",
-				questionCount: finalExtracted.questions.length,
-				topics: finalExtracted.topics,
-			});
-			sendStage(
-				send,
-				"memory_refinement",
-				"Refining extraction with memory context",
-				"error",
-				{ error: err instanceof Error ? err.message : "unknown" },
-			);
-			throw err;
-		}
-		sendStage(
-			send,
-			"memory_refinement",
-			"Refining extraction with memory context",
-			"done",
-		);
-		onProgress("Memory refinement completed");
-		assertNotAborted();
-	}
 
 	if (payload.enableReview) {
 		onProgress("Running review...");

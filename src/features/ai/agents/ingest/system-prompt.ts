@@ -33,7 +33,6 @@ Fallback behavior:
   {"questions":[],"topics":[]}.`;
 
 interface BuildSystemPromptOptions {
-	memoryContext?: string;
 	criticalTopics?: string[];
 	enableWebVerification?: boolean;
 }
@@ -54,14 +53,6 @@ Critical topic checks:
 Tooling availability:
 - Web verification tools may be unavailable.
 - If unavailable, continue extraction conservatively without blocking the response.`);
-	}
-
-	if (options?.memoryContext) {
-		sections.push(`
-Use the following student learning-history context to improve topic naming consistency.
-Do not include this context text in the output.
-
-${options.memoryContext}`);
 	}
 
 	return sections.join("\n\n");

@@ -7,7 +7,7 @@ import { buildSystemPrompt } from "./system-prompt";
 export async function extractQuestionsFromText(
 	config: ProviderConfig,
 	text: string,
-	memoryContext?: string,
+	_memoryContext?: string,
 	options?: {
 		onChunk?: (
 			chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
@@ -18,7 +18,6 @@ export async function extractQuestionsFromText(
 	},
 ): Promise<ExamIngestResponse> {
 	const systemPrompt = buildSystemPrompt({
-		memoryContext,
 		criticalTopics: options?.criticalTopics,
 		enableWebVerification: options?.enableWebVerification,
 	});
