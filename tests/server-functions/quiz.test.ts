@@ -34,11 +34,43 @@ describe('DBQueries quiz operations', () => {
     queries = new DBQueries(mockDB as any);
   });
 
-  it('records an attempt', async () => {
-    await queries.recordAttempt(1, '4', true);
-    expect(mockDB.prepare).toHaveBeenCalledWith(
-      expect.stringContaining('insert into "attempts"')
-    );
+  it('creates an attempt session', async () => {
+    await queries.createAttemptSession({
+      examId: 1,
+      topic: 'Math',
+      totalQuestions: 10,
+    });
+    const [firstCall] = mockDB.prepare.mock.calls as unknown as Array<[string]>;
+    expect(firstCall?.[0] ?? '').toContain('INSERT INTO attempts');
+  });
+
+  it('upserts an answer row for an attempt session', async () => {
+    await queries.upsertAttemptAnswer({
+      attemptId: 3,
+      questionId: 1,
+      userAnswer: '4',
+      correct: true,
+    });
+
+    const [firstCall] = mockDB.prepare.mock.calls as unknown as Array<[string]>;
+    expect(firstCall?.[0] ?? '').toContain('INSERT INTO attempt_answers');
+  });
+
+  it('recomputes attempt counters after recording an answer', async () => {
+    await queries.refreshAttemptProgress(3);
+
+    const [firstCall] = mockDB.prepare.mock.calls as unknown as Array<[string]>;
+    expect(firstCall?.[0] ?? '').toContain('UPDATE attempts');
+  });
+
+  it('marks stale in-progress attempts as abandoned for the same quiz scope', async () => {
+    await queries.abandonInProgressAttempts({
+      examId: 1,
+      topic: 'Math',
+    });
+
+    const [firstCall] = mockDB.prepare.mock.calls as unknown as Array<[string]>;
+    expect(firstCall?.[0] ?? '').toContain('SET status = ?');
   });
 
   it('gets questions by exam', async () => {

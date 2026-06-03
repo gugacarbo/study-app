@@ -16,7 +16,7 @@ describe("ExplanationDialog", () => {
 		mockedUseExplanationGeneration.mockReset();
 	});
 
-	it("opens the shared agent detail dialog when clicking a question progress card", () => {
+	function mockGenerationState() {
 		const agentRun: ExplanationAgentRunSummary = {
 			agentRunId: "explanations-batch-1",
 			label: "Explanation batch 1",
@@ -59,6 +59,9 @@ describe("ExplanationDialog", () => {
 			errorCount: 0,
 			finishedCount: 1,
 			progressPercent: 100,
+			findAgentRunForQuestionId: vi.fn((questionId: number) =>
+				questionId === 1 ? agentRun : undefined,
+			),
 			selectedResponseItem: {
 				id: 1,
 				question: "Pergunta 1",
@@ -74,6 +77,56 @@ describe("ExplanationDialog", () => {
 			handleGenerateExplanations: vi.fn(),
 		});
 
+		return agentRun;
+	}
+
+	function mockProcessingGenerationState() {
+		const agentRun: ExplanationAgentRunSummary = {
+			agentRunId: "explanations-batch-1:explanation-batch-1",
+			label: "Explanation batch 1",
+			status: "running",
+			systemPrompt: "",
+			userPrompt: "",
+			meta: {
+				questionCount: 1,
+				questionIds: [1],
+			},
+		};
+
+		mockedUseExplanationGeneration.mockReturnValue({
+			generatingExplanations: true,
+			overwriteExplanations: false,
+			setOverwriteExplanations: vi.fn(),
+			batchSize: 8,
+			setBatchSize: vi.fn(),
+			generationMessage: null,
+			progressItems: [
+				{
+					id: 1,
+					question: "Pergunta 1",
+					status: "processing",
+					message: "Gerando...",
+				},
+			],
+			selectedResponseItemId: null,
+			setSelectedResponseItemId: vi.fn(),
+			pendingExplanationCount: 1,
+			questionOrder: new Map([[1, 1]]),
+			processingCount: 1,
+			doneCount: 0,
+			errorCount: 0,
+			finishedCount: 0,
+			progressPercent: 0,
+			findAgentRunForQuestionId: vi.fn((questionId: number) =>
+				questionId === 1 ? agentRun : undefined,
+			),
+			selectedResponseItem: undefined,
+			agentRuns: [agentRun],
+			handleGenerateExplanations: vi.fn(),
+		});
+	}
+
+	function renderDialog() {
 		render(
 			<Dialog open>
 				<ExplanationDialog
@@ -91,6 +144,12 @@ describe("ExplanationDialog", () => {
 				/>
 			</Dialog>,
 		);
+	}
+
+	it("opens the shared agent detail dialog when clicking a question progress card", () => {
+		mockGenerationState();
+
+		renderDialog();
 
 		fireEvent.click(screen.getByRole("button", { name: /Q1 · Pergunta 1/i }));
 
@@ -98,5 +157,30 @@ describe("ExplanationDialog", () => {
 		expect(document.body.textContent).toContain("prompt de sistema");
 		expect(document.body.textContent).toContain("prompt do usuario");
 		expect(document.body.textContent).toContain("resposta final do agente");
+	});
+
+	it("opens the shared agent detail dialog when clicking an explanation agent card", () => {
+		mockGenerationState();
+
+		renderDialog();
+
+		fireEvent.click(
+			screen.getAllByRole("button", { name: /Explanation batch 1/i })[0],
+		);
+
+		expect(screen.getByRole("heading", { name: "Explanation batch 1" })).toBeTruthy();
+		expect(document.body.textContent).toContain("prompt de sistema");
+		expect(document.body.textContent).toContain("prompt do usuario");
+		expect(document.body.textContent).toContain("resposta final do agente");
+	});
+
+	it("opens the shared agent detail dialog when clicking a processing question card", () => {
+		mockProcessingGenerationState();
+
+		renderDialog();
+
+		fireEvent.click(screen.getByRole("button", { name: /Q1 · Pergunta 1/i }));
+
+		expect(screen.getByRole("heading", { name: "Explanation batch 1" })).toBeTruthy();
 	});
 });

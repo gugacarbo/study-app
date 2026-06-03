@@ -212,4 +212,53 @@ describe("chat-db-tools", () => {
       },
     });
   });
+
+  it("returns session-level attempt rows for list_attempts", async () => {
+    queries.listAttemptsPaged.mockResolvedValueOnce({
+      items: [
+        {
+          id: 4,
+          exam_id: 2,
+          topic: "Math",
+          total_questions: 10,
+          answered_questions: 7,
+          correct_answers: 5,
+          status: "in_progress",
+          started_at: "2026-06-03T10:00:00Z",
+          completed_at: null,
+          updated_at: "2026-06-03T10:05:00Z",
+          accuracy: 71,
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      },
+    });
+
+    const listAttempts = getTool(tools, "list_attempts");
+    const result = (await listAttempts.execute({})) as {
+      ok: boolean;
+      data: { items: Array<Record<string, unknown>> };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.data.items[0]).toEqual({
+      id: 4,
+      exam_id: 2,
+      topic: "Math",
+      total_questions: 10,
+      answered_questions: 7,
+      correct_answers: 5,
+      status: "in_progress",
+      started_at: "2026-06-03T10:00:00Z",
+      completed_at: null,
+      updated_at: "2026-06-03T10:05:00Z",
+      accuracy: 71,
+    });
+  });
 });

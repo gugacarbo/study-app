@@ -27,6 +27,14 @@ class FakeSelectBuilder {
     state.calls.push({ method: "innerJoin", args });
     return this;
   }
+  leftJoin(...args: unknown[]) {
+    state.calls.push({ method: "leftJoin", args });
+    return this;
+  }
+  groupBy(...args: unknown[]) {
+    state.calls.push({ method: "groupBy", args });
+    return this;
+  }
   async get() {
     if (state.gets.length === 0) throw new Error("Missing queued get() response");
     return state.gets.shift();
@@ -164,7 +172,7 @@ describe("DBQueries pagination contracts", () => {
     expect(result.items[0]).toHaveProperty("answer", "4");
   });
 
-  it("returns pagination object shape for answer keys and attempts", async () => {
+  it("returns pagination object shape for answer keys and session attempts", async () => {
     state.gets.push({ count: 2 });
     state.alls.push([
       { id: 22, exam_id: 1, topic: "A", question: "new", answer: "x", created_at: "2026-05-02" },
@@ -174,13 +182,16 @@ describe("DBQueries pagination contracts", () => {
     state.alls.push([
       {
         id: 8,
-        question_id: 22,
-        user_answer: "x",
-        correct: 1,
-        timestamp: "2026-05-02",
         exam_id: 1,
-        question: "new",
         topic: "A",
+        total_questions: 10,
+        answered_questions: 4,
+        correct_answers: 3,
+        status: "in_progress",
+        started_at: "2026-05-02",
+        completed_at: null,
+        updated_at: "2026-05-02",
+        accuracy: 75,
       },
     ]);
 
@@ -203,7 +214,59 @@ describe("DBQueries pagination contracts", () => {
       hasNextPage: false,
       hasPrevPage: false,
     });
-    expect(attempts.items[0].correct).toBe(true);
+    expect(attempts.items[0]).toEqual({
+      id: 8,
+      exam_id: 1,
+      topic: "A",
+      total_questions: 10,
+      answered_questions: 4,
+      correct_answers: 3,
+      status: "in_progress",
+      started_at: "2026-05-02",
+      completed_at: null,
+      updated_at: "2026-05-02",
+      accuracy: 75,
+    });
+  });
+
+  it("derives accuracy from completed answers while keeping incomplete attempt counts", async () => {
+    state.gets.push({
+      totalAttempts: 3,
+      completedAttempts: 2,
+      incompleteAttempts: 1,
+    });
+    state.gets.push({
+      answeredQuestions: 8,
+      correctAnswers: 6,
+    });
+    state.alls.push([
+      {
+        topic: "Math",
+        attempts: 3,
+        completedAnswers: 8,
+        correctAnswers: 6,
+      },
+    ]);
+
+    const stats = await queries.getStats();
+
+    expect(stats).toEqual({
+      totalAttempts: 3,
+      completedAttempts: 2,
+      incompleteAttempts: 1,
+      answeredQuestions: 8,
+      correctAnswers: 6,
+      overallAccuracy: 75,
+      topics: [
+        {
+          topic: "Math",
+          attempts: 3,
+          completedAnswers: 8,
+          correctAnswers: 6,
+          accuracy: 75,
+        },
+      ],
+    });
   });
 
   it("surfaces predictable error metadata when underlying query fails", async () => {
