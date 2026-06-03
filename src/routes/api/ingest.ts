@@ -28,7 +28,19 @@ type AgentTools = NonNullable<
 
 function extractTextFromBytes(bytes: Uint8Array): string {
 	const text = new TextDecoder().decode(bytes);
-	return text.replace(/[^\x20-\x7E\n\r\t]/g, " ").trim();
+	// Remove only true control characters (C0 except TAB/LF/CR, and DEL).
+	// Preserves all Unicode — accents, cedilla, em-dash, bullets, etc.
+	// Uses functional approach to avoid Biome's noControlCharactersInRegex rule.
+	return [...text]
+		.filter((char) => {
+			const code = char.codePointAt(0);
+			if (code === undefined) return false;
+			if (code === 9 || code === 10 || code === 13) return true; // TAB, LF, CR
+			if (code <= 31 || code === 127) return false; // C0 controls & DEL
+			return true;
+		})
+		.join("")
+		.trim();
 }
 
 function formatSSE(event: string, data: unknown): string {

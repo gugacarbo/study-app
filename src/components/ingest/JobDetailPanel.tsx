@@ -1,16 +1,16 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogsPanel } from "./LogsPanel";
 import { OutputPanel } from "./OutputPanel";
 import { PipelineFlow } from "./PipelineFlow";
+import { ProcessLogsPanel } from "./ProcessLogsPanel";
 import type { IngestJobViewModel } from "./types";
 
 interface JobDetailPanelProps {
 	job: IngestJobViewModel;
-	activeTab: "output" | "logs";
+	activeTab: "output" | "process";
 	selectedStageId: string | null;
-	onTabChange: (tab: "output" | "logs") => void;
+	onTabChange: (tab: "output" | "process") => void;
 	onStageClick: (stageId: string) => void;
 	onClearStageFilter: () => void;
 }
@@ -39,7 +39,7 @@ export function JobDetailPanel({
 					</Badge>
 				</CardTitle>
 				<p className="mt-1 text-[0.625rem] text-slate-400">
-					Pipeline flow. Click a stage to scope output, logs, and review agents.
+					Pipeline flow. Click a stage to scope output and process logs.
 				</p>
 			</CardHeader>
 			<CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-3">
@@ -53,12 +53,12 @@ export function JobDetailPanel({
 
 				<Tabs
 					value={activeTab}
-					onValueChange={(value) => onTabChange(value as "output" | "logs")}
+					onValueChange={(value) => onTabChange(value as "output" | "process")}
 					className="flex min-h-0 flex-1 flex-col overflow-hidden"
 				>
 					<TabsList className="mb-2 bg-[#0b1424]">
 						<TabsTrigger value="output">Output</TabsTrigger>
-						<TabsTrigger value="logs">Logs</TabsTrigger>
+						<TabsTrigger value="process">Process</TabsTrigger>
 					</TabsList>
 
 					<TabsContent
@@ -73,16 +73,15 @@ export function JobDetailPanel({
 							selectedStageId={selectedStageId}
 							selectedStageLabel={selectedStage?.label ?? null}
 							agents={job.agents}
-							logs={job.logs}
 							onClearFilter={onClearStageFilter}
 						/>
 					</TabsContent>
 
 					<TabsContent
-						value="logs"
+						value="process"
 						className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
 					>
-						<LogsPanel
+						<ProcessLogsPanel
 							logs={job.logs}
 							filteredStageId={selectedStageId}
 							filteredStageLabel={selectedStage?.label ?? null}

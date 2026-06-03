@@ -55,7 +55,7 @@ src/
 │   ├── ConfigForm.tsx   # AI provider config form (react-hook-form)
 │   ├── ThemeToggle.tsx  # Light/dark mode toggle
 │   ├── theme-provider.tsx # Theme context provider (shadcn)
-│   ├── ingest/           # Ingest UI components (JobDetailPanel, LogsPanel, OutputPanel, PipelineFlow, QueueList, UploadCard, VirtualizedLogLines)
+│   ├── ingest/           # Ingest UI components (JobDetailPanel, LogsPanel, OutputPanel, PipelineFlow, ProcessLogsPanel, QueueList, UploadCard, VirtualizedLogLines)
 │   ├── MemoryPanel.tsx  # Memory overview and search
 │   └── MemoryVisualization.tsx # Memory stats dashboard with topic charts
 ├── routes/              # File-based TanStack Router routes

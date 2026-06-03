@@ -24,7 +24,17 @@ const parallelReviewDef = toolDefinition({
 			ok: z.literal(true),
 			data: z.object({
 				answer: z.string(),
-				reviewerDrafts: z.array(z.string()),
+				confidence: z.string(),
+				conflictNotes: z.string().optional(),
+				sources: z.array(z.string()),
+				reviewerDrafts: z.array(z.object({
+					verdict: z.string(),
+					answer: z.string(),
+					reasoning: z.string(),
+					confidence: z.string(),
+					sources: z.array(z.string()),
+				})),
+				failedReviewerCount: z.number().int().min(0).default(0),
 			}),
 		}),
 		z.object({

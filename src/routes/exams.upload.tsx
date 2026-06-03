@@ -32,7 +32,7 @@ function IngestPage() {
 		focusedJobId: state.focusedJobId,
 	}));
 
-	const [activeTab, setActiveTab] = useState<"output" | "logs">("output");
+	const [activeTab, setActiveTab] = useState<"output" | "process">("output");
 	const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
 
 	const focusedJob = useMemo(() => {

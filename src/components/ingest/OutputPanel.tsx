@@ -1,3 +1,4 @@
+import type { UIMessage } from "@tanstack/ai-client";
 import { Filter, PanelRightOpen, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -9,14 +10,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
+import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
 import { cn } from "@/lib/utils";
-import type { UIMessage } from "@tanstack/ai-client";
 import type {
 	IngestAgentRunViewModel,
-	IngestLogEntry,
 	IngestOutputEntry,
 	IngestTokenTotals,
 } from "./types";
@@ -29,7 +28,6 @@ interface OutputPanelProps {
 	selectedStageId: string | null;
 	selectedStageLabel: string | null;
 	agents: IngestAgentRunViewModel[];
-	logs: IngestLogEntry[];
 	onClearFilter: () => void;
 }
 
@@ -41,7 +39,6 @@ export function OutputPanel({
 	selectedStageId,
 	selectedStageLabel,
 	agents,
-	logs,
 	onClearFilter,
 }: OutputPanelProps) {
 	const [mode, setMode] = useState<"treated" | "raw">("treated");
@@ -67,14 +64,6 @@ export function OutputPanel({
 		selectedAgentId == null
 			? null
 			: (filteredAgents.find((agent) => agent.id === selectedAgentId) ?? null);
-
-	const agentLogs = useMemo(
-		() =>
-			selectedAgentId == null
-				? []
-				: logs.filter((log) => log.agentId === selectedAgentId),
-		[logs, selectedAgentId],
-	);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
@@ -119,38 +108,31 @@ export function OutputPanel({
 			{mode === "treated" ? (
 				<div className="flex min-h-0 flex-1 flex-col gap-3">
 					{filteredAgents.length > 0 ? (
-						<div className="rounded-md border border-white/10 bg-[#0b1424] p-3">
-							<div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-200">
+						<div className="max-h-52 overflow-y-auto rounded-md border border-white/10 bg-[#0b1424] p-2">
+							<div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-slate-200">
 								<Sparkles className="size-3.5 text-sky-300" />
-								Review agents
+								Agents
 							</div>
-							<div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+							<div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
 								{filteredAgents.map((agent) => (
 									<button
 										key={agent.id}
 										type="button"
 										onClick={() => setSelectedAgentId(agent.id)}
-										className="flex min-h-20 flex-col items-start gap-1 rounded-md border border-white/10 bg-[#111b2c] px-3 py-2 text-left transition-colors hover:border-sky-400/40 hover:bg-[#14223a]"
+										className="flex items-center gap-2 rounded-md border border-white/10 bg-[#111b2c] px-2.5 py-1.5 text-left transition-colors hover:border-sky-400/40 hover:bg-[#14223a]"
 									>
-										<div className="flex w-full items-center justify-between gap-2">
-											<span className="truncate text-xs font-medium text-slate-100">
-												{agent.name}
-											</span>
-											<Badge
-												variant="secondary"
-												className={cn(
-													"text-[0.625rem]",
-													agentStateBadgeClass(agent.state),
-												)}
-											>
-												{agent.state}
-											</Badge>
-										</div>
-										{agent.summary ? (
-											<p className="line-clamp-2 text-[0.7rem] text-slate-400">
-												{agent.summary}
-											</p>
-										) : null}
+										<span className="min-w-0 truncate text-[0.7rem] font-medium text-slate-100">
+											{agent.name}
+										</span>
+										<Badge
+											variant="secondary"
+											className={cn(
+												"shrink-0 text-[0.6rem]",
+												agentStateBadgeClass(agent.state),
+											)}
+										>
+											{agent.state}
+										</Badge>
 									</button>
 								))}
 							</div>
@@ -178,7 +160,6 @@ export function OutputPanel({
 
 					<AgentDetailDialog
 						agent={selectedAgent}
-						logs={agentLogs}
 						open={selectedAgent != null}
 						onOpenChange={(open) => {
 							if (!open) setSelectedAgentId(null);
@@ -221,8 +202,10 @@ function TranscriptMessage({
 			</div>
 			<div
 				className={cn(
-					entry.status === "warning" && "rounded-lg border-amber-500/30 bg-amber-500/10",
-					entry.status === "error" && "rounded-lg border-red-500/30 bg-red-500/10",
+					entry.status === "warning" &&
+						"rounded-lg border-amber-500/30 bg-amber-500/10",
+					entry.status === "error" &&
+						"rounded-lg border-red-500/30 bg-red-500/10",
 				)}
 			>
 				<ChatMessage message={uiMessage} />
@@ -271,12 +254,10 @@ function EmptyOutputState({
 
 function AgentDetailDialog({
 	agent,
-	logs,
 	open,
 	onOpenChange,
 }: {
 	agent: IngestAgentRunViewModel | null;
-	logs: IngestLogEntry[];
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }) {
@@ -286,95 +267,33 @@ function AgentDetailDialog({
 				<DialogHeader>
 					<DialogTitle>{agent?.name ?? ""}</DialogTitle>
 					<DialogDescription className="text-slate-400">
-						{agent?.summary ??
-							"Inspect prompts, response, and agent state."}
+						{agent?.summary ?? "Inspect prompts, response, and agent state."}
 					</DialogDescription>
 				</DialogHeader>
 				{agent ? (
-					<Tabs
-						defaultValue="output"
-						className="mt-2 flex min-h-0 flex-1 flex-col"
-					>
-						<TabsList className="w-fit bg-[#0b1424]">
-							<TabsTrigger value="output">Output</TabsTrigger>
-							<TabsTrigger value="log">Log</TabsTrigger>
-						</TabsList>
-						<TabsContent
-							value="output"
-							forceMount
-							className="mt-4 min-h-0 flex-1 overflow-auto data-[state=active]:flex data-[state=active]:flex-col"
-						>
-							<div className="flex flex-col gap-3 pr-1">
-								<AgentMessageBubble
-									messageRole="system"
-									label="System prompt"
-									content={agent.systemPrompt}
-								/>
-								<AgentMessageBubble
-									messageRole="user"
-									label="User prompt"
-									content={agent.userPrompt}
-								/>
-								<AgentMessageBubble
-									messageRole="assistant"
-									label="Agent response"
-									content={agent.response}
-								/>
-							</div>
-						</TabsContent>
-						<TabsContent
-							value="log"
-							forceMount
-							className="mt-4 min-h-0 flex-1 overflow-auto data-[state=active]:block"
-						>
-							{logs.length === 0 ? (
-								<div className="flex h-full min-h-32 items-center justify-center rounded-md border border-white/10 bg-[#0b1424] text-[0.7rem] text-slate-500">
-									No logs for this agent
-								</div>
-							) : (
-								<div className="flex min-h-0 flex-1 flex-col gap-1 rounded-md border border-white/10 bg-[#0b1424] p-3">
-									{logs.map((log) => (
-										<div
-											key={log.id}
-											className={cn(
-												"flex items-start gap-2 whitespace-pre-wrap pr-4",
-												logLevelClass(log.level),
-											)}
-										>
-											<span className="shrink-0 text-[0.625rem] uppercase tracking-wide text-slate-500">
-												{log.level}
-											</span>
-											<div className="min-w-0 flex-1">
-												<div className="text-[0.7rem]">{log.message}</div>
-												{log.timestamp ? (
-													<div className="text-[0.625rem] text-slate-500">
-														{new Date(log.timestamp).toLocaleTimeString()}
-													</div>
-												) : null}
-											</div>
-										</div>
-									))}
-								</div>
-							)}
-						</TabsContent>
-					</Tabs>
+					<div className="mt-2 min-h-0 flex-1 overflow-auto">
+						<div className="flex flex-col gap-3 pr-1">
+							<AgentMessageBubble
+								messageRole="system"
+								label="System prompt"
+								content={agent.systemPrompt}
+							/>
+							<AgentMessageBubble
+								messageRole="user"
+								label="User prompt"
+								content={agent.userPrompt}
+							/>
+							<AgentMessageBubble
+								messageRole="assistant"
+								label="Agent response"
+								content={agent.response}
+							/>
+						</div>
+					</div>
 				) : null}
 			</DialogContent>
 		</Dialog>
 	);
-}
-
-function logLevelClass(level: IngestLogEntry["level"]): string {
-	switch (level) {
-		case "error":
-			return "text-red-300";
-		case "warning":
-			return "text-amber-300";
-		case "debug":
-			return "text-slate-400";
-		default:
-			return "text-slate-200";
-	}
 }
 
 function AgentMessageBubble({

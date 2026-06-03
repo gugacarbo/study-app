@@ -71,7 +71,6 @@ describe("OutputPanel", () => {
 				selectedStageId="review"
 				selectedStageLabel="Review"
 				agents={agents}
-				logs={[]}
 				onClearFilter={() => {}}
 			/>,
 		);
