@@ -50,6 +50,8 @@ export class TavilyWebSearchProvider implements WebSearchProvider {
 			);
 
 			if (!response.ok) {
+				const body = await response.text().catch(() => "");
+				console.error(`Tavily search failed (${response.status}):`, body);
 				throw new Error(`Tavily returned status ${response.status}`);
 			}
 

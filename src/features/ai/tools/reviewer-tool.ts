@@ -27,13 +27,15 @@ const parallelReviewDef = toolDefinition({
 				confidence: z.string(),
 				conflictNotes: z.string().optional(),
 				sources: z.array(z.string()),
-				reviewerDrafts: z.array(z.object({
-					verdict: z.string(),
-					answer: z.string(),
-					reasoning: z.string(),
-					confidence: z.string(),
-					sources: z.array(z.string()),
-				})),
+				reviewerDrafts: z.array(
+					z.object({
+						verdict: z.string(),
+						answer: z.string(),
+						reasoning: z.string(),
+						confidence: z.string(),
+						sources: z.array(z.string()),
+					}),
+				),
 				failedReviewerCount: z.number().int().min(0).default(0),
 			}),
 		}),
@@ -62,6 +64,7 @@ export function createParallelReviewTool(
 				data: result,
 			};
 		} catch (error) {
+			console.error("parallel_review failed:", error);
 			const message =
 				error instanceof Error ? error.message : "Unknown reviewer error";
 			await options?.onWarning?.(`parallel_review failed: ${message}`);

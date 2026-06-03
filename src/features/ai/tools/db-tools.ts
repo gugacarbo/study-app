@@ -63,13 +63,16 @@ function safeToolResult<TItem>(
 > {
 	return executor()
 		.then((data) => ({ ok: true as const, data }))
-		.catch(() => ({
-			ok: false as const,
-			error: {
-				code: TOOL_ERROR_CODE,
-				message: TOOL_ERROR_MESSAGE,
-			},
-		}));
+		.catch((error) => {
+			console.error("DB tool execution failed:", error);
+			return {
+				ok: false as const,
+				error: {
+					code: TOOL_ERROR_CODE,
+					message: TOOL_ERROR_MESSAGE,
+				},
+			};
+		});
 }
 
 const listExamsDef = toolDefinition({

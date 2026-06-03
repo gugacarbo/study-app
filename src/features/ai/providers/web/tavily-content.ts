@@ -49,6 +49,8 @@ export class TavilyWebContentProvider implements WebContentProvider {
 			);
 
 			if (!response.ok) {
+				const body = await response.text().catch(() => "");
+				console.error(`Tavily extract failed (${response.status}):`, body);
 				throw new Error(`Tavily returned status ${response.status}`);
 			}
 

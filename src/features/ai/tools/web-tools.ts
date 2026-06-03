@@ -101,7 +101,8 @@ export function createChatWebTools(
 				output: data,
 			});
 			return { ok: true as const, data };
-		} catch {
+		} catch (error) {
+			console.error(`web_search failed for query: "${input.query}"`, error);
 			await observer?.onWarning?.(
 				`web_search failed for query: "${input.query}"`,
 			);
@@ -129,7 +130,8 @@ export function createChatWebTools(
 				output: data,
 			});
 			return { ok: true as const, data };
-		} catch {
+		} catch (error) {
+			console.error(`web_fetch failed for URL: ${input.url}`, error);
 			await observer?.onWarning?.(`web_fetch failed for URL: ${input.url}`);
 			return {
 				ok: false as const,

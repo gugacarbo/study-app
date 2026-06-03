@@ -48,6 +48,7 @@ export async function runParallelReview(
 			} catch (error) {
 				const message =
 					error instanceof Error ? error.message : "Unknown reviewer error";
+				console.warn(`Reviewer #${index + 1} failed:`, error);
 				options?.onWarning?.(`Reviewer #${index + 1} failed: ${message}`);
 				return { ok: false as const, error: message };
 			}
@@ -63,7 +64,7 @@ export async function runParallelReview(
 		if (result.ok && result.draft) {
 			reviewerDrafts.push(result.draft);
 		} else {
-				failedReviewerCount++;
+			failedReviewerCount++;
 		}
 	}
 
@@ -84,12 +85,12 @@ ${question}
 
 Reviewer drafts (JSON):
 ${reviewerDrafts
-		.map(
-			(draft, i) =>
-				`Reviewer ${i + 1}:
+	.map(
+		(draft, i) =>
+			`Reviewer ${i + 1}:
 ${JSON.stringify(draft, null, 2)}`,
-		)
-		.join("\n\n---\n\n")}
+	)
+	.join("\n\n---\n\n")}
 
 ${failedReviewerCount > 0 ? `Note: ${failedReviewerCount} reviewer(s) failed — rely on the available drafts.` : ""}`;
 
