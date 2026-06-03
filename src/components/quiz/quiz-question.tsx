@@ -49,7 +49,7 @@ export function QuizQuestion({
 					<Button
 						key={option}
 						variant={selectedAnswer === option ? "default" : "outline"}
-						className="justify-start h-auto py-2 [&_p]:m-0"
+						className="justify-start h-auto py-2 whitespace-normal break-words text-left [&_p]:m-0"
 						onClick={() => onSelectAnswer(option)}
 					>
 						<span className="mr-2 font-bold shrink-0">
