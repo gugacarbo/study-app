@@ -14,6 +14,10 @@ const generateQuizSchema = z.object({
 });
 
 const submitAnswerSchema = z.object({
+	attemptId: z.number().optional(),
+	examId: z.number().optional(),
+	topic: z.string().optional(),
+	totalQuestions: z.number().int().positive(),
 	questionId: z.number(),
 	userAnswer: z.string(),
 });
@@ -76,9 +80,34 @@ export const submitAnswer = createServerFn({ method: "POST" })
 				: `Resposta incorreta. A resposta correta é: ${storedQuestion.answer}`);
 		const longExplanation = storedQuestion.deepExplanation || "";
 
-		await queries.recordAttempt(data.questionId, data.userAnswer, correct);
+		let attemptId = data.attemptId;
+		if (!attemptId) {
+			await queries.abandonInProgressAttempts({
+				examId: data.examId,
+				topic: data.topic,
+			});
+			attemptId = await queries.createAttemptSession({
+				examId: data.examId,
+				topic: data.topic,
+				totalQuestions: data.totalQuestions,
+			});
+		}
+
+		await queries.upsertAttemptAnswer({
+			attemptId,
+			questionId: data.questionId,
+			userAnswer: data.userAnswer,
+			correct,
+		});
+		await queries.refreshAttemptProgress(attemptId);
+		const attempt = await queries.getAttemptById(attemptId);
+		if (!attempt) {
+			throw new Error("Attempt not found after saving answer");
+		}
 
 		return {
+			attemptId,
+			attemptStatus: attempt.status,
 			correct,
 			explanation: shortExplanation,
 			longExplanation,

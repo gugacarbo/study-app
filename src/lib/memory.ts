@@ -255,8 +255,8 @@ duration: ${session.duration ?? "N/A"}
 ## Questions
 
 ${session.questions
-				.map(
-					(q, i) => `
+	.map(
+		(q, i) => `
 ### ${i + 1}. ${q.question}
 
 - **Your answer:** ${q.userAnswer}
@@ -265,8 +265,8 @@ ${session.questions
 - **Explanation:** ${q.explanation}
 - **Topic:** ${q.topic}
 `,
-				)
-				.join("\n")}
+	)
+	.join("\n")}
 
 ## Summary
 
@@ -430,8 +430,8 @@ total: ${questions.length}
 ## Questions (${questions.length})
 
 ${questions
-				.map(
-					(q, i) => `
+	.map(
+		(q, i) => `
 ### ${i + 1}. ${q.question}
 
 ${q.options.map((o, j) => `${String.fromCharCode(97 + j)}) ${o}`).join("\n")}
@@ -439,8 +439,8 @@ ${q.options.map((o, j) => `${String.fromCharCode(97 + j)}) ${o}`).join("\n")}
 **Correct answer:** ${q.answer}
 ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 `,
-				)
-				.join("\n")}
+	)
+	.join("\n")}
 `;
 
 		await this.writeToR2(filePath, content);
@@ -725,10 +725,13 @@ ${uniqueSources.map((source) => `- ${source}`).join("\n") || "- none"}
 
 	async saveStatsToVault(stats: {
 		totalAttempts: number;
+		correctAnswers: number;
+		answeredQuestions: number;
 		topics: Array<{
 			topic: string;
-			total: number;
-			correct: number;
+			attempts: number;
+			completedAnswers: number;
+			correctAnswers: number;
 			accuracy: number;
 		}>;
 	}): Promise<string> {
@@ -750,22 +753,18 @@ topics: ${stats.topics.length}
 
 ## Desempenho por Topico
 
-| Topico | Tentativas | Acertos | Aproveitamento |
-|--------|-----------|---------|---------------|
-${stats.topics.map((t) => `| ${t.topic} | ${t.total} | ${t.correct} | ${t.accuracy}% |`).join("\n")}
+| Topico | Tentativas | Resp. concluidas | Acertos | Aproveitamento |
+|--------|-----------|------------------|---------|---------------|
+${stats.topics.map((t) => `| ${t.topic} | ${t.attempts} | ${t.completedAnswers} | ${t.correctAnswers} | ${t.accuracy}% |`).join("\n")}
 
 ## Resumo
 
 - **Topicos estudados:** ${stats.topics.length}
 - **Media geral:** ${
-			stats.totalAttempts > 0
-				? Math.round(
-						(stats.topics.reduce((acc, t) => acc + t.correct, 0) /
-							stats.totalAttempts) *
-							100,
-					)
+			stats.answeredQuestions > 0
+				? Math.round((stats.correctAnswers / stats.answeredQuestions) * 100)
 				: 0
-			}%
+		}%
 `;
 
 		await this.writeToR2(filePath, content);

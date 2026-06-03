@@ -21,12 +21,23 @@ export interface ExamRecord {
 	created_at: string | null;
 }
 
-
 export interface TopicStats {
 	topic: string;
-	total: number;
-	correct: number;
+	attempts: number;
+	completedAnswers: number;
+	correctAnswers: number;
 	accuracy: number;
+}
+
+export type AttemptStatus = "in_progress" | "completed" | "abandoned";
+
+export interface AttemptStatsSummary {
+	totalAttempts: number;
+	completedAttempts: number;
+	incompleteAttempts: number;
+	correctAnswers: number;
+	answeredQuestions: number;
+	overallAccuracy: number;
 }
 
 interface ParsedQuestion {
@@ -49,11 +60,8 @@ export interface ExamFull {
 	topics: string[];
 	files: FileInfo[];
 	questions: ParsedQuestion[];
-	stats: {
+	stats: AttemptStatsSummary & {
 		totalQuestions: number;
-		totalAttempts: number;
-		correctAttempts: number;
-		overallAccuracy: number;
 		topicStats: TopicStats[];
 	};
 }
@@ -154,10 +162,9 @@ export interface ListAttemptsFilters {
 	page?: number;
 	pageSize?: number;
 	examId?: number;
-	questionId?: number;
-	correct?: boolean;
-	answeredFrom?: string;
-	answeredTo?: string;
+	status?: AttemptStatus;
+	startedFrom?: string;
+	startedTo?: string;
 }
 
 export interface QuestionListItem {
@@ -183,13 +190,16 @@ export interface AnswerKeyListItem {
 
 export interface AttemptListItem {
 	id: number;
-	question_id: number | null;
-	user_answer: string;
-	correct: boolean;
-	timestamp: string | null;
 	exam_id: number | null;
-	question: string;
 	topic: string | null;
+	total_questions: number;
+	answered_questions: number;
+	correct_answers: number;
+	status: AttemptStatus;
+	started_at: string | null;
+	completed_at: string | null;
+	updated_at: string | null;
+	accuracy: number;
 }
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -227,8 +237,10 @@ function withWhere(conditions: SQL[]) {
 
 export class DBQueries {
 	private db: DrizzleDB;
+	private d1: D1Database;
 
 	constructor(d1: D1Database) {
+		this.d1 = d1;
 		this.db = drizzle(d1, { schema });
 	}
 
@@ -405,21 +417,43 @@ export class DBQueries {
 	async getExamStats(examId: number): Promise<{
 		totalQuestions: number;
 		totalAttempts: number;
-		correctAttempts: number;
+		completedAttempts: number;
+		incompleteAttempts: number;
+		correctAnswers: number;
+		answeredQuestions: number;
 		overallAccuracy: number;
 		topicStats: TopicStats[];
 	}> {
 		const overall = await this.db
 			.select({
 				totalAttempts: count(schema.attempts.id),
-				correctAttempts: sql<number>`COALESCE(SUM(${schema.attempts.correct}), 0)`,
+				completedAttempts: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} = 'completed' THEN 1 ELSE 0 END), 0)`,
+				incompleteAttempts: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} != 'completed' THEN 1 ELSE 0 END), 0)`,
 			})
-			.from(schema.questions)
-			.leftJoin(
+			.from(schema.attempts)
+			.where(eq(schema.attempts.exam_id, examId))
+			.get();
+
+		const answerTotals = await this.db
+			.select({
+				answeredQuestions: count(schema.attemptAnswers.id),
+				correctAnswers: sql<number>`COALESCE(SUM(${schema.attemptAnswers.correct}), 0)`,
+			})
+			.from(schema.attemptAnswers)
+			.innerJoin(
 				schema.attempts,
-				eq(schema.attempts.question_id, schema.questions.id),
+				eq(schema.attemptAnswers.attempt_id, schema.attempts.id),
 			)
-			.where(eq(schema.questions.exam_id, examId))
+			.innerJoin(
+				schema.questions,
+				eq(schema.attemptAnswers.question_id, schema.questions.id),
+			)
+			.where(
+				and(
+					eq(schema.questions.exam_id, examId),
+					eq(schema.attempts.status, "completed"),
+				),
+			)
 			.get();
 
 		const totalQuestionsResult = await this.db
@@ -431,13 +465,18 @@ export class DBQueries {
 		const topicResults = await this.db
 			.select({
 				topic: schema.questions.topic,
-				total: count(schema.attempts.id),
-				correct: sql<number>`COALESCE(SUM(${schema.attempts.correct}), 0)`,
+				attempts: sql<number>`COUNT(DISTINCT ${schema.attemptAnswers.attempt_id})`,
+				completedAnswers: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} = 'completed' THEN 1 ELSE 0 END), 0)`,
+				correctAnswers: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} = 'completed' THEN ${schema.attemptAnswers.correct} ELSE 0 END), 0)`,
 			})
 			.from(schema.questions)
 			.leftJoin(
+				schema.attemptAnswers,
+				eq(schema.attemptAnswers.question_id, schema.questions.id),
+			)
+			.leftJoin(
 				schema.attempts,
-				eq(schema.attempts.question_id, schema.questions.id),
+				eq(schema.attemptAnswers.attempt_id, schema.attempts.id),
 			)
 			.where(eq(schema.questions.exam_id, examId))
 			.groupBy(schema.questions.topic)
@@ -445,21 +484,31 @@ export class DBQueries {
 
 		const totalQuestions = totalQuestionsResult?.count ?? 0;
 		const totalAttempts = overall?.totalAttempts ?? 0;
-		const correctAttempts = overall?.correctAttempts ?? 0;
+		const completedAttempts = overall?.completedAttempts ?? 0;
+		const incompleteAttempts = overall?.incompleteAttempts ?? 0;
+		const answeredQuestions = answerTotals?.answeredQuestions ?? 0;
+		const correctAnswers = answerTotals?.correctAnswers ?? 0;
 
 		return {
 			totalQuestions,
 			totalAttempts,
-			correctAttempts,
+			completedAttempts,
+			incompleteAttempts,
+			correctAnswers,
+			answeredQuestions,
 			overallAccuracy:
-				totalAttempts > 0
-					? Math.round((correctAttempts / totalAttempts) * 100)
+				answeredQuestions > 0
+					? Math.round((correctAnswers / answeredQuestions) * 100)
 					: 0,
 			topicStats: topicResults.map((t) => ({
 				topic: t.topic ?? "General",
-				total: t.total,
-				correct: t.correct,
-				accuracy: t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0,
+				attempts: t.attempts,
+				completedAnswers: t.completedAnswers,
+				correctAnswers: t.correctAnswers,
+				accuracy:
+					t.completedAnswers > 0
+						? Math.round((t.correctAnswers / t.completedAnswers) * 100)
+						: 0,
 			})),
 		};
 	}
@@ -706,50 +755,41 @@ export class DBQueries {
 		const conditions: SQL[] = [];
 
 		if (filters.examId !== undefined) {
-			conditions.push(eq(schema.questions.exam_id, filters.examId));
+			conditions.push(eq(schema.attempts.exam_id, filters.examId));
 		}
-		if (filters.questionId !== undefined) {
-			conditions.push(eq(schema.attempts.question_id, filters.questionId));
+		if (filters.status !== undefined) {
+			conditions.push(eq(schema.attempts.status, filters.status));
 		}
-		if (filters.correct !== undefined) {
-			conditions.push(eq(schema.attempts.correct, filters.correct));
+		if (filters.startedFrom) {
+			conditions.push(gte(schema.attempts.started_at, filters.startedFrom));
 		}
-		if (filters.answeredFrom) {
-			conditions.push(gte(schema.attempts.timestamp, filters.answeredFrom));
-		}
-		if (filters.answeredTo) {
-			conditions.push(lte(schema.attempts.timestamp, filters.answeredTo));
+		if (filters.startedTo) {
+			conditions.push(lte(schema.attempts.started_at, filters.startedTo));
 		}
 
 		const whereClause = withWhere(conditions);
 		const total = await this.db
 			.select({ count: count() })
 			.from(schema.attempts)
-			.innerJoin(
-				schema.questions,
-				eq(schema.attempts.question_id, schema.questions.id),
-			)
 			.where(whereClause)
 			.get();
 
 		const rows = await this.db
 			.select({
 				id: schema.attempts.id,
-				question_id: schema.attempts.question_id,
-				user_answer: schema.attempts.user_answer,
-				correct: schema.attempts.correct,
-				timestamp: schema.attempts.timestamp,
-				exam_id: schema.questions.exam_id,
-				question: schema.questions.question,
-				topic: schema.questions.topic,
+				exam_id: schema.attempts.exam_id,
+				topic: schema.attempts.topic,
+				total_questions: schema.attempts.total_questions,
+				answered_questions: schema.attempts.answered_questions,
+				correct_answers: schema.attempts.correct_answers,
+				status: schema.attempts.status,
+				started_at: schema.attempts.started_at,
+				completed_at: schema.attempts.completed_at,
+				updated_at: schema.attempts.updated_at,
 			})
 			.from(schema.attempts)
-			.innerJoin(
-				schema.questions,
-				eq(schema.attempts.question_id, schema.questions.id),
-			)
 			.where(whereClause)
-			.orderBy(desc(schema.attempts.timestamp), desc(schema.attempts.id))
+			.orderBy(desc(schema.attempts.started_at), desc(schema.attempts.id))
 			.limit(pageSize)
 			.offset(offset)
 			.all();
@@ -757,13 +797,19 @@ export class DBQueries {
 		return {
 			items: rows.map((row) => ({
 				id: row.id,
-				question_id: row.question_id,
-				user_answer: row.user_answer,
-				correct: Boolean(row.correct),
-				timestamp: row.timestamp,
 				exam_id: row.exam_id,
-				question: row.question,
 				topic: row.topic,
+				total_questions: row.total_questions,
+				answered_questions: row.answered_questions,
+				correct_answers: row.correct_answers,
+				status: row.status as AttemptStatus,
+				started_at: row.started_at,
+				completed_at: row.completed_at,
+				updated_at: row.updated_at,
+				accuracy:
+					row.answered_questions > 0
+						? Math.round((row.correct_answers / row.answered_questions) * 100)
+						: 0,
 			})),
 			pagination: buildPaginationMeta(page, pageSize, total?.count ?? 0),
 		};
@@ -827,44 +873,214 @@ export class DBQueries {
 		}));
 	}
 
-	async recordAttempt(
-		questionId: number,
-		userAnswer: string,
-		correct: boolean,
-	): Promise<void> {
-		await this.db
-			.insert(schema.attempts)
-			.values({ question_id: questionId, user_answer: userAnswer, correct })
+	async createAttemptSession(input: {
+		examId?: number;
+		topic?: string;
+		totalQuestions: number;
+	}): Promise<number> {
+		const result = await this.d1
+			.prepare(
+				`INSERT INTO attempts (
+					exam_id, topic, total_questions, answered_questions, correct_answers,
+					status, started_at, completed_at, updated_at
+				) VALUES (?, ?, ?, 0, 0, 'in_progress', CURRENT_TIMESTAMP, NULL, CURRENT_TIMESTAMP)`,
+			)
+			.bind(input.examId ?? null, input.topic ?? null, input.totalQuestions)
+			.run();
+
+		return Number(result.meta.last_row_id ?? 0);
+	}
+
+	async abandonInProgressAttempts(input: {
+		examId?: number;
+		topic?: string;
+	}): Promise<void> {
+		const conditions = [`status = 'in_progress'`];
+		const params: Array<number | string> = [];
+
+		if (input.examId === undefined) {
+			conditions.push("exam_id IS NULL");
+		} else {
+			conditions.push("exam_id = ?");
+			params.push(input.examId);
+		}
+
+		if (input.topic === undefined) {
+			conditions.push("topic IS NULL");
+		} else {
+			conditions.push("topic = ?");
+			params.push(input.topic);
+		}
+
+		await this.d1
+			.prepare(
+				`UPDATE attempts
+				 SET status = ?, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
+				 WHERE ${conditions.join(" AND ")}`,
+			)
+			.bind("abandoned", ...params)
 			.run();
 	}
 
-	async getStats(): Promise<{ totalAttempts: number; topics: TopicStats[] }> {
-		const totalResult = await this.db
-			.select({ count: count() })
+	async upsertAttemptAnswer(input: {
+		attemptId: number;
+		questionId: number;
+		userAnswer: string;
+		correct: boolean;
+	}): Promise<void> {
+		await this.d1
+			.prepare(
+				`INSERT INTO attempt_answers (
+					attempt_id, question_id, user_answer, correct, answered_at
+				) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+				ON CONFLICT(attempt_id, question_id) DO UPDATE SET
+					user_answer = excluded.user_answer,
+					correct = excluded.correct,
+					answered_at = CURRENT_TIMESTAMP`,
+			)
+			.bind(
+				input.attemptId,
+				input.questionId,
+				input.userAnswer,
+				Number(input.correct),
+			)
+			.run();
+	}
+
+	async refreshAttemptProgress(attemptId: number): Promise<void> {
+		await this.d1
+			.prepare(
+				`UPDATE attempts
+				 SET answered_questions = (
+				 	SELECT COUNT(*)
+				 	FROM attempt_answers
+				 	WHERE attempt_id = attempts.id
+				 ),
+				 correct_answers = COALESCE((
+				 	SELECT SUM(correct)
+				 	FROM attempt_answers
+				 	WHERE attempt_id = attempts.id
+				 ), 0),
+				 status = CASE
+				 	WHEN (
+				 		SELECT COUNT(*)
+				 		FROM attempt_answers
+				 		WHERE attempt_id = attempts.id
+				 	) >= total_questions THEN 'completed'
+				 	ELSE 'in_progress'
+				 END,
+				 completed_at = CASE
+				 	WHEN (
+				 		SELECT COUNT(*)
+				 		FROM attempt_answers
+				 		WHERE attempt_id = attempts.id
+				 	) >= total_questions THEN COALESCE(completed_at, CURRENT_TIMESTAMP)
+				 	ELSE NULL
+				 END,
+				 updated_at = CURRENT_TIMESTAMP
+				 WHERE id = ?`,
+			)
+			.bind(attemptId)
+			.run();
+	}
+
+	async getAttemptById(attemptId: number): Promise<AttemptListItem | null> {
+		const row = await this.db
+			.select({
+				id: schema.attempts.id,
+				exam_id: schema.attempts.exam_id,
+				topic: schema.attempts.topic,
+				total_questions: schema.attempts.total_questions,
+				answered_questions: schema.attempts.answered_questions,
+				correct_answers: schema.attempts.correct_answers,
+				status: schema.attempts.status,
+				started_at: schema.attempts.started_at,
+				completed_at: schema.attempts.completed_at,
+				updated_at: schema.attempts.updated_at,
+			})
 			.from(schema.attempts)
+			.where(eq(schema.attempts.id, attemptId))
+			.get();
+
+		if (!row) return null;
+
+		return {
+			...row,
+			status: row.status as AttemptStatus,
+			accuracy:
+				row.answered_questions > 0
+					? Math.round((row.correct_answers / row.answered_questions) * 100)
+					: 0,
+		};
+	}
+
+	async getStats(): Promise<AttemptStatsSummary & { topics: TopicStats[] }> {
+		const totals = await this.db
+			.select({
+				totalAttempts: count(schema.attempts.id),
+				completedAttempts: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} = 'completed' THEN 1 ELSE 0 END), 0)`,
+				incompleteAttempts: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} != 'completed' THEN 1 ELSE 0 END), 0)`,
+			})
+			.from(schema.attempts)
+			.get();
+
+		const answerTotals = await this.db
+			.select({
+				answeredQuestions: count(schema.attemptAnswers.id),
+				correctAnswers: sql<number>`COALESCE(SUM(${schema.attemptAnswers.correct}), 0)`,
+			})
+			.from(schema.attemptAnswers)
+			.innerJoin(
+				schema.attempts,
+				eq(schema.attemptAnswers.attempt_id, schema.attempts.id),
+			)
+			.where(eq(schema.attempts.status, "completed"))
 			.get();
 
 		const topicsResult = await this.db
 			.select({
 				topic: schema.questions.topic,
-				total: count(),
-				correct: sql<number>`SUM(${schema.attempts.correct})`,
+				attempts: sql<number>`COUNT(DISTINCT ${schema.attemptAnswers.attempt_id})`,
+				completedAnswers: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} = 'completed' THEN 1 ELSE 0 END), 0)`,
+				correctAnswers: sql<number>`COALESCE(SUM(CASE WHEN ${schema.attempts.status} = 'completed' THEN ${schema.attemptAnswers.correct} ELSE 0 END), 0)`,
 			})
-			.from(schema.attempts)
+			.from(schema.questions)
+			.leftJoin(
+				schema.attemptAnswers,
+				eq(schema.attemptAnswers.question_id, schema.questions.id),
+			)
 			.innerJoin(
-				schema.questions,
-				eq(schema.attempts.question_id, schema.questions.id),
+				schema.attempts,
+				eq(schema.attemptAnswers.attempt_id, schema.attempts.id),
 			)
 			.groupBy(schema.questions.topic)
 			.all();
 
+		const totalAttempts = totals?.totalAttempts ?? 0;
+		const completedAttempts = totals?.completedAttempts ?? 0;
+		const incompleteAttempts = totals?.incompleteAttempts ?? 0;
+		const answeredQuestions = answerTotals?.answeredQuestions ?? 0;
+		const correctAnswers = answerTotals?.correctAnswers ?? 0;
+
 		return {
-			totalAttempts: totalResult?.count ?? 0,
+			totalAttempts,
+			completedAttempts,
+			incompleteAttempts,
+			correctAnswers,
+			answeredQuestions,
+			overallAccuracy:
+				answeredQuestions > 0
+					? Math.round((correctAnswers / answeredQuestions) * 100)
+					: 0,
 			topics: topicsResult.map((t) => ({
 				topic: t.topic ?? "General",
-				total: t.total,
-				correct: t.correct ?? 0,
-				accuracy: t.total ? Math.round(((t.correct ?? 0) / t.total) * 100) : 0,
+				attempts: t.attempts,
+				completedAnswers: t.completedAnswers,
+				correctAnswers: t.correctAnswers,
+				accuracy:
+					t.completedAnswers > 0
+						? Math.round((t.correctAnswers / t.completedAnswers) * 100)
+						: 0,
 			})),
 		};
 	}
