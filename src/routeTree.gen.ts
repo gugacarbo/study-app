@@ -91,14 +91,14 @@ const ExamsExplanationsIndexRoute = ExamsExplanationsIndexRouteImport.update({
   getParentRoute: () => ExamsRoute,
 } as any)
 const ApiIngestIndexRoute = ApiIngestIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ApiIngestRoute,
+  id: '/api/ingest/',
+  path: '/api/ingest/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ApiChatRoute,
+  id: '/api/chat/',
+  path: '/api/chat/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -214,6 +214,8 @@ export interface RootRouteChildren {
   MemoryRoute: typeof MemoryRoute
   ApiTestConnectionRoute: typeof ApiTestConnectionRoute
   QuizIdRoute: typeof QuizIdRoute
+  ApiChatIndexRoute: typeof ApiChatIndexRoute
+  ApiIngestIndexRoute: typeof ApiIngestIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -311,17 +313,17 @@ declare module '@tanstack/react-router' {
     }
     '/api/ingest/': {
       id: '/api/ingest/'
-      path: '/'
+      path: '/api/ingest'
       fullPath: '/api/ingest/'
       preLoaderRoute: typeof ApiIngestIndexRouteImport
-      parentRoute: typeof ApiIngestRoute
+      parentRoute: typeof rootRouteImport
     }
     '/api/chat/': {
       id: '/api/chat/'
-      path: '/'
+      path: '/api/chat'
       fullPath: '/api/chat/'
       preLoaderRoute: typeof ApiChatIndexRouteImport
-      parentRoute: typeof ApiChatRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -353,6 +355,8 @@ const rootRouteChildren: RootRouteChildren = {
   MemoryRoute: MemoryRoute,
   ApiTestConnectionRoute: ApiTestConnectionRoute,
   QuizIdRoute: QuizIdRoute,
+  ApiChatIndexRoute: ApiChatIndexRoute,
+  ApiIngestIndexRoute: ApiIngestIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

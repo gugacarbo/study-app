@@ -5,21 +5,21 @@ import type {
 	IngestPipelineStageViewModel,
 } from "@/features/ingest/components/types";
 import type { IngestJob } from "@/features/ingest/store";
-import { toAgentRun } from "./agent-converter";
+import { toAgentRun } from "./-agent-converter";
 import {
 	toLegacyStage,
 	toLogEntry,
 	toStageViewModel,
-} from "./job-view-model-converters";
+} from "./-job-view-model-converters";
 import {
 	normalizeTokenTotals,
 	readArray,
 	readString,
-} from "./job-view-model-utils";
+} from "./-job-view-model-utils";
 import {
 	coalesceOutputEntries,
 	readStructuredOutputEntries,
-} from "./output-processors";
+} from "./-output-processors";
 
 export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 	const dynamicJob = job as IngestJob & Record<string, unknown>;

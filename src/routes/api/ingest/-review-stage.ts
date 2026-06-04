@@ -1,7 +1,7 @@
 import { reviewExtraction } from "@/features/ai/agents/ingest/review-extraction";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
-import type { AgentRunDescriptor, AgentRunStatus } from "./sse-emitter";
-import { sendStage } from "./sse-emitter";
+import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
+import { sendStage } from "./-sse-emitter";
 
 interface RunReviewStageParams {
 	enableReview: boolean;

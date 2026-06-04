@@ -3,9 +3,9 @@ import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
 import { generateJsonStream } from "@/features/ai/core/generate";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import { examIngestResponseSchema } from "@/lib/validation";
-import { buildExtractionUserPrompt } from "./extract-text";
-import type { AgentRunDescriptor, AgentRunStatus } from "./sse-emitter";
-import { isTextChunk } from "./sse-emitter";
+import { buildExtractionUserPrompt } from "./-extract-text";
+import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
+import { isTextChunk } from "./-sse-emitter";
 
 interface ExtractionPassParams {
 	text: string;

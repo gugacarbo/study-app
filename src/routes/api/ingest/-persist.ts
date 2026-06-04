@@ -1,7 +1,7 @@
 import type { Question } from "@/lib/validation";
 import type { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
-import { sendStage } from "./sse-emitter";
+import { sendStage } from "./-sse-emitter";
 
 interface PersistParams {
 	queries: DBQueries;

@@ -4,12 +4,12 @@ import { providerConfigSchema } from "@/lib/validation";
 import { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
 import { createIngestLogger } from "../../../lib/logger";
-import { extractTextFromBytes } from "./extract-text";
-import { runExtractionPass } from "./extraction-pass";
-import { setupMemory } from "./memory-refinement";
-import { persistResults } from "./persist";
-import { runReviewStage } from "./review-stage";
-import { createAgentRunHelpers, sendStage } from "./sse-emitter";
+import { extractTextFromBytes } from "./-extract-text";
+import { runExtractionPass } from "./-extraction-pass";
+import { setupMemory } from "./-memory-refinement";
+import { persistResults } from "./-persist";
+import { runReviewStage } from "./-review-stage";
+import { createAgentRunHelpers, sendStage } from "./-sse-emitter";
 
 export const ingestRequestSchema = z.object({
 	buffer: z.array(z.number()),

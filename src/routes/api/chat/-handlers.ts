@@ -7,8 +7,8 @@ import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
 import { MemoryManager } from "../../../lib/memory";
 import type { ProviderConfig } from "../../../lib/validation";
-import { safeSSEResponse, withCleanup } from "./streaming";
-import { summarizeSearchResultSnippets, toBoolean } from "./tools";
+import { safeSSEResponse, withCleanup } from "./-streaming";
+import { summarizeSearchResultSnippets, toBoolean } from "./-tools";
 
 const AI_TIMEOUT_MS = 60_000;
 

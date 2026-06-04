@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/select";
 import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
 import { getExamDetail, getExamsDetailed } from "@/server-functions/exams";
-import { ExplanationResults } from "./explanation-results";
-import { PipelineControls } from "./pipeline-controls";
-import { useExplanationPipeline } from "./use-explanation-pipeline";
+import { ExplanationResults } from "./-explanation-results";
+import { PipelineControls } from "./-pipeline-controls";
+import { useExplanationPipeline } from "./-use-explanation-pipeline";
 
 export const Route = createFileRoute("/exams/explanations/")({
 	component: ExplanationsPage,

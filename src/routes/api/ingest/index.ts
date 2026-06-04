@@ -1,34 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ingestRequestSchema, runIngestWithProgress } from "./pipeline";
-import { formatSSE } from "./sse-emitter";
+import { ingestRequestSchema, runIngestWithProgress } from "./-pipeline";
+import { formatSSE } from "./-sse-emitter";
 
 export {
 	buildExtractionUserPrompt,
 	extractTextFromBytes,
-} from "./extract-text";
-export { runExtractionPass } from "./extraction-pass";
-export { setupMemory } from "./memory-refinement";
-export { persistResults } from "./persist";
-export type { IngestRequest } from "./pipeline";
-export { ingestRequestSchema, runIngestWithProgress } from "./pipeline";
+} from "./-extract-text";
+export { runExtractionPass } from "./-extraction-pass";
+export { setupMemory } from "./-memory-refinement";
+export { persistResults } from "./-persist";
+export type { IngestRequest } from "./-pipeline";
+export { ingestRequestSchema, runIngestWithProgress } from "./-pipeline";
 export {
 	parseCriticalTopics,
 	summarizeSearchResultSnippets,
-} from "./review";
-export { runReviewStage } from "./review-stage";
+} from "./-review";
+export { runReviewStage } from "./-review-stage";
 export type {
 	AgentRunDescriptor,
 	AgentRunEvent,
 	AgentRunEventType,
 	AgentRunStatus,
 	StageStatus,
-} from "./sse-emitter";
+} from "./-sse-emitter";
 export {
 	createAgentRunHelpers,
 	formatSSE,
 	isTextChunk,
 	sendStage,
-} from "./sse-emitter";
+} from "./-sse-emitter";
 
 export const Route = createFileRoute("/api/ingest/")({
 	server: {

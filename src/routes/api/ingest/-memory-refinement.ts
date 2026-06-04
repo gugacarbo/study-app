@@ -4,7 +4,7 @@ import type { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
 import { createIngestLogger } from "../../../lib/logger";
 import { MemoryManager } from "../../../lib/memory";
-import { summarizeSearchResultSnippets } from "./review";
+import { summarizeSearchResultSnippets } from "./-review";
 
 interface MemorySetupParams {
 	db: D1Database;

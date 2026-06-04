@@ -1,16 +1,26 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import {
-	createRootRoute,
 	HeadContent,
 	Link,
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import appCss from "../../globals.css?url";
-import { RootNav } from "./nav";
-import { RootProviders } from "./providers";
+import { RootNav } from "./-nav";
+import { RootProviders } from "./-providers";
 
-export { queryClient } from "./providers";
+export { queryClient } from "./-providers";
+
+export function rootHead() {
+	return {
+		meta: [
+			{ charSet: "utf-8" },
+			{ name: "viewport", content: "width=device-width, initial-scale=1" },
+			{ title: "Study App" },
+		],
+		links: [{ rel: "stylesheet", href: appCss }],
+	};
+}
 
 function DefaultNotFound() {
 	return (
@@ -29,20 +39,9 @@ function DefaultNotFound() {
 	);
 }
 
-export const Route = createRootRoute({
-	head: () => ({
-		meta: [
-			{ charSet: "utf-8" },
-			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "Study App" },
-		],
-		links: [{ rel: "stylesheet", href: appCss }],
-	}),
-	notFoundComponent: DefaultNotFound,
-	shellComponent: RootDocument,
-});
+export { DefaultNotFound };
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+export function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>

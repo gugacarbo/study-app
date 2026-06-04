@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { handleChatPost } from "./handlers";
+import { handleChatPost } from "./-handlers";
 
 export const Route = createFileRoute("/api/chat/")({
 	server: {

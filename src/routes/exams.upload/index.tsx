@@ -9,9 +9,9 @@ import {
 	clearSavedIngestJobs,
 	focusJob,
 } from "@/features/ingest/store";
-import { useUpload } from "./use-upload";
+import { useUpload } from "./-use-upload";
 
-export { toIngestJobViewModel } from "./job-view-model";
+export { toIngestJobViewModel } from "./-job-view-model";
 
 export const Route = createFileRoute("/exams/upload/")({
 	component: IngestPage,

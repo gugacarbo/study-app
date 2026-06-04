@@ -3,8 +3,11 @@ import type {
 	IngestPipelineStageViewModel,
 } from "@/features/ingest/components/types";
 import type { IngestJob } from "@/features/ingest/store";
-import { toOutputEntry, toStoreOutputEntry } from "./job-view-model-converters";
-import { readArray, readString } from "./job-view-model-utils";
+import {
+	toOutputEntry,
+	toStoreOutputEntry,
+} from "./-job-view-model-converters";
+import { readArray, readString } from "./-job-view-model-utils";
 
 export function readStructuredOutputEntries(
 	job: IngestJob & Record<string, unknown>,

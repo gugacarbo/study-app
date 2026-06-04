@@ -1,7 +1,7 @@
 import { useStore } from "@tanstack/react-store";
 import { useMemo, useState } from "react";
 import { enqueueIngest, ingestStore } from "@/features/ingest/store";
-import { toIngestJobViewModel } from "./job-view-model";
+import { toIngestJobViewModel } from "./-job-view-model";
 
 export function useUpload() {
 	const { jobs, focusedJobId } = useStore(ingestStore, (state) => ({
