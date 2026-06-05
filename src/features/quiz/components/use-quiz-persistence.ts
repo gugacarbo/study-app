@@ -13,6 +13,7 @@ export interface QA {
 	correctAnswer: string;
 	isCorrect: boolean;
 	explanation: string;
+	longExplanation?: string;
 	topic: string;
 }
 

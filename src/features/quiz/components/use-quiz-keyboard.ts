@@ -49,7 +49,8 @@ export function useQuizKeyboard({
 		if (!qs?.[state?.currentQuestionIndex ?? -1]) return;
 		const q = qs[state?.currentQuestionIndex ?? 0];
 		const num = Number(e.key) - 1;
-		if (num >= 0 && num < 4 && q.options[num]) selectAnswer(q.options[num]);
+		if (num >= 0 && num < q.options.length && q.options[num])
+			selectAnswer(q.options[num]);
 		if (e.key === "Enter") {
 			if (m?.isPending) return;
 			if (state?.selectedAnswer && !state?.showExplanation)

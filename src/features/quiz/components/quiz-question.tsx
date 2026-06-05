@@ -76,7 +76,8 @@ export function QuizQuestion({
 			)}
 
 			<div className="mt-4 text-xs text-muted-foreground">
-				Hotkeys: 1-4 to select answer, Enter to submit/next
+				Hotkeys: 1-{question.options.length} to select answer, Enter to
+				submit/next
 			</div>
 		</>
 	);

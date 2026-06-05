@@ -1,16 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import {
-	Calendar,
-	ChevronRight,
-	FileText,
-	ListChecks,
-	Play,
-	Tag,
-	Trash2,
-} from "lucide-react";
+import { Calendar, ListChecks, Tag, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatFileSize } from "./exam-card-utils";
 
 interface ExamCardProps {
@@ -38,85 +30,40 @@ export function ExamCard({
 	onConfirmDelete,
 	onCancelDelete,
 }: ExamCardProps) {
+	const visibleTopics = exam.topics.slice(0, 1);
+	const hiddenTopicsCount = Math.max(
+		exam.topics.length - visibleTopics.length,
+		0,
+	);
+	const filesLabel = exam.files.length === 1 ? "file" : "files";
+	const topicsLabel = exam.topics.length === 1 ? "topic" : "topics";
+	const questionsLabel = exam.questionCount === 1 ? "question" : "questions";
+
 	return (
-		<Card>
-			<div className="flex items-start justify-between gap-4 px-4 py-3">
-				<Link
-					from="/exams"
-					to="/exams/$id"
-					params={{ id: exam.id.toString() }}
-					className="flex flex-col gap-3 flex-1 min-w-0 group"
-				>
-					<h2 className="text-lg font-semibold truncate group-hover:text-primary transition-colors">
-						{exam.name}
-					</h2>
-					<div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-						<span className="inline-flex items-center gap-1">
-							<Calendar className="size-3.5" />
-							{formatDate(exam.created_at)}
-						</span>
-						<span className="inline-flex items-center gap-1">
-							<ListChecks className="size-3.5" />
-							{exam.questionCount}{" "}
-							{exam.questionCount === 1 ? "question" : "questions"}
-						</span>
-						{exam.source && (
-							<span className="inline-flex items-center gap-1 truncate max-w-[200px]">
-								<FileText className="size-3.5 shrink-0" />
-								<span className="truncate">{exam.source}</span>
-							</span>
-						)}
+		<Card
+			size="sm"
+			className="group relative h-full gap-3 border border-border/60 bg-card/95 shadow-sm transition-shadow hover:shadow-md"
+		>
+			<Link
+				from="/exams"
+				to="/exams/$id"
+				params={{ id: exam.id.toString() }}
+				aria-label={`Open exam ${exam.name}`}
+				className="absolute inset-0 z-0 rounded-lg"
+			/>
+
+			<CardHeader className="pointer-events-none relative z-10 gap-2 border-b border-border/60 pb-2.5">
+				<div className="flex items-start justify-between gap-3">
+					<div className="min-w-0">
+						<CardTitle
+							data-testid={`exam-title-${exam.id}`}
+							className="line-clamp-2 text-[0.95rem] font-semibold leading-snug transition-colors group-hover:text-primary"
+						>
+							{exam.name}
+						</CardTitle>
 					</div>
-					{exam.topics.length > 0 && (
-						<div className="flex flex-wrap items-center gap-1.5">
-							<Tag className="size-3.5 text-muted-foreground shrink-0" />
-							{exam.topics.map((topic) => (
-								<Badge variant="secondary" key={topic}>
-									{topic}
-								</Badge>
-							))}
-						</div>
-					)}
-					{exam.files.length > 0 && (
-						<div className="flex flex-col gap-1">
-							{exam.files.map((file) => (
-								<div
-									key={file.id}
-									className="flex items-center gap-2 text-xs text-muted-foreground"
-								>
-									<FileText className="size-3 shrink-0" />
-									<span className="truncate">{file.name}</span>
-									{file.size !== null && file.size !== undefined && (
-										<span>({formatFileSize(file.size)})</span>
-									)}
-								</div>
-							))}
-						</div>
-					)}
-				</Link>
-				<div className="flex flex-col gap-2 shrink-0">
-					<Button variant="default" size="sm" asChild>
-						<Link
-							from="/exams"
-							to="/quiz/$id"
-							params={{ id: exam.id.toString() }}
-						>
-							<Play data-icon="inline-start" />
-							Quiz
-						</Link>
-					</Button>
-					<Button variant="outline" size="sm" asChild>
-						<Link
-							from="/exams"
-							to="/exams/$id"
-							params={{ id: exam.id.toString() }}
-						>
-							<ChevronRight data-icon="inline-start" />
-							Details
-						</Link>
-					</Button>
 					{confirmDelete === exam.id ? (
-						<div className="flex gap-1.5">
+						<div className="pointer-events-auto relative z-20 flex items-center gap-1.5">
 							<Button
 								variant="destructive"
 								size="xs"
@@ -132,15 +79,78 @@ export function ExamCard({
 					) : (
 						<Button
 							variant="ghost"
-							size="icon"
-							className="text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+							size="icon-sm"
+							className="pointer-events-auto relative z-20 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
 							onClick={() => onConfirmDelete(exam.id)}
 						>
 							<Trash2 />
 						</Button>
 					)}
 				</div>
-			</div>
+			</CardHeader>
+
+			<CardContent className="pointer-events-none relative z-10 flex flex-1 flex-col gap-2.5 pt-0">
+				<div
+					data-testid={`exam-meta-${exam.id}`}
+					className="flex flex-wrap items-center gap-2 text-[0.6875rem] text-muted-foreground"
+				>
+					<Badge variant="outline">
+						{exam.source?.trim() ? exam.source : "Uploaded file"}
+					</Badge>
+					<span className="inline-flex items-center gap-1">
+						<Calendar className="size-3" />
+						{formatDate(exam.created_at)}
+					</span>
+				</div>
+
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
+						<ListChecks className="size-3.5" />
+						<span className="font-semibold text-foreground">
+							{exam.questionCount} {questionsLabel}
+						</span>
+					</div>
+					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
+						<span className="font-semibold text-foreground">
+							{exam.files.length} {filesLabel}
+						</span>
+						{exam.files[0]?.size !== null &&
+							exam.files[0]?.size !== undefined && (
+								<span className="text-[0.6875rem] text-muted-foreground">
+									{formatFileSize(exam.files[0].size)}
+								</span>
+							)}
+					</div>
+					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
+						<Tag className="size-3.5" />
+						<span className="font-semibold text-foreground">
+							{exam.topics.length} {topicsLabel}
+						</span>
+					</div>
+				</div>
+
+				{exam.topics.length > 0 && (
+					<div
+						data-testid={`exam-topics-${exam.id}`}
+						className="flex flex-nowrap items-center gap-1.5 overflow-hidden"
+					>
+						{visibleTopics.map((topic) => (
+							<Badge
+								variant="secondary"
+								key={topic}
+								className="min-w-0 max-w-full shrink truncate"
+							>
+								{topic}
+							</Badge>
+						))}
+						{hiddenTopicsCount > 0 && (
+							<Badge variant="outline" className="shrink-0">
+								+{hiddenTopicsCount} more
+							</Badge>
+						)}
+					</div>
+				)}
+			</CardContent>
 		</Card>
 	);
 }

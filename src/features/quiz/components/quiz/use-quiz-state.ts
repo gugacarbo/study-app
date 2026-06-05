@@ -62,6 +62,7 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 				correctAnswer: v.correctAnswer,
 				isCorrect: data.correct,
 				explanation: data.explanation,
+				longExplanation: data.longExplanation || "",
 				topic: v.topic || "General",
 			});
 			recordAnswer(data.correct, data.explanation);

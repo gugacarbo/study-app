@@ -33,39 +33,54 @@ export function ExamsView() {
 	};
 
 	return (
-		<div>
-			<div className="flex items-center justify-between mb-6">
-				<h1 className="text-2xl font-bold">Exams</h1>
-				<div className="flex items-center gap-3">
-					<span className="text-sm text-text-muted">
-						{exams.length} {exams.length === 1 ? "exam" : "exams"}
-					</span>
+		<section
+			data-fullwidth
+			data-testid="exams-view"
+			className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto"
+		>
+			<div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 lg:px-6">
+				<div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+					<div className="space-y-1.5">
+						<div className="flex flex-wrap items-center gap-2">
+							<h1 className="text-2xl font-bold tracking-tight">Exams</h1>
+							<span className="rounded-full bg-muted px-2.5 py-1 text-[0.6875rem] font-medium text-muted-foreground">
+								{exams.length} {exams.length === 1 ? "exam" : "exams"}
+							</span>
+						</div>
+						<p className="max-w-3xl text-sm text-muted-foreground">
+							Compact summaries with quick actions for quiz, details, or
+							cleanup.
+						</p>
+					</div>
 					<Button size="sm" asChild>
 						<Link from="/exams" to="/exams/upload">
-							<Upload className="h-4 w-4 mr-1.5" />
+							<Upload className="mr-1.5 h-4 w-4" />
 							Upload
 						</Link>
 					</Button>
 				</div>
-			</div>
 
-			{exams.length === 0 ? (
-				<ExamsEmptyState />
-			) : (
-				<div className="space-y-4">
-					{exams.map((exam) => (
-						<ExamCard
-							key={exam.id}
-							exam={exam}
-							onDelete={handleDelete}
-							isDeleting={deletingId === exam.id}
-							confirmDelete={confirmDelete}
-							onConfirmDelete={setConfirmDelete}
-							onCancelDelete={() => setConfirmDelete(null)}
-						/>
-					))}
-				</div>
-			)}
-		</div>
+				{exams.length === 0 ? (
+					<ExamsEmptyState />
+				) : (
+					<div
+						data-testid="exams-grid"
+						className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+					>
+						{exams.map((exam) => (
+							<ExamCard
+								key={exam.id}
+								exam={exam}
+								onDelete={handleDelete}
+								isDeleting={deletingId === exam.id}
+								confirmDelete={confirmDelete}
+								onConfirmDelete={setConfirmDelete}
+								onCancelDelete={() => setConfirmDelete(null)}
+							/>
+						))}
+					</div>
+				)}
+			</div>
+		</section>
 	);
 }

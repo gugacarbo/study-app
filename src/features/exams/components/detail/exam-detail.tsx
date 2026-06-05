@@ -2,8 +2,15 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/components/ui/tabs";
 import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
+import { ExplanationPipelineTab } from "./explanation-pipeline-tab";
 import { FileList } from "./file-list";
 import { QuestionsCard } from "./questions-card";
 import { StatsCards } from "./stats-cards";
@@ -67,44 +74,59 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				handleDelete={handleDelete}
 			/>
 
-			<div className="flex flex-col lg:flex-row gap-6">
-				<aside className="w-full lg:w-72 shrink-0">
-					<div className="space-y-4 lg:sticky lg:top-20">
-						<StatsCards exam={exam} stats={stats} />
+			<Tabs defaultValue="details" className="mt-6">
+				<TabsList>
+					<TabsTrigger value="details">Detalhes</TabsTrigger>
+					<TabsTrigger value="explanations">Explicacoes</TabsTrigger>
+				</TabsList>
 
-						{exam.files.length > 0 && <FileList files={exam.files} />}
+				<TabsContent value="details" className="mt-6">
+					<div className="flex flex-col gap-6 lg:flex-row">
+						<aside className="w-full shrink-0 lg:w-72">
+							<div className="space-y-4 lg:sticky lg:top-20">
+								<StatsCards exam={exam} stats={stats} />
 
-						{exam.topics.length > 0 && <TopicList topics={exam.topics} />}
+								{exam.files.length > 0 && <FileList files={exam.files} />}
 
-						{stats.topicStats.length > 0 && stats.totalAttempts > 0 && (
-							<TopicStatsCard
-								topicStats={stats.topicStats}
-								overallAccuracy={stats.overallAccuracy}
-								completedAttempts={stats.completedAttempts}
-								incompleteAttempts={stats.incompleteAttempts}
+								{exam.topics.length > 0 && <TopicList topics={exam.topics} />}
+
+								{stats.topicStats.length > 0 && stats.totalAttempts > 0 && (
+									<TopicStatsCard
+										topicStats={stats.topicStats}
+										overallAccuracy={stats.overallAccuracy}
+										completedAttempts={stats.completedAttempts}
+										incompleteAttempts={stats.incompleteAttempts}
+									/>
+								)}
+							</div>
+						</aside>
+
+						<div className="min-w-0 flex-1">
+							<QuestionsCard
+								questions={exam.questions}
+								expandedQuestions={expandedQuestions}
+								setExpandedQuestions={setExpandedQuestions}
+								editingQuestionId={editingQuestionId}
+								editForm={editForm}
+								onStartEdit={startEditing}
+								onSave={handleSave}
+								onCancel={cancelEditing}
+								onFormChange={(updates) =>
+									setEditForm((prev) =>
+										prev ? { ...prev, ...updates } : prev,
+									)
+								}
+								saving={saving}
+								toggleQuestion={toggleQuestion}
 							/>
-						)}
+						</div>
 					</div>
-				</aside>
+				</TabsContent>
 
-				<div className="flex-1 min-w-0">
-					<QuestionsCard
-						questions={exam.questions}
-						expandedQuestions={expandedQuestions}
-						setExpandedQuestions={setExpandedQuestions}
-						editingQuestionId={editingQuestionId}
-						editForm={editForm}
-						onStartEdit={startEditing}
-						onSave={handleSave}
-						onCancel={cancelEditing}
-						onFormChange={(updates) =>
-							setEditForm((prev) => (prev ? { ...prev, ...updates } : prev))
-						}
-						saving={saving}
-						toggleQuestion={toggleQuestion}
-					/>
-				</div>
-			</div>
+				<TabsContent value="explanations" className="mt-6">
+					<ExplanationPipelineTab examId={examId} questions={exam.questions} />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

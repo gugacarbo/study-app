@@ -51,7 +51,7 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
 				<RootProviders>
 					<div className="flex h-full flex-col">
 						<RootNav />
-						<main className="mx-auto flex-1 overflow-y-auto px-4 py-8 max-w-5xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
+						<main className="mx-auto flex-1 overflow-y-auto px-4 py-5 max-w-5xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
 							{children}
 						</main>
 					</div>

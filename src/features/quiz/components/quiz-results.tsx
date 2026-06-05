@@ -1,3 +1,6 @@
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MarkdownRenderer } from "@/components/ui/markdown";
 
@@ -7,6 +10,7 @@ interface AnswerRecord {
 	correctAnswer: string;
 	isCorrect: boolean;
 	explanation: string;
+	longExplanation?: string;
 	topic: string;
 }
 
@@ -30,7 +34,7 @@ export function QuizResults({ score, total, answers }: QuizResultsProps) {
 				</p>
 			</CardHeader>
 			<CardContent>
-				<div className="grid grid-cols-2 gap-2">
+				<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
 					<Card className="py-3 gap-1">
 						<CardContent className="px-3 py-2">
 							<p className="text-xs text-muted-foreground">Acertos</p>
@@ -62,46 +66,76 @@ export function QuizResults({ score, total, answers }: QuizResultsProps) {
 				</div>
 
 				{wrongAnswers.length > 0 && (
-					<details className="mt-4 rounded-lg border border-border p-3">
+					<details>
 						<summary className="cursor-pointer text-sm font-medium text-muted-foreground">
 							Revisar questões erradas ({wrongAnswers.length})
 						</summary>
 						<div className="mt-3 flex flex-col gap-3">
 							{wrongAnswers.map((item) => (
-								<div
-									key={item.question}
-									className="rounded-lg border border-border p-3"
-								>
-									<MarkdownRenderer
-										content={item.question}
-										className="text-sm font-medium"
-									/>
-									<p className="text-xs text-muted-foreground mt-1">
-										Sua resposta:{" "}
-										<MarkdownRenderer
-											content={item.userAnswer}
-											className="inline"
-											prose={false}
-										/>
-									</p>
-									<p className="text-xs text-muted-foreground">
-										Correta:{" "}
-										<MarkdownRenderer
-											content={item.correctAnswer}
-											className="inline"
-											prose={false}
-										/>
-									</p>
-									<MarkdownRenderer
-										content={item.explanation}
-										className="text-xs mt-2 text-muted-foreground"
-									/>
-								</div>
+								<WrongAnswerItem key={item.question} item={item} />
 							))}
 						</div>
 					</details>
 				)}
+
+				<div className="mt-4 flex justify-end">
+					<Button asChild>
+						<Link from="/quiz/$id" to="/exams">
+							Voltar para exames
+						</Link>
+					</Button>
+				</div>
 			</CardContent>
 		</Card>
+	);
+}
+
+function WrongAnswerItem({ item }: { item: AnswerRecord }) {
+	const [showLongExplanation, setShowLongExplanation] = useState(false);
+	const hasLongExplanation = Boolean(item.longExplanation?.trim());
+	const explanationToShow =
+		showLongExplanation && hasLongExplanation
+			? item.longExplanation
+			: item.explanation;
+
+	return (
+		<div className="rounded-lg border border-border p-3">
+			<MarkdownRenderer
+				content={item.question}
+				className="text-sm font-medium"
+			/>
+			<p className="text-xs text-muted-foreground mt-1">
+				Sua resposta:{" "}
+				<MarkdownRenderer
+					content={item.userAnswer}
+					className="inline"
+					prose={false}
+				/>
+			</p>
+			<p className="text-xs text-muted-foreground">
+				Correta:{" "}
+				<MarkdownRenderer
+					content={item.correctAnswer}
+					className="inline"
+					prose={false}
+				/>
+			</p>
+			{hasLongExplanation && (
+				<Button
+					variant="ghost"
+					size="sm"
+					className="mt-2 h-auto px-0 text-xs font-medium"
+					onClick={() => setShowLongExplanation((value) => !value)}
+				>
+					{showLongExplanation
+						? "Ver explicação curta"
+						: "Ver explicação completa"}
+				</Button>
+			)}
+			<MarkdownRenderer
+				content={explanationToShow}
+				className="text-xs mt-2 text-muted-foreground"
+			/>
+		</div>
 	);
 }

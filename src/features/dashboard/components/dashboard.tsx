@@ -26,7 +26,7 @@ export function Dashboard() {
 		<div>
 			<h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+			<div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-3xl font-bold">
@@ -72,7 +72,7 @@ export function Dashboard() {
 					</CardContent>
 				</Card>
 			) : (
-				<div className="flex flex-col gap-3">
+				<div className="flex flex-col gap-2">
 					{exams.map((exam) => (
 						<Card key={exam.id} size="sm">
 							<CardHeader>
