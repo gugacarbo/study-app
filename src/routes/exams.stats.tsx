@@ -1,10 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { StatsTable } from "@/features/exams/components/stats/stats-table";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/exams/stats")({
-	component: ExamsStatsPage,
+	beforeLoad: () => {
+		throw redirect({ to: "/exams" });
+	},
+	component: () => null,
 });
-
-function ExamsStatsPage() {
-	return <StatsTable />;
-}

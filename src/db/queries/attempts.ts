@@ -171,6 +171,9 @@ export function listAttemptsPaged(
 	if (filters.examId !== undefined) {
 		conditions.push(eq(schema.attempts.exam_id, filters.examId));
 	}
+	if (filters.topic !== undefined) {
+		conditions.push(eq(schema.attempts.topic, filters.topic));
+	}
 	if (filters.status !== undefined) {
 		conditions.push(eq(schema.attempts.status, filters.status));
 	}

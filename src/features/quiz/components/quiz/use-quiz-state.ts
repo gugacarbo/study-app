@@ -5,10 +5,16 @@ import {
 	quizStore,
 	recordAnswer,
 	selectAnswer,
+	startQuiz,
 } from "@/features/quiz/store/quiz-store";
 import type { ProviderConfig } from "@/lib/validation";
 import { getConfig } from "@/server-functions/config";
-import { generateQuiz, submitAnswer } from "@/server-functions/quiz";
+import {
+	abandonQuizAttempts,
+	generateQuiz,
+	listQuizAttempts,
+	submitAnswer,
+} from "@/server-functions/quiz";
 import type { QA } from "../use-quiz-persistence";
 
 interface UseQuizStateProps {
@@ -31,6 +37,20 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 			return generateQuiz({ data: { examId, topic, count: 10, config } });
 		},
 		enabled: !!config,
+	});
+
+	const { data: attempts } = useQuery({
+		queryKey: ["quiz-attempts", examId, topic],
+		queryFn: () => listQuizAttempts({ data: { examId, topic, pageSize: 5 } }),
+		enabled: examId !== undefined || topic !== undefined,
+	});
+
+	const restartAttempt = useMutation({
+		mutationFn: () => abandonQuizAttempts({ data: { examId, topic } }),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["quiz-attempts", examId, topic] });
+			qc.invalidateQueries({ queryKey: ["stats"] });
+		},
 	});
 
 	const mut = useMutation({
@@ -68,6 +88,7 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 			recordAnswer(data.correct, data.explanation);
 			setLongExp(data.longExplanation || "");
 			qc.invalidateQueries({ queryKey: ["stats"] });
+			qc.invalidateQueries({ queryKey: ["quiz-attempts", examId, topic] });
 		},
 		onError: (err) => {
 			console.error("Failed to submit:", err);
@@ -85,6 +106,8 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 	return {
 		config,
 		questions,
+		attempts: attempts || [],
+		restartAttempt: restartAttempt.mutateAsync,
 		mut,
 		longExp,
 		ans,
@@ -94,4 +117,4 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 	};
 }
 
-export { nextQuestion, quizStore, selectAnswer };
+export { nextQuestion, quizStore, selectAnswer, startQuiz };

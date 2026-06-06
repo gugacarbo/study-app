@@ -7,6 +7,8 @@ export interface QuizState {
 	score: number;
 	total: number;
 	isComplete: boolean;
+	hasStarted: boolean;
+	hasSavedProgress: boolean;
 	showExplanation: boolean;
 	explanation: string;
 	isCorrect: boolean | null;
@@ -19,6 +21,8 @@ const initialState: QuizState = {
 	score: 0,
 	total: 0,
 	isComplete: false,
+	hasStarted: false,
+	hasSavedProgress: false,
 	showExplanation: false,
 	explanation: "",
 	isCorrect: null,
@@ -37,6 +41,14 @@ export function resetQuiz(totalQuestions: number) {
 	}));
 }
 
+export function startQuiz() {
+	quizStore.setState((s) => ({
+		...s,
+		hasStarted: true,
+		hasSavedProgress: false,
+	}));
+}
+
 export function selectAnswer(answer: string) {
 	quizStore.setState((s) => ({ ...s, selectedAnswer: answer }));
 }
@@ -48,6 +60,8 @@ export function nextQuestion() {
 			...s,
 			currentQuestionIndex: nextIndex,
 			selectedAnswer: null,
+			hasStarted: true,
+			hasSavedProgress: false,
 			showExplanation: false,
 			isCorrect: null,
 			isComplete: nextIndex >= s.total,
@@ -62,5 +76,6 @@ export function recordAnswer(isCorrect: boolean, explanation: string) {
 		showExplanation: true,
 		explanation,
 		isCorrect,
+		hasSavedProgress: false,
 	}));
 }

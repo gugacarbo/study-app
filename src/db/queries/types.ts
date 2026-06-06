@@ -133,6 +133,7 @@ export interface ListAttemptsFilters {
 	page?: number;
 	pageSize?: number;
 	examId?: number;
+	topic?: string;
 	status?: AttemptStatus;
 	startedFrom?: string;
 	startedTo?: string;

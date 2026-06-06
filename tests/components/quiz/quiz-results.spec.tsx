@@ -24,6 +24,7 @@ describe("QuizResults", () => {
 		const link = screen.getByText("Voltar para exames").closest("a");
 
 		expect(link).toBeTruthy();
+		if (!link) throw new Error("Expected exams link to exist");
 		expect(link.getAttribute("to")).toBe("/exams");
 	});
 

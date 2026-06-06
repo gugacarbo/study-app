@@ -65,6 +65,8 @@ describe("useQuizKeyboard", () => {
 					score: 0,
 					total: 1,
 					isComplete: false,
+					hasStarted: true,
+					hasSavedProgress: false,
 					showExplanation: false,
 					explanation: "",
 					isCorrect: null,

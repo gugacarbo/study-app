@@ -22,6 +22,17 @@ const submitAnswerSchema = z.object({
 	userAnswer: z.string(),
 });
 
+const listQuizAttemptsSchema = z.object({
+	examId: z.number().optional(),
+	topic: z.string().optional(),
+	pageSize: z.number().int().positive().max(20).optional(),
+});
+
+const abandonQuizAttemptsSchema = z.object({
+	examId: z.number().optional(),
+	topic: z.string().optional(),
+});
+
 export const generateQuiz = createServerFn({ method: "POST" })
 	.inputValidator(generateQuizSchema)
 	.handler(async (ctx) => {
@@ -112,4 +123,40 @@ export const submitAnswer = createServerFn({ method: "POST" })
 			explanation: shortExplanation,
 			longExplanation,
 		};
+	});
+
+export const listQuizAttempts = createServerFn({ method: "POST" })
+	.inputValidator(listQuizAttemptsSchema)
+	.handler(async (ctx) => {
+		const { data } = ctx;
+		if (data.examId === undefined && data.topic === undefined) return [];
+
+		const db = await getDB(ctx);
+		if (!db) throw new Error("D1 database not available");
+
+		const queries = new DBQueries(db);
+		const result = await queries.listAttemptsPaged({
+			examId: data.examId,
+			topic: data.topic,
+			page: 1,
+			pageSize: data.pageSize ?? 5,
+		});
+
+		return result.items;
+	});
+
+export const abandonQuizAttempts = createServerFn({ method: "POST" })
+	.inputValidator(abandonQuizAttemptsSchema)
+	.handler(async (ctx) => {
+		const { data } = ctx;
+		if (data.examId === undefined && data.topic === undefined) return;
+
+		const db = await getDB(ctx);
+		if (!db) throw new Error("D1 database not available");
+
+		const queries = new DBQueries(db);
+		await queries.abandonInProgressAttempts({
+			examId: data.examId,
+			topic: data.topic,
+		});
 	});

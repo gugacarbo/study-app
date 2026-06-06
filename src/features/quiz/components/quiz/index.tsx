@@ -5,12 +5,14 @@ import { QuizExplanation } from "../quiz-explanation";
 import { QuizLoading } from "../quiz-loading";
 import { type QuestionWithId, QuizQuestion } from "../quiz-question";
 import { QuizResults } from "../quiz-results";
+import { QuizStart } from "../quiz-start";
 import { useQuizKeyboard } from "../use-quiz-keyboard";
 import { useQuizPersistence } from "../use-quiz-persistence";
 import {
 	nextQuestion,
 	quizStore,
 	selectAnswer,
+	startQuiz,
 	useQuizState,
 } from "./use-quiz-state";
 
@@ -18,6 +20,8 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 	const {
 		config,
 		questions,
+		attempts,
+		restartAttempt,
 		mut,
 		longExp,
 		ans,
@@ -37,7 +41,7 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 		mr.current = mut;
 	});
 
-	const { init } = useQuizPersistence({
+	const { init, restartQuiz } = useQuizPersistence({
 		examId,
 		topic,
 		questions,
@@ -60,6 +64,22 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 		return (
 			<QuizResults score={st.score} total={st.total} answers={ans.current} />
 		);
+
+	if (!st.hasStarted) {
+		return (
+			<QuizStart
+				total={questions.length}
+				onStart={startQuiz}
+				onRestart={async () => {
+					await restartAttempt();
+					restartQuiz();
+					startQuiz();
+				}}
+				hasSavedProgress={st.hasSavedProgress}
+				attempts={attempts}
+			/>
+		);
+	}
 
 	const cq = questions[st.currentQuestionIndex] as QuestionWithId;
 	if (!cq) return <QuizLoading />;

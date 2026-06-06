@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
 	hydrateQuiz,
+	type QuizState,
 	quizStore,
 	resetQuiz,
 } from "@/features/quiz/store/quiz-store";
@@ -15,6 +16,48 @@ export interface QA {
 	explanation: string;
 	longExplanation?: string;
 	topic: string;
+}
+
+type SavedQuizState = Omit<QuizState, "hasStarted" | "hasSavedProgress"> &
+	Partial<Pick<QuizState, "hasStarted" | "hasSavedProgress">>;
+
+export function normalizeHydratedQuizState(
+	state: SavedQuizState,
+	totalQuestions: number,
+): QuizState {
+	if (typeof state.hasStarted === "boolean") {
+		const hasProgress =
+			state.currentQuestionIndex > 0 ||
+			Object.keys(state.answers).length > 0 ||
+			state.score > 0 ||
+			state.showExplanation ||
+			state.isComplete ||
+			(state.selectedAnswer !== null && state.selectedAnswer !== "");
+		const hasSavedAttempt =
+			state.hasStarted || state.hasSavedProgress || hasProgress;
+
+		return {
+			...state,
+			total: totalQuestions,
+			hasStarted: state.isComplete ? state.hasStarted : false,
+			hasSavedProgress: state.isComplete ? false : hasSavedAttempt,
+		};
+	}
+
+	const hasProgress =
+		state.currentQuestionIndex > 0 ||
+		Object.keys(state.answers).length > 0 ||
+		state.score > 0 ||
+		state.showExplanation ||
+		state.isComplete ||
+		(state.selectedAnswer !== null && state.selectedAnswer !== "");
+
+	return {
+		...state,
+		total: totalQuestions,
+		hasStarted: false,
+		hasSavedProgress: hasProgress,
+	};
 }
 
 export function useQuizPersistence({
@@ -34,6 +77,13 @@ export function useQuizPersistence({
 }) {
 	const [init, setInit] = useState(false);
 	const sk = `study-app:quiz:${examId ?? "topic"}:${topic ?? "general"}`;
+	const restartQuiz = () => {
+		if (!questions?.length) return;
+		localStorage.removeItem(sk);
+		resetQuiz(questions.length);
+		answersRef.current = [];
+		setAttemptId(null);
+	};
 
 	useEffect(() => {
 		if (!questions?.length || init) return;
@@ -59,7 +109,7 @@ export function useQuizPersistence({
 				fb();
 				return;
 			}
-			hydrateQuiz(p.quizState);
+			hydrateQuiz(normalizeHydratedQuizState(p.quizState, questions.length));
 			answersRef.current = Array.isArray(p.answers) ? p.answers : [];
 			setAttemptId(typeof p.attemptId === "number" ? p.attemptId : null);
 			setInit(true);
@@ -101,5 +151,5 @@ export function useQuizPersistence({
 		return () => sub.unsubscribe();
 	}, [init, sk, examId, topic, answersRef, attemptId, setAttemptId]);
 
-	return { init };
+	return { init, restartQuiz };
 }
