@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ interface QueueListProps {
 	onFocusJob: (jobId: string) => void;
 	onCancelJob: (jobId: string) => void;
 	onClearSaved: () => void;
+	onRemoveJob: (jobId: string) => void;
 }
 
 export function QueueList({
@@ -19,6 +20,7 @@ export function QueueList({
 	onFocusJob,
 	onCancelJob,
 	onClearSaved,
+	onRemoveJob,
 }: QueueListProps) {
 	const hasSavedLogs = jobs.some((job) =>
 		["success", "error", "canceled"].includes(job.status),
@@ -58,6 +60,7 @@ export function QueueList({
 								isFocused={job.id === focusedJobId}
 								onFocus={() => onFocusJob(job.id)}
 								onCancel={() => onCancelJob(job.id)}
+								onRemove={() => onRemoveJob(job.id)}
 							/>
 						))}
 					</div>
@@ -72,11 +75,13 @@ function JobRow({
 	isFocused,
 	onFocus,
 	onCancel,
+	onRemove,
 }: {
 	job: IngestJob;
 	isFocused: boolean;
 	onFocus: () => void;
 	onCancel: () => void;
+	onRemove: () => void;
 }) {
 	return (
 		<div className="flex items-center justify-between rounded-md text-xs">
@@ -105,6 +110,21 @@ function JobRow({
 				>
 					Cancel
 				</Button>
+			)}
+			{(job.status === "success" ||
+				job.status === "error" ||
+				job.status === "canceled") && (
+				<button
+					type="button"
+					onClick={(e) => {
+						e.stopPropagation();
+						onRemove();
+					}}
+					className="ml-1 shrink-0 rounded p-0.5 text-muted-foreground/50 transition-colors hover:text-destructive"
+					title="Remove from history"
+				>
+					<Trash2 className="size-3" />
+				</button>
 			)}
 		</div>
 	);

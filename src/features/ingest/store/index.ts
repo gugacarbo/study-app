@@ -3,6 +3,7 @@ export {
 	clearSavedIngestJobs,
 	enqueueIngest,
 	focusJob,
+	removeJob,
 } from "./actions";
 export {
 	appendChunkToAgentRun,

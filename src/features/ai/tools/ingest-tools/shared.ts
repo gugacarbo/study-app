@@ -7,12 +7,25 @@ export const extractionQuestionIdSchema = z
 	.string()
 	.regex(/^q\d+$/, "Question ID must look like q1, q2, q3");
 
+const optionalNullableStringSchema = z
+	.string()
+	.nullable()
+	.optional()
+	.transform((value) => value ?? undefined);
+
+const optionalNullableTrimmedStringSchema = z
+	.string()
+	.trim()
+	.nullable()
+	.optional()
+	.transform((value) => value ?? undefined);
+
 export const extractionQuestionFieldsSchema = z.object({
 	question: z.string().trim().min(1),
 	options: z.array(z.string()).default([]),
 	answer: z.string().trim().min(1),
-	explanation: z.string().optional(),
-	topic: z.string().trim().optional(),
+	explanation: optionalNullableStringSchema,
+	topic: optionalNullableTrimmedStringSchema,
 });
 
 export const extractionQuestionPatchSchema = z
@@ -21,8 +34,8 @@ export const extractionQuestionPatchSchema = z
 		question: z.string().trim().min(1).optional(),
 		options: z.array(z.string()).optional(),
 		answer: z.string().trim().min(1).optional(),
-		topic: z.string().trim().optional(),
-		explanation: z.string().optional(),
+		topic: optionalNullableTrimmedStringSchema,
+		explanation: optionalNullableStringSchema,
 	})
 	.refine(
 		(input) =>

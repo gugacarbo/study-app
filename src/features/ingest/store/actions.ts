@@ -303,6 +303,14 @@ export function cancelJob(jobId: string) {
 	}
 }
 
+export function removeJob(jobId: string) {
+	ingestStore.setState((state) => ({
+		...state,
+		jobs: state.jobs.filter((job) => job.id !== jobId),
+		focusedJobId: state.focusedJobId === jobId ? null : state.focusedJobId,
+	}));
+}
+
 export function clearSavedIngestJobs() {
 	ingestStore.setState((state) => clearCompletedJobsFromState(state));
 }

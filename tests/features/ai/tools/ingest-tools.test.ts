@@ -59,6 +59,42 @@ describe("ingest extraction tools", () => {
 		expect(workspace.listQuestions()[0]?.explanation).toBe("");
 	});
 
+	it("accepts null optional fields from the model tool payload", async () => {
+		const workspace = createExtractionWorkspace();
+		const tools = createIngestExtractionTools(workspace);
+		const addQuestion = getTool(tools, "add_extracted_question");
+
+		expect(
+			addQuestion.inputSchema.safeParse({
+				question: "Qual e a derivada de f(x) = x²?",
+				options: ["1", "2x", "x²", "2"],
+				answer: "2x",
+				explanation: null,
+				topic: null,
+			}).success,
+		).toBe(true);
+
+		const result = (await addQuestion.execute({
+			question: "Qual e a derivada de f(x) = x²?",
+			options: ["1", "2x", "x²", "2"],
+			answer: "2x",
+			explanation: null,
+			topic: null,
+		})) as { ok: boolean; questionId: string; totalQuestions: number };
+
+		expect(result).toEqual({
+			ok: true,
+			questionId: "q1",
+			totalQuestions: 1,
+		});
+		expect(workspace.listQuestions()[0]).toMatchObject({
+			question: "Qual e a derivada de f(x) = x²?",
+			answer: "2x",
+			explanation: "",
+			topic: "General",
+		});
+	});
+
 	it("updates questions through update_extracted_question", async () => {
 		const workspace = createExtractionWorkspace();
 		const tools = createIngestExtractionTools(workspace);

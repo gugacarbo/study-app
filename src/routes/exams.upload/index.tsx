@@ -8,6 +8,7 @@ import {
 	cancelJob,
 	clearSavedIngestJobs,
 	focusJob,
+	removeJob,
 } from "@/features/ingest/store";
 import { useUpload } from "./-use-upload";
 
@@ -41,6 +42,7 @@ function IngestPage() {
 						onFocusJob={focusJob}
 						onCancelJob={cancelJob}
 						onClearSaved={clearSavedIngestJobs}
+						onRemoveJob={removeJob}
 					/>
 				</div>
 
