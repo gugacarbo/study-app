@@ -1,5 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { questionSchema, attemptSchema, providerConfigSchema, examIngestResponseSchema } from '#/lib/validation';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+  questionSchema,
+  attemptSchema,
+  providerConfigSchema,
+  examIngestResponseSchema,
+  normalizeExamIngestResponseWithDiagnostics,
+} from '#/lib/validation';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('questionSchema', () => {
   it('validates a correct question object', () => {
@@ -172,5 +182,112 @@ describe('examIngestResponseSchema', () => {
     };
     const result = examIngestResponseSchema.safeParse(invalid);
     expect(result.success).toBe(false);
+  });
+
+  it('salvages valid questions when one malformed open-ended question would otherwise fail the whole extraction', () => {
+    const candidate = {
+      questions: [
+        {
+          question: 'O que e o modelo OSI?',
+          options: [],
+          answer: 'Um modelo de referencia com sete camadas.',
+          explanation: '',
+          topic: 'Redes',
+        },
+        {
+          question: 'Questao truncada no fim da resposta',
+          options: ['Opcao isolada'],
+          explanation: '',
+          topic: 'Redes',
+        },
+      ],
+      topics: ['Redes'],
+    };
+
+    const result = examIngestResponseSchema.safeParse(candidate);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.questions).toHaveLength(1);
+      expect(result.data.questions[0]).toMatchObject({
+        question: 'O que e o modelo OSI?',
+        options: [
+          'Um modelo de referencia com sete camadas.',
+          'Resposta incorreta.',
+        ],
+        answer: 'Um modelo de referencia com sete camadas.',
+        explanation: '',
+        topic: 'Redes',
+      });
+      expect(result.data.topics).toEqual(['Redes']);
+    }
+  });
+
+  it('reports discarded malformed questions with index and preview', () => {
+    const result = normalizeExamIngestResponseWithDiagnostics({
+      questions: [
+        {
+          question: 'Pergunta valida',
+          options: [],
+          answer: 'Resposta valida',
+          explanation: '',
+          topic: 'Redes',
+        },
+        {
+          question: 'Questao truncada no fim da resposta',
+          options: ['Opcao isolada'],
+          explanation: '',
+          topic: 'Redes',
+        },
+        null,
+      ],
+      topics: ['Redes'],
+    });
+
+    expect(result.discardedQuestions).toEqual([
+      {
+        index: 1,
+        reason: 'missing-answer',
+        questionPreview: 'Questao truncada no fim da resposta',
+      },
+      {
+        index: 2,
+        reason: 'non-object',
+        questionPreview: undefined,
+      },
+    ]);
+  });
+
+  it('warns when ingest normalization discards malformed questions', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    examIngestResponseSchema.safeParse({
+      questions: [
+        {
+          question: 'Pergunta valida',
+          options: [],
+          answer: 'Resposta valida',
+          explanation: '',
+          topic: 'Redes',
+        },
+        {
+          question: 'Questao truncada no fim da resposta',
+          options: ['Opcao isolada'],
+          explanation: '',
+          topic: 'Redes',
+        },
+      ],
+      topics: ['Redes'],
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Discarded malformed ingest questions during normalization:',
+      JSON.stringify([
+        {
+          index: 1,
+          reason: 'missing-answer',
+          questionPreview: 'Questao truncada no fim da resposta',
+        },
+      ]),
+    );
   });
 });

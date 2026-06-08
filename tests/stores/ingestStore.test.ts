@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+	appendChunkToAgentRun,
+	appendToolCallToAgentRun,
+	appendToolResultToAgentRun,
 	applyTokenEvent,
 	applyWarningEvent,
 	clearCompletedJobsFromState,
@@ -74,6 +77,23 @@ function makeAgentRun(
 		label: "Reviewer Q1",
 		status: "running",
 		timestamp: 1,
+		messages: [
+			{
+				id: "agent-1:system",
+				role: "system",
+				parts: [{ type: "text", content: "" }],
+			},
+			{
+				id: "agent-1:user",
+				role: "user",
+				parts: [{ type: "text", content: "" }],
+			},
+			{
+				id: "agent-1:assistant",
+				role: "assistant",
+				parts: [{ type: "text", content: "" }],
+			},
+		],
 		systemPrompt: "",
 		userPrompt: "",
 		outputText: "",
@@ -157,6 +177,100 @@ describe("upsertAgentRun", () => {
 			completion: 200,
 			total: 300,
 		});
+	});
+
+	it("initializes system, user, and assistant messages", () => {
+		const updated = upsertAgentRun(
+			createJob(),
+			agentEvent({
+				systemPrompt: "system prompt",
+				userPrompt: "user prompt",
+				rawText: "assistant text",
+			}),
+		);
+
+		expect(updated.agentRuns[0].messages).toEqual([
+			{
+				id: "agent-1:system",
+				role: "system",
+				parts: [{ type: "text", content: "system prompt" }],
+			},
+			{
+				id: "agent-1:user",
+				role: "user",
+				parts: [{ type: "text", content: "user prompt" }],
+			},
+			{
+				id: "agent-1:assistant",
+				role: "assistant",
+				parts: [{ type: "text", content: "assistant text" }],
+			},
+		]);
+	});
+
+	it("appends assistant chunk text into the assistant message", () => {
+		const job = upsertAgentRun(
+			createJob(),
+			agentEvent({
+				systemPrompt: "system prompt",
+				userPrompt: "user prompt",
+			}),
+		);
+
+		const updated = appendChunkToAgentRun(job, "agent-1", "partial output");
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(updated.agentRuns[0].outputText).toBe("partial output");
+		expect(assistant?.parts).toEqual([
+			{ type: "text", content: "partial output" },
+		]);
+	});
+
+	it("appends tool-call and tool-result parts to the assistant message", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+
+		const withToolCall = appendToolCallToAgentRun(
+			job,
+			agentEvent({
+				eventType: "tool-call",
+				name: "search_docs",
+				arguments: "{\"query\":\"ingest\"}",
+				state: "input-complete",
+				input: { query: "ingest" },
+			}),
+		);
+		const withToolResult = appendToolResultToAgentRun(
+			withToolCall,
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: true },
+				state: "complete",
+			}),
+		);
+
+		const assistant = withToolResult.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(assistant?.parts).toEqual([
+			{ type: "text", content: "" },
+			{
+				type: "tool-call",
+				id: "agent-1:tool-call:0",
+				name: "search_docs",
+				arguments: "{\"query\":\"ingest\"}",
+				input: { query: "ingest" },
+				state: "input-complete",
+			},
+			{
+				type: "tool-result",
+				toolCallId: "agent-1:tool-call:0",
+				content: "{\n  \"ok\": true\n}",
+				state: "complete",
+			},
+		]);
 	});
 });
 
@@ -368,6 +482,57 @@ describe("ingest storage persistence", () => {
 			buffer: [],
 		});
 		expect(hydrated.focusedJobId).toBe("job-running");
+	});
+
+	it("hydrates legacy agent runs without messages using prompt/output fallback", () => {
+		const saved = JSON.stringify({
+			jobs: [
+				{
+					...createJob({
+						id: "job-legacy",
+						status: "success",
+						agentRuns: [
+							{
+								id: "agent-legacy",
+								stageId: "review",
+								label: "Legacy reviewer",
+								status: "done",
+								timestamp: 10,
+								systemPrompt: "legacy system",
+								userPrompt: "legacy user",
+								outputText: "legacy output",
+								rawOutput: null,
+								error: null,
+								warnings: [],
+								tokenTotals: { prompt: 1, completion: 2, total: 3 },
+							} as unknown as IngestAgentRun,
+						],
+					}),
+				},
+			],
+			focusedJobId: "job-legacy",
+		});
+
+		const hydrated = hydrateIngestStateFromStorage(saved);
+		const messages = hydrated.jobs[0]?.agentRuns[0]?.messages;
+
+		expect(messages).toEqual([
+			{
+				id: "agent-legacy:system",
+				role: "system",
+				parts: [{ type: "text", content: "legacy system" }],
+			},
+			{
+				id: "agent-legacy:user",
+				role: "user",
+				parts: [{ type: "text", content: "legacy user" }],
+			},
+			{
+				id: "agent-legacy:assistant",
+				role: "assistant",
+				parts: [{ type: "text", content: "legacy output" }],
+			},
+		]);
 	});
 
 	it("clears only completed jobs from state", () => {

@@ -171,6 +171,7 @@ describe("ingestStream", () => {
 				stageId: "review",
 				label: "Question 1 reviewer",
 				status: "running",
+				state: undefined,
 				timestamp: 112,
 				systemPrompt: "system",
 				userPrompt: "user",
@@ -180,6 +181,11 @@ describe("ingestStream", () => {
 				warning: undefined,
 				tokens: undefined,
 				meta: undefined,
+				name: undefined,
+				arguments: undefined,
+				input: undefined,
+				output: undefined,
+				content: undefined,
 			},
 		]);
 		expect(chunks).toEqual([
@@ -377,5 +383,111 @@ describe("ingestStream", () => {
 			stageId: "review",
 			agentRunId: "reviewer-3",
 		});
+	});
+
+	it("parses agent tool-call and tool-result payloads without changing the SSE contract", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			createSseResponse([
+				{
+					event: "agent",
+					data: {
+						eventType: "tool-call",
+						agentRunId: "reviewer-4",
+						stageId: "review",
+						label: "Reviewer Q4",
+						name: "web_search",
+						arguments: '{"query":"cache memory"}',
+						input: { query: "cache memory" },
+						output: { ok: true },
+						state: "complete",
+						timestamp: 10,
+					},
+				},
+				{
+					event: "agent",
+					data: {
+						eventType: "tool-result",
+						agentRunId: "reviewer-4",
+						stageId: "review",
+						label: "Reviewer Q4",
+						content: { ok: true },
+						state: "complete",
+						timestamp: 11,
+					},
+				},
+				{
+					event: "result",
+					data: { questions: 1, topics: ["T"], examId: 1, fileId: 1 },
+				},
+			]),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		const agents: IngestAgentEvent[] = [];
+
+		await ingestStream(
+			{
+				buffer: [1],
+				fileName: "exam.txt",
+				config: {
+					provider: "openrouter",
+					model: "openai/gpt-4o-mini",
+					apiKey: "key",
+					baseUrl: "",
+				},
+			},
+			{
+				onStep: () => {},
+				onToken: () => {},
+				onAgent: (event) => agents.push(event),
+			},
+		);
+
+		expect(agents).toEqual([
+			{
+				eventType: "tool-call",
+				agentRunId: "reviewer-4",
+				stageId: "review",
+				label: "Reviewer Q4",
+				status: undefined,
+				state: "complete",
+				timestamp: 10,
+				systemPrompt: undefined,
+				userPrompt: undefined,
+				rawText: undefined,
+				finalObject: undefined,
+				error: undefined,
+				warning: undefined,
+				tokens: undefined,
+				meta: undefined,
+				name: "web_search",
+				arguments: '{"query":"cache memory"}',
+				input: { query: "cache memory" },
+				output: { ok: true },
+				content: undefined,
+			},
+			{
+				eventType: "tool-result",
+				agentRunId: "reviewer-4",
+				stageId: "review",
+				label: "Reviewer Q4",
+				status: undefined,
+				state: "complete",
+				timestamp: 11,
+				systemPrompt: undefined,
+				userPrompt: undefined,
+				rawText: undefined,
+				finalObject: undefined,
+				error: undefined,
+				warning: undefined,
+				tokens: undefined,
+				meta: undefined,
+				name: undefined,
+				arguments: undefined,
+				input: undefined,
+				output: undefined,
+				content: { ok: true },
+			},
+		]);
 	});
 });

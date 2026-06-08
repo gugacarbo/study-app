@@ -76,6 +76,7 @@ describe("toIngestJobViewModel", () => {
 					label: "Reviewer Q1",
 					status: "done",
 					timestamp: 20,
+					messages: [],
 					systemPrompt: "system",
 					userPrompt: "user",
 					outputText: "",
@@ -105,6 +106,7 @@ describe("toIngestJobViewModel", () => {
 					label: "Reviewer Q2",
 					status: "done",
 					timestamp: 20,
+					messages: [],
 					systemPrompt: "system",
 					userPrompt: "user",
 					outputText: "",
@@ -134,6 +136,7 @@ describe("toIngestJobViewModel", () => {
 					label: "Reviewer Q3",
 					status: "done",
 					timestamp: 20,
+					messages: [],
 					systemPrompt: "system",
 					userPrompt: "user",
 					outputText: "streamed output text",
@@ -154,6 +157,116 @@ describe("toIngestJobViewModel", () => {
 		});
 	});
 
+	it("preserves structured agent messages and tool parts in the view model", () => {
+		const job = createJob({
+			agentRuns: [
+				{
+					id: "review-structured",
+					stageId: "review",
+					label: "Reviewer Structured",
+					status: "done",
+					timestamp: 20,
+					messages: [
+						{
+							id: "review-structured:system",
+							role: "system",
+							parts: [{ type: "text", content: "system prompt" }],
+						},
+						{
+							id: "review-structured:user",
+							role: "user",
+							parts: [{ type: "text", content: "user prompt" }],
+						},
+						{
+							id: "review-structured:assistant",
+							role: "assistant",
+							parts: [
+								{ type: "text", content: "assistant text" },
+								{
+									type: "tool-call",
+									id: "review-structured:tool-call:0",
+									name: "search_docs",
+									arguments: "{\"query\":\"ingest\"}",
+									input: { query: "ingest" },
+									state: "input-complete",
+								},
+								{
+									type: "tool-result",
+									toolCallId: "review-structured:tool-call:0",
+									content: "{\n  \"ok\": true\n}",
+									state: "complete",
+								},
+							],
+						},
+					],
+					systemPrompt: "system prompt",
+					userPrompt: "user prompt",
+					outputText: "assistant text",
+					rawOutput: null,
+					error: null,
+					warnings: [],
+					tokenTotals: { prompt: 1, completion: 2, total: 3 },
+				},
+			],
+		});
+
+		const viewModel = toIngestJobViewModel(job);
+
+		expect(viewModel.agents[0]?.messages).toEqual(job.agentRuns[0]?.messages);
+		expect(viewModel.agents[0]).toMatchObject({
+			systemPrompt: "system prompt",
+			userPrompt: "user prompt",
+			response: "assistant text",
+		});
+	});
+
+	it("builds fallback messages for legacy agent runs without messages", () => {
+		const job = createJob({
+			agentRuns: [
+				{
+					id: "review-legacy",
+					stageId: "review",
+					label: "Reviewer Legacy",
+					status: "done",
+					timestamp: 20,
+					messages: [],
+					systemPrompt: "legacy system",
+					userPrompt: "legacy user",
+					outputText: "",
+					rawOutput: { answer: "42" },
+					error: null,
+					warnings: [],
+					tokenTotals: { prompt: 1, completion: 2, total: 3 },
+				},
+			],
+		});
+
+		const viewModel = toIngestJobViewModel(job);
+
+		expect(viewModel.agents[0]?.messages).toEqual([
+			{
+				id: "review-legacy:system",
+				role: "system",
+				parts: [{ type: "text", content: "legacy system" }],
+			},
+			{
+				id: "review-legacy:user",
+				role: "user",
+				parts: [{ type: "text", content: "legacy user" }],
+			},
+			{
+				id: "review-legacy:assistant",
+				role: "assistant",
+				parts: [
+					{
+						type: "text",
+						content: '{\n  "answer": "42"\n}',
+					},
+				],
+			},
+		]);
+	});
+
 	it("preserves friendly agent label after warning is attached", () => {
 		const job = createJob({
 			agentRuns: [
@@ -163,6 +276,7 @@ describe("toIngestJobViewModel", () => {
 					label: "Reviewer Q4",
 					status: "warning",
 					timestamp: 20,
+					messages: [],
 					systemPrompt: "system",
 					userPrompt: "user",
 					outputText: "",
@@ -192,6 +306,7 @@ describe("toIngestJobViewModel", () => {
 					label: "Reviewer Q5",
 					status: "error",
 					timestamp: 20,
+					messages: [],
 					systemPrompt: "system",
 					userPrompt: "user",
 					outputText: "",

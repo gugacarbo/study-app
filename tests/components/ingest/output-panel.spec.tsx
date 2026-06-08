@@ -22,6 +22,7 @@ describe("OutputPanel", () => {
 						systemPrompt: "review system prompt",
 						userPrompt: "review user prompt",
 						response: "review response",
+						messages: [],
 					},
 				]}
 				onClearFilter={() => {}}
