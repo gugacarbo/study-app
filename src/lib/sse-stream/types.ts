@@ -45,12 +45,62 @@ export type IngestStageEvent = {
 	meta?: Record<string, unknown>;
 };
 
+export type IngestToolCallPart = {
+	type: "tool-call";
+	name?: string;
+	arguments?: string;
+	input?: unknown;
+	output?: unknown;
+	state?:
+		| "awaiting-input"
+		| "input-streaming"
+		| "input-complete"
+		| "approval-requested"
+		| "approval-responded"
+		| "streaming"
+		| "complete"
+		| "completed"
+		| "error";
+};
+
+export type IngestToolResultPart = {
+	type: "tool-result";
+	content?: unknown;
+	error?: string;
+	state?:
+		| "awaiting-input"
+		| "input-streaming"
+		| "input-complete"
+		| "approval-requested"
+		| "approval-responded"
+		| "streaming"
+		| "complete"
+		| "completed"
+		| "error";
+};
+
 export type IngestAgentEvent = {
-	eventType?: "lifecycle" | "result" | "warning" | "token";
+	eventType?:
+		| "lifecycle"
+		| "result"
+		| "warning"
+		| "token"
+		| "tool-call"
+		| "tool-result";
 	agentRunId: string;
 	stageId: string;
 	label: string;
 	status?: string;
+	state?:
+		| "awaiting-input"
+		| "input-streaming"
+		| "input-complete"
+		| "approval-requested"
+		| "approval-responded"
+		| "streaming"
+		| "complete"
+		| "completed"
+		| "error";
 	timestamp?: number;
 	systemPrompt?: string;
 	userPrompt?: string;
@@ -66,4 +116,9 @@ export type IngestAgentEvent = {
 		  }
 		| unknown;
 	meta?: Record<string, unknown>;
+	name?: string;
+	arguments?: string;
+	input?: unknown;
+	output?: unknown;
+	content?: unknown;
 };

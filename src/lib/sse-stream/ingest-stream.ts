@@ -119,6 +119,7 @@ function dispatch(
 				stageId: d.stageId,
 				label: d.label,
 				status: d.status,
+				state: d.state,
 				timestamp: d.timestamp,
 				systemPrompt: d.systemPrompt,
 				userPrompt: d.userPrompt,
@@ -128,6 +129,11 @@ function dispatch(
 				warning: d.warning,
 				tokens: d.tokens,
 				meta: d.meta,
+				name: d.name,
+				arguments: d.arguments,
+				input: d.input,
+				output: d.output,
+				content: d.content,
 			});
 		}
 		return;
