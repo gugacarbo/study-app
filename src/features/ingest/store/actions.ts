@@ -5,6 +5,8 @@ import { getConfig } from "@/server-functions/config";
 import {
 	appendChunkToAgentRun,
 	appendLogEntry,
+	appendToolCallToAgentRun,
+	appendToolResultToAgentRun,
 	applyChunkEvent,
 	applyTokenEvent,
 	applyWarningEvent,
@@ -155,6 +157,12 @@ async function runJob(jobId: string) {
 				onAgent: (event: IngestAgentEvent) => {
 					updateJobInState(jobId, (runningJob) => {
 						let nextJob = syncJobTokenTotals(upsertAgentRun(runningJob, event));
+						if (event.eventType === "tool-call") {
+							nextJob = appendToolCallToAgentRun(nextJob, event);
+						}
+						if (event.eventType === "tool-result") {
+							nextJob = appendToolResultToAgentRun(nextJob, event);
+						}
 						if (event.warning) {
 							nextJob = applyWarningEvent(nextJob, event.warning, {
 								message: event.warning,

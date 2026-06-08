@@ -1,4 +1,8 @@
-import { appendLogEntry, createEmptyJob } from "./job-utils";
+import {
+	appendLogEntry,
+	createEmptyJob,
+	ensureAgentRunMessages,
+} from "./job-utils";
 import type {
 	IngestJob,
 	IngestStoreState,
@@ -85,6 +89,11 @@ function hydratePersistedJob(job: unknown): IngestJob | null {
 		...createEmptyJob(job.id, job.fileName, [], job.enableReview ?? true),
 		...job,
 		buffer: [],
+		agentRuns: Array.isArray(job.agentRuns)
+			? job.agentRuns.map((agentRun) =>
+					ensureAgentRunMessages(agentRun as IngestJob["agentRuns"][number]),
+				)
+			: [],
 	};
 
 	if (hydratedJob.status === "queued" || hydratedJob.status === "running") {

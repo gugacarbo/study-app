@@ -1,3 +1,4 @@
+import type { UIMessage } from "@tanstack/ai-client";
 import type {
 	IngestAgentEvent,
 	IngestChunkEvent,
@@ -125,6 +126,351 @@ function normalizeAgentStatus(status?: string): IngestAgentStatus {
 		: "running";
 }
 
+type AgentRole = "system" | "user" | "assistant";
+type AssistantToolCallPart = Extract<
+	UIMessage["parts"][number],
+	{ type: "tool-call" }
+>;
+type AssistantToolResultPart = Extract<
+	UIMessage["parts"][number],
+	{ type: "tool-result" }
+>;
+
+function createTextPart(content: string) {
+	return { type: "text" as const, content };
+}
+
+function createAgentMessage(
+	agentRunId: string,
+	role: AgentRole,
+	content: string,
+): UIMessage {
+	return {
+		id: `${agentRunId}:${role}`,
+		role,
+		parts: [createTextPart(content)],
+	};
+}
+
+function createAgentMessages(
+	agentRunId: string,
+	systemPrompt: string,
+	userPrompt: string,
+	assistantText: string,
+): UIMessage[] {
+	const messages: UIMessage[] = [];
+	if (systemPrompt) {
+		messages.push(createAgentMessage(agentRunId, "system", systemPrompt));
+	}
+	if (userPrompt) {
+		messages.push(createAgentMessage(agentRunId, "user", userPrompt));
+	}
+	messages.push(createAgentMessage(agentRunId, "assistant", assistantText));
+	return messages;
+}
+
+function getAssistantMessageIndex(messages: UIMessage[]): number {
+	return messages.findIndex((message) => message.role === "assistant");
+}
+
+function ensureTextPart(
+	message: UIMessage,
+	initialContent: string,
+): UIMessage["parts"] {
+	if (message.parts.some((part) => part.type === "text")) {
+		return message.parts;
+	}
+
+	return [createTextPart(initialContent), ...message.parts];
+}
+
+function upsertMessageText(
+	agentRunId: string,
+	messages: UIMessage[],
+	role: AgentRole,
+	content: string,
+): UIMessage[] {
+	const messageIndex = messages.findIndex((message) => message.role === role);
+	if (messageIndex === -1) {
+		return [...messages, createAgentMessage(agentRunId, role, content)];
+	}
+
+	const nextMessages = [...messages];
+	const currentParts = nextMessages[messageIndex].parts;
+	const nextParts = currentParts.some((part) => part.type === "text")
+		? currentParts.map((part, index) =>
+				part.type === "text" &&
+				index ===
+					currentParts.findIndex((candidate) => candidate.type === "text")
+					? { ...part, content }
+					: part,
+			)
+		: [createTextPart(content), ...currentParts];
+	nextMessages[messageIndex] = {
+		...nextMessages[messageIndex],
+		parts: nextParts,
+	};
+	return nextMessages;
+}
+
+function createMissingAgentMessages(agentRun: IngestAgentRun): UIMessage[] {
+	return createAgentMessages(
+		agentRun.id,
+		agentRun.systemPrompt,
+		agentRun.userPrompt,
+		agentRun.outputText,
+	);
+}
+
+export function ensureAgentRunMessages(
+	agentRun: IngestAgentRun,
+): IngestAgentRun {
+	if (Array.isArray(agentRun.messages) && agentRun.messages.length > 0) {
+		return agentRun;
+	}
+	return {
+		...agentRun,
+		messages: createMissingAgentMessages(agentRun),
+	};
+}
+
+function withAssistantMessage(
+	agentRun: IngestAgentRun,
+	update: (message: UIMessage) => UIMessage,
+): IngestAgentRun {
+	const normalizedAgentRun = ensureAgentRunMessages(agentRun);
+	const messageIndex = getAssistantMessageIndex(normalizedAgentRun.messages);
+	if (messageIndex === -1) return normalizedAgentRun;
+
+	const nextMessages = [...normalizedAgentRun.messages];
+	nextMessages[messageIndex] = update(nextMessages[messageIndex]);
+
+	return {
+		...normalizedAgentRun,
+		messages: nextMessages,
+	};
+}
+
+function appendAssistantTextMessage(
+	agentRun: IngestAgentRun,
+	chunk: string,
+): IngestAgentRun {
+	return withAssistantMessage(agentRun, (message) => {
+		const parts = ensureTextPart(message, "");
+		let consumed = false;
+		return {
+			...message,
+			parts: parts.map((part) => {
+				if (part.type !== "text" || consumed) return part;
+				consumed = true;
+				return { ...part, content: `${part.content}${chunk}` };
+			}),
+		};
+	});
+}
+
+function syncPromptsIntoMessages(agentRun: IngestAgentRun): IngestAgentRun {
+	const nextAgentRun = ensureAgentRunMessages(agentRun);
+	const withSystem = upsertMessageText(
+		nextAgentRun.id,
+		nextAgentRun.messages,
+		"system",
+		nextAgentRun.systemPrompt,
+	);
+	const withUser = upsertMessageText(
+		nextAgentRun.id,
+		withSystem,
+		"user",
+		nextAgentRun.userPrompt,
+	);
+	const assistantText =
+		nextAgentRun.outputText.length > 0
+			? nextAgentRun.outputText
+			: readAssistantText(nextAgentRun.messages);
+
+	return {
+		...nextAgentRun,
+		messages: upsertMessageText(
+			nextAgentRun.id,
+			withUser,
+			"assistant",
+			assistantText,
+		),
+	};
+}
+
+function readAssistantText(messages: UIMessage[]): string {
+	const assistant = messages.find((message) => message.role === "assistant");
+	if (!assistant) return "";
+	return assistant.parts
+		.filter((part) => part.type === "text")
+		.map((part) => part.content ?? "")
+		.join("");
+}
+
+function safeJsonString(value: unknown): string {
+	if (typeof value === "string") return value;
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+}
+
+function normalizeToolCallState(
+	value: unknown,
+): AssistantToolCallPart["state"] {
+	switch (value) {
+		case "awaiting-input":
+		case "input-streaming":
+		case "input-complete":
+		case "approval-requested":
+		case "approval-responded":
+			return value;
+		default:
+			return "input-complete";
+	}
+}
+
+function normalizeToolResultState(
+	value: unknown,
+): AssistantToolResultPart["state"] {
+	switch (value) {
+		case "streaming":
+		case "complete":
+		case "error":
+			return value;
+		default:
+			return "complete";
+	}
+}
+
+function readLatestToolCallId(agentRun: IngestAgentRun): string | undefined {
+	const normalizedAgentRun = ensureAgentRunMessages(agentRun);
+	const assistant = normalizedAgentRun.messages.find(
+		(message) => message.role === "assistant",
+	);
+	if (!assistant) return undefined;
+
+	for (let index = assistant.parts.length - 1; index >= 0; index -= 1) {
+		const part = assistant.parts[index];
+		if (part.type === "tool-call") {
+			return part.id;
+		}
+	}
+
+	return undefined;
+}
+
+function createToolCallId(
+	agentRun: IngestAgentRun,
+	event: IngestAgentEvent,
+): string {
+	const meta = event.meta as Record<string, unknown> | undefined;
+	const candidate = meta?.toolCallId ?? meta?.id;
+	if (typeof candidate === "string" && candidate.length > 0) {
+		return candidate;
+	}
+
+	const existingCount = ensureAgentRunMessages(agentRun)
+		.messages.find((message) => message.role === "assistant")
+		?.parts.filter((part) => part.type === "tool-call").length;
+
+	return `${agentRun.id}:tool-call:${existingCount ?? 0}`;
+}
+
+function createToolCallPart(
+	agentRun: IngestAgentRun,
+	event: IngestAgentEvent,
+): AssistantToolCallPart {
+	return {
+		type: "tool-call",
+		id: createToolCallId(agentRun, event),
+		name: typeof event.name === "string" ? event.name : "unknown_tool",
+		arguments:
+			typeof event.arguments === "string"
+				? event.arguments
+				: safeJsonString(event.input ?? {}),
+		input: event.input,
+		output: event.output,
+		state: normalizeToolCallState(event.state),
+	};
+}
+
+function createToolResultPart(
+	agentRun: IngestAgentRun,
+	event: IngestAgentEvent,
+): AssistantToolResultPart {
+	const meta = event.meta as Record<string, unknown> | undefined;
+	const candidate = meta?.toolCallId;
+	const toolCallId =
+		typeof candidate === "string" && candidate.length > 0
+			? candidate
+			: (readLatestToolCallId(agentRun) ?? `${agentRun.id}:tool-call:0`);
+
+	return {
+		type: "tool-result",
+		toolCallId,
+		content: safeJsonString(event.content ?? event.output ?? ""),
+		state: normalizeToolResultState(event.state),
+		error: typeof event.error === "string" ? event.error : undefined,
+	};
+}
+
+function appendAssistantPart(
+	agentRun: IngestAgentRun,
+	part: AssistantToolCallPart | AssistantToolResultPart,
+): IngestAgentRun {
+	return withAssistantMessage(agentRun, (message) => ({
+		...message,
+		parts: [...ensureTextPart(message, ""), part],
+	}));
+}
+
+export function appendToolCallToAgentRun(
+	job: IngestJob,
+	event: IngestAgentEvent,
+): IngestJob {
+	if (!event.agentRunId) return job;
+	const existingIndex = job.agentRuns.findIndex(
+		(agentRun) => agentRun.id === event.agentRunId,
+	);
+	if (existingIndex === -1) return job;
+
+	const nextAgentRuns = [...job.agentRuns];
+	nextAgentRuns[existingIndex] = appendAssistantPart(
+		nextAgentRuns[existingIndex],
+		createToolCallPart(nextAgentRuns[existingIndex], event),
+	);
+
+	return {
+		...job,
+		agentRuns: nextAgentRuns,
+	};
+}
+
+export function appendToolResultToAgentRun(
+	job: IngestJob,
+	event: IngestAgentEvent,
+): IngestJob {
+	if (!event.agentRunId) return job;
+	const existingIndex = job.agentRuns.findIndex(
+		(agentRun) => agentRun.id === event.agentRunId,
+	);
+	if (existingIndex === -1) return job;
+
+	const nextAgentRuns = [...job.agentRuns];
+	nextAgentRuns[existingIndex] = appendAssistantPart(
+		nextAgentRuns[existingIndex],
+		createToolResultPart(nextAgentRuns[existingIndex], event),
+	);
+
+	return {
+		...job,
+		agentRuns: nextAgentRuns,
+	};
+}
+
 export function extractTokenTotals(value: unknown): TokenTotals | null {
 	if (typeof value !== "object" || value === null) return null;
 	const tokenValue = value as Record<string, unknown>;
@@ -200,6 +546,9 @@ export function upsertAgentRun(
 
 	if (existingIndex === -1) {
 		const tokenTotals = extractTokenTotals(event.tokens) ?? createEmptyTotals();
+		const systemPrompt = event.systemPrompt ?? "";
+		const userPrompt = event.userPrompt ?? "";
+		const outputText = event.rawText ?? "";
 		return {
 			...job,
 			agentRuns: [
@@ -210,9 +559,15 @@ export function upsertAgentRun(
 					label: event.label,
 					status,
 					timestamp,
-					systemPrompt: event.systemPrompt ?? "",
-					userPrompt: event.userPrompt ?? "",
-					outputText: event.rawText ?? "",
+					messages: createAgentMessages(
+						event.agentRunId,
+						systemPrompt,
+						userPrompt,
+						outputText,
+					),
+					systemPrompt,
+					userPrompt,
+					outputText,
 					rawOutput: event.finalObject ?? event.rawText ?? null,
 					error: event.error ?? null,
 					warnings: event.warning ? [event.warning] : [],
@@ -224,9 +579,13 @@ export function upsertAgentRun(
 	}
 
 	const nextAgentRuns = [...job.agentRuns];
-	const existing = nextAgentRuns[existingIndex];
+	const existing = ensureAgentRunMessages(nextAgentRuns[existingIndex]);
 	const tokenTotals = extractTokenTotals(event.tokens);
-	nextAgentRuns[existingIndex] = {
+	const nextOutputText =
+		existing.outputText.length > 0
+			? existing.outputText
+			: (event.rawText ?? existing.outputText);
+	nextAgentRuns[existingIndex] = syncPromptsIntoMessages({
 		...existing,
 		stageId: event.stageId,
 		label: event.label,
@@ -234,10 +593,7 @@ export function upsertAgentRun(
 		timestamp,
 		systemPrompt: event.systemPrompt ?? existing.systemPrompt,
 		userPrompt: event.userPrompt ?? existing.userPrompt,
-		outputText:
-			existing.outputText.length > 0
-				? existing.outputText
-				: (event.rawText ?? existing.outputText),
+		outputText: nextOutputText,
 		rawOutput: event.finalObject ?? event.rawText ?? existing.rawOutput,
 		error: event.error ?? existing.error,
 		warnings: event.warning
@@ -245,7 +601,7 @@ export function upsertAgentRun(
 			: existing.warnings,
 		tokenTotals: tokenTotals ?? existing.tokenTotals,
 		meta: event.meta ?? existing.meta,
-	};
+	});
 
 	return {
 		...job,
@@ -332,10 +688,14 @@ export function appendChunkToAgentRun(
 	if (existingIndex === -1) return job;
 
 	const nextAgentRuns = [...job.agentRuns];
-	nextAgentRuns[existingIndex] = {
-		...nextAgentRuns[existingIndex],
-		outputText: `${nextAgentRuns[existingIndex].outputText}${chunk}`,
-	};
+	const nextAgentRun = ensureAgentRunMessages(nextAgentRuns[existingIndex]);
+	nextAgentRuns[existingIndex] = appendAssistantTextMessage(
+		{
+			...nextAgentRun,
+			outputText: `${nextAgentRun.outputText}${chunk}`,
+		},
+		chunk,
+	);
 
 	return {
 		...job,

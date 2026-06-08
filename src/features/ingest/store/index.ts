@@ -5,8 +5,12 @@ export {
 	focusJob,
 } from "./actions";
 export {
+	appendChunkToAgentRun,
+	appendToolCallToAgentRun,
+	appendToolResultToAgentRun,
 	applyTokenEvent,
 	applyWarningEvent,
+	ensureAgentRunMessages,
 	syncJobTokenTotals,
 	upsertAgentRun,
 } from "./job-utils";
