@@ -1,3 +1,5 @@
+import type { UIMessage } from "@tanstack/ai-client";
+
 export interface IngestTokenTotals {
 	prompt: number;
 	completion: number;
@@ -66,6 +68,7 @@ export interface IngestAgentRunViewModel {
 	systemPrompt?: string;
 	userPrompt?: string;
 	response?: string;
+	messages: UIMessage[];
 	tokens?: Partial<IngestTokenTotals>;
 	error?: string | null;
 	raw?: {
