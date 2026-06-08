@@ -11,7 +11,23 @@ export type AgentRunStatus =
 	| "done"
 	| "error"
 	| "skipped";
-export type AgentRunEventType = "lifecycle" | "result" | "warning" | "token";
+export type ToolEventState =
+	| "awaiting-input"
+	| "input-streaming"
+	| "input-complete"
+	| "approval-requested"
+	| "approval-responded"
+	| "streaming"
+	| "complete"
+	| "completed"
+	| "error";
+export type AgentRunEventType =
+	| "lifecycle"
+	| "result"
+	| "warning"
+	| "token"
+	| "tool-call"
+	| "tool-result";
 
 export interface AgentRunDescriptor {
 	stageId: string;
@@ -32,6 +48,12 @@ export interface AgentRunEvent {
 	error?: string;
 	warning?: string;
 	tokens?: unknown;
+	state?: ToolEventState;
+	name?: string;
+	arguments?: string;
+	input?: unknown;
+	output?: unknown;
+	content?: unknown;
 	meta?: Record<string, unknown>;
 }
 
@@ -139,6 +161,44 @@ export function createAgentRunHelpers(
 				agentRunId: run.agentRunId,
 				label: run.label,
 				tokens,
+				meta,
+			});
+		},
+		toolCall(
+			run: AgentRunDescriptor,
+			tool: {
+				name?: string;
+				arguments?: string;
+				input?: unknown;
+				output?: unknown;
+				state?: ToolEventState;
+			},
+			meta?: Record<string, unknown>,
+		) {
+			sendAgentRun({
+				eventType: "tool-call",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				...tool,
+				meta,
+			});
+		},
+		toolResult(
+			run: AgentRunDescriptor,
+			result: {
+				content?: unknown;
+				error?: string;
+				state?: ToolEventState;
+			},
+			meta?: Record<string, unknown>,
+		) {
+			sendAgentRun({
+				eventType: "tool-result",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				...result,
 				meta,
 			});
 		},

@@ -15,19 +15,9 @@ export function extractTextFromBytes(bytes: Uint8Array): string {
 export function buildExtractionUserPrompt(text: string): string {
 	return `
     Extract all exam questions from the following text.
-    Return ONLY a valid JSON object with this exact structure:
-    {
-      "questions": [
-        {
-          "question": "the question text",
-          "options": ["option a", "option b", "option c", "option d"],
-          "answer": "the correct answer text",
-          "explanation": "",
-          "topic": "subject/topic name"
-        }
-      ],
-      "topics": ["list", "of", "unique", "topics"]
-    }
+    For each question you find, call add_extracted_question with the best available question text, options, answer, and topic.
+    If you need to correct an earlier question, call update_extracted_question using its questionId.
+    If the source text does not contain any valid question, finish without inventing one.
 
     Text to extract from:
     ${text}

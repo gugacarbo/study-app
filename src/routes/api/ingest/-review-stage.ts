@@ -9,7 +9,9 @@ interface RunReviewStageParams {
 	text: string;
 	extracted: ExamIngestResponse;
 	criticalTopics: string[];
-	tools?: never;
+	tools?: NonNullable<
+		Parameters<typeof import("@/features/ai/core/generate").generateJson>[3]
+	>["tools"];
 	agentRuns: {
 		createRun(stageId: string, label: string): AgentRunDescriptor;
 		lifecycle(
@@ -20,6 +22,37 @@ interface RunReviewStageParams {
 		warning(
 			run: AgentRunDescriptor,
 			warning: string,
+			meta?: Record<string, unknown>,
+		): void;
+		result(
+			run: AgentRunDescriptor,
+			finalObject: unknown,
+			rawText?: string,
+			meta?: Record<string, unknown>,
+		): void;
+		token(
+			run: AgentRunDescriptor,
+			tokens: unknown,
+			meta?: Record<string, unknown>,
+		): void;
+		toolCall(
+			run: AgentRunDescriptor,
+			tool: {
+				name?: string;
+				arguments?: string;
+				input?: unknown;
+				output?: unknown;
+				state?: string;
+			},
+			meta?: Record<string, unknown>,
+		): void;
+		toolResult(
+			run: AgentRunDescriptor,
+			result: {
+				content?: unknown;
+				error?: string;
+				state?: string;
+			},
 			meta?: Record<string, unknown>,
 		): void;
 	};
@@ -42,6 +75,7 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 		text,
 		extracted,
 		criticalTopics,
+		tools,
 		agentRuns,
 		send,
 		log,
@@ -71,6 +105,7 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 			extracted,
 			{
 				reviewTopics: criticalTopics,
+				tools,
 				onEvent: (event) => {
 					if (event.type === "warning") {
 						send("warning", { message: event.message });
@@ -79,7 +114,67 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 					send("progress", { step: event.message });
 				},
 				onAgentEvent: (event) => {
-					send("agent", { ...event, timestamp: Date.now() });
+					const run = {
+						stageId: event.stageId,
+						agentRunId: event.agentRunId,
+						label: event.label,
+					};
+					const meta = event.meta;
+
+					if (event.eventType === "lifecycle") {
+						agentRuns.lifecycle(run, normalizeAgentStatus(event.status), {
+							systemPrompt: event.systemPrompt,
+							userPrompt: event.userPrompt,
+							rawText: event.rawText,
+							finalObject: event.finalObject,
+							error: event.error,
+							warning: event.warning,
+							meta,
+						});
+						return;
+					}
+
+					if (event.eventType === "warning" && event.warning) {
+						agentRuns.warning(run, event.warning, meta);
+						return;
+					}
+
+					if (event.eventType === "result") {
+						agentRuns.result(run, event.finalObject, event.rawText, meta);
+						return;
+					}
+
+					if (event.eventType === "token" && event.tokens) {
+						agentRuns.token(run, event.tokens, meta);
+						return;
+					}
+
+					if (event.eventType === "tool-call") {
+						agentRuns.toolCall(
+							run,
+							{
+								name: event.name,
+								arguments: event.arguments,
+								input: event.input,
+								output: event.output,
+								state: event.state,
+							},
+							meta,
+						);
+						return;
+					}
+
+					if (event.eventType === "tool-result") {
+						agentRuns.toolResult(
+							run,
+							{
+								content: event.content,
+								error: event.error,
+								state: event.state,
+							},
+							meta,
+						);
+					}
 				},
 				createAgentRunId: (label) =>
 					agentRuns.createRun("review", label).agentRunId,
@@ -113,4 +208,14 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 		});
 		throw err;
 	}
+}
+
+function normalizeAgentStatus(status?: string): AgentRunStatus {
+	return status === "pending" ||
+		status === "running" ||
+		status === "done" ||
+		status === "error" ||
+		status === "skipped"
+		? status
+		: "running";
 }

@@ -40,7 +40,7 @@ export async function runIngestWithProgress(
 	const queries = new DBQueries(db);
 	const log = createIngestLogger("ingest-pipeline", db);
 
-	const { criticalTopics } = await setupMemory({
+	const { criticalTopics, webTools } = await setupMemory({
 		db,
 		queries,
 		providerConfig: payload.config,
@@ -113,6 +113,7 @@ export async function runIngestWithProgress(
 		text,
 		extracted: finalExtracted,
 		criticalTopics,
+		tools: webTools,
 		agentRuns,
 		send,
 		log,
