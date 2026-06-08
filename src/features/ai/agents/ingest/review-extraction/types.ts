@@ -1,3 +1,4 @@
+import type { IngestAgentEvent } from "@/lib/sse-stream";
 import type { ExamIngestResponse } from "@/lib/validation";
 
 export interface IngestReviewEvent {
@@ -5,24 +6,9 @@ export interface IngestReviewEvent {
 	message: string;
 }
 
-type AgentRunStatus = "pending" | "running" | "done" | "error" | "skipped";
-type AgentRunEventType = "lifecycle" | "result" | "warning" | "token";
-
-export interface IngestReviewAgentEvent {
-	eventType: AgentRunEventType;
+export type IngestReviewAgentEvent = IngestAgentEvent & {
 	stageId: "review";
-	agentRunId: string;
-	label: string;
-	status?: AgentRunStatus;
-	systemPrompt?: string;
-	userPrompt?: string;
-	rawText?: string;
-	finalObject?: unknown;
-	error?: string;
-	warning?: string;
-	tokens?: unknown;
-	meta?: Record<string, unknown>;
-}
+};
 
 export interface IngestReviewResult {
 	extracted: ExamIngestResponse;

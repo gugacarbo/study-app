@@ -1,4 +1,5 @@
-import { generateJson } from "@/features/ai/core/generate";
+import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
+import { generateJsonStream } from "@/features/ai/core/generate";
 import type { ProviderConfig, Question } from "@/lib/validation";
 import { ingestQuestionSchema } from "@/lib/validation";
 import { emitAgentEvent } from "./execute-helpers";
@@ -23,6 +24,7 @@ export async function reviewSingleQuestion(
 		options.createAgentRunId?.(label) ?? `review-question-${index + 1}`;
 	const systemPrompt = buildReviewerSystemPrompt(options.reviewTopics);
 	const userPrompt = buildReviewerUserPrompt(sourceText, question, index);
+	let rawText = "";
 
 	emitAgentEvent(options, {
 		eventType: "lifecycle",
@@ -48,11 +50,67 @@ export async function reviewSingleQuestion(
 	});
 
 	try {
-		const reviewedQuestion = await generateJson<Question>(
+		const reviewedQuestion = await generateJsonStream<Question>(
 			config,
 			userPrompt,
 			reviewerQuestionSchema,
-			{ system: systemPrompt, tools: options.tools },
+			{
+				system: systemPrompt,
+				tools: options.tools,
+				onChunk: (
+					chunk: StreamChunk | StructuredOutputCompleteEvent<Question>,
+				) => {
+					if (isTextChunk(chunk) && chunk.delta) {
+						rawText += chunk.delta;
+					}
+
+					if ("usage" in chunk && chunk.usage) {
+						emitAgentEvent(options, {
+							eventType: "token",
+							stageId: "review",
+							agentRunId,
+							label,
+							tokens: chunk.usage,
+							meta: { questionIndex: index, questionNumber: index + 1 },
+						});
+					}
+
+					if (isToolCallEndChunk(chunk)) {
+						const toolMeta = {
+							questionIndex: index,
+							questionNumber: index + 1,
+							toolCallId:
+								typeof chunk.toolCallId === "string"
+									? chunk.toolCallId
+									: undefined,
+						};
+						const toolEvent = buildToolEvent(chunk);
+						emitAgentEvent(options, {
+							eventType: "tool-call",
+							stageId: "review",
+							agentRunId,
+							label,
+							name: toolEvent.name,
+							arguments: toolEvent.arguments,
+							input: toolEvent.input,
+							output: toolEvent.output,
+							state: "complete",
+							meta: toolMeta,
+						});
+						emitAgentEvent(options, {
+							eventType: "tool-result",
+							stageId: "review",
+							agentRunId,
+							label,
+							content: toolEvent.resultContent,
+							error: toolEvent.resultError,
+							state: toolEvent.resultError ? "error" : "complete",
+							meta: toolMeta,
+						});
+						rawText += buildToolResultLogLine(chunk);
+					}
+				},
+			},
 		);
 
 		emitAgentEvent(options, {
@@ -61,7 +119,7 @@ export async function reviewSingleQuestion(
 			agentRunId,
 			label,
 			finalObject: reviewedQuestion,
-			rawText: JSON.stringify(reviewedQuestion),
+			rawText,
 			meta: { questionIndex: index, questionNumber: index + 1 },
 		});
 		emitAgentEvent(options, {
@@ -103,4 +161,59 @@ export async function reviewSingleQuestion(
 
 		return { question, success: false, reason: message };
 	}
+}
+
+function isTextChunk(
+	chunk: StreamChunk | StructuredOutputCompleteEvent<Question>,
+): chunk is Extract<
+	StreamChunk,
+	{ type: "TEXT_MESSAGE_CONTENT"; delta: string }
+> {
+	return chunk.type === "TEXT_MESSAGE_CONTENT";
+}
+
+function isToolCallEndChunk(
+	chunk: StreamChunk | StructuredOutputCompleteEvent<Question>,
+): chunk is Extract<StreamChunk, { type: "TOOL_CALL_END" }> {
+	return chunk.type === "TOOL_CALL_END";
+}
+
+function buildToolEvent(
+	chunk: Extract<StreamChunk, { type: "TOOL_CALL_END" }>,
+) {
+	const toolName = chunk.toolCallName ?? chunk.toolName ?? "unknown_tool";
+	const input = chunk.input ?? {};
+	const result = chunk.result;
+
+	return {
+		name: toolName,
+		arguments: JSON.stringify(input),
+		input,
+		output: result,
+		resultContent: result,
+		resultError: readToolResultError(result),
+	};
+}
+
+function buildToolResultLogLine(
+	chunk: Extract<StreamChunk, { type: "TOOL_CALL_END" }>,
+) {
+	const toolEvent = buildToolEvent(chunk);
+	const result =
+		toolEvent.resultContent === undefined
+			? ""
+			: typeof toolEvent.resultContent === "string"
+				? toolEvent.resultContent
+				: JSON.stringify(toolEvent.resultContent);
+
+	return `\n[tool:${toolEvent.name}] input=${toolEvent.arguments}${result ? ` result=${result}` : ""}`;
+}
+
+function readToolResultError(result: unknown): string | undefined {
+	if (typeof result !== "object" || result === null) return undefined;
+	const errorValue = (result as { error?: unknown }).error;
+	if (typeof errorValue !== "object" || errorValue === null) return undefined;
+	return typeof (errorValue as { message?: unknown }).message === "string"
+		? (errorValue as { message: string }).message
+		: undefined;
 }
