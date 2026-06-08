@@ -1,7 +1,7 @@
-import type { UIMessage } from "@tanstack/ai-client";
-import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
+import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
+import { UserMessage } from "@/features/ai/components/chat/message/user-message";
 import { cn } from "@/lib/utils";
 import type {
 	IngestAgentRunViewModel,
@@ -92,36 +92,7 @@ export function stageStatusLabel(
 
 export function BubbleMessage({ bubble }: { bubble: ChatBubble }) {
 	const stateInfo = agentStateLabel(bubble.agentState);
-
-	const uiMessage: UIMessage = useMemo(
-		() => ({
-			id: bubble.id,
-			role: bubble.role,
-			parts: [{ type: "text", content: bubble.content }],
-		}),
-		[bubble.id, bubble.role, bubble.content],
-	);
-
-	if (bubble.role === "system") {
-		return (
-			<div className="flex flex-col gap-1">
-				<div className="flex items-center gap-2 px-1">
-					<span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">
-						{bubble.agentName}
-					</span>
-					<Badge
-						variant="secondary"
-						className={cn("text-[0.6rem]", stateInfo.className)}
-					>
-						{stateInfo.text}
-					</Badge>
-				</div>
-				<div className="rounded-md border border-amber-500/20 bg-amber-100 dark:bg-amber-500/10 px-3 py-2 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-foreground/80">
-					{bubble.content}
-				</div>
-			</div>
-		);
-	}
+	const isAssistant = bubble.message.role === "assistant";
 
 	return (
 		<div className="flex flex-col gap-1">
@@ -129,11 +100,23 @@ export function BubbleMessage({ bubble }: { bubble: ChatBubble }) {
 				<span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 					{bubble.agentName}
 				</span>
-				{bubble.role === "assistant" && bubble.isStreaming && (
+				<Badge
+					variant="secondary"
+					className={cn("text-[0.6rem]", stateInfo.className)}
+				>
+					{stateInfo.text}
+				</Badge>
+				{isAssistant && bubble.isStreaming && (
 					<span className="inline-block size-1.5 animate-pulse rounded-full bg-sky-500 dark:bg-sky-400" />
 				)}
 			</div>
-			<ChatMessage message={uiMessage} />
+			{bubble.message.role === "system" ? (
+				<SystemMessage message={bubble.message} />
+			) : bubble.message.role === "user" ? (
+				<UserMessage message={bubble.message} />
+			) : (
+				<ChatMessage message={bubble.message} />
+			)}
 		</div>
 	);
 }

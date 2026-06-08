@@ -1,3 +1,4 @@
+import type { UIMessage } from "@tanstack/ai-client";
 import type {
 	IngestAgentRunViewModel,
 	IngestPipelineStageViewModel,
@@ -9,8 +10,7 @@ export interface ChatBubble {
 	agentName: string;
 	agentState: IngestAgentRunViewModel["state"];
 	stageId: string;
-	role: "system" | "user" | "assistant";
-	content: string;
+	message: UIMessage;
 	isStreaming: boolean;
 }
 
@@ -33,56 +33,83 @@ export function buildChatBubbles(
 
 	for (const agent of sortedAgents) {
 		const isStreaming = agent.state === "running";
+		const messages = getAgentMessages(agent, isStreaming);
 
-		if (agent.systemPrompt) {
+		for (const message of messages) {
 			bubbles.push({
-				id: `${agent.id}-system`,
+				id: message.id,
 				agentRunId: agent.id,
 				agentName: agent.name,
 				agentState: agent.state,
 				stageId: agent.stageId,
-				role: "system",
-				content: agent.systemPrompt,
-				isStreaming: false,
-			});
-		}
-		if (agent.userPrompt) {
-			bubbles.push({
-				id: `${agent.id}-user`,
-				agentRunId: agent.id,
-				agentName: agent.name,
-				agentState: agent.state,
-				stageId: agent.stageId,
-				role: "user",
-				content: agent.userPrompt,
-				isStreaming: false,
-			});
-		}
-		if (agent.response || isStreaming) {
-			bubbles.push({
-				id: `${agent.id}-assistant`,
-				agentRunId: agent.id,
-				agentName: agent.name,
-				agentState: agent.state,
-				stageId: agent.stageId,
-				role: "assistant",
-				content: agent.response ?? "",
-				isStreaming,
-			});
-		}
-		if (agent.error) {
-			bubbles.push({
-				id: `${agent.id}-error`,
-				agentRunId: agent.id,
-				agentName: agent.name,
-				agentState: agent.state,
-				stageId: agent.stageId,
-				role: "system",
-				content: agent.error,
-				isStreaming: false,
+				message,
+				isStreaming: isStreaming && message.role === "assistant",
 			});
 		}
 	}
 
 	return bubbles;
+}
+
+function getAgentMessages(
+	agent: IngestAgentRunViewModel,
+	isStreaming: boolean,
+): UIMessage[] {
+	if (agent.messages?.length) {
+		return agent.messages;
+	}
+
+	const messages: UIMessage[] = [];
+
+	const systemMessage = createTextMessage(
+		`${agent.id}-system`,
+		"system",
+		agent.systemPrompt,
+	);
+	if (systemMessage) {
+		messages.push(systemMessage);
+	}
+
+	const userMessage = createTextMessage(
+		`${agent.id}-user`,
+		"user",
+		agent.userPrompt,
+	);
+	if (userMessage) {
+		messages.push(userMessage);
+	}
+
+	const assistantMessage = createTextMessage(
+		`${agent.id}-assistant`,
+		"assistant",
+		agent.response ?? (isStreaming ? "" : undefined),
+	);
+	if (assistantMessage) {
+		messages.push(assistantMessage);
+	}
+
+	const errorMessage = createTextMessage(
+		`${agent.id}-error`,
+		"system",
+		agent.error ?? undefined,
+	);
+	if (errorMessage) {
+		messages.push(errorMessage);
+	}
+
+	return messages;
+}
+
+function createTextMessage(
+	id: string,
+	role: UIMessage["role"],
+	content?: string,
+): UIMessage | null {
+	if (content == null) return null;
+
+	return {
+		id,
+		role,
+		parts: [{ type: "text", content }],
+	};
 }
