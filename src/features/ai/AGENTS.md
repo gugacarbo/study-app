@@ -1,6 +1,8 @@
 # AI Feature Module
 
-Domain-driven AI integration layer. 50+ files across 10 subdirectories.
+<!-- Last updated: 2026-06-08 -->
+
+Domain-driven AI integration layer. 60+ files across 12 subdirectories.
 
 ## Structure
 
@@ -15,7 +17,8 @@ features/ai/
 ├── core/            # Core generation + chat streaming
 ├── adapters/        # Provider adapter factory
 ├── providers/       # Web search/content providers (Tavily)
-├── tools/           # Tool registry, resolver, DB + web tools
+├── tools/           # Tool registry, resolver, DB + web, ingest extraction tools
+│   ├── ingest-tools/ # Ingest extraction workspace + tools (add_extracted_question, update_extracted_question)
 ├── components/      # AI-related UI (chat, config, exam-detail)
 ├── hooks/           # AI-specific hooks (chat client, auto-title)
 ├── stores/          # Chat + conversations stores (TanStack Store)
@@ -29,7 +32,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | Agent | Purpose | Tools Used |
 |-------|---------|------------|
 | `chat/` | Conversational AI assistant | DB tools, web tools |
-| `ingest/` | PDF → structured questions extraction | DB tools |
+| `ingest/` | PDF → structured questions extraction (tool-based via workspace) | DB tools, ingest extraction tools |
 | `explanations/` | Batch deep explanations for questions | DB tools |
 | `quiz/` | Question generation from topics | DB tools |
 | `reviewer/` | Critical-topic verification with web research | Web tools (search, fetch) |
@@ -41,6 +44,10 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`db-tools.ts`** — Database query tools (exposed to agents via MCP-like interface)
 - **`web-tools.ts`** — Web search + content fetch tools (Tavily provider)
 - **`reviewer-tool.ts`** — Specialized tool for reviewer agent
+- **`ingest-tools/`** — Ingest extraction workspace + tools (`add_extracted_question`, `update_extracted_question`)
+  - `workspace.ts` — Workspace implementation (question storage, lookup by ID)
+  - `tools.ts` — Tool definitions for AI function calling
+  - `shared.ts` — Shared types and validators
 
 ## Core
 

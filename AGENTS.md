@@ -1,7 +1,7 @@
 # Study App
 
-**Generated:** 2026-06-03
-**Commit:** 965592d
+**Generated:** 2026-06-08
+**Commit:** 582234a
 
 Single-user web app: upload past-exam PDFs → AI extracts questions → quiz mode → progress tracking. TanStack Start + Cloudflare Workers.
 
@@ -71,10 +71,13 @@ migrations/             # Drizzle Kit SQL migrations (0001-0012)
 | Add route / page | `src/routes/` (file-based naming) |
 | Add server fn | `src/server-functions/{domain}.ts` |
 | Modify AI agent prompt | `src/features/ai/agents/{agent}/prompt.ts` |
+| Add AI tool | `src/features/ai/tools/` |
 | Add shadcn component | `src/components/ui/` |
 | Modify ingest state | `src/features/ingest/store/{actions,types,utils}.ts` |
+| Modify ingest SSE | `src/features/ingest/store/job-utils.ts` |
 | Exam detail UI | `src/features/exams/components/detail/` |
 | Quiz UI + store | `src/features/quiz/components/` + `src/features/quiz/store/` |
+| Add/modify test | `tests/{domain}.test.ts` |
 
 ## Architecture
 
