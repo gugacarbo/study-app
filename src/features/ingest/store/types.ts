@@ -88,6 +88,7 @@ export interface IngestJob {
 	flowStages: FlowStage[];
 	buffer: number[];
 	enableReview: boolean;
+	enableExplanations: boolean;
 	rawStreamText: string;
 }
 

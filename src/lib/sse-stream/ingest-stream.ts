@@ -157,6 +157,7 @@ export async function ingestStream(
 		fileName: string;
 		config: ProviderConfig;
 		enableReview?: boolean;
+		enableExplanations?: boolean;
 		signal?: AbortSignal;
 	},
 	callbacks: IngestCallbacks,
@@ -169,6 +170,7 @@ export async function ingestStream(
 			fileName: payload.fileName,
 			config: payload.config,
 			enableReview: payload.enableReview ?? true,
+			enableExplanations: payload.enableExplanations ?? true,
 		}),
 		signal: payload.signal,
 	});

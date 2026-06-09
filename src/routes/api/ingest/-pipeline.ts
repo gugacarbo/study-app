@@ -8,6 +8,7 @@ import { extractTextFromBytes } from "./-extract-text";
 import { runExtractionPass } from "./-extraction-pass";
 import { setupMemory } from "./-memory-refinement";
 import { persistResults } from "./-persist";
+import { runExplanationsStage } from "./-explanations-stage";
 import { runReviewStage } from "./-review-stage";
 import { createAgentRunHelpers, sendStage } from "./-sse-emitter";
 
@@ -16,6 +17,7 @@ export const ingestRequestSchema = z.object({
 	fileName: z.string(),
 	config: providerConfigSchema,
 	enableReview: z.boolean().optional().default(true),
+	enableExplanations: z.boolean().optional().default(true),
 });
 
 export type IngestRequest = z.infer<typeof ingestRequestSchema>;
@@ -40,7 +42,7 @@ export async function runIngestWithProgress(
 	const queries = new DBQueries(db);
 	const log = createIngestLogger("ingest-pipeline", db);
 
-	const { criticalTopics, webTools } = await setupMemory({
+	const { memory, criticalTopics, webTools } = await setupMemory({
 		db,
 		queries,
 		providerConfig: payload.config,
@@ -121,6 +123,19 @@ export async function runIngestWithProgress(
 	assertNotAborted();
 
 	if (reviewResult) finalExtracted = reviewResult.extracted;
+
+	const explanationsResult = await runExplanationsStage({
+		enableExplanations: payload.enableExplanations,
+		config: payload.config,
+		extracted: finalExtracted,
+		memory,
+		agentRuns,
+		send,
+		log,
+	});
+	assertNotAborted();
+
+	if (explanationsResult) finalExtracted = explanationsResult;
 
 	onProgress("Saving to database...");
 	const { examId, fileId } = await persistResults({

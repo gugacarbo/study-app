@@ -28,6 +28,7 @@ export function createEmptyJob(
 	fileName: string,
 	buffer: number[],
 	enableReview: boolean,
+	enableExplanations = true,
 ): IngestJob {
 	return {
 		id,
@@ -48,6 +49,7 @@ export function createEmptyJob(
 		flowStages: [],
 		buffer,
 		enableReview,
+		enableExplanations,
 		rawStreamText: "",
 	};
 }

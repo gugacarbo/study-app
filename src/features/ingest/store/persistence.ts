@@ -86,7 +86,13 @@ function hydratePersistedJob(job: unknown): IngestJob | null {
 	}
 
 	const hydratedJob: IngestJob = {
-		...createEmptyJob(job.id, job.fileName, [], job.enableReview ?? true),
+		...createEmptyJob(
+			job.id,
+			job.fileName,
+			[],
+			job.enableReview ?? true,
+			job.enableExplanations ?? true,
+		),
 		...job,
 		buffer: [],
 		agentRuns: Array.isArray(job.agentRuns)

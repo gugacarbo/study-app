@@ -7,13 +7,18 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 interface UploadCardProps {
-	onUpload: (file: File, enableReview: boolean) => void;
+	onUpload: (
+		file: File,
+		enableReview: boolean,
+		enableExplanations: boolean,
+	) => void;
 }
 
 export function UploadCard({ onUpload }: UploadCardProps) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [enableReview, setEnableReview] = useState(true);
+	const [enableExplanations, setEnableExplanations] = useState(true);
 
 	function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
 		const file = e.target.files?.[0] ?? null;
@@ -22,7 +27,7 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 
 	function handleUpload() {
 		if (!selectedFile) return;
-		onUpload(selectedFile, enableReview);
+		onUpload(selectedFile, enableReview, enableExplanations);
 		setSelectedFile(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
@@ -62,6 +67,16 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 						id="ingest-review-toggle"
 						checked={enableReview}
 						onCheckedChange={setEnableReview}
+					/>
+				</div>
+				<div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2">
+					<Label htmlFor="ingest-explanations-toggle" className="text-xs">
+						Com explicacoes
+					</Label>
+					<Switch
+						id="ingest-explanations-toggle"
+						checked={enableExplanations}
+						onCheckedChange={setEnableExplanations}
 					/>
 				</div>
 				<Button

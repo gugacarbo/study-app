@@ -17,9 +17,18 @@ export function useUpload() {
 		return job ? toIngestJobViewModel(job) : null;
 	}, [focusedJobId, jobs]);
 
-	async function handleUpload(file: File, enableReview: boolean) {
+	async function handleUpload(
+		file: File,
+		enableReview: boolean,
+		enableExplanations: boolean,
+	) {
 		const buffer = await file.arrayBuffer();
-		enqueueIngest(file.name, Array.from(new Uint8Array(buffer)), enableReview);
+		enqueueIngest(
+			file.name,
+			Array.from(new Uint8Array(buffer)),
+			enableReview,
+			enableExplanations,
+		);
 	}
 
 	function handleStageClick(stageId: string) {

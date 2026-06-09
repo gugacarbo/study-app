@@ -29,6 +29,7 @@ function createJob(overrides?: Partial<IngestJob>): IngestJob {
 		],
 		buffer: [],
 		enableReview: true,
+		enableExplanations: false,
 		rawStreamText: "",
 		...overrides,
 	};

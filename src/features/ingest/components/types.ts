@@ -86,6 +86,7 @@ export interface IngestJobViewModel {
 	fileName: string;
 	status: "queued" | "running" | "success" | "error" | "canceled";
 	enableReview: boolean;
+	enableExplanations: boolean;
 	tokenTotals: IngestTokenTotals;
 	outputEntries: IngestOutputEntry[];
 	rawOutput: string;

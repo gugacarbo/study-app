@@ -40,6 +40,7 @@ function createJob(overrides?: Partial<IngestJob>): IngestJob {
 		flowStages: [],
 		buffer: [],
 		enableReview: true,
+		enableExplanations: false,
 		rawStreamText: "",
 		...overrides,
 	};

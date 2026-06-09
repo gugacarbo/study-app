@@ -96,6 +96,7 @@ async function runJob(jobId: string) {
 				fileName: currentJob.fileName,
 				config,
 				enableReview: currentJob.enableReview,
+				enableExplanations: currentJob.enableExplanations,
 				signal: controller.signal,
 			},
 			{
@@ -269,9 +270,16 @@ export function enqueueIngest(
 	fileName: string,
 	buffer: number[],
 	enableReview: boolean = true,
+	enableExplanations: boolean = true,
 ): string {
 	const id = generateId();
-	const job = createEmptyJob(id, fileName, buffer, enableReview);
+	const job = createEmptyJob(
+		id,
+		fileName,
+		buffer,
+		enableReview,
+		enableExplanations,
+	);
 
 	ingestStore.setState((state) => {
 		const updatedJobs = trimCompletedJobs([...state.jobs, job]);

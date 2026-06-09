@@ -22,7 +22,7 @@ export function OutputPanelAgentRuns({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-3">
-			<div className="max-h-52 overflow-y-auto rounded-md border border-border bg-muted p-2">
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-md border border-border bg-muted p-2">
 				<div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-foreground/80">
 					<Sparkles className="size-3.5 text-sky-500 dark:text-sky-300" />
 					Agents

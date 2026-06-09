@@ -35,6 +35,7 @@ export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 		fileName: job.fileName,
 		status: job.status,
 		enableReview: job.enableReview,
+		enableExplanations: job.enableExplanations,
 		tokenTotals: normalizeTokenTotals(job.tokenTotals),
 		outputEntries,
 		rawOutput:
