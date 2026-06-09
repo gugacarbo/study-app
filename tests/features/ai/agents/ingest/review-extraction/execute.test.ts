@@ -63,7 +63,7 @@ describe("reviewExtraction", () => {
 		reviewSingleQuestionMock.mockReset();
 	});
 
-	it("aborts without retries when every reviewer fails on the first batch", async () => {
+	it("aborts without retries when every reviewer fails on the first cycle", async () => {
 		reviewSingleQuestionMock.mockImplementation(async (_config, _text, _question, index) =>
 			failureResult(index),
 		);
@@ -79,13 +79,13 @@ describe("reviewExtraction", () => {
 				{ reviewTopics: ["General"] },
 			),
 		).rejects.toThrow(
-			"All 2 reviewers failed on the first batch. Aborting review.",
+			"All 2 reviewers failed on the first cycle. Aborting review.",
 		);
 
 		expect(reviewSingleQuestionMock).toHaveBeenCalledTimes(2);
 	});
 
-	it("retries failed reviews up to MAX_REVIEW_ATTEMPTS when the first batch is not all failures", async () => {
+	it("retries failed reviews up to MAX_REVIEW_ATTEMPTS when the first cycle is not all failures", async () => {
 		const attemptsByIndex = new Map<number, number>();
 
 		reviewSingleQuestionMock.mockImplementation(async (_config, _text, _question, index) => {
@@ -148,14 +148,14 @@ describe("reviewExtraction", () => {
 		expect(reviewSingleQuestionMock).toHaveBeenCalledTimes(1 + MAX_REVIEW_ATTEMPTS);
 	});
 
-	it("processes later batches without the all-fail abort rule", async () => {
-		const batchTwoStart = REVIEW_CONCURRENCY;
+	it("retries questions that fail later in the cycle without aborting", async () => {
+		const failingStart = REVIEW_CONCURRENCY;
 		const questions = Array.from({ length: REVIEW_CONCURRENCY + 2 }, (_, index) =>
 			makeQuestion(index),
 		);
 
 		reviewSingleQuestionMock.mockImplementation(async (_config, _text, _question, index) => {
-			if (index >= batchTwoStart) {
+			if (index >= failingStart) {
 				return failureResult(index);
 			}
 			return successResult(index);

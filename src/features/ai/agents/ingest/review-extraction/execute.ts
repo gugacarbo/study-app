@@ -1,4 +1,5 @@
 import type { ExamIngestResponse, ProviderConfig, Question } from "@/lib/validation";
+import { mapWithConcurrency } from "./execute-helpers";
 import { deriveTopics } from "./prompt";
 import { reviewSingleQuestion } from "./review-question";
 import type { IngestReviewResult, ReviewExtractionOptions } from "./types";
@@ -79,69 +80,58 @@ async function reviewAllQuestionsWithRetries(
 	options: ReviewExtractionOptions,
 ): Promise<QuestionReviewResult[]> {
 	const totalQuestions = questions.length;
-	const results: QuestionReviewResult[] = new Array(totalQuestions);
 
-	for (
-		let batchStart = 0;
-		batchStart < totalQuestions;
-		batchStart += REVIEW_CONCURRENCY
-	) {
-		const batchEnd = Math.min(batchStart + REVIEW_CONCURRENCY, totalQuestions);
-		const batchSize = batchEnd - batchStart;
-		const isFirstBatch = batchStart === 0;
+	let results = await mapWithConcurrency(
+		questions,
+		REVIEW_CONCURRENCY,
+		(question, index) =>
+			reviewSingleQuestion(
+				config,
+				sourceText,
+				question,
+				index,
+				totalQuestions,
+				options,
+			),
+	);
 
-		let batchResults = await Promise.all(
-			Array.from({ length: batchSize }, (_, offset) => {
-				const index = batchStart + offset;
-				return reviewSingleQuestion(
+	if (results.every((result) => !result.success)) {
+		throw new Error(
+			`All ${totalQuestions} reviewer${totalQuestions === 1 ? "" : "s"} failed on the first cycle. Aborting review.`,
+		);
+	}
+
+	for (let attempt = 2; attempt <= MAX_REVIEW_ATTEMPTS; attempt++) {
+		const failedIndices = results
+			.map((result, index) => (!result.success ? index : -1))
+			.filter((index) => index >= 0);
+
+		if (failedIndices.length === 0) {
+			break;
+		}
+
+		options.onEvent?.({
+			type: "step",
+			message: `Retrying ${failedIndices.length} failed review${failedIndices.length === 1 ? "" : "s"} (attempt ${attempt}/${MAX_REVIEW_ATTEMPTS})...`,
+		});
+
+		const retryOptions = reviewOptionsForAttempt(options, attempt);
+		const retryResults = await mapWithConcurrency(
+			failedIndices,
+			REVIEW_CONCURRENCY,
+			(index) =>
+				reviewSingleQuestion(
 					config,
 					sourceText,
 					questions[index],
 					index,
 					totalQuestions,
-					options,
-				);
-			}),
+					retryOptions,
+				),
 		);
 
-		if (isFirstBatch && batchResults.every((result) => !result.success)) {
-			throw new Error(
-				`All ${batchSize} reviewer${batchSize === 1 ? "" : "s"} failed on the first batch. Aborting review.`,
-			);
-		}
-
-		for (let attempt = 2; attempt <= MAX_REVIEW_ATTEMPTS; attempt++) {
-			const failedLocalIndices = batchResults
-				.map((result, localIndex) => (!result.success ? localIndex : -1))
-				.filter((localIndex) => localIndex >= 0);
-
-			if (failedLocalIndices.length === 0) {
-				break;
-			}
-
-			options.onEvent?.({
-				type: "step",
-				message: `Retrying ${failedLocalIndices.length} failed review${failedLocalIndices.length === 1 ? "" : "s"} (attempt ${attempt}/${MAX_REVIEW_ATTEMPTS})...`,
-			});
-
-			const retryOptions = reviewOptionsForAttempt(options, attempt);
-			await Promise.all(
-				failedLocalIndices.map(async (localIndex) => {
-					const index = batchStart + localIndex;
-					batchResults[localIndex] = await reviewSingleQuestion(
-						config,
-						sourceText,
-						questions[index],
-						index,
-						totalQuestions,
-						retryOptions,
-					);
-				}),
-			);
-		}
-
-		for (let offset = 0; offset < batchSize; offset++) {
-			results[batchStart + offset] = batchResults[offset];
+		for (let i = 0; i < failedIndices.length; i++) {
+			results[failedIndices[i]] = retryResults[i];
 		}
 	}
 
