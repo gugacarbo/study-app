@@ -175,6 +175,7 @@ export async function ingestStream(
 		config: ProviderConfig;
 		enableReview?: boolean;
 		enableExplanations?: boolean;
+		agentConcurrency?: number;
 		signal?: AbortSignal;
 	},
 	callbacks: IngestCallbacks,
@@ -188,6 +189,7 @@ export async function ingestStream(
 			config: payload.config,
 			enableReview: payload.enableReview ?? true,
 			enableExplanations: payload.enableExplanations ?? true,
+			agentConcurrency: payload.agentConcurrency ?? 10,
 		}),
 		signal: payload.signal,
 	});

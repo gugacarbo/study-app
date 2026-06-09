@@ -181,6 +181,52 @@ describe("createIncrementalToolEventMiddleware", () => {
 		]);
 	});
 
+	it("upgrades a partial list result when a richer payload arrives later", () => {
+		const state = createAgentStreamState();
+		const emitted: unknown[] = [];
+		const emitToolResult = createToolResultEmitter((payload) => {
+			emitted.push(payload);
+		}, state);
+
+		emitToolResult({
+			toolCallId: "tc-list",
+			content: {
+				ok: true,
+				totalQuestions: 1,
+				data: [{ questionId: "q1", question: "Q1" }],
+			},
+			state: "complete",
+		});
+		emitToolResult({
+			toolCallId: "tc-list",
+			content: {
+				ok: true,
+				totalQuestions: 3,
+				data: [
+					{ questionId: "q1", question: "Q1" },
+					{ questionId: "q2", question: "Q2" },
+					{ questionId: "q3", question: "Q3" },
+				],
+			},
+			state: "complete",
+		});
+
+		expect(emitted).toHaveLength(2);
+		expect(emitted[1]).toEqual({
+			toolCallId: "tc-list",
+			content: {
+				ok: true,
+				totalQuestions: 3,
+				data: [
+					{ questionId: "q1", question: "Q1" },
+					{ questionId: "q2", question: "Q2" },
+					{ questionId: "q3", question: "Q3" },
+				],
+			},
+			state: "complete",
+		});
+	});
+
 	it("forwards middleware tool results through createToolResultEmitter without dropping payload", () => {
 		const state = createAgentStreamState();
 		const emitted: unknown[] = [];

@@ -50,5 +50,38 @@ describe("buildReviewerUserPrompt", () => {
 		expect(prompt).toContain("Derivada de x^2?");
 		expect(prompt).not.toContain("intro intro intro");
 		expect(prompt).not.toContain('"options":["2x","x"]');
+		expect(prompt).toContain("Extracted question snapshot:");
+		expect(prompt).toContain("Stem: Derivada de x^2?");
+	});
+
+	it("includes distinct question snapshots when the source excerpt is missing", () => {
+		const sourceText = "Prova sem correspondencia";
+
+		const promptA = buildReviewerUserPrompt(
+			sourceText,
+			{
+				question: "Pergunta A?",
+				options: ["1", "2"],
+				answer: "1",
+				explanation: "",
+				topic: "Topico A",
+			},
+			0,
+		);
+		const promptB = buildReviewerUserPrompt(
+			sourceText,
+			{
+				question: "Pergunta B totalmente diferente?",
+				options: ["x", "y"],
+				answer: "x",
+				explanation: "",
+				topic: "Topico B",
+			},
+			1,
+		);
+
+		expect(promptA).toContain("Stem: Pergunta A?");
+		expect(promptB).toContain("Stem: Pergunta B totalmente diferente?");
+		expect(promptA).not.toEqual(promptB);
 	});
 });

@@ -39,6 +39,7 @@ export interface AgentStreamState {
 	toolCalls: Map<string, TrackedToolCall>;
 	loggedToolCallIds: Set<string>;
 	emittedToolResultIds: Set<string>;
+	emittedToolResultScores: Map<string, number>;
 	rawText: string;
 }
 
@@ -47,8 +48,86 @@ export function createAgentStreamState(): AgentStreamState {
 		toolCalls: new Map(),
 		loggedToolCallIds: new Set(),
 		emittedToolResultIds: new Set(),
+		emittedToolResultScores: new Map(),
 		rawText: "",
 	};
+}
+
+function normalizeToolResultContent(content: unknown): unknown {
+	if (typeof content === "string") {
+		return tryParseJson(content) ?? content;
+	}
+	return content;
+}
+
+export function scoreToolResultContent(content: unknown): number {
+	if (content === undefined || content === null) return 0;
+
+	const parsed = normalizeToolResultContent(content);
+	if (typeof parsed === "string") {
+		const trimmed = parsed.trim();
+		return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]"
+			? trimmed.length
+			: 0;
+	}
+
+	if (typeof parsed !== "object" || parsed === null) return 0;
+
+	const record = parsed as Record<string, unknown>;
+	if (record.ok === false) {
+		return 0;
+	}
+	if (Array.isArray(record.data)) {
+		return 10_000 + record.data.length;
+	}
+	if (typeof record.totalQuestions === "number") {
+		return 5_000 + record.totalQuestions;
+	}
+	if (record.ok === true) {
+		return 1_000;
+	}
+
+	try {
+		return JSON.stringify(record).length;
+	} catch {
+		return 1;
+	}
+}
+
+export function pickRicherToolResultContent(
+	existing: string,
+	incoming: string,
+): string {
+	const existingScore = scoreToolResultContent(existing);
+	const incomingScore = scoreToolResultContent(incoming);
+	return incomingScore >= existingScore ? incoming : existing;
+}
+
+function shouldForwardToolResult(
+	state: AgentStreamState,
+	payload: AgentStreamToolResultPayload,
+): boolean {
+	if (!shouldEmitToolResult(payload)) return false;
+
+	const nextScore = scoreToolResultContent(payload.content);
+	const previousScore = state.emittedToolResultScores.get(payload.toolCallId);
+
+	if (state.emittedToolResultIds.has(payload.toolCallId)) {
+		return previousScore === undefined ? false : nextScore > previousScore;
+	}
+
+	return true;
+}
+
+function markToolResultEmitted(
+	state: AgentStreamState,
+	payload: AgentStreamToolResultPayload,
+): void {
+	state.emittedToolResultIds.add(payload.toolCallId);
+	state.emittedToolResultScores.set(
+		payload.toolCallId,
+		scoreToolResultContent(payload.content),
+	);
 }
 
 function readToolCallId(chunk: Record<string, unknown>): string | undefined {
@@ -196,13 +275,10 @@ export function createToolResultEmitter(
 	state: AgentStreamState,
 ): (payload: AgentStreamToolResultPayload) => void {
 	return (payload) => {
-		if (!shouldEmitToolResult(payload)) {
+		if (!shouldForwardToolResult(state, payload)) {
 			return;
 		}
-		if (state.emittedToolResultIds.has(payload.toolCallId)) {
-			return;
-		}
-		state.emittedToolResultIds.add(payload.toolCallId);
+		markToolResultEmitted(state, payload);
 		emit(payload);
 	};
 }
@@ -333,12 +409,9 @@ export function processAgentStreamChunk(
 				error: resultError,
 				state: resultError ? "error" : "complete",
 			};
-			if (
-				!state.emittedToolResultIds.has(toolCallId) &&
-				shouldEmitToolResult(toolResultPayload)
-			) {
+			if (shouldForwardToolResult(state, toolResultPayload)) {
 				handlers.onToolResult?.(toolResultPayload);
-				state.emittedToolResultIds.add(toolCallId);
+				markToolResultEmitted(state, toolResultPayload);
 			}
 
 			if (shouldAppendToolResultLog(toolCallId, state.loggedToolCallIds)) {
@@ -350,7 +423,6 @@ export function processAgentStreamChunk(
 		case "TOOL_CALL_RESULT": {
 			const toolCallId = readToolCallId(record);
 			if (!toolCallId) return;
-			if (state.emittedToolResultIds.has(toolCallId)) return;
 			const content = record.content;
 			const resultError = readToolResultError(content);
 			const toolResultPayload: AgentStreamToolResultPayload = {
@@ -359,9 +431,9 @@ export function processAgentStreamChunk(
 				error: resultError,
 				state: resultError ? "error" : "complete",
 			};
-			if (!shouldEmitToolResult(toolResultPayload)) return;
+			if (!shouldForwardToolResult(state, toolResultPayload)) return;
 			handlers.onToolResult?.(toolResultPayload);
-			state.emittedToolResultIds.add(toolCallId);
+			markToolResultEmitted(state, toolResultPayload);
 		}
 	}
 }

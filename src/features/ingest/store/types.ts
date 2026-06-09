@@ -89,6 +89,7 @@ export interface IngestJob {
 	buffer: number[];
 	enableReview: boolean;
 	enableExplanations: boolean;
+	agentConcurrency: number;
 	rawStreamText: string;
 }
 

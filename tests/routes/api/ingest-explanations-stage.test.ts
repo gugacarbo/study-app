@@ -43,6 +43,7 @@ describe("runExplanationsStage", () => {
 
 		const result = await runExplanationsStage({
 			enableExplanations: false,
+			agentConcurrency: 10,
 			config: {
 				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
@@ -98,6 +99,7 @@ describe("runExplanationsStage", () => {
 
 		const result = await runExplanationsStage({
 			enableExplanations: true,
+			agentConcurrency: 10,
 			config: {
 				provider: "openrouter",
 				model: "openai/gpt-4o-mini",

@@ -51,6 +51,24 @@ Critical topic checks:
 	return sections.join("\n");
 }
 
+function formatQuestionSnapshot(question: Question): string[] {
+	const options = question.options
+		.map((option, optionIndex) => {
+			const label = String.fromCharCode(65 + optionIndex);
+			return `  ${label}) ${option}`;
+		})
+		.join("\n");
+
+	return [
+		"Extracted question snapshot:",
+		`Stem: ${question.question}`,
+		"Options:",
+		options,
+		`Answer: ${question.answer}`,
+		`Topic: ${question.topic?.trim() || "General"}`,
+	];
+}
+
 export function buildReviewerUserPrompt(
 	sourceText: string,
 	question: Question,
@@ -61,7 +79,8 @@ export function buildReviewerUserPrompt(
 		? ["Source excerpt for this question only:", sourceExcerpt]
 		: [
 				"No matching source excerpt was found for this question.",
-				"Use list_extracted_questions for the workspace copy and web_search when a critical-topic check needs external verification.",
+				"Use the snapshot below and list_extracted_questions for the workspace copy.",
+				"Use web_search when a critical-topic check needs external verification.",
 			];
 
 	return [
@@ -70,10 +89,12 @@ export function buildReviewerUserPrompt(
 		"",
 		"Workflow:",
 		"- Inspect the workspace with list_extracted_questions.",
-		"- Compare the workspace question against the source excerpt below.",
+		"- Compare the workspace question against the snapshot and source excerpt below.",
 		"- Call update_extracted_question only for fields that need correction. Omit unchanged fields; never pass null.",
 		"- If the question is already correct, finish without calling update_extracted_question.",
 		"- End with a brief plain-text summary of what you did (or that no changes were needed).",
+		"",
+		...formatQuestionSnapshot(question),
 		"",
 		...sourceSection,
 	].join("\n");

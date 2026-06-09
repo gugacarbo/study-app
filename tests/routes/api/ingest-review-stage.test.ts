@@ -66,6 +66,7 @@ describe("runReviewStage", () => {
 
 		await runReviewStage({
 			enableReview: true,
+			agentConcurrency: 10,
 			config: {
 				provider: "openrouter",
 				model: "openai/gpt-4o-mini",

@@ -98,6 +98,7 @@ async function runJob(jobId: string) {
 				config,
 				enableReview: currentJob.enableReview,
 				enableExplanations: currentJob.enableExplanations,
+				agentConcurrency: currentJob.agentConcurrency,
 				signal: controller.signal,
 			},
 			{
@@ -283,6 +284,7 @@ export function enqueueIngest(
 	buffer: number[],
 	enableReview: boolean = true,
 	enableExplanations: boolean = true,
+	agentConcurrency: number = 10,
 ): string {
 	const id = generateId();
 	const job = createEmptyJob(
@@ -291,6 +293,7 @@ export function enqueueIngest(
 		buffer,
 		enableReview,
 		enableExplanations,
+		agentConcurrency,
 	);
 
 	ingestStore.setState((state) => {

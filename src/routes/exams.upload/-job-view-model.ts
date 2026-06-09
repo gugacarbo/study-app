@@ -36,6 +36,7 @@ export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 		status: job.status,
 		enableReview: job.enableReview,
 		enableExplanations: job.enableExplanations,
+		agentConcurrency: job.agentConcurrency,
 		tokenTotals: normalizeTokenTotals(job.tokenTotals),
 		outputEntries,
 		rawOutput:

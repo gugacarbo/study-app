@@ -2,15 +2,21 @@ import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_AGENT_CONCURRENCY = 10;
+const MIN_AGENT_CONCURRENCY = 1;
+const MAX_AGENT_CONCURRENCY = 20;
 
 interface UploadCardProps {
 	onUpload: (
 		file: File,
 		enableReview: boolean,
 		enableExplanations: boolean,
+		agentConcurrency: number,
 	) => void;
 }
 
@@ -19,6 +25,9 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const [enableReview, setEnableReview] = useState(true);
 	const [enableExplanations, setEnableExplanations] = useState(true);
+	const [agentConcurrency, setAgentConcurrency] = useState(
+		DEFAULT_AGENT_CONCURRENCY,
+	);
 
 	function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
 		const file = e.target.files?.[0] ?? null;
@@ -27,7 +36,12 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 
 	function handleUpload() {
 		if (!selectedFile) return;
-		onUpload(selectedFile, enableReview, enableExplanations);
+		onUpload(
+			selectedFile,
+			enableReview,
+			enableExplanations,
+			agentConcurrency,
+		);
 		setSelectedFile(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
@@ -77,6 +91,29 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 						id="ingest-explanations-toggle"
 						checked={enableExplanations}
 						onCheckedChange={setEnableExplanations}
+					/>
+				</div>
+				<div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2">
+					<Label htmlFor="ingest-agent-concurrency" className="text-xs">
+						Agentes em paralelo ({MIN_AGENT_CONCURRENCY}-{MAX_AGENT_CONCURRENCY})
+					</Label>
+					<Input
+						id="ingest-agent-concurrency"
+						type="number"
+						min={MIN_AGENT_CONCURRENCY}
+						max={MAX_AGENT_CONCURRENCY}
+						value={agentConcurrency}
+						onChange={(e) => {
+							const value = Number(e.target.value);
+							if (Number.isNaN(value)) return;
+							setAgentConcurrency(
+								Math.max(
+									MIN_AGENT_CONCURRENCY,
+									Math.min(MAX_AGENT_CONCURRENCY, value),
+								),
+							);
+						}}
+						className="ml-auto h-7 w-16"
 					/>
 				</div>
 				<Button

@@ -63,6 +63,31 @@ describe("reviewExtraction", () => {
 		reviewSingleQuestionMock.mockReset();
 	});
 
+	it("passes each extracted question to its own reviewer by index", async () => {
+		const questions = [makeQuestion(0), makeQuestion(1), makeQuestion(2)];
+		const receivedQuestions: string[] = [];
+
+		reviewSingleQuestionMock.mockImplementation(
+			async (_config, _text, question, index) => {
+				receivedQuestions[index] = question.question;
+				return successResult(index);
+			},
+		);
+
+		await reviewExtraction(
+			config,
+			"source text",
+			{ questions, topics: ["General"] },
+			{ reviewTopics: ["General"] },
+		);
+
+		expect(receivedQuestions).toEqual([
+			"Question 1",
+			"Question 2",
+			"Question 3",
+		]);
+	});
+
 	it("aborts without retries when every reviewer fails on the first cycle", async () => {
 		reviewSingleQuestionMock.mockImplementation(async (_config, _text, _question, index) =>
 			failureResult(index),

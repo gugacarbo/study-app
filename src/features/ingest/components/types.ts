@@ -87,6 +87,7 @@ export interface IngestJobViewModel {
 	status: "queued" | "running" | "success" | "error" | "canceled";
 	enableReview: boolean;
 	enableExplanations: boolean;
+	agentConcurrency: number;
 	tokenTotals: IngestTokenTotals;
 	outputEntries: IngestOutputEntry[];
 	rawOutput: string;

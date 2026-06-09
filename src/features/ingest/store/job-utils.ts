@@ -1,4 +1,5 @@
 import type { UIMessage } from "@tanstack/ai-client";
+import { pickRicherToolResultContent } from "@/features/ai/core/agent-stream-handler";
 import type {
 	IngestAgentEvent,
 	IngestChunkEvent,
@@ -29,6 +30,7 @@ export function createEmptyJob(
 	buffer: number[],
 	enableReview: boolean,
 	enableExplanations = true,
+	agentConcurrency = 10,
 ): IngestJob {
 	return {
 		id,
@@ -50,6 +52,7 @@ export function createEmptyJob(
 		buffer,
 		enableReview,
 		enableExplanations,
+		agentConcurrency,
 		rawStreamText: "",
 	};
 }
@@ -559,12 +562,16 @@ function mergeToolResultPart(
 	existing: AssistantToolResultPart,
 	incoming: AssistantToolResultPart,
 ): AssistantToolResultPart {
+	const mergedContent = isMeaningfulToolResultContent(incoming.content)
+		? isMeaningfulToolResultContent(existing.content)
+			? pickRicherToolResultContent(existing.content, incoming.content)
+			: incoming.content
+		: existing.content;
+
 	return {
 		...existing,
 		...incoming,
-		content: isMeaningfulToolResultContent(incoming.content)
-			? incoming.content
-			: existing.content,
+		content: mergedContent,
 		state: normalizeToolResultState(incoming.state ?? existing.state),
 		error:
 			typeof incoming.error === "string" && incoming.error.length > 0
@@ -608,14 +615,23 @@ function upsertAssistantToolResultPart(
 
 	if (callIndex !== -1) {
 		const currentCall = nextParts[callIndex];
-		if (
-			currentCall.type === "tool-call" &&
-			isMeaningfulToolResultContent(resultPart.content)
-		) {
-			nextParts[callIndex] = {
-				...currentCall,
-				output: resultPart.content,
-			};
+		if (currentCall.type === "tool-call") {
+			const nextOutput = isMeaningfulToolResultContent(resultPart.content)
+				? typeof currentCall.output === "string" &&
+					isMeaningfulToolResultContent(currentCall.output)
+					? pickRicherToolResultContent(
+							currentCall.output,
+							resultPart.content,
+						)
+					: resultPart.content
+				: currentCall.output;
+
+			if (nextOutput !== undefined) {
+				nextParts[callIndex] = {
+					...currentCall,
+					output: nextOutput,
+				};
+			}
 		}
 	}
 

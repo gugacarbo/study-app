@@ -40,6 +40,7 @@ const updateExtractionQuestionSuccessSchema = z.object({
 
 const listExtractionQuestionsSuccessSchema = z.object({
 	ok: z.literal(true),
+	totalQuestions: z.number().int().min(0),
 	data: z.array(
 		z.object({
 			questionId: extractionQuestionIdSchema,
@@ -235,9 +236,11 @@ export function createIngestExtractionTools(
 
 	const listExtractedQuestions = listExtractedQuestionsDef.server(
 		async (_input, context) => {
+			const questions = workspace.listQuestions();
 			const output = {
 				ok: true as const,
-				data: workspace.listQuestions().map((question) => ({
+				totalQuestions: questions.length,
+				data: questions.map((question) => ({
 					questionId: question.questionId,
 					question: question.question,
 					options: [...question.options],

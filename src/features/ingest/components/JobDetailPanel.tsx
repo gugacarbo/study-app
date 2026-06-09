@@ -43,6 +43,9 @@ export function JobDetailPanel({
 					<Badge variant="secondary" className="text-[0.625rem]">
 						Explanations: {job.enableExplanations ? "on" : "off"}
 					</Badge>
+					<Badge variant="secondary" className="text-[0.625rem]">
+						Parallel: {job.agentConcurrency}
+					</Badge>
 				</CardTitle>
 				<p className="mt-1 text-[0.625rem] text-muted-foreground">
 					Pipeline flow. Click a stage to scope output and process logs.

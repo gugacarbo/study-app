@@ -80,10 +80,11 @@ async function reviewAllQuestionsWithRetries(
 	options: ReviewExtractionOptions,
 ): Promise<QuestionReviewResult[]> {
 	const totalQuestions = questions.length;
+	const concurrency = options.concurrency ?? REVIEW_CONCURRENCY;
 
 	let results = await mapWithConcurrency(
 		questions,
-		REVIEW_CONCURRENCY,
+		concurrency,
 		(question, index) =>
 			reviewSingleQuestion(
 				config,
@@ -118,7 +119,7 @@ async function reviewAllQuestionsWithRetries(
 		const retryOptions = reviewOptionsForAttempt(options, attempt);
 		const retryResults = await mapWithConcurrency(
 			failedIndices,
-			REVIEW_CONCURRENCY,
+			concurrency,
 			(index) =>
 				reviewSingleQuestion(
 					config,

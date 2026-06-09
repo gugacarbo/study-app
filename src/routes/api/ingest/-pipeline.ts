@@ -18,6 +18,7 @@ export const ingestRequestSchema = z.object({
 	config: providerConfigSchema,
 	enableReview: z.boolean().optional().default(true),
 	enableExplanations: z.boolean().optional().default(true),
+	agentConcurrency: z.number().int().min(1).max(20).optional().default(10),
 });
 
 export type IngestRequest = z.infer<typeof ingestRequestSchema>;
@@ -112,6 +113,7 @@ export async function runIngestWithProgress(
 
 	const reviewResult = await runReviewStage({
 		enableReview: payload.enableReview,
+		agentConcurrency: payload.agentConcurrency,
 		config: payload.config,
 		text,
 		extracted: finalExtracted,
@@ -127,6 +129,7 @@ export async function runIngestWithProgress(
 
 	const explanationsResult = await runExplanationsStage({
 		enableExplanations: payload.enableExplanations,
+		agentConcurrency: payload.agentConcurrency,
 		config: payload.config,
 		extracted: finalExtracted,
 		memory,

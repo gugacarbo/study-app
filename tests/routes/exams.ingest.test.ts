@@ -30,6 +30,7 @@ function createJob(overrides?: Partial<IngestJob>): IngestJob {
 		buffer: [],
 		enableReview: true,
 		enableExplanations: false,
+		agentConcurrency: 10,
 		rawStreamText: "",
 		...overrides,
 	};

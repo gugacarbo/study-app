@@ -21,6 +21,7 @@ export function useUpload() {
 		file: File,
 		enableReview: boolean,
 		enableExplanations: boolean,
+		agentConcurrency: number,
 	) {
 		const buffer = await file.arrayBuffer();
 		enqueueIngest(
@@ -28,6 +29,7 @@ export function useUpload() {
 			Array.from(new Uint8Array(buffer)),
 			enableReview,
 			enableExplanations,
+			agentConcurrency,
 		);
 	}
 

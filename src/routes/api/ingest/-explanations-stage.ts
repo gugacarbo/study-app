@@ -55,6 +55,7 @@ interface AgentRunsHelper {
 
 interface RunExplanationsStageParams {
 	enableExplanations: boolean;
+	agentConcurrency: number;
 	config: ProviderConfig;
 	extracted: ExamIngestResponse;
 	memory: MemoryManager;
@@ -141,6 +142,7 @@ export async function runExplanationsStage(
 ): Promise<ExamIngestResponse | null> {
 	const {
 		enableExplanations,
+		agentConcurrency,
 		config,
 		extracted,
 		memory,
@@ -192,6 +194,7 @@ export async function runExplanationsStage(
 			config,
 			explanationInput,
 			{
+				concurrency: agentConcurrency,
 				resolveMemoryContext: (question) =>
 					topicMemory.resolveMemoryContext(question.topic),
 				onProgress: ({ message }) => send("progress", { step: message }),

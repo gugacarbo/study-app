@@ -5,6 +5,7 @@ import { sendStage } from "./-sse-emitter";
 
 interface RunReviewStageParams {
 	enableReview: boolean;
+	agentConcurrency: number;
 	config: ProviderConfig;
 	text: string;
 	extracted: ExamIngestResponse;
@@ -71,6 +72,7 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 } | null> {
 	const {
 		enableReview,
+		agentConcurrency,
 		config,
 		text,
 		extracted,
@@ -105,6 +107,7 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 			extracted,
 			{
 				reviewTopics: criticalTopics,
+				concurrency: agentConcurrency,
 				tools,
 				onEvent: (event) => {
 					if (event.type === "warning") {

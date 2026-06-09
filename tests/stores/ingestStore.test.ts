@@ -41,6 +41,7 @@ function createJob(overrides?: Partial<IngestJob>): IngestJob {
 		buffer: [],
 		enableReview: true,
 		enableExplanations: false,
+		agentConcurrency: 10,
 		rawStreamText: "",
 		...overrides,
 	};
@@ -581,6 +582,73 @@ describe("upsertAgentRun", () => {
 				content: "Agora vou ajustar a alternativa correta.",
 			},
 		]);
+	});
+
+	it("keeps the richer list_extracted_questions payload when a partial replay arrives later", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+
+		const withToolCall = appendToolCallToAgentRun(
+			job,
+			agentEvent({
+				eventType: "tool-call",
+				name: "list_extracted_questions",
+				arguments: "{}",
+				input: {},
+				state: "input-complete",
+				meta: { toolCallId: "tool-list-1" },
+			}),
+		);
+		const withFullResult = appendToolResultToAgentRun(
+			withToolCall,
+			agentEvent({
+				eventType: "tool-result",
+				content: {
+					ok: true,
+					totalQuestions: 3,
+					data: [
+						{ questionId: "q1", question: "Q1" },
+						{ questionId: "q2", question: "Q2" },
+						{ questionId: "q3", question: "Q3" },
+					],
+				},
+				state: "complete",
+				meta: { toolCallId: "tool-list-1" },
+			}),
+		);
+		const updated = appendToolResultToAgentRun(
+			withFullResult,
+			agentEvent({
+				eventType: "tool-result",
+				content: {
+					ok: true,
+					totalQuestions: 1,
+					data: [{ questionId: "q1", question: "Q1" }],
+				},
+				state: "complete",
+				meta: { toolCallId: "tool-list-1" },
+			}),
+		);
+
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+		const toolResult = assistant?.parts.find(
+			(part) => part.type === "tool-result",
+		);
+
+		expect(toolResult).toMatchObject({
+			type: "tool-result",
+			toolCallId: "tool-list-1",
+		});
+		expect(JSON.parse(String(toolResult?.content))).toMatchObject({
+			ok: true,
+			totalQuestions: 3,
+			data: [
+				{ questionId: "q1", question: "Q1" },
+				{ questionId: "q2", question: "Q2" },
+				{ questionId: "q3", question: "Q3" },
+			],
+		});
 	});
 
 	it("deduplicates repeated tool-call and tool-result events for the same toolCallId", () => {

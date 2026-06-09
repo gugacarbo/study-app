@@ -92,6 +92,7 @@ function hydratePersistedJob(job: unknown): IngestJob | null {
 			[],
 			job.enableReview ?? true,
 			job.enableExplanations ?? true,
+			job.agentConcurrency ?? 10,
 		),
 		...job,
 		buffer: [],

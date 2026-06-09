@@ -1,6 +1,7 @@
 import type { StreamChunk } from "@tanstack/ai";
 import {
 	createAgentStreamState,
+	createToolResultEmitter,
 	isAgentStreamRunErrorChunk,
 	processAgentStreamChunk,
 } from "@/features/ai/core/agent-stream-handler";
@@ -129,6 +130,10 @@ export async function reviewSingleQuestion(
 				hasSuccessfulUpdate = true;
 			}
 		};
+		const emitToolResult = createToolResultEmitter(
+			handleToolResult,
+			streamState,
+		);
 
 		const stream = streamChatMessages(
 			config,
@@ -138,7 +143,7 @@ export async function reviewSingleQuestion(
 				tools: combinedTools,
 				toolStreamHandlers: {
 					onToolCall: handleToolCall,
-					onToolResult: handleToolResult,
+					onToolResult: emitToolResult,
 				},
 				streamState,
 			},
@@ -165,7 +170,7 @@ export async function reviewSingleQuestion(
 						});
 					},
 					onToolCall: handleToolCall,
-					onToolResult: handleToolResult,
+					onToolResult: emitToolResult,
 				},
 				streamState,
 			);

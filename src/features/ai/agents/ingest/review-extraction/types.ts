@@ -20,6 +20,7 @@ export interface IngestReviewResult {
 
 export interface ReviewExtractionOptions {
 	reviewTopics: string[];
+	concurrency?: number;
 	tools?: NonNullable<
 		Parameters<typeof import("@/features/ai/core/generate").generateJson>[3]
 	>["tools"];

@@ -66,10 +66,12 @@ describe("reviewSingleQuestion", () => {
 						input: {},
 						result: {
 							ok: true,
+							totalQuestions: 1,
 							data: [
 								{
 									questionId: "q1",
 									question: "O que e cache?",
+									options: ["A", "B"],
 									answer: "A",
 									topic: "Arquitetura",
 								},
@@ -197,10 +199,12 @@ describe("reviewSingleQuestion", () => {
 				agentRunId: "review-q1",
 				content: {
 					ok: true,
+					totalQuestions: 1,
 					data: [
 						{
 							questionId: "q1",
 							question: "O que e cache?",
+							options: ["A", "B"],
 							answer: "A",
 							topic: "Arquitetura",
 						},

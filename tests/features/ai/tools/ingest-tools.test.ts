@@ -233,12 +233,46 @@ describe("ingest extraction tools", () => {
 
 		expect(result).toEqual({
 			ok: true,
+			totalQuestions: 1,
 			data: [
 				expect.objectContaining({
 					questionId: "q1",
 				}),
 			],
 		});
+	});
+
+	it("lists every question in the extraction workspace", async () => {
+		const workspace = createExtractionWorkspace();
+		const tools = createIngestExtractionTools(workspace);
+		const addQuestion = getTool(tools, "add_extracted_question");
+		const listQuestions = getTool(tools, "list_extracted_questions");
+
+		for (let index = 1; index <= 5; index += 1) {
+			await addQuestion.execute({
+				question: `Questao ${index}`,
+				options: ["A", "B"],
+				answer: "A",
+				topic: `Topico ${index}`,
+			});
+		}
+
+		const result = (await listQuestions.execute({})) as {
+			ok: boolean;
+			totalQuestions: number;
+			data: Array<{ questionId: string; question: string }>;
+		};
+
+		expect(result.ok).toBe(true);
+		expect(result.totalQuestions).toBe(5);
+		expect(result.data).toHaveLength(5);
+		expect(result.data.map((item) => item.questionId)).toEqual([
+			"q1",
+			"q2",
+			"q3",
+			"q4",
+			"q5",
+		]);
 	});
 
 	it("returns a stable error payload for an unknown question id", async () => {
