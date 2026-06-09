@@ -1,4 +1,4 @@
-import { toolDefinition } from "@tanstack/ai";
+import { toolDefinition, type ToolExecutionContext } from "@tanstack/ai";
 import { z } from "zod";
 import type { Question } from "@/lib/validation";
 import {
@@ -44,6 +44,7 @@ const listExtractionQuestionsSuccessSchema = z.object({
 		z.object({
 			questionId: extractionQuestionIdSchema,
 			question: z.string(),
+			options: z.array(z.string()),
 			answer: z.string(),
 			topic: z.string(),
 		}),
@@ -120,66 +121,140 @@ function toToolFailure(error: unknown) {
 	};
 }
 
-export function createIngestExtractionTools(workspace: ExtractionWorkspaceApi) {
-	const addExtractedQuestion = addExtractedQuestionDef.server(async (input) => {
-		try {
-			const question = workspace.addQuestion(input);
-			return {
-				ok: true as const,
-				questionId: question.questionId,
-				totalQuestions: workspace.listQuestions().length,
-			};
-		} catch (error) {
-			return toToolFailure(error);
-		}
+export type IngestToolExecutedEvent = {
+	toolCallId: string;
+	toolName: string;
+	input: unknown;
+	output: unknown;
+};
+
+async function notifyToolExecuted(
+	options: { onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void> } | undefined,
+	toolName: string,
+	input: unknown,
+	output: unknown,
+	context?: ToolExecutionContext,
+) {
+	const toolCallId = context?.toolCallId;
+	if (!toolCallId) return;
+	await options?.onToolExecuted?.({
+		toolCallId,
+		toolName,
+		input,
+		output,
 	});
+}
+
+export function createIngestExtractionTools(
+	workspace: ExtractionWorkspaceApi,
+	options?: {
+		onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void>;
+	},
+) {
+	const addExtractedQuestion = addExtractedQuestionDef.server(
+		async (input, context) => {
+			let output: Awaited<ReturnType<typeof toToolFailure>> | {
+				ok: true;
+				questionId: string;
+				totalQuestions: number;
+			};
+			try {
+				const question = workspace.addQuestion(input);
+				output = {
+					ok: true as const,
+					questionId: question.questionId,
+					totalQuestions: workspace.listQuestions().length,
+				};
+			} catch (error) {
+				output = toToolFailure(error);
+			}
+			await notifyToolExecuted(
+				options,
+				"add_extracted_question",
+				input,
+				output,
+				context,
+			);
+			return output;
+		},
+	);
 
 	const updateExtractedQuestion = updateExtractedQuestionDef.server(
-		async (input) => {
+		async (input, context) => {
+			let output:
+				| Awaited<ReturnType<typeof toToolFailure>>
+				| {
+						ok: true;
+						questionId: string;
+						updatedFields: Array<
+							"question" | "options" | "answer" | "topic" | "explanation"
+						>;
+				  };
 			try {
 				if (!hasMeaningfulQuestionPatch(input)) {
-					return {
+					output = {
 						ok: true as const,
 						questionId: input.questionId,
 						updatedFields: [],
 					};
+				} else {
+					workspace.updateQuestion(input.questionId as ExtractionQuestionId, {
+						question: input.question ?? undefined,
+						options: input.options ?? undefined,
+						answer: input.answer ?? undefined,
+						topic: input.topic ?? undefined,
+						explanation: input.explanation ?? undefined,
+					});
+					output = {
+						ok: true as const,
+						questionId: input.questionId,
+						updatedFields: [
+							...(input.question != null ? ["question" as const] : []),
+							...(input.options != null ? ["options" as const] : []),
+							...(input.answer != null ? ["answer" as const] : []),
+							...(input.topic != null ? ["topic" as const] : []),
+							...(input.explanation != null
+								? ["explanation" as const]
+								: []),
+						],
+					};
 				}
-
-				workspace.updateQuestion(input.questionId as ExtractionQuestionId, {
-					question: input.question ?? undefined,
-					options: input.options ?? undefined,
-					answer: input.answer ?? undefined,
-					topic: input.topic ?? undefined,
-					explanation: input.explanation ?? undefined,
-				});
-				return {
-					ok: true as const,
-					questionId: input.questionId,
-					updatedFields: [
-						...(input.question != null ? ["question" as const] : []),
-						...(input.options != null ? ["options" as const] : []),
-						...(input.answer != null ? ["answer" as const] : []),
-						...(input.topic != null ? ["topic" as const] : []),
-						...(input.explanation != null
-							? ["explanation" as const]
-							: []),
-					],
-				};
 			} catch (error) {
-				return toToolFailure(error);
+				output = toToolFailure(error);
 			}
+			await notifyToolExecuted(
+				options,
+				"update_extracted_question",
+				input,
+				output,
+				context,
+			);
+			return output;
 		},
 	);
 
-	const listExtractedQuestions = listExtractedQuestionsDef.server(async () => ({
-		ok: true as const,
-		data: workspace.listQuestions().map((question) => ({
-			questionId: question.questionId,
-			question: question.question,
-			answer: question.answer,
-			topic: question.topic ?? "General",
-		})),
-	}));
+	const listExtractedQuestions = listExtractedQuestionsDef.server(
+		async (_input, context) => {
+			const output = {
+				ok: true as const,
+				data: workspace.listQuestions().map((question) => ({
+					questionId: question.questionId,
+					question: question.question,
+					options: [...question.options],
+					answer: question.answer,
+					topic: question.topic ?? "General",
+				})),
+			};
+			await notifyToolExecuted(
+				options,
+				"list_extracted_questions",
+				{},
+				output,
+				context,
+			);
+			return output;
+		},
+	);
 
 	return [
 		addExtractedQuestion,

@@ -7,6 +7,19 @@ import {
 import { DetailAccordion } from "../../detail-accordion/detail-accordion";
 import { AgentMessages } from "./agent-messages";
 
+function buildAgentWorkPartKey(
+	groupedPart: GroupedAgentMessagePart,
+	blockIndex: number,
+	index: number,
+): string {
+	if (groupedPart.kind === "tool-call") {
+		const resultState = groupedPart.toolResult?.state ?? "pending";
+		return `${blockIndex}:${index}:tool-call:${groupedPart.toolCall.id}:${resultState}`;
+	}
+
+	return `${blockIndex}:${index}:${groupedPart.kind}:${groupedPart.index}`;
+}
+
 export function ChatMessageAgentWork({
 	parts,
 	blockIndex,
@@ -33,7 +46,7 @@ export function ChatMessageAgentWork({
 			<div className="flex flex-col gap-1">
 				{parts.map((groupedPart, index) => (
 					<AgentMessages
-						key={`${blockIndex}:${index}:${groupedPart.kind}`}
+						key={buildAgentWorkPartKey(groupedPart, blockIndex, index)}
 						groupedPart={groupedPart}
 						messageParts={messageParts}
 						messageIsPending={messageIsPending}

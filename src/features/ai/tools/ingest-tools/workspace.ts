@@ -19,10 +19,7 @@ export interface ExtractionWorkspaceState {
 	nextQuestionNumber: number;
 }
 
-export interface ExtractionWorkspaceSnapshot {
-	items: ExtractionWorkspaceQuestion[];
-	totalQuestions: number;
-}
+
 
 export class ExtractionWorkspaceError extends Error {
 	code: string;

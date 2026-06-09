@@ -140,6 +140,7 @@ export async function reviewSingleQuestion(
 					onToolCall: handleToolCall,
 					onToolResult: handleToolResult,
 				},
+				streamState,
 			},
 		);
 

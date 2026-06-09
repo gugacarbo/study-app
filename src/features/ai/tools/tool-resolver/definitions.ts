@@ -3,7 +3,7 @@ import { BASE_TOOL_REGISTRY } from "../tool-registry";
 
 const VALID_BASE_TOOL_NAMES = Object.keys(BASE_TOOL_REGISTRY) as BaseToolName[];
 
-const VALID_ALL_TOOL_NAMES: AgentToolName[] = [
+const VALID_ALL_TOOL_NAMES: readonly AgentToolName[] = [
 	...VALID_BASE_TOOL_NAMES,
 	"parallel_review",
 ];
@@ -46,10 +46,8 @@ function parseConfiguredToolNames(
 	};
 }
 
-export type { ParsedToolNames };
 export {
 	DEFAULT_AGENT_TOOL_NAMES,
 	parseConfiguredToolNames,
-	VALID_ALL_TOOL_NAMES,
 	VALID_BASE_TOOL_NAMES,
 };

@@ -2,7 +2,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { PROFILE_KEY, toSearchText } from "./r2-operations";
 import type { QuizSessionData } from "./types";
 
-export const TABLE_SQL = [
+const TABLE_SQL = [
 	`CREATE TABLE IF NOT EXISTS memory_profile (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     r2_key TEXT NOT NULL,

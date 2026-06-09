@@ -86,16 +86,40 @@ describe("processAgentStreamChunk", () => {
 			state: "complete",
 		});
 	});
+
+	it("skips duplicate tool-result emissions when middleware already reported the result", () => {
+		const state = createAgentStreamState();
+		state.emittedToolResultIds.add("tc-1");
+		const onToolResult = vi.fn();
+
+		processAgentStreamChunk(
+			{
+				type: "TOOL_CALL_END",
+				toolCallId: "tc-1",
+				toolCallName: "add_extracted_question",
+				input: { question: "Q1" },
+				result: JSON.stringify({ ok: true, questionId: "q1" }),
+			} as unknown as StreamChunk,
+			{ onToolResult },
+			state,
+		);
+
+		expect(onToolResult).not.toHaveBeenCalled();
+	});
 });
 
 describe("createIncrementalToolEventMiddleware", () => {
 	it("emits input-complete before execution and result right after each tool finishes", async () => {
 		const onToolCall = vi.fn();
 		const onToolResult = vi.fn();
-		const middleware = createIncrementalToolEventMiddleware({
-			onToolCall,
-			onToolResult,
-		});
+		const emittedToolResultIds = new Set<string>();
+		const middleware = createIncrementalToolEventMiddleware(
+			{
+				onToolCall,
+				onToolResult,
+			},
+			emittedToolResultIds,
+		);
 
 		await middleware.onBeforeToolCall?.({} as never, {
 			toolCall: {
@@ -135,5 +159,6 @@ describe("createIncrementalToolEventMiddleware", () => {
 			content: { ok: true, questionId: "q1" },
 			state: "complete",
 		});
+		expect(emittedToolResultIds.has("tc-1")).toBe(true);
 	});
 });

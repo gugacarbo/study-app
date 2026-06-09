@@ -38,6 +38,7 @@ interface TrackedToolCall {
 export interface AgentStreamState {
 	toolCalls: Map<string, TrackedToolCall>;
 	loggedToolCallIds: Set<string>;
+	emittedToolResultIds: Set<string>;
 	rawText: string;
 }
 
@@ -45,6 +46,7 @@ export function createAgentStreamState(): AgentStreamState {
 	return {
 		toolCalls: new Map(),
 		loggedToolCallIds: new Set(),
+		emittedToolResultIds: new Set(),
 		rawText: "",
 	};
 }
@@ -172,8 +174,35 @@ function resolveAfterToolCallPayload(
  * finishes. This middleware emits input-complete + tool-result as each tool
  * executes so the ingest UI can update tool cards independently.
  */
+export function createToolResultEmitter(
+	emit: (payload: AgentStreamToolResultPayload) => void,
+	state: AgentStreamState,
+): (payload: AgentStreamToolResultPayload) => void {
+	return (payload) => {
+		if (state.emittedToolResultIds.has(payload.toolCallId)) {
+			return;
+		}
+		state.emittedToolResultIds.add(payload.toolCallId);
+		emit(payload);
+	};
+}
+
+export function payloadFromToolExecuteResult(
+	toolCallId: string,
+	content: unknown,
+): AgentStreamToolResultPayload {
+	const error = readToolResultError(content);
+	return {
+		toolCallId,
+		content,
+		error,
+		state: error ? "error" : "complete",
+	};
+}
+
 export function createIncrementalToolEventMiddleware(
 	handlers: Pick<AgentStreamHandlers, "onToolCall" | "onToolResult">,
+	emittedToolResultIds?: Set<string>,
 ): ChatMiddleware {
 	return {
 		name: "incremental-tool-events",
@@ -187,7 +216,9 @@ export function createIncrementalToolEventMiddleware(
 			});
 		},
 		onAfterToolCall(_ctx, info: AfterToolCallInfo) {
-			handlers.onToolResult?.(resolveAfterToolCallPayload(info));
+			const payload = resolveAfterToolCallPayload(info);
+			emittedToolResultIds?.add(payload.toolCallId);
+			handlers.onToolResult?.(payload);
 		},
 	};
 }
@@ -279,12 +310,15 @@ export function processAgentStreamChunk(
 			});
 
 			const resultError = readToolResultError(result);
-			handlers.onToolResult?.({
-				toolCallId,
-				content: result,
-				error: resultError,
-				state: resultError ? "error" : "complete",
-			});
+			if (!state.emittedToolResultIds.has(toolCallId)) {
+				handlers.onToolResult?.({
+					toolCallId,
+					content: result,
+					error: resultError,
+					state: resultError ? "error" : "complete",
+				});
+				state.emittedToolResultIds.add(toolCallId);
+			}
 
 			if (shouldAppendToolResultLog(toolCallId, state.loggedToolCallIds)) {
 				state.rawText += buildToolResultLogLine(name, argumentsJson, result);
@@ -295,6 +329,7 @@ export function processAgentStreamChunk(
 		case "TOOL_CALL_RESULT": {
 			const toolCallId = readToolCallId(record);
 			if (!toolCallId) return;
+			if (state.emittedToolResultIds.has(toolCallId)) return;
 			const content = record.content;
 			const resultError = readToolResultError(content);
 			handlers.onToolResult?.({
@@ -303,6 +338,7 @@ export function processAgentStreamChunk(
 				error: resultError,
 				state: resultError ? "error" : "complete",
 			});
+			state.emittedToolResultIds.add(toolCallId);
 		}
 	}
 }

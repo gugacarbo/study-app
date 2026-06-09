@@ -9,7 +9,7 @@ import type {
 } from "../types";
 import type { ChatBubble } from "./chat-bubbles";
 
-export function agentStateLabel(state: IngestAgentRunViewModel["state"]): {
+function agentStateLabel(state: IngestAgentRunViewModel["state"]): {
 	text: string;
 	className: string;
 } {

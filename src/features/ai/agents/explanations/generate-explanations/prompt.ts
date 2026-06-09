@@ -16,8 +16,5 @@ export function buildExplanationUserPrompt(
 		"",
 		"Example call:",
 		`update_question_explanation({"questionId":${question.id},"explanation":"Short why the answer is correct.","deepExplanation":"Longer teaching note with steps and a memory hint."})`,
-		"",
-		"Question input (the workspace is the source of truth):",
-		JSON.stringify(question, null, 2),
 	].join("\n");
 }

@@ -7,8 +7,9 @@ import {
 import { DBQueries } from "../../db/queries";
 import { env } from "../../env";
 import type { ProviderConfig } from "../../lib/validation";
+import { MemoryManager } from "../../lib/memory";
+import { buildTopicMemoryResolver } from "../../lib/memory/topic-context";
 import { getDB } from "../db";
-import { getMemoryContext } from "../memory";
 
 export const generateExamQuestionExplanations = createServerFn({
 	method: "POST",
@@ -70,11 +71,12 @@ export const generateExamQuestionExplanations = createServerFn({
 			};
 		}
 
-		const memoryResult = await getMemoryContext({
-			data: {
-				topics: exam.topics.length > 0 ? exam.topics : ["General"],
-			},
-		}).catch(() => ({ context: "" }));
+		const memory = new MemoryManager(db);
+		await memory.ensureStructure();
+		const topicMemory = await buildTopicMemoryResolver(
+			memory,
+			targets.map((question) => question.topic ?? "General"),
+		);
 
 		const explanationResult = await runQuestionExplanations(
 			providerConfig,
@@ -87,7 +89,8 @@ export const generateExamQuestionExplanations = createServerFn({
 				explanation: question.explanation,
 			})),
 			{
-				memoryContext: memoryResult.context || undefined,
+				resolveMemoryContext: (question) =>
+					topicMemory.resolveMemoryContext(question.topic),
 				concurrency: ctx.data.batchSize,
 				createAgentRunId: (label) =>
 					`exam-explanations:${label.toLowerCase().replaceAll(" ", "-")}`,

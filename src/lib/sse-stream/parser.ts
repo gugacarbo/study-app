@@ -39,42 +39,4 @@ export function readTokenValue(
 	return undefined;
 }
 
-export function createSSEClient(
-	onEvent: (event: string, data: unknown) => void,
-): { feed: (chunk: string) => void; flush: () => void } {
-	let buffer = "";
 
-	return {
-		feed(chunk: string) {
-			buffer += chunk;
-			let separatorIndex = buffer.indexOf("\n\n");
-
-			while (separatorIndex >= 0) {
-				const block = buffer.slice(0, separatorIndex).trim();
-				buffer = buffer.slice(separatorIndex + 2);
-
-				if (block) {
-					const parsed = parseEventBlock(block);
-					if (parsed) {
-						let data: unknown;
-						try {
-							data = JSON.parse(parsed.data);
-						} catch (parseError) {
-							console.warn(
-								"SSE stream JSON parse failed:",
-								parsed.data,
-								parseError,
-							);
-							data = null;
-						}
-						onEvent(parsed.event, data);
-					}
-				}
-
-				separatorIndex = buffer.indexOf("\n\n");
-			}
-		},
-
-		flush() {},
-	};
-}

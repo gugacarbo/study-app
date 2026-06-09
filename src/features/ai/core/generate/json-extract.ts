@@ -132,9 +132,6 @@ function tryParseFallbackCandidates<T>(
 
 export {
 	extractLikelyJson,
-	findLikelyJsonStart,
-	repairJson,
 	stripThinkBlocks,
-	tryParseAccumulatedAsJson,
 	tryParseFallbackCandidates,
 };

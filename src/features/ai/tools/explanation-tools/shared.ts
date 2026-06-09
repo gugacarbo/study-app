@@ -13,7 +13,7 @@ export const explanationPatchSchema = z.object({
 	deepExplanation: nonEmptyTrimmedStringSchema,
 });
 
-export const explanationToolErrorSchema = z.object({
+const explanationToolErrorSchema = z.object({
 	code: z.string(),
 	message: z.string(),
 });

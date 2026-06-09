@@ -1,10 +1,9 @@
 import type { Question } from "@/lib/validation";
+import { extractQuestionSourceSnippet } from "./source-snippet";
 
 function unique<T>(items: T[]): T[] {
 	return Array.from(new Set(items));
 }
-
-export { unique };
 
 export function deriveTopics(
 	questions: Question[],
@@ -57,21 +56,25 @@ export function buildReviewerUserPrompt(
 	question: Question,
 	index: number,
 ): string {
+	const sourceExcerpt = extractQuestionSourceSnippet(sourceText, question);
+	const sourceSection = sourceExcerpt
+		? ["Source excerpt for this question only:", sourceExcerpt]
+		: [
+				"No matching source excerpt was found for this question.",
+				"Use list_extracted_questions for the workspace copy and web_search when a critical-topic check needs external verification.",
+			];
+
 	return [
 		`Review extracted question #${index + 1}.`,
 		`The question already exists in the workspace as questionId "q1".`,
 		"",
 		"Workflow:",
 		"- Inspect the workspace with list_extracted_questions.",
-		"- Compare the workspace question against the source text below.",
+		"- Compare the workspace question against the source excerpt below.",
 		"- Call update_extracted_question only for fields that need correction. Omit unchanged fields; never pass null.",
 		"- If the question is already correct, finish without calling update_extracted_question.",
 		"- End with a brief plain-text summary of what you did (or that no changes were needed).",
 		"",
-		"Source text:",
-		sourceText.slice(0, 45_000),
-		"",
-		"Initial extracted question (for reference — the workspace is the source of truth):",
-		JSON.stringify(question),
+		...sourceSection,
 	].join("\n");
 }

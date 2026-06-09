@@ -28,6 +28,7 @@ const listExplanationQuestionsSuccessSchema = z.object({
 		z.object({
 			id: explanationQuestionIdSchema,
 			question: z.string(),
+			options: z.array(z.string()),
 			answer: z.string(),
 			topic: z.string(),
 			explanation: z.string(),
@@ -106,6 +107,7 @@ export function createExplanationTools(workspace: ExplanationWorkspaceApi) {
 			data: workspace.listQuestions().map((question) => ({
 				id: question.id,
 				question: question.question,
+				options: [...question.options],
 				answer: question.answer,
 				topic: question.topic ?? "General",
 				explanation: question.explanation ?? "",

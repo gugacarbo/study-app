@@ -124,4 +124,4 @@ conversationsStore.subscribe(() => {
 	}, 0);
 });
 
-export { ensureWelcomeMessage, generateId, WELCOME_MESSAGE };
+export { ensureWelcomeMessage, generateId };

@@ -49,7 +49,7 @@ export const extractionQuestionPatchSchema = z.object({
 	explanation: optionalNullableStringSchema,
 });
 
-export const extractionToolErrorSchema = z.object({
+const extractionToolErrorSchema = z.object({
 	code: z.string(),
 	message: z.string(),
 });

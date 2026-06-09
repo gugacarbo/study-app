@@ -163,6 +163,50 @@ describe("explainSingleQuestion", () => {
 			}),
 		);
 	});
+
+	it("uses resolveMemoryContext for the current question only", async () => {
+		mockSuccessfulExplanationRun(12);
+
+		await explainSingleQuestion(
+			{
+				provider: "openrouter",
+				model: "openai/gpt-4o-mini",
+				apiKey: "test-key",
+			},
+			{
+				id: 12,
+				question: "Pergunta de SO",
+				options: ["A", "B"],
+				answer: "A",
+				topic: "SO",
+			},
+			0,
+			1,
+			{
+				memoryContext: "contexto global",
+				resolveMemoryContext: (question) =>
+					question.topic === "SO" ? "contexto de SO" : undefined,
+			},
+		);
+
+		expect(streamChatMessagesMock).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.anything(),
+			expect.objectContaining({
+				system: expect.stringContaining("contexto de SO"),
+			}),
+		);
+		expect(streamChatMessagesMock).toHaveBeenCalledWith(
+			expect.anything(),
+			[
+				expect.objectContaining({
+					role: "user",
+					content: expect.not.stringContaining('"options"'),
+				}),
+			],
+			expect.anything(),
+		);
+	});
 });
 
 describe("runQuestionExplanations", () => {

@@ -2,31 +2,38 @@ import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
 import { cn } from "@/lib/utils";
-import type { IngestAgentRunViewModel } from "../types";
+import type { IngestAgentRunViewModel, IngestTokenTotals } from "../types";
+import { TokenTotalsBadge } from "./token-totals-badge";
 
 interface OutputPanelAgentRunsProps {
+	jobId: string;
 	filteredAgents: IngestAgentRunViewModel[];
+	tokenTotals: IngestTokenTotals;
 	selectedAgentId: string | null;
 	onSelectAgentId: (agentId: string | null) => void;
 }
 
 export function OutputPanelAgentRuns({
+	jobId,
 	filteredAgents,
+	tokenTotals,
 	selectedAgentId,
 	onSelectAgentId,
 }: OutputPanelAgentRunsProps) {
-	if (filteredAgents.length === 0) return null;
-
 	const selectedAgent =
 		filteredAgents.find((agent) => agent.id === selectedAgentId) ?? null;
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-3">
 			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-md border border-border bg-muted p-2">
-				<div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-foreground/80">
-					<Sparkles className="size-3.5 text-sky-500 dark:text-sky-300" />
-					Agents
+				<div className="mb-1.5 flex items-center justify-between gap-2">
+					<div className="flex min-w-0 items-center gap-2 text-xs font-medium text-foreground/80">
+						<Sparkles className="size-3.5 shrink-0 text-sky-500 dark:text-sky-300" />
+						Agents
+					</div>
+					<TokenTotalsBadge tokenTotals={tokenTotals} />
 				</div>
+				{filteredAgents.length > 0 ? (
 				<div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
 					{filteredAgents.map((agent) => (
 						<button
@@ -50,9 +57,12 @@ export function OutputPanelAgentRuns({
 						</button>
 					))}
 				</div>
+				) : null}
 			</div>
 
 			<AgentRunDetailDialog
+				jobId={jobId}
+				agentRunId={selectedAgent?.id}
 				name={selectedAgent?.name ?? ""}
 				summary={
 					selectedAgent?.summary ??
@@ -63,6 +73,7 @@ export function OutputPanelAgentRuns({
 				response={selectedAgent?.response}
 				messages={selectedAgent?.messages}
 				rawData={selectedAgent?.raw}
+				tokenTotals={selectedAgent?.tokens}
 				isRunning={selectedAgent?.state === "running"}
 				open={selectedAgent != null}
 				onOpenChange={(open) => {

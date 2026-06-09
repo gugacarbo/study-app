@@ -19,7 +19,7 @@ import { createEmptyTotals } from "./types";
 
 let entryCounter = 0;
 
-export function generateEntryId(prefix: string): string {
+function generateEntryId(prefix: string): string {
 	return `${prefix}_${Date.now()}_${entryCounter++}`;
 }
 
@@ -80,7 +80,7 @@ export function appendLogEntry(
 	};
 }
 
-export function appendOutputEntry(
+function appendOutputEntry(
 	job: IngestJob,
 	entry: {
 		stageId?: string | null;
@@ -693,7 +693,7 @@ export function appendToolResultToAgentRun(
 	};
 }
 
-export function extractTokenTotals(value: unknown): TokenTotals | null {
+function extractTokenTotals(value: unknown): TokenTotals | null {
 	if (typeof value !== "object" || value === null) return null;
 	const tokenValue = value as Record<string, unknown>;
 	const prompt =

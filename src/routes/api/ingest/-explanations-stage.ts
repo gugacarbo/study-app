@@ -3,6 +3,7 @@ import {
 	type ExplanationAgentRunEvent,
 } from "@/features/ai/agents/explanations";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
+import { buildTopicMemoryResolver } from "../../../lib/memory/topic-context";
 import type { MemoryManager } from "../../../lib/memory";
 import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
 import { sendStage } from "./-sse-emitter";
@@ -173,12 +174,6 @@ export async function runExplanationsStage(
 	sendStage(send, "explanations", "Generating explanations", "running");
 
 	try {
-		const topics =
-			extracted.topics.length > 0 ? extracted.topics : ["General"];
-		const memoryContext = await memory
-			.buildMemoryPrompt(topics)
-			.catch(() => "");
-
 		const explanationInput = extracted.questions.map((question, index) => ({
 			id: index + 1,
 			question: question.question,
@@ -188,11 +183,17 @@ export async function runExplanationsStage(
 			explanation: question.explanation ?? "",
 		}));
 
+		const topicMemory = await buildTopicMemoryResolver(
+			memory,
+			explanationInput.map((question) => question.topic ?? "General"),
+		);
+
 		const explanationResult = await runQuestionExplanations(
 			config,
 			explanationInput,
 			{
-				memoryContext: memoryContext || undefined,
+				resolveMemoryContext: (question) =>
+					topicMemory.resolveMemoryContext(question.topic),
 				onProgress: ({ message }) => send("progress", { step: message }),
 				onAgentEvent: (event) =>
 					bridgeExplanationAgentEvent(event, agentRuns, send),

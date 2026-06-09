@@ -87,6 +87,7 @@ export async function runIngestWithProgress(
 			log,
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
+			flushStream: () => new Promise((resolve) => setTimeout(resolve, 0)),
 		});
 	} catch (err) {
 		log.error("Initial extraction failed", err, {

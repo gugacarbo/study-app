@@ -26,7 +26,7 @@ interface ExplanationResultsProps {
 	onSelectedResponseAgentRunClick: () => void;
 }
 
-export function explanationAgentStateBadgeClass(
+function explanationAgentStateBadgeClass(
 	state: "pending" | "running" | "done" | "error",
 ): string {
 	switch (state) {

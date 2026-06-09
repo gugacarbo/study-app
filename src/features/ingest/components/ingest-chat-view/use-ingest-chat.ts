@@ -13,8 +13,6 @@ interface GroupedItem {
 	bubble?: ChatBubble;
 }
 
-export type { ChatBubble } from "./chat-bubbles";
-
 function getBubbleContentSignature(bubble: ChatBubble) {
 	let textLength = 0;
 	let partCount = 0;

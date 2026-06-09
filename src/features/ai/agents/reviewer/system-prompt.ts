@@ -1,16 +1,13 @@
 import { z } from "zod";
 
-export const REVIEWER_VERDICTS = [
+const REVIEWER_VERDICTS = [
 	"CORRECT",
 	"PARTIALLY_CORRECT",
 	"INCORRECT",
 	"UNVERIFIABLE",
 ] as const;
 
-export type ReviewerVerdict = (typeof REVIEWER_VERDICTS)[number];
-
-export const REVIEWER_CONFIDENCE_LEVELS = ["HIGH", "MEDIUM", "LOW"] as const;
-export type ReviewerConfidence = (typeof REVIEWER_CONFIDENCE_LEVELS)[number];
+const REVIEWER_CONFIDENCE_LEVELS = ["HIGH", "MEDIUM", "LOW"] as const;
 
 export const reviewerDraftSchema = z.object({
 	verdict: z.enum(REVIEWER_VERDICTS),

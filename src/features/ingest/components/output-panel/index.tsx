@@ -11,6 +11,7 @@ import type {
 import { OutputPanelAgentRuns } from "./agent-runs";
 
 interface OutputPanelProps {
+	jobId: string;
 	entries: IngestOutputEntry[];
 	rawOutput: string;
 	rawStreamText: string;
@@ -23,6 +24,7 @@ interface OutputPanelProps {
 }
 
 export function OutputPanel({
+	jobId,
 	tokenTotals,
 	selectedStageId,
 	selectedStageLabel,
@@ -41,11 +43,8 @@ export function OutputPanel({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			<div className="mb-2 flex flex-wrap items-center gap-2">
-				<Badge variant="secondary" className="text-[0.625rem]">
-					Tokens: {tokenTotals.total.toLocaleString()}
-				</Badge>
-				{selectedStageLabel ? (
+			{selectedStageLabel ? (
+				<div className="mb-2 flex flex-wrap items-center gap-2">
 					<>
 						<Badge variant="secondary" className="text-[0.625rem]">
 							<Filter className="mr-1 size-3" />
@@ -61,10 +60,12 @@ export function OutputPanel({
 							Clear filter
 						</Button>
 					</>
-				) : null}
-			</div>
+				</div>
+			) : null}
 			<OutputPanelAgentRuns
+				jobId={jobId}
 				filteredAgents={filteredAgents}
+				tokenTotals={tokenTotals}
 				selectedAgentId={selectedAgentId}
 				onSelectAgentId={setSelectedAgentId}
 			/>

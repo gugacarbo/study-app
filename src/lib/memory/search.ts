@@ -2,7 +2,7 @@ import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import { readFromR2 } from "./r2-operations";
 import type { SearchIndexRow, SearchResult } from "./types";
 
-export async function hydrateSearchResults(
+async function hydrateSearchResults(
 	bucket: R2Bucket,
 	rows: SearchIndexRow[],
 ): Promise<SearchResult[]> {

@@ -7,7 +7,7 @@ import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message
 import { chatStore } from "@/features/ai/stores/chat-store";
 import type { ChatUsage } from "./types";
 
-export function estimateUsageFromMessages(
+function estimateUsageFromMessages(
 	lastAssistantId: string | null,
 ): ChatUsage | null {
 	if (!lastAssistantId) return null;

@@ -1,6 +1,7 @@
 import type { IngestAgentEvent, IngestStageEvent } from "@/lib/sse-stream";
 import { ingestStream } from "@/lib/sse-stream";
 import { queryClient } from "@/routes/__root";
+import { flushSync } from "react-dom";
 import { getConfig } from "@/server-functions/config";
 import {
 	appendChunkToAgentRun,
@@ -164,7 +165,7 @@ async function runJob(jobId: string) {
 					);
 				},
 				onAgent: (event: IngestAgentEvent) => {
-					updateJobInState(jobId, (runningJob) => {
+					const applyAgentEvent = (runningJob: IngestJob) => {
 						let nextJob = syncJobTokenTotals(upsertAgentRun(runningJob, event));
 						if (event.eventType === "tool-call") {
 							nextJob = appendToolCallToAgentRun(nextJob, event);
@@ -181,7 +182,18 @@ async function runJob(jobId: string) {
 							});
 						}
 						return nextJob;
-					});
+					};
+
+					// Tool events can arrive in a single SSE read; flush each result so
+					// consecutive tool cards update independently in the agent dialog.
+					if (event.eventType === "tool-result") {
+						flushSync(() => {
+							updateJobInState(jobId, applyAgentEvent);
+						});
+						return;
+					}
+
+					updateJobInState(jobId, applyAgentEvent);
 				},
 			},
 		);
@@ -255,7 +267,7 @@ async function runJob(jobId: string) {
 	}
 }
 
-export function runNextJob() {
+function runNextJob() {
 	const state = ingestStore.state;
 	const hasRunning = state.jobs.some((job) => job.status === "running");
 	if (hasRunning) return;
@@ -343,7 +355,7 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
 	}
 }
 
-export { handleBeforeUnload };
+
 
 if (typeof window !== "undefined") {
 	window.addEventListener("beforeunload", handleBeforeUnload);

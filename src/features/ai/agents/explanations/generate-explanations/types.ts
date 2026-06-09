@@ -26,13 +26,13 @@ export interface ExplanationBatchInput {
 	explanation?: string;
 }
 
-export type ExplanationAgentRunStatus =
+type ExplanationAgentRunStatus =
 	| "pending"
 	| "running"
 	| "done"
 	| "error";
 
-export interface ExplanationAgentRunMeta {
+interface ExplanationAgentRunMeta {
 	questionIndex?: number;
 	questionNumber?: number;
 	questionCount?: number;
@@ -81,7 +81,11 @@ export interface ExplanationAgentRunSummary {
 }
 
 export interface RunQuestionExplanationsOptions {
+	/** @deprecated Prefer resolveMemoryContext for per-question topic scoping. */
 	memoryContext?: string;
+	resolveMemoryContext?: (
+		question: ExplanationBatchInput,
+	) => string | undefined;
 	concurrency?: number;
 	tools?: unknown;
 	onProgress?: (event: { message: string }) => void;

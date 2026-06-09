@@ -1,7 +1,7 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
 
 export const PROFILE_KEY = "memory/profile.md";
-export const SEARCH_TEXT_LIMIT = 4000;
+const SEARCH_TEXT_LIMIT = 4000;
 
 export function toSearchText(content: string): string {
 	return content.replace(/\s+/g, " ").trim().slice(0, SEARCH_TEXT_LIMIT);

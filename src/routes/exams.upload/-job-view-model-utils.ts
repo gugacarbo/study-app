@@ -114,12 +114,7 @@ export function normalizeAgentState(
 	}
 }
 
-export function inferLogLevel(line: string): IngestLogEntry["level"] {
-	const lower = line.toLowerCase();
-	if (lower.includes("error")) return "error";
-	if (lower.includes("warning")) return "warning";
-	return "info";
-}
+
 
 export function readArray(value: unknown): unknown[] {
 	return Array.isArray(value) ? value : [];

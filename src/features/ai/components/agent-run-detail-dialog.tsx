@@ -6,9 +6,17 @@ import { ChatMessage } from "@/features/ai/components/chat/message/chat-message"
 import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
 import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
 import { UserMessage } from "@/features/ai/components/chat/message/user-message";
+import { useLiveAgentMessages } from "@/features/ingest/hooks/use-live-agent-messages";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	normalizeTokenTotals,
+	TokenTotalsBadge,
+	type TokenTotals,
+} from "./token-totals-badge";
 
 interface AgentRunDetailDialogProps {
+	jobId?: string;
+	agentRunId?: string;
 	name: string;
 	summary?: string;
 	systemPrompt?: string;
@@ -16,34 +24,42 @@ interface AgentRunDetailDialogProps {
 	response?: string;
 	messages?: UIMessage[];
 	rawData?: unknown;
+	tokenTotals?: Partial<TokenTotals> | null;
 	isRunning?: boolean;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
 
 export function AgentRunDetailDialog({
+	jobId,
+	agentRunId,
 	name,
 	systemPrompt,
 	userPrompt,
 	response,
 	messages,
 	rawData,
+	tokenTotals,
 	isRunning = false,
 	open,
 	onOpenChange,
 }: AgentRunDetailDialogProps) {
+	const resolvedTokenTotals = normalizeTokenTotals(tokenTotals);
 	const [mode, setMode] = useState<"treated" | "raw">("treated");
 	const [showDebug, setShowDebug] = useState(false);
 	const treatedScrollRef = useRef<HTMLDivElement | null>(null);
 	const rawScrollRef = useRef<HTMLPreElement | null>(null);
+	const liveMessages = useLiveAgentMessages(jobId, agentRunId, messages);
 	const renderedMessages =
-		messages && messages.length > 0
-			? messages
-			: createFallbackMessages({
-					systemPrompt,
-					userPrompt,
-					response,
-				});
+		liveMessages && liveMessages.length > 0
+			? liveMessages
+			: messages && messages.length > 0
+				? messages
+				: createFallbackMessages({
+						systemPrompt,
+						userPrompt,
+						response,
+					});
 
 	const visibleMessages = renderedMessages.filter(
 		(message) => message.parts.length > 0,
@@ -61,22 +77,25 @@ export function AgentRunDetailDialog({
 								: total,
 						0,
 					);
-					const lastToolCall = [...message.parts]
-						.reverse()
-						.find((part) => part.type === "tool-call");
-					const lastToolResult = [...message.parts]
-						.reverse()
-						.find((part) => part.type === "tool-result");
+					const toolCallCount = message.parts.filter(
+						(part) => part.type === "tool-call",
+					).length;
+					const toolResultCount = message.parts.filter(
+						(part) => part.type === "tool-result",
+					).length;
+					const completedToolResultCount = message.parts.filter(
+						(part) =>
+							part.type === "tool-result" && part.state === "complete",
+					).length;
 
 					return [
 						message.id,
 						message.role,
 						message.parts.length,
 						textLength,
-						lastToolCall?.type === "tool-call" ? lastToolCall.id : "",
-						lastToolResult?.type === "tool-result"
-							? lastToolResult.toolCallId
-							: "",
+						toolCallCount,
+						toolResultCount,
+						completedToolResultCount,
 					].join(":");
 				})
 				.join("|"),
@@ -133,17 +152,22 @@ export function AgentRunDetailDialog({
 									Raw
 								</TabsTrigger>
 							</TabsList>
-							{mode === "raw" ? (
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-6 px-2 text-[0.625rem] text-muted-foreground hover:bg-accent hover:text-foreground"
-									onClick={() => setShowDebug((value) => !value)}
-								>
-									{showDebug ? "Back to raw" : "Debug JSON"}
-								</Button>
-							) : null}
+							<div className="flex items-center gap-2">
+								{resolvedTokenTotals ? (
+									<TokenTotalsBadge tokenTotals={resolvedTokenTotals} />
+								) : null}
+								{mode === "raw" ? (
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-[0.625rem] text-muted-foreground hover:bg-accent hover:text-foreground"
+										onClick={() => setShowDebug((value) => !value)}
+									>
+										{showDebug ? "Back to raw" : "Debug JSON"}
+									</Button>
+								) : null}
+							</div>
 						</div>
 						<TabsContent
 							value="treated"
@@ -179,6 +203,12 @@ export function AgentRunDetailDialog({
 						</TabsContent>
 					</Tabs>
 				) : (
+					<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+						{resolvedTokenTotals ? (
+							<div className="flex justify-end pr-8">
+								<TokenTotalsBadge tokenTotals={resolvedTokenTotals} />
+							</div>
+						) : null}
 					<div className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
 						<div className="flex flex-col gap-3 pr-1">
 							{visibleMessages.map((message) =>
@@ -195,6 +225,7 @@ export function AgentRunDetailDialog({
 								),
 							)}
 						</div>
+					</div>
 					</div>
 				)}
 			</DialogContent>

@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@tanstack/ai", () => ({
 	toolDefinition: (definition: Record<string, unknown>) => ({
 		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
+		server: (
+			handler: (
+				input: unknown,
+				context?: { toolCallId?: string },
+			) => Promise<unknown>,
+		) => ({
 			...definition,
 			execute: handler,
 		}),
@@ -18,7 +23,10 @@ import {
 type Tool = {
 	name: string;
 	inputSchema: { safeParse: (input: unknown) => { success: boolean } };
-	execute: (input: Record<string, unknown>) => Promise<unknown>;
+	execute: (
+		input: Record<string, unknown>,
+		context?: { toolCallId?: string },
+	) => Promise<unknown>;
 };
 
 function getTool(tools: readonly unknown[], name: string): Tool {
@@ -30,6 +38,34 @@ function getTool(tools: readonly unknown[], name: string): Tool {
 describe("ingest extraction tools", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+	});
+
+	it("notifies onToolExecuted with toolCallId from execution context", async () => {
+		const workspace = createExtractionWorkspace();
+		const onToolExecuted = vi.fn();
+		const tools = createIngestExtractionTools(workspace, { onToolExecuted });
+		const addQuestion = getTool(tools, "add_extracted_question");
+
+		await addQuestion.execute(
+			{
+				question: "Q1",
+				options: ["A", "B"],
+				answer: "A",
+				topic: "Topico",
+			},
+			{ toolCallId: "tc-live-1" },
+		);
+
+		expect(onToolExecuted).toHaveBeenCalledWith(
+			expect.objectContaining({
+				toolCallId: "tc-live-1",
+				toolName: "add_extracted_question",
+				output: expect.objectContaining({
+					ok: true,
+					questionId: "q1",
+				}),
+			}),
+		);
 	});
 
 	it("adds questions through add_extracted_question", async () => {

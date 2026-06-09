@@ -151,6 +151,23 @@ function dispatch(
 	}
 }
 
+function shouldYieldAfterAgentToolEvent(
+	event: string,
+	raw: unknown,
+): boolean {
+	if (event !== "agent" || typeof raw !== "object" || raw == null) {
+		return false;
+	}
+	const eventType = (raw as { eventType?: unknown }).eventType;
+	return eventType === "tool-call" || eventType === "tool-result";
+}
+
+function yieldToRenderer(): Promise<void> {
+	return new Promise((resolve) => {
+		requestAnimationFrame(() => resolve());
+	});
+}
+
 export async function ingestStream(
 	payload: {
 		buffer: number[];
@@ -203,6 +220,9 @@ export async function ingestStream(
 						data = null;
 					}
 					dispatch(parsed.event, data, callbacks, resultRef);
+					if (shouldYieldAfterAgentToolEvent(parsed.event, data)) {
+						await yieldToRenderer();
+					}
 				}
 			}
 			idx = buffer.indexOf("\n\n");

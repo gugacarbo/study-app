@@ -34,7 +34,7 @@ export function JobDetailPanel({
 			className="flex h-full min-h-0 flex-1 flex-col overflow-hidden shadow-sm"
 		>
 			<CardHeader className="border-b pb-3">
-				<CardTitle className="flex items-center gap-2 text-sm font-semibold">
+				<CardTitle className="flex items-center gap-2 font-semibold">
 					<span className="truncate">{job.fileName}</span>
 					<StatusBadge status={job.status} />
 					<Badge variant="secondary" className="text-[0.625rem]">
@@ -72,6 +72,7 @@ export function JobDetailPanel({
 						className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
 					>
 						<OutputPanel
+							jobId={job.id}
 							entries={job.outputEntries}
 							rawOutput={job.rawOutput}
 							rawStreamText={job.rawStreamText}

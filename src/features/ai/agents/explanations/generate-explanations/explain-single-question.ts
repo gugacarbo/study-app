@@ -32,7 +32,9 @@ export async function explainSingleQuestion(
 	const label = `Explanation Q${index + 1}`;
 	const agentRunId =
 		options.createAgentRunId?.(label) ?? `explanation-question-${index + 1}`;
-	const systemPrompt = buildSystemPrompt(options.memoryContext);
+	const memoryContext =
+		options.resolveMemoryContext?.(question) ?? options.memoryContext;
+	const systemPrompt = buildSystemPrompt(memoryContext);
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
 	const explanationTools = createExplanationTools(workspace);
@@ -140,6 +142,7 @@ export async function explainSingleQuestion(
 					onToolCall: handleToolCall,
 					onToolResult: handleToolResult,
 				},
+				streamState,
 			},
 		);
 

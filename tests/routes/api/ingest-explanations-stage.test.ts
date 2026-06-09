@@ -131,7 +131,7 @@ describe("runExplanationsStage", () => {
 				}),
 			],
 			expect.objectContaining({
-				memoryContext: "memory context",
+				resolveMemoryContext: expect.any(Function),
 			}),
 		);
 		expect(result).toEqual({

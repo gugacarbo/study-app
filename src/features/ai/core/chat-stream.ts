@@ -5,6 +5,7 @@ import type { ProviderConfig } from "@/lib/validation";
 import {
 	createIncrementalToolEventMiddleware,
 	type AgentStreamHandlers,
+	type AgentStreamState,
 } from "./agent-stream-handler";
 
 export function streamChatMessages(
@@ -19,6 +20,7 @@ export function streamChatMessages(
 			AgentStreamHandlers,
 			"onToolCall" | "onToolResult"
 		>;
+		streamState?: AgentStreamState;
 	},
 ) {
 	const adapter = getAiAdapter(config);
@@ -26,7 +28,10 @@ export function streamChatMessages(
 
 	if (options?.toolStreamHandlers) {
 		middleware.unshift(
-			createIncrementalToolEventMiddleware(options.toolStreamHandlers),
+			createIncrementalToolEventMiddleware(
+				options.toolStreamHandlers,
+				options.streamState?.emittedToolResultIds,
+			),
 		);
 	}
 

@@ -4,7 +4,7 @@ export interface ChatUsage {
 	totalTokens: number;
 }
 
-export function toNumber(value: unknown): number | null {
+function toNumber(value: unknown): number | null {
 	if (typeof value === "number" && Number.isFinite(value)) return value;
 	if (typeof value === "string") {
 		const parsed = Number(value);

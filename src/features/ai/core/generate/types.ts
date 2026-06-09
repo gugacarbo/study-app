@@ -88,7 +88,7 @@ export interface GenerateJsonStreamOnErrorInfo {
 	rawOutput?: string;
 }
 
-export type { SafeParseCapableSchema, SafeParseResult };
+export type { SafeParseCapableSchema };
 export {
 	isReasoningChunk,
 	isRecoverableStructuredOutputError,
@@ -96,5 +96,5 @@ export {
 	isSafeParseCapableSchema,
 	isStructuredOutputCompleteEvent,
 	isTextMessageChunk,
-	RECOVERABLE_STRUCTURED_OUTPUT_CODES,
+
 };

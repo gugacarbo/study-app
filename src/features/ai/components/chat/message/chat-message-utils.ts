@@ -207,29 +207,6 @@ export function formatToolPayload(value: unknown): string | undefined {
 	return String(value);
 }
 
-export function labelForToolState(state: unknown): string {
-	switch (state) {
-		case "awaiting-input":
-			return "awaiting input";
-		case "input-streaming":
-			return "input streaming";
-		case "input-complete":
-			return "input complete";
-		case "approval-requested":
-			return "approval requested";
-		case "approval-responded":
-			return "approval responded";
-		case "streaming":
-			return "streaming";
-		case "complete":
-		case "completed":
-			return "complete";
-		case "error":
-			return "error";
-		default:
-			return "unknown";
-	}
-}
 
 export function triggerToneClass(tone: DetailTriggerTone): string {
 	switch (tone) {
@@ -280,7 +257,7 @@ export type GroupedAgentMessagePart =
 			index: number;
 	  };
 
-export function hasVisibleAssistantContent(parts: UIMessage["parts"]): boolean {
+function hasVisibleAssistantContent(parts: UIMessage["parts"]): boolean {
 	return parts.some((part) => {
 		if (part.type === "text" || part.type === "thinking") {
 			return (part.content ?? "").trim().length > 0;
@@ -372,7 +349,7 @@ function toolResultFromCallOutput(
 	};
 }
 
-export type AgentWorkBlock = {
+type AgentWorkBlock = {
 	kind: "agent-work";
 	parts: GroupedAgentMessagePart[];
 };
@@ -381,14 +358,14 @@ export type RenderableAssistantBlock =
 	| AgentWorkBlock
 	| { kind: "content"; groupedPart: GroupedAgentMessagePart };
 
-export function isAgentWorkPart(
+function isAgentWorkPart(
 	groupedPart: GroupedAgentMessagePart,
 ): boolean {
 	if (groupedPart.kind === "tool-call") return true;
 	return groupedPart.part.type === "thinking";
 }
 
-export function isAgentWorkRunComplete(
+function isAgentWorkRunComplete(
 	parts: GroupedAgentMessagePart[],
 ): boolean {
 	for (const part of parts) {
@@ -404,7 +381,7 @@ export function isAgentWorkRunComplete(
 	return true;
 }
 
-export function shouldGroupAgentWorkRun(
+function shouldGroupAgentWorkRun(
 	parts: GroupedAgentMessagePart[],
 	options: { isPending: boolean },
 ): boolean {
@@ -413,7 +390,7 @@ export function shouldGroupAgentWorkRun(
 	return isAgentWorkRunComplete(parts);
 }
 
-export function isCompletedToolCallPart(
+function isCompletedToolCallPart(
 	groupedPart: GroupedAgentMessagePart,
 ): boolean {
 	if (groupedPart.kind !== "tool-call" || !groupedPart.toolResult) {

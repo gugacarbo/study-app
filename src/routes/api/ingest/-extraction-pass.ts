@@ -2,7 +2,9 @@ import type { StreamChunk } from "@tanstack/ai";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
 import {
 	createAgentStreamState,
+	createToolResultEmitter,
 	isAgentStreamRunErrorChunk,
+	payloadFromToolExecuteResult,
 	processAgentStreamChunk,
 } from "@/features/ai/core/agent-stream-handler";
 import { streamChatMessages } from "@/features/ai/core/chat-stream";
@@ -63,6 +65,12 @@ interface ExtractionPassParams {
 	};
 	stageId: string;
 	stageLabel: string;
+	flushStream?: () => Promise<void>;
+}
+
+async function flushSseStream(flushStream?: () => Promise<void>) {
+	if (!flushStream) return;
+	await flushStream();
 }
 
 export async function runExtractionPass(
@@ -77,6 +85,7 @@ export async function runExtractionPass(
 		log,
 		stageId,
 		stageLabel,
+		flushStream,
 	} = params;
 
 	const systemPrompt = buildSystemPrompt({
@@ -86,8 +95,31 @@ export async function runExtractionPass(
 	const userPrompt = buildExtractionUserPrompt(text);
 	const run = agentRuns.createRun(stageId, stageLabel);
 	const workspace = createExtractionWorkspace();
-	const tools = createIngestExtractionTools(workspace);
 	const streamState = createAgentStreamState();
+	const emitToolResult = createToolResultEmitter((toolResult) => {
+		agentRuns.toolResult(
+			run,
+			{
+				content: toolResult.content,
+				error: toolResult.error,
+				state: toolResult.state,
+			},
+			{ toolCallId: toolResult.toolCallId },
+		);
+	}, streamState);
+	const emitToolResultAndFlush = async (
+		payload: Parameters<typeof emitToolResult>[0],
+	) => {
+		emitToolResult(payload);
+		await flushSseStream(flushStream);
+	};
+	const tools = createIngestExtractionTools(workspace, {
+		onToolExecuted: async ({ toolCallId, output }) => {
+			await emitToolResultAndFlush(
+				payloadFromToolExecuteResult(toolCallId, output),
+			);
+		},
+	});
 
 	agentRuns.lifecycle(run, "pending", { systemPrompt, userPrompt });
 	agentRuns.lifecycle(run, "running");
@@ -115,17 +147,10 @@ export async function runExtractionPass(
 						);
 					},
 					onToolResult: (toolResult) => {
-						agentRuns.toolResult(
-							run,
-							{
-								content: toolResult.content,
-								error: toolResult.error,
-								state: toolResult.state,
-							},
-							{ toolCallId: toolResult.toolCallId },
-						);
+						emitToolResult(toolResult);
 					},
 				},
+				streamState,
 			},
 		);
 
@@ -186,15 +211,7 @@ export async function runExtractionPass(
 						);
 					},
 					onToolResult: (toolResult) => {
-						agentRuns.toolResult(
-							run,
-							{
-								content: toolResult.content,
-								error: toolResult.error,
-								state: toolResult.state,
-							},
-							{ toolCallId: toolResult.toolCallId },
-						);
+						emitToolResult(toolResult);
 					},
 				},
 				streamState,
