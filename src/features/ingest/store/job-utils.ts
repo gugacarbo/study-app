@@ -534,7 +534,9 @@ function mergeToolCallPart(
 			? incoming.arguments
 			: existing.arguments,
 		input: isMeaningfulToolValue(incoming.input) ? incoming.input : existing.input,
-		output: undefined,
+		output: isMeaningfulToolValue(incoming.output)
+			? incoming.output
+			: existing.output,
 		state: normalizeToolCallState(incoming.state ?? existing.state),
 	};
 }
@@ -549,14 +551,54 @@ function createToolResultPart(
 		typeof candidate === "string" && candidate.length > 0
 			? candidate
 			: (readLatestToolCallId(agentRun) ?? `${agentRun.id}:tool-call:0`);
+	const content = safeJsonString(event.content ?? event.output ?? "");
 
 	return {
 		type: "tool-result",
 		toolCallId,
-		content: safeJsonString(event.content ?? event.output ?? ""),
+		content,
 		state: normalizeToolResultState(event.state),
 		error: typeof event.error === "string" ? event.error : undefined,
 	};
+}
+
+function upsertAssistantToolResultPart(
+	parts: UIMessage["parts"],
+	resultPart: AssistantToolResultPart,
+): UIMessage["parts"] {
+	const nextParts = [...parts];
+	const callIndex = nextParts.findIndex(
+		(candidate) =>
+			candidate.type === "tool-call" && candidate.id === resultPart.toolCallId,
+	);
+
+	if (callIndex !== -1) {
+		const currentCall = nextParts[callIndex];
+		if (currentCall.type === "tool-call") {
+			nextParts[callIndex] = {
+				...currentCall,
+				output: resultPart.content,
+			};
+		}
+	}
+
+	const existingResultIndex = nextParts.findIndex(
+		(candidate) =>
+			candidate.type === "tool-result" &&
+			candidate.toolCallId === resultPart.toolCallId,
+	);
+
+	if (existingResultIndex !== -1) {
+		nextParts[existingResultIndex] = resultPart;
+		return nextParts;
+	}
+
+	if (callIndex !== -1) {
+		nextParts.splice(callIndex + 1, 0, resultPart);
+		return nextParts;
+	}
+
+	return [...nextParts, resultPart];
 }
 
 function appendAssistantPart(
@@ -568,13 +610,18 @@ function appendAssistantPart(
 			? message.parts
 			: [];
 		const nextParts = stripToolTranscriptFromTextParts(baseParts);
+
+		if (part.type === "tool-result") {
+			return {
+				...message,
+				parts: upsertAssistantToolResultPart(nextParts, part),
+			};
+		}
+
 		const existingIndex = nextParts.findIndex((candidate) => {
 			if (candidate.type !== part.type) return false;
 			if (part.type === "tool-call" && candidate.type === "tool-call") {
 				return candidate.id === part.id;
-			}
-			if (part.type === "tool-result" && candidate.type === "tool-result") {
-				return candidate.toolCallId === part.toolCallId;
 			}
 			return false;
 		});

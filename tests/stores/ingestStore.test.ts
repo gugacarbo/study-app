@@ -286,6 +286,7 @@ describe("upsertAgentRun", () => {
 				name: "search_docs",
 				arguments: "{\"query\":\"ingest\"}",
 				input: { query: "ingest" },
+				output: "{\n  \"ok\": true\n}",
 				state: "input-complete",
 			},
 			{
@@ -293,6 +294,7 @@ describe("upsertAgentRun", () => {
 				toolCallId: "agent-1:tool-call:0",
 				content: "{\n  \"ok\": true\n}",
 				state: "complete",
+				error: undefined,
 			},
 		]);
 	});
@@ -350,7 +352,7 @@ describe("upsertAgentRun", () => {
 				name: "update_extracted_question",
 				arguments: '{"questionId":"q1"}',
 				input: { questionId: "q1" },
-				output: undefined,
+				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',
 				state: "input-complete",
 			},
 			{
@@ -432,7 +434,7 @@ describe("upsertAgentRun", () => {
 			name: "add_extracted_question",
 			arguments: '{"question":"Qual e a derivada de f(x) = x^2?"}',
 			input: { question: "Qual e a derivada de f(x) = x^2?" },
-			output: undefined,
+			output: "{\n  \"ok\": true\n}",
 			state: "input-complete",
 		});
 		expect(assistant?.parts).toContainEqual({
@@ -496,6 +498,25 @@ describe("upsertAgentRun", () => {
 				error: undefined,
 			},
 		]);
+		expect(assistant?.parts[0]).toEqual(
+			expect.objectContaining({
+				type: "tool-call",
+				id: "tc-1",
+				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',
+			}),
+		);
+		expect(assistant?.parts[1]).toEqual(
+			expect.objectContaining({
+				type: "tool-result",
+				toolCallId: "tc-1",
+			}),
+		);
+		expect(assistant?.parts[2]).toEqual(
+			expect.objectContaining({
+				type: "tool-call",
+				id: "tc-2",
+			}),
+		);
 	});
 
 	it("preserves streaming order when new assistant text arrives after a tool event", () => {
@@ -544,7 +565,7 @@ describe("upsertAgentRun", () => {
 				name: "list_extracted_questions",
 				arguments: "{}",
 				input: {},
-				output: undefined,
+				output: "{\n  \"ok\": true\n}",
 				state: "input-complete",
 			},
 			{
@@ -621,7 +642,7 @@ describe("upsertAgentRun", () => {
 				name: "add_extracted_question",
 				arguments: '{"question":"Q1","topic":"General"}',
 				input: { question: "Q1", topic: "General" },
-				output: undefined,
+				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',
 				state: "input-complete",
 			},
 		]);
