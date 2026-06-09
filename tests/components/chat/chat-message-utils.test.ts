@@ -1,11 +1,13 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { describe, expect, it } from "vitest";
 import {
+	buildAgentWorkSummary,
 	buildRenderableAssistantBlocks,
 	expandAssistantMessageParts,
 	formatToolPayload,
 	groupAgentWorkSections,
 	groupAssistantMessageParts,
+	mergeAssistantTurnMessages,
 	resolveThinkingIsPending,
 	shouldShowAssistantThinkingPlaceholder,
 } from "@/features/ai/components/chat/message/chat-message-utils";
@@ -53,6 +55,30 @@ describe("groupAssistantMessageParts", () => {
 			toolCall: expect.objectContaining({ id: "tc-1" }),
 			toolResult: expect.objectContaining({ toolCallId: "tc-1" }),
 			index: 1,
+		});
+	});
+
+	it("uses tool-call output when a separate tool-result part has not arrived yet", () => {
+		const grouped = groupAssistantMessageParts([
+			{
+				type: "tool-call",
+				id: "tc-1",
+				name: "add_extracted_question",
+				arguments: '{"questionId":"q1"}',
+				output: '{"ok":true,"questionId":"q1"}',
+				state: "input-complete",
+			},
+		]);
+
+		expect(grouped[0]).toEqual({
+			kind: "tool-call",
+			toolCall: expect.objectContaining({ id: "tc-1" }),
+			toolResult: expect.objectContaining({
+				toolCallId: "tc-1",
+				content: '{"ok":true,"questionId":"q1"}',
+				state: "complete",
+			}),
+			index: 0,
 		});
 	});
 
@@ -204,6 +230,35 @@ describe("expandAssistantMessageParts", () => {
 		).toEqual([
 			{ type: "thinking", content: "Checking layout." },
 			{ type: "text", content: "Done." },
+		]);
+	});
+
+	it("keeps thinking-only post-tool text as a visible assistant response", () => {
+		expect(
+			expandAssistantMessageParts([
+				{
+					type: "tool-call",
+					id: "tc-1",
+					name: "list_attempts",
+					arguments: "{}",
+					state: "input-complete",
+				},
+				{
+					type: "text",
+					content:
+						"<think>Você fez 12 tentativas em 3 exames.</think>",
+				},
+			]),
+		).toEqual([
+			expect.objectContaining({ type: "tool-call", id: "tc-1" }),
+			{
+				type: "thinking",
+				content: "Você fez 12 tentativas em 3 exames.",
+			},
+			{
+				type: "text",
+				content: "Você fez 12 tentativas em 3 exames.",
+			},
 		]);
 	});
 });
@@ -385,6 +440,48 @@ describe("buildRenderableAssistantBlocks", () => {
 		]);
 	});
 
+	it("shows a native post-tool thinking block as visible response text when no text exists", () => {
+		const blocks = buildRenderableAssistantBlocks(
+			[
+				{ type: "thinking", content: "Planning lookup." },
+				{
+					type: "tool-call",
+					id: "tc-1",
+					name: "list_attempts",
+					arguments: "{}",
+					state: "input-complete",
+				},
+				{
+					type: "tool-result",
+					toolCallId: "tc-1",
+					content: '{"count":12}',
+					state: "complete",
+				},
+				{
+					type: "thinking",
+					content: "Você fez 12 tentativas em 3 exames.",
+				},
+			],
+			{ isPending: false },
+		);
+
+		expect(blocks).toEqual([
+			{
+				kind: "agent-work",
+				parts: expect.any(Array),
+			},
+			{
+				kind: "content",
+				groupedPart: expect.objectContaining({
+					part: expect.objectContaining({
+						type: "text",
+						content: "Você fez 12 tentativas em 3 exames.",
+					}),
+				}),
+			},
+		]);
+	});
+
 	it("keeps an in-progress trailing run ungrouped while pending", () => {
 		const blocks = buildRenderableAssistantBlocks(
 			[
@@ -491,7 +588,7 @@ describe("groupAgentWorkSections", () => {
 		]);
 	});
 
-	it("groups interstitial text between tool calls into one agent-work block when complete", () => {
+	it("groups interstitial text between tool calls into separate completed work blocks", () => {
 		const grouped = groupAssistantMessageParts([
 			{ type: "thinking", content: "Planning lookup." },
 			{
@@ -525,10 +622,19 @@ describe("groupAgentWorkSections", () => {
 		]);
 
 		const blocks = groupAgentWorkSections(grouped, { isPending: false });
-		expect(blocks).toHaveLength(1);
+		expect(blocks).toHaveLength(3);
 		expect(blocks[0]?.kind).toBe("agent-work");
+		expect(blocks[1]).toEqual({
+			kind: "content",
+			groupedPart: expect.objectContaining({
+				part: expect.objectContaining({
+					type: "text",
+					content: "Found 3 attempts, checking details.",
+				}),
+			}),
+		});
+		expect(blocks[2]?.kind).toBe("agent-work");
 		if (blocks[0]?.kind === "agent-work") {
-			expect(blocks[0].parts).toHaveLength(4);
 			expect(blocks[0].parts).toEqual([
 				expect.objectContaining({
 					part: expect.objectContaining({ type: "thinking" }),
@@ -537,6 +643,10 @@ describe("groupAgentWorkSections", () => {
 					kind: "tool-call",
 					toolCall: expect.objectContaining({ id: "tc-1" }),
 				}),
+			]);
+		}
+		if (blocks[2]?.kind === "agent-work") {
+			expect(blocks[2].parts).toEqual([
 				expect.objectContaining({
 					part: expect.objectContaining({ type: "thinking" }),
 				}),
@@ -593,7 +703,60 @@ describe("groupAgentWorkSections", () => {
 			{
 				kind: "content",
 				groupedPart: expect.objectContaining({
+					part: expect.objectContaining({
+						type: "text",
+						content: "Found 3 attempts, checking details.",
+					}),
+				}),
+			},
+			{
+				kind: "content",
+				groupedPart: expect.objectContaining({
 					part: expect.objectContaining({ type: "thinking" }),
+				}),
+			},
+			{
+				kind: "content",
+				groupedPart: expect.objectContaining({
+					kind: "tool-call",
+					toolCall: expect.objectContaining({ id: "tc-2" }),
+				}),
+			},
+		]);
+	});
+
+	it("emits completed tool calls individually while a consecutive run is still pending", () => {
+		const grouped = groupAssistantMessageParts([
+			{
+				type: "tool-call",
+				id: "tc-1",
+				name: "add_extracted_question",
+				arguments: '{"questionId":"q1"}',
+				state: "input-complete",
+				output: '{"ok":true,"questionId":"q1"}',
+			},
+			{
+				type: "tool-result",
+				toolCallId: "tc-1",
+				content: '{"ok":true,"questionId":"q1"}',
+				state: "complete",
+			},
+			{
+				type: "tool-call",
+				id: "tc-2",
+				name: "add_extracted_question",
+				arguments: '{"questionId":"q2"}',
+				state: "input-streaming",
+			},
+		]);
+
+		expect(groupAgentWorkSections(grouped, { isPending: true })).toEqual([
+			{
+				kind: "content",
+				groupedPart: expect.objectContaining({
+					kind: "tool-call",
+					toolCall: expect.objectContaining({ id: "tc-1" }),
+					toolResult: expect.objectContaining({ toolCallId: "tc-1" }),
 				}),
 			},
 			{
@@ -650,6 +813,158 @@ describe("groupAgentWorkSections", () => {
 				}),
 			}),
 		});
+	});
+});
+
+describe("mergeAssistantTurnMessages", () => {
+	const toolCycle = (id: string) =>
+		[
+			{ type: "thinking", content: `Planning ${id}.` },
+			{
+				type: "tool-call",
+				id,
+				name: "list_attempts",
+				arguments: "{}",
+				state: "input-complete",
+			},
+			{
+				type: "tool-result",
+				toolCallId: id,
+				content: '{"ok":true}',
+				state: "complete",
+			},
+		] as UIMessage["parts"];
+
+	it("merges consecutive assistant messages from auto-continuation", () => {
+		const merged = mergeAssistantTurnMessages([
+			{
+				id: "user-1",
+				role: "user",
+				parts: [{ type: "text", content: "How many attempts?" }],
+			},
+			{
+				id: "asst-1",
+				role: "assistant",
+				parts: toolCycle("tc-1"),
+			},
+			{
+				id: "asst-2",
+				role: "assistant",
+				parts: toolCycle("tc-2"),
+			},
+			{
+				id: "asst-3",
+				role: "assistant",
+				parts: [
+					...toolCycle("tc-3"),
+					{ type: "text", content: "You have 3 attempts." },
+					{ type: "thinking", content: "Summarizing totals." },
+				],
+			},
+		] as UIMessage[]);
+
+		expect(merged).toHaveLength(2);
+		expect(merged[1]?.role).toBe("assistant");
+		expect(merged[1]?.id).toBe("asst-3");
+		expect(merged[1]?.parts).toHaveLength(11);
+	});
+
+	it("groups merged auto-continuation turns into one agent-work block", () => {
+		const merged = mergeAssistantTurnMessages([
+			{
+				id: "user-1",
+				role: "user",
+				parts: [{ type: "text", content: "How many attempts?" }],
+			},
+			{
+				id: "asst-1",
+				role: "assistant",
+				parts: toolCycle("tc-1"),
+			},
+			{
+				id: "asst-2",
+				role: "assistant",
+				parts: toolCycle("tc-2"),
+			},
+			{
+				id: "asst-3",
+				role: "assistant",
+				parts: [
+					...toolCycle("tc-3"),
+					{ type: "text", content: "You have 3 attempts." },
+					{ type: "thinking", content: "Summarizing totals." },
+				],
+			},
+		] as UIMessage[]);
+
+		const assistant = merged[1];
+		expect(assistant).toBeDefined();
+
+		const blocks = buildRenderableAssistantBlocks(assistant!.parts, {
+			isPending: false,
+		});
+
+		expect(blocks.filter((block) => block.kind === "agent-work")).toHaveLength(
+			1,
+		);
+		const agentWork = blocks.find((block) => block.kind === "agent-work");
+		expect(agentWork?.kind).toBe("agent-work");
+		if (agentWork?.kind === "agent-work") {
+			expect(buildAgentWorkSummary(agentWork.parts)).toBe(
+				"Agent Work: 3 tools",
+			);
+		}
+		expect(blocks.at(-2)).toEqual({
+			kind: "content",
+			groupedPart: expect.objectContaining({
+				part: expect.objectContaining({
+					type: "text",
+					content: "You have 3 attempts.",
+				}),
+			}),
+		});
+		expect(blocks.at(-1)).toEqual({
+			kind: "content",
+			groupedPart: expect.objectContaining({
+				part: expect.objectContaining({
+					type: "thinking",
+					content: "Summarizing totals.",
+				}),
+			}),
+		});
+	});
+
+	it("keeps assistant messages separated by user turns", () => {
+		const merged = mergeAssistantTurnMessages([
+			{
+				id: "user-1",
+				role: "user",
+				parts: [{ type: "text", content: "First question" }],
+			},
+			{
+				id: "asst-1",
+				role: "assistant",
+				parts: [{ type: "text", content: "First answer" }],
+			},
+			{
+				id: "user-2",
+				role: "user",
+				parts: [{ type: "text", content: "Second question" }],
+			},
+			{
+				id: "asst-2",
+				role: "assistant",
+				parts: [{ type: "text", content: "Second answer" }],
+			},
+		] as UIMessage[]);
+
+		expect(merged).toHaveLength(4);
+		expect(merged.map((message) => message.id)).toEqual([
+			"user-1",
+			"asst-1",
+			"user-2",
+			"asst-2",
+		]);
 	});
 });
 

@@ -24,6 +24,7 @@ export type DetailTriggerTone =
 	| "approval";
 
 export type ToolCallViewModel = {
+	id?: unknown;
 	name?: unknown;
 	arguments?: unknown;
 	input?: unknown;
@@ -76,12 +77,31 @@ export function parseTextParts(content: string): ParsedPart[] {
 	return parts.length > 0 ? parts : [{ type: "text", content }];
 }
 
+function firstToolCallPartIndex(parts: UIMessage["parts"]): number {
+	return parts.findIndex((part) => part.type === "tool-call");
+}
+
+function thinkingOnlyTextResponse(
+	parsed: ParsedPart[],
+): string | undefined {
+	const responseText = parsed
+		.filter((segment) => segment.type === "think")
+		.map((segment) => segment.content.trim())
+		.filter(Boolean)
+		.join("\n\n");
+
+	return responseText.length > 0 ? responseText : undefined;
+}
+
 export function expandAssistantMessageParts(
 	parts: UIMessage["parts"],
 ): UIMessage["parts"] {
 	const expanded: UIMessage["parts"] = [];
+	const firstToolIndex = firstToolCallPartIndex(parts);
 
-	for (const part of parts) {
+	for (let index = 0; index < parts.length; index += 1) {
+		const part = parts[index]!;
+
 		if (part.type === "thinking") {
 			if ((part.content ?? "").trim().length > 0) {
 				expanded.push(part);
@@ -110,6 +130,7 @@ export function expandAssistantMessageParts(
 			continue;
 		}
 
+		let hasVisibleText = false;
 		for (const segment of parsed) {
 			if (segment.type === "think") {
 				const thinkContent = segment.content.trim();
@@ -121,7 +142,17 @@ export function expandAssistantMessageParts(
 
 			const textContent = segment.content.trim();
 			if (textContent.length > 0) {
+				hasVisibleText = true;
 				expanded.push({ type: "text", content: textContent });
+			}
+		}
+
+		// Text parts that only contain thinking tags become thinking parts and
+		// were previously hidden inside the agent-work accordion.
+		if (!hasVisibleText && firstToolIndex !== -1 && index > firstToolIndex) {
+			const responseText = thinkingOnlyTextResponse(parsed);
+			if (responseText) {
+				expanded.push({ type: "text", content: responseText });
 			}
 		}
 	}
@@ -292,7 +323,8 @@ export function groupAssistantMessageParts(
 		const part = parts[index];
 
 		if (part.type === "tool-call") {
-			const toolResult = resultsByCallId.get(part.id);
+			const toolResult =
+				resultsByCallId.get(part.id) ?? toolResultFromCallOutput(part);
 			if (toolResult) {
 				consumedResultIds.add(toolResult.toolCallId);
 			}
@@ -319,6 +351,25 @@ export function groupAssistantMessageParts(
 	}
 
 	return grouped;
+}
+
+function toolResultFromCallOutput(
+	toolCall: AssistantToolCallPart,
+): AssistantToolResultPart | undefined {
+	if (toolCall.output == null) return undefined;
+
+	const content =
+		typeof toolCall.output === "string"
+			? toolCall.output
+			: safeJson(toolCall.output);
+	if (content.trim().length === 0) return undefined;
+
+	return {
+		type: "tool-result",
+		toolCallId: toolCall.id,
+		content,
+		state: "complete",
+	};
 }
 
 export type AgentWorkBlock = {
@@ -362,12 +413,26 @@ export function shouldGroupAgentWorkRun(
 	return isAgentWorkRunComplete(parts);
 }
 
+export function isCompletedToolCallPart(
+	groupedPart: GroupedAgentMessagePart,
+): boolean {
+	if (groupedPart.kind !== "tool-call" || !groupedPart.toolResult) {
+		return false;
+	}
+
+	return !resolveToolCallTriggerPresentation(
+		groupedPart.toolCall,
+		groupedPart.toolResult,
+	).isLoading;
+}
+
 export function groupAgentWorkSections(
 	groupedParts: GroupedAgentMessagePart[],
 	options?: { isPending?: boolean },
 ): RenderableAssistantBlock[] {
 	const isPending = options?.isPending ?? false;
 	const blocks: RenderableAssistantBlock[] = [];
+	let workRun: GroupedAgentMessagePart[] = [];
 
 	const emitWorkRun = (parts: GroupedAgentMessagePart[]) => {
 		if (parts.length === 0) return;
@@ -382,50 +447,139 @@ export function groupAgentWorkSections(
 		}
 	};
 
-	let firstWorkIndex = -1;
-	let lastWorkIndex = -1;
-	for (let index = 0; index < groupedParts.length; index += 1) {
-		if (isAgentWorkPart(groupedParts[index]!)) {
-			if (firstWorkIndex === -1) firstWorkIndex = index;
-			lastWorkIndex = index;
+	const flushWorkRun = () => {
+		emitWorkRun(workRun);
+		workRun = [];
+	};
+
+	for (const groupedPart of groupedParts) {
+		if (!isAgentWorkPart(groupedPart)) {
+			flushWorkRun();
+			blocks.push({ kind: "content", groupedPart });
+			continue;
 		}
+
+		if (isPending && isCompletedToolCallPart(groupedPart)) {
+			flushWorkRun();
+			blocks.push({ kind: "content", groupedPart });
+			continue;
+		}
+
+		workRun.push(groupedPart);
 	}
 
-	if (firstWorkIndex === -1) {
-		for (const groupedPart of groupedParts) {
-			blocks.push({ kind: "content", groupedPart });
-		}
+	flushWorkRun();
+	return ensureVisibleAssistantResponse(blocks, groupedParts, options);
+}
+
+function hasVisibleTextContentBlock(
+	blocks: RenderableAssistantBlock[],
+): boolean {
+	return blocks.some(
+		(block) =>
+			block.kind === "content" &&
+			block.groupedPart.kind === "single" &&
+			block.groupedPart.part.type === "text" &&
+			(block.groupedPart.part.content ?? "").trim().length > 0,
+	);
+}
+
+function lastToolCallGroupedIndex(
+	groupedParts: GroupedAgentMessagePart[],
+): number {
+	return groupedParts.findLastIndex((part) => part.kind === "tool-call");
+}
+
+function ensureVisibleAssistantResponse(
+	blocks: RenderableAssistantBlock[],
+	groupedParts: GroupedAgentMessagePart[],
+	options?: { isPending?: boolean },
+): RenderableAssistantBlock[] {
+	if (options?.isPending || hasVisibleTextContentBlock(blocks)) {
 		return blocks;
 	}
 
-	for (let index = 0; index < firstWorkIndex; index += 1) {
-		blocks.push({ kind: "content", groupedPart: groupedParts[index]! });
+	const lastToolCallIndex = lastToolCallGroupedIndex(groupedParts);
+	if (lastToolCallIndex === -1) {
+		return blocks;
 	}
 
-	const workParts: GroupedAgentMessagePart[] = [];
-	for (let index = firstWorkIndex; index <= lastWorkIndex; index += 1) {
-		const groupedPart = groupedParts[index]!;
-		if (isAgentWorkPart(groupedPart)) {
-			workParts.push(groupedPart);
-		}
-	}
-	emitWorkRun(workParts);
+	const responseThinking = groupedParts
+		.slice(lastToolCallIndex + 1)
+		.filter(
+			(
+				part,
+			): part is Extract<GroupedAgentMessagePart, { kind: "single" }> =>
+				part.kind === "single" &&
+				part.part.type === "thinking" &&
+				(part.part.content ?? "").trim().length > 0,
+		)
+		.at(-1);
 
-	for (let index = lastWorkIndex + 1; index < groupedParts.length; index += 1) {
-		blocks.push({ kind: "content", groupedPart: groupedParts[index]! });
+	if (!responseThinking) {
+		return blocks;
 	}
 
-	return blocks;
+	const responsePart: GroupedAgentMessagePart = {
+		kind: "single",
+		part: {
+			type: "text",
+			content: responseThinking.part.content ?? "",
+		},
+		index: responseThinking.index,
+	};
+
+	const lastAgentWorkIndex = blocks.findLastIndex(
+		(block) => block.kind === "agent-work",
+	);
+	const insertAt = lastAgentWorkIndex === -1 ? 0 : lastAgentWorkIndex + 1;
+
+	return [
+		...blocks.slice(0, insertAt),
+		{ kind: "content", groupedPart: responsePart },
+		...blocks.slice(insertAt),
+	];
 }
 
 export function buildRenderableAssistantBlocks(
 	parts: UIMessage["parts"],
 	options?: { isPending?: boolean },
 ): RenderableAssistantBlock[] {
-	return groupAgentWorkSections(
-		groupAssistantMessageParts(expandAssistantMessageParts(parts)),
-		options,
-	);
+	const expandedParts = expandAssistantMessageParts(parts);
+	const groupedParts = groupAssistantMessageParts(expandedParts);
+	return groupAgentWorkSections(groupedParts, options);
+}
+
+/**
+ * ChatClient auto-continuation creates a new assistant UIMessage per tool
+ * iteration. Merge those into one virtual message so agent-work grouping
+ * spans the full turn.
+ */
+export function mergeAssistantTurnMessages(
+	messages: UIMessage[],
+): UIMessage[] {
+	const merged: UIMessage[] = [];
+
+	for (const message of messages) {
+		if (message.role !== "assistant" || message.id === "welcome") {
+			merged.push(message);
+			continue;
+		}
+
+		const previous = merged[merged.length - 1];
+		if (previous?.role === "assistant" && previous.id !== "welcome") {
+			merged[merged.length - 1] = {
+				...previous,
+				parts: [...previous.parts, ...message.parts],
+				id: message.id,
+			};
+			continue;
+		}
+
+		merged.push({ ...message });
+	}
+
+	return merged;
 }
 
 export function buildAgentWorkSummary(
@@ -477,12 +631,23 @@ export function resolveToolCallTriggerPresentation(
 	toolCall: ToolCallViewModel,
 	toolResult?: ToolResultViewModel,
 ): { tone: DetailTriggerTone; isLoading: boolean } {
-	if (toolResult) {
+	const resolvedResult =
+		toolResult ??
+		(toolCall.output != null
+			? {
+					content: toolCall.output,
+					state: "complete",
+				}
+			: undefined);
+
+	if (resolvedResult) {
 		const resultState =
-			typeof toolResult.state === "string" ? toolResult.state : "unknown";
+			typeof resolvedResult.state === "string"
+				? resolvedResult.state
+				: "unknown";
 		return {
 			tone: toneFromState(resultState),
-			isLoading: isLoadingToolState(toolResult.state),
+			isLoading: isLoadingToolState(resolvedResult.state),
 		};
 	}
 

@@ -20,6 +20,7 @@ export function ChatMessageToolCall({
 	toolResult?: ToolResultViewModel;
 }) {
 	const name = typeof part.name === "string" ? part.name : "unknown_tool";
+	const toolCallId = typeof part.id === "string" ? part.id : name;
 	const parsedInput = "input" in part ? part.input : undefined;
 	const rawArgs =
 		typeof part.arguments === "string" ? part.arguments : undefined;
@@ -38,7 +39,7 @@ export function ChatMessageToolCall({
 
 	return (
 		<DetailAccordion
-			value="tool-call"
+			value={`tool-call-${toolCallId}`}
 			label={`Tool call: ${name}`}
 			tone={tone}
 			isLoading={isLoading}

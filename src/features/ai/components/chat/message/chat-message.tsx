@@ -117,8 +117,9 @@ function buildGroupedPartKey(
 	groupedPart: GroupedAgentMessagePart,
 ): string {
 	if (groupedPart.kind === "tool-call") {
+		const resultState = groupedPart.toolResult?.state ?? "pending";
 		const resultSuffix = groupedPart.toolResult
-			? `:result:${groupedPart.toolResult.toolCallId}`
+			? `:result:${groupedPart.toolResult.toolCallId}:${resultState}`
 			: "";
 		return `${message.id}:tool-call:${groupedPart.toolCall.id}${resultSuffix}`;
 	}
