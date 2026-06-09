@@ -40,6 +40,17 @@ function buildAgentRun(
 	};
 }
 
+function buildStreamingMessage(
+	parts: UIMessage["parts"],
+	messageId = "assistant-1",
+): UIMessage {
+	return {
+		id: messageId,
+		role: "assistant",
+		parts,
+	};
+}
+
 const stages: IngestPipelineStageViewModel[] = [
 	{
 		stageId: "extract",
@@ -120,13 +131,92 @@ describe("IngestChatView", () => {
 		expect(screen.getByText("Legacy assistant response")).toBeTruthy();
 	});
 
-	it("keeps the ingest auto-scroll behavior when new chat items arrive", () => {
+	it("shows a thinking placeholder while the assistant message is still empty", () => {
+		render(
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [
+							buildTextMessage("user-1", "user", "Parse this exam PDF."),
+							buildStreamingMessage([{ type: "text", content: "" }]),
+						],
+					}),
+				]}
+			/>,
+		);
+
+		expect(screen.getByText("Thinking...")).toBeTruthy();
+	});
+
+	it("renders tool-call and tool-result parts from agent.messages", () => {
+		render(
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [
+							buildStreamingMessage([
+								{ type: "text", content: "Reviewing q1." },
+								{
+									type: "tool-call",
+									id: "tc-1",
+									name: "update_extracted_question",
+									arguments:
+										'{"questionId":"q1","answer":"2x","topic":"Derivatives"}',
+									input: {
+										questionId: "q1",
+										answer: "2x",
+										topic: "Derivatives",
+									},
+									state: "input-complete",
+								},
+								{
+									type: "tool-result",
+									toolCallId: "tc-1",
+									content: '{"ok":true,"questionId":"q1"}',
+									state: "complete",
+								},
+							]),
+						],
+					}),
+				]}
+			/>,
+		);
+
+		expect(document.body.textContent).toContain("Tool call: update_extracted_question");
+		expect(document.body.textContent).not.toContain("Agent Work");
+		expect(document.body.textContent).not.toContain("(input complete)");
+		expect(document.body.textContent).not.toContain("Tool result");
+	});
+
+	it("auto-scrolls when text is appended to the same assistant message", () => {
 		const scrollToSpy = vi.fn();
 		HTMLElement.prototype.scrollTo = scrollToSpy;
 
 		const { rerender } = render(
-			<IngestChatView selectedStageId={null} stages={stages} agents={[]} />,
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [
+							buildStreamingMessage([
+								{ type: "text", content: "Streaming partial" },
+							]),
+						],
+					}),
+				]}
+			/>,
 		);
+
+		scrollToSpy.mockClear();
+		requestAnimationFrameSpy.mockClear();
 
 		rerender(
 			<IngestChatView
@@ -136,11 +226,9 @@ describe("IngestChatView", () => {
 					buildAgentRun({
 						state: "running",
 						messages: [
-							buildTextMessage(
-								"assistant-1",
-								"assistant",
-								"Streaming partial response",
-							),
+							buildStreamingMessage([
+								{ type: "text", content: "Streaming partial response" },
+							]),
 						],
 					}),
 				]}
@@ -152,5 +240,127 @@ describe("IngestChatView", () => {
 			top: expect.any(Number),
 			behavior: "smooth",
 		});
+	});
+
+	it("auto-scrolls when a tool-call is appended to the same assistant message", () => {
+		const scrollToSpy = vi.fn();
+		HTMLElement.prototype.scrollTo = scrollToSpy;
+
+		const baseMessage = buildStreamingMessage([
+			{ type: "text", content: "Reviewing q1." },
+		]);
+
+		const { rerender } = render(
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [baseMessage],
+					}),
+				]}
+			/>,
+		);
+
+		scrollToSpy.mockClear();
+		requestAnimationFrameSpy.mockClear();
+
+		rerender(
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [
+							buildStreamingMessage([
+								...baseMessage.parts,
+								{
+									type: "tool-call",
+									id: "tc-1",
+									name: "list_extracted_questions",
+									arguments: "{}",
+									input: {},
+									state: "input-complete",
+								},
+							]),
+						],
+					}),
+				]}
+			/>,
+		);
+
+		expect(requestAnimationFrameSpy).toHaveBeenCalled();
+		expect(scrollToSpy).toHaveBeenCalledWith({
+			top: expect.any(Number),
+			behavior: "smooth",
+		});
+		expect(document.body.textContent).toContain("Tool call: list_extracted_questions");
+		expect(document.body.textContent).not.toContain("Agent Work");
+	});
+
+	it("auto-scrolls when a tool-result is appended to the same assistant message", () => {
+		const scrollToSpy = vi.fn();
+		HTMLElement.prototype.scrollTo = scrollToSpy;
+
+		const baseMessage = buildStreamingMessage([
+			{ type: "text", content: "Reviewing q1." },
+			{
+				type: "tool-call",
+				id: "tc-1",
+				name: "update_extracted_question",
+				arguments: '{"questionId":"q1"}',
+				input: { questionId: "q1" },
+				state: "input-complete",
+			},
+		]);
+
+		const { rerender } = render(
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [baseMessage],
+					}),
+				]}
+			/>,
+		);
+
+		scrollToSpy.mockClear();
+		requestAnimationFrameSpy.mockClear();
+
+		rerender(
+			<IngestChatView
+				selectedStageId={null}
+				stages={stages}
+				agents={[
+					buildAgentRun({
+						state: "running",
+						messages: [
+							buildStreamingMessage([
+								...baseMessage.parts,
+								{
+									type: "tool-result",
+									toolCallId: "tc-1",
+									content: '{"ok":true,"questionId":"q1"}',
+									state: "complete",
+								},
+							]),
+						],
+					}),
+				]}
+			/>,
+		);
+
+		expect(requestAnimationFrameSpy).toHaveBeenCalled();
+		expect(scrollToSpy).toHaveBeenCalledWith({
+			top: expect.any(Number),
+			behavior: "smooth",
+		});
+		expect(document.body.textContent).not.toContain("Tool result");
+		expect(document.body.textContent).not.toContain("(input complete)");
 	});
 });

@@ -127,6 +127,56 @@ describe("ingest extraction tools", () => {
 		});
 	});
 
+	it("treats null update fields as a no-op in update_extracted_question", async () => {
+		const workspace = createExtractionWorkspace();
+		const tools = createIngestExtractionTools(workspace);
+		const addQuestion = getTool(tools, "add_extracted_question");
+		const updateQuestion = getTool(tools, "update_extracted_question");
+
+		await addQuestion.execute({
+			question: "Pergunta inicial",
+			options: ["A", "B"],
+			answer: "A",
+			topic: "Topico 1",
+		});
+
+		expect(
+			updateQuestion.inputSchema.safeParse({
+				questionId: "q1",
+				question: null,
+				options: null,
+				answer: null,
+				topic: null,
+				explanation: null,
+			}).success,
+		).toBe(true);
+
+		const result = (await updateQuestion.execute({
+			questionId: "q1",
+			question: null,
+			options: null,
+			answer: null,
+			topic: null,
+			explanation: null,
+		})) as {
+			ok: boolean;
+			questionId: string;
+			updatedFields: string[];
+		};
+
+		expect(result).toEqual({
+			ok: true,
+			questionId: "q1",
+			updatedFields: [],
+		});
+		expect(workspace.listQuestions()[0]).toMatchObject({
+			question: "Pergunta inicial",
+			options: ["A", "B"],
+			answer: "A",
+			topic: "Topico 1",
+		});
+	});
+
 	it("lists the current extraction workspace", async () => {
 		const workspace = createExtractionWorkspace();
 		const tools = createIngestExtractionTools(workspace);

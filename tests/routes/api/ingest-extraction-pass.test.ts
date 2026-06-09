@@ -154,8 +154,7 @@ describe("runExtractionPass", () => {
 					answer: "Memoria rapida",
 					topic: "Memoria",
 				},
-				output: '{"ok":true}',
-				state: "complete",
+				state: "input-complete",
 			},
 			{ toolCallId: "tc-1" },
 		);
@@ -238,6 +237,80 @@ describe("runExtractionPass", () => {
 		});
 	});
 
+	it("deduplicates repeated tool transcript lines for the same toolCallId", async () => {
+		streamChatMessagesMock.mockImplementation(
+			(
+				_config: unknown,
+				_messages: unknown,
+				options?: { tools?: readonly unknown[] },
+			) =>
+				(async function* () {
+					const addQuestion = getTool(
+						options?.tools,
+						"add_extracted_question",
+					);
+					await addQuestion.execute({
+						question: "Questao unica",
+						options: ["A", "B"],
+						answer: "A",
+						topic: "Geral",
+					});
+					yield {
+						type: "TOOL_CALL_END",
+						toolCallId: "tc-dedupe-1",
+						toolCallName: "add_extracted_question",
+						input: {
+							question: "Questao unica",
+							options: ["A", "B"],
+							answer: "A",
+							topic: "Geral",
+						},
+						result: '{"ok":false,"error":{"message":"retry"}}',
+					};
+					yield {
+						type: "TOOL_CALL_END",
+						toolCallId: "tc-dedupe-1",
+						toolCallName: "add_extracted_question",
+						input: {
+							question: "Questao unica",
+							options: ["A", "B"],
+							answer: "A",
+							topic: "Geral",
+						},
+						result: '{"ok":true,"questionId":"q1"}',
+					};
+					yield {
+						type: "RUN_FINISHED",
+						threadId: "thread-1",
+						runId: "run-1",
+						finishReason: "stop",
+					};
+				})(),
+		);
+
+		const agentRuns = createAgentRunsMock();
+
+		await runExtractionPass({
+			text: "Texto da prova",
+			config: {
+				provider: "openrouter",
+				model: "openai/gpt-4o-mini",
+				apiKey: "test-key",
+			},
+			criticalTopics: [],
+			agentRuns,
+			send: vi.fn(),
+			log: { error: vi.fn() },
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		const rawText = agentRuns.result.mock.calls[0]?.[2];
+		const toolMatches = String(rawText).match(/\[tool:add_extracted_question\]/g) ?? [];
+
+		expect(toolMatches).toHaveLength(1);
+	});
+
 	it("throws and warns when no question is added", async () => {
 		streamChatMessagesMock.mockImplementation(
 			() =>
@@ -274,5 +347,105 @@ describe("runExtractionPass", () => {
 		expect(send).toHaveBeenCalledWith("warning", {
 			message: "No questions were extracted during the initial ingest pass.",
 		});
+	});
+
+	it("emits incremental tool-call events while arguments stream", async () => {
+		streamChatMessagesMock.mockImplementation(
+			(
+				_config: unknown,
+				_messages: unknown,
+				options?: { tools?: readonly unknown[] },
+			) =>
+				(async function* () {
+					const addQuestion = getTool(
+						options?.tools,
+						"add_extracted_question",
+					);
+					yield {
+						type: "TOOL_CALL_START",
+						toolCallId: "tc-stream-1",
+						toolCallName: "add_extracted_question",
+					};
+					yield {
+						type: "TOOL_CALL_ARGS",
+						toolCallId: "tc-stream-1",
+						delta: '{"question":"Qual e a derivada?"',
+					};
+					yield {
+						type: "TOOL_CALL_ARGS",
+						toolCallId: "tc-stream-1",
+						delta: ',"answer":"2x"}',
+					};
+					await addQuestion.execute({
+						question: "Qual e a derivada?",
+						answer: "2x",
+						options: ["1", "2x"],
+						topic: "Calculo",
+					});
+					yield {
+						type: "TOOL_CALL_END",
+						toolCallId: "tc-stream-1",
+						toolCallName: "add_extracted_question",
+						input: {
+							question: "Qual e a derivada?",
+							answer: "2x",
+							options: ["1", "2x"],
+							topic: "Calculo",
+						},
+						result: { ok: true, questionId: "q1" },
+					};
+					yield {
+						type: "RUN_FINISHED",
+						threadId: "thread-1",
+						runId: "run-1",
+						finishReason: "stop",
+					};
+				})(),
+		);
+
+		const agentRuns = createAgentRunsMock();
+		await runExtractionPass({
+			text: "Texto da prova",
+			config: {
+				provider: "openrouter",
+				model: "openai/gpt-4o-mini",
+				apiKey: "test-key",
+			},
+			criticalTopics: [],
+			agentRuns,
+			send: vi.fn(),
+			log: { error: vi.fn() },
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		expect(agentRuns.toolCall).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({ agentRunId: "initial_extraction-1" }),
+			expect.objectContaining({
+				name: "add_extracted_question",
+				state: "awaiting-input",
+			}),
+			{ toolCallId: "tc-stream-1" },
+		);
+		expect(agentRuns.toolCall).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ agentRunId: "initial_extraction-1" }),
+			expect.objectContaining({
+				name: "add_extracted_question",
+				arguments: '{"question":"Qual e a derivada?"',
+				state: "input-streaming",
+			}),
+			{ toolCallId: "tc-stream-1" },
+		);
+		expect(agentRuns.toolCall).toHaveBeenNthCalledWith(
+			4,
+			expect.objectContaining({ agentRunId: "initial_extraction-1" }),
+			expect.objectContaining({
+				name: "add_extracted_question",
+				state: "input-complete",
+			}),
+			{ toolCallId: "tc-stream-1" },
+		);
 	});
 });

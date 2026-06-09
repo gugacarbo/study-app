@@ -1,12 +1,22 @@
-import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
-import { generateJsonStream } from "@/features/ai/core/generate";
+import type { StreamChunk } from "@tanstack/ai";
+import {
+	createAgentStreamState,
+	isAgentStreamRunErrorChunk,
+	processAgentStreamChunk,
+} from "@/features/ai/core/agent-stream-handler";
+import { streamChatMessages } from "@/features/ai/core/chat-stream";
+import {
+	createExtractionWorkspace,
+	createIngestExtractionTools,
+} from "@/features/ai/tools/ingest-tools";
+import type {
+	ExtractionWorkspaceQuestion,
+	ExtractionWorkspaceState,
+} from "@/features/ai/tools/ingest-tools";
 import type { ProviderConfig, Question } from "@/lib/validation";
-import { ingestQuestionSchema } from "@/lib/validation";
 import { emitAgentEvent } from "./execute-helpers";
 import { buildReviewerSystemPrompt, buildReviewerUserPrompt } from "./prompt";
 import type { ReviewExtractionOptions } from "./types";
-
-const reviewerQuestionSchema = ingestQuestionSchema;
 
 export async function reviewSingleQuestion(
 	config: ProviderConfig,
@@ -24,7 +34,18 @@ export async function reviewSingleQuestion(
 		options.createAgentRunId?.(label) ?? `review-question-${index + 1}`;
 	const systemPrompt = buildReviewerSystemPrompt(options.reviewTopics);
 	const userPrompt = buildReviewerUserPrompt(sourceText, question, index);
-	let rawText = "";
+	const workspace = createExtractionWorkspace(
+		createReviewWorkspaceState(question),
+	);
+	const workspaceTools = createIngestExtractionTools(workspace);
+	const combinedTools = [
+		...workspaceTools,
+		...(options.tools ?? []),
+	] as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
+	const streamState = createAgentStreamState();
+	const toolNamesById = new Map<string, string>();
+	const toolFailureMessages: string[] = [];
+	let hasSuccessfulUpdate = false;
 
 	emitAgentEvent(options, {
 		eventType: "lifecycle",
@@ -50,68 +71,112 @@ export async function reviewSingleQuestion(
 	});
 
 	try {
-		const reviewedQuestion = await generateJsonStream<Question>(
+		const handleToolCall = (toolCall: {
+			toolCallId: string;
+			name?: string;
+			arguments?: string;
+			input?: unknown;
+			state: "awaiting-input" | "input-streaming" | "input-complete";
+		}) => {
+			if (toolCall.name) {
+				toolNamesById.set(toolCall.toolCallId, toolCall.name);
+			}
+			emitAgentEvent(options, {
+				eventType: "tool-call",
+				stageId: "review",
+				agentRunId,
+				label,
+				name: toolCall.name,
+				arguments: toolCall.arguments,
+				input: toolCall.input,
+				state: toolCall.state,
+				meta: {
+					questionIndex: index,
+					questionNumber: index + 1,
+					toolCallId: toolCall.toolCallId,
+				},
+			});
+		};
+
+		const handleToolResult = (toolResult: {
+			toolCallId: string;
+			content?: unknown;
+			error?: string;
+			state: "streaming" | "complete" | "error";
+		}) => {
+			emitAgentEvent(options, {
+				eventType: "tool-result",
+				stageId: "review",
+				agentRunId,
+				label,
+				content: toolResult.content,
+				error: toolResult.error,
+				state: toolResult.state,
+				meta: {
+					questionIndex: index,
+					questionNumber: index + 1,
+					toolCallId: toolResult.toolCallId,
+				},
+			});
+
+			const toolFailure = readToolFailureMessage(toolResult.content);
+			if (toolFailure) {
+				toolFailureMessages.push(toolFailure);
+			}
+			const toolName =
+				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+			if (isSuccessfulUpdateToolResult(toolName, toolResult.content)) {
+				hasSuccessfulUpdate = true;
+			}
+		};
+
+		const stream = streamChatMessages(
 			config,
-			userPrompt,
-			reviewerQuestionSchema,
+			[{ role: "user", content: userPrompt }],
 			{
 				system: systemPrompt,
-				tools: options.tools,
-				onChunk: (
-					chunk: StreamChunk | StructuredOutputCompleteEvent<Question>,
-				) => {
-					if (isTextChunk(chunk) && chunk.delta) {
-						rawText += chunk.delta;
-					}
+				tools: combinedTools,
+				toolStreamHandlers: {
+					onToolCall: handleToolCall,
+					onToolResult: handleToolResult,
+				},
+			},
+		);
 
-					if ("usage" in chunk && chunk.usage) {
+		for await (const chunk of stream) {
+			if (isAgentStreamRunErrorChunk(chunk)) {
+				throw new Error(
+					`AI provider returned error: ${chunk.message}${chunk.code ? ` (code: ${chunk.code})` : ""}`,
+				);
+			}
+
+			processAgentStreamChunk(
+				chunk as StreamChunk,
+				{
+					onUsage: (usage) => {
 						emitAgentEvent(options, {
 							eventType: "token",
 							stageId: "review",
 							agentRunId,
 							label,
-							tokens: chunk.usage,
+							tokens: usage,
 							meta: { questionIndex: index, questionNumber: index + 1 },
 						});
-					}
-
-					if (isToolCallEndChunk(chunk)) {
-						const toolMeta = {
-							questionIndex: index,
-							questionNumber: index + 1,
-							toolCallId:
-								typeof chunk.toolCallId === "string"
-									? chunk.toolCallId
-									: undefined,
-						};
-						const toolEvent = buildToolEvent(chunk);
-						emitAgentEvent(options, {
-							eventType: "tool-call",
-							stageId: "review",
-							agentRunId,
-							label,
-							name: toolEvent.name,
-							arguments: toolEvent.arguments,
-							input: toolEvent.input,
-							output: toolEvent.output,
-							state: "complete",
-							meta: toolMeta,
-						});
-						emitAgentEvent(options, {
-							eventType: "tool-result",
-							stageId: "review",
-							agentRunId,
-							label,
-							content: toolEvent.resultContent,
-							error: toolEvent.resultError,
-							state: toolEvent.resultError ? "error" : "complete",
-							meta: toolMeta,
-						});
-						rawText += buildToolResultLogLine(chunk);
-					}
+					},
+					onToolCall: handleToolCall,
+					onToolResult: handleToolResult,
 				},
-			},
-		);
+				streamState,
+			);
+		}
+
+		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
+			throw new Error(
+				toolFailureMessages[0] ?? "Reviewer could not apply a valid review.",
+			);
+		}
+
+		const reviewedQuestion = readReviewedQuestion(workspace);
 
 		emitAgentEvent(options, {
 			eventType: "result",
@@ -119,7 +184,7 @@ export async function reviewSingleQuestion(
 			agentRunId,
 			label,
 			finalObject: reviewedQuestion,
-			rawText,
+			rawText: streamState.rawText,
 			meta: { questionIndex: index, questionNumber: index + 1 },
 		});
 		emitAgentEvent(options, {
@@ -163,57 +228,63 @@ export async function reviewSingleQuestion(
 	}
 }
 
-function isTextChunk(
-	chunk: StreamChunk | StructuredOutputCompleteEvent<Question>,
-): chunk is Extract<
-	StreamChunk,
-	{ type: "TEXT_MESSAGE_CONTENT"; delta: string }
-> {
-	return chunk.type === "TEXT_MESSAGE_CONTENT";
-}
-
-function isToolCallEndChunk(
-	chunk: StreamChunk | StructuredOutputCompleteEvent<Question>,
-): chunk is Extract<StreamChunk, { type: "TOOL_CALL_END" }> {
-	return chunk.type === "TOOL_CALL_END";
-}
-
-function buildToolEvent(
-	chunk: Extract<StreamChunk, { type: "TOOL_CALL_END" }>,
-) {
-	const toolName = chunk.toolCallName ?? chunk.toolName ?? "unknown_tool";
-	const input = chunk.input ?? {};
-	const result = chunk.result;
+function createReviewWorkspaceState(
+	question: Question,
+): Partial<ExtractionWorkspaceState> {
+	const item: ExtractionWorkspaceQuestion = {
+		questionId: "q1",
+		question: question.question,
+		options: [...question.options],
+		answer: question.answer,
+		explanation: "",
+		topic: question.topic ?? "General",
+		deepExplanation: question.deepExplanation,
+	};
 
 	return {
-		name: toolName,
-		arguments: JSON.stringify(input),
-		input,
-		output: result,
-		resultContent: result,
-		resultError: readToolResultError(result),
+		questions: [item],
+		nextQuestionNumber: 2,
 	};
 }
 
-function buildToolResultLogLine(
-	chunk: Extract<StreamChunk, { type: "TOOL_CALL_END" }>,
-) {
-	const toolEvent = buildToolEvent(chunk);
-	const result =
-		toolEvent.resultContent === undefined
-			? ""
-			: typeof toolEvent.resultContent === "string"
-				? toolEvent.resultContent
-				: JSON.stringify(toolEvent.resultContent);
+function readReviewedQuestion(
+	workspace: ReturnType<typeof createExtractionWorkspace>,
+): Question {
+	const reviewed = workspace.listQuestions()[0];
+	if (!reviewed) {
+		throw new Error(
+			"Reviewer finished without a question in the review workspace.",
+		);
+	}
 
-	return `\n[tool:${toolEvent.name}] input=${toolEvent.arguments}${result ? ` result=${result}` : ""}`;
+	const { questionId: _questionId, ...question } = reviewed;
+	return question;
 }
 
-function readToolResultError(result: unknown): string | undefined {
+function readToolFailureMessage(result: unknown): string | undefined {
+	if (typeof result === "string") {
+		try {
+			return readToolFailureMessage(JSON.parse(result));
+		} catch {
+			return result.length > 0 ? result : undefined;
+		}
+	}
 	if (typeof result !== "object" || result === null) return undefined;
 	const errorValue = (result as { error?: unknown }).error;
+	if (typeof errorValue === "string" && errorValue.length > 0) {
+		return errorValue;
+	}
 	if (typeof errorValue !== "object" || errorValue === null) return undefined;
 	return typeof (errorValue as { message?: unknown }).message === "string"
 		? (errorValue as { message: string }).message
 		: undefined;
+}
+
+function isSuccessfulUpdateToolResult(
+	toolName: string,
+	result: unknown,
+): boolean {
+	if (toolName !== "update_extracted_question") return false;
+	if (typeof result !== "object" || result === null) return false;
+	return (result as { ok?: unknown }).ok === true;
 }

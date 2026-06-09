@@ -7,6 +7,7 @@ export {
 } from "./actions";
 export {
 	appendChunkToAgentRun,
+	appendReasoningToAgentRun,
 	appendToolCallToAgentRun,
 	appendToolResultToAgentRun,
 	applyTokenEvent,

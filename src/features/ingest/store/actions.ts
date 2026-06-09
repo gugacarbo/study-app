@@ -5,6 +5,7 @@ import { getConfig } from "@/server-functions/config";
 import {
 	appendChunkToAgentRun,
 	appendLogEntry,
+	appendReasoningToAgentRun,
 	appendToolCallToAgentRun,
 	appendToolResultToAgentRun,
 	applyChunkEvent,
@@ -113,11 +114,18 @@ async function runJob(jobId: string) {
 						};
 						nextJob = applyChunkEvent(nextJob, event);
 						if (event?.agentRunId && event.text) {
-							nextJob = appendChunkToAgentRun(
-								nextJob,
-								event.agentRunId,
-								event.text,
-							);
+							nextJob =
+								event.kind === "reasoning"
+									? appendReasoningToAgentRun(
+											nextJob,
+											event.agentRunId,
+											event.text,
+										)
+									: appendChunkToAgentRun(
+											nextJob,
+											event.agentRunId,
+											event.text,
+										);
 						}
 						return nextJob;
 					});
@@ -261,15 +269,16 @@ export function enqueueIngest(
 	fileName: string,
 	buffer: number[],
 	enableReview: boolean = true,
-) {
+): string {
 	const id = generateId();
 	const job = createEmptyJob(id, fileName, buffer, enableReview);
 
 	ingestStore.setState((state) => {
 		const updatedJobs = trimCompletedJobs([...state.jobs, job]);
-		return { ...state, jobs: updatedJobs };
+		return { ...state, jobs: updatedJobs, focusedJobId: id };
 	});
 	runNextJob();
+	return id;
 }
 
 export function cancelJob(jobId: string) {

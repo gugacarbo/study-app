@@ -15,6 +15,45 @@ interface GroupedItem {
 
 export type { ChatBubble } from "./chat-bubbles";
 
+function getBubbleContentSignature(bubble: ChatBubble) {
+	let textLength = 0;
+	let partCount = 0;
+	let latestToolCallId = "";
+	let latestToolResultToolCallId = "";
+
+	for (const part of bubble.message.parts) {
+		partCount += 1;
+
+		if (part.type === "text") {
+			textLength += part.content.length;
+			continue;
+		}
+
+		if (part.type === "thinking") {
+			textLength += part.content?.length ?? 0;
+			continue;
+		}
+
+		if (part.type === "tool-call") {
+			latestToolCallId = part.id;
+			continue;
+		}
+
+		if (part.type === "tool-result") {
+			latestToolResultToolCallId = part.toolCallId;
+		}
+	}
+
+	return [
+		bubble.id,
+		bubble.agentState,
+		partCount,
+		textLength,
+		latestToolCallId,
+		latestToolResultToolCallId,
+	].join(":");
+}
+
 export function useIngestChat(
 	agents: IngestAgentRunViewModel[],
 	stages: IngestPipelineStageViewModel[],
@@ -56,9 +95,17 @@ export function useIngestChat(
 		return items;
 	}, [filteredBubbles, stages]);
 
-	const prevCountRef = useRef(0);
+	const visibleContentSignature = useMemo(
+		() => filteredBubbles.map(getBubbleContentSignature).join("|"),
+		[filteredBubbles],
+	);
+
+	const prevSignatureRef = useRef("");
 	useEffect(() => {
-		if (filteredBubbles.length > prevCountRef.current) {
+		if (
+			filteredBubbles.length > 0 &&
+			visibleContentSignature !== prevSignatureRef.current
+		) {
 			requestAnimationFrame(() => {
 				scrollRef.current?.scrollTo({
 					top: scrollRef.current.scrollHeight,
@@ -66,8 +113,8 @@ export function useIngestChat(
 				});
 			});
 		}
-		prevCountRef.current = filteredBubbles.length;
-	}, [filteredBubbles.length]);
+		prevSignatureRef.current = visibleContentSignature;
+	}, [filteredBubbles.length, visibleContentSignature]);
 
 	return { scrollRef, groupedItems };
 }

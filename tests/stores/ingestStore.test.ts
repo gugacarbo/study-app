@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	appendChunkToAgentRun,
+	appendReasoningToAgentRun,
 	appendToolCallToAgentRun,
 	appendToolResultToAgentRun,
 	applyTokenEvent,
@@ -228,6 +229,30 @@ describe("upsertAgentRun", () => {
 		]);
 	});
 
+	it("appends reasoning chunks into thinking parts on the assistant message", () => {
+		const job = upsertAgentRun(
+			createJob(),
+			agentEvent({
+				systemPrompt: "system prompt",
+				userPrompt: "user prompt",
+			}),
+		);
+
+		const first = appendReasoningToAgentRun(job, "agent-1", "Analisando ");
+		const updated = appendReasoningToAgentRun(
+			first,
+			"agent-1",
+			"a questao...",
+		);
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(assistant?.parts).toEqual([
+			{ type: "thinking", content: "Analisando a questao..." },
+		]);
+	});
+
 	it("appends tool-call and tool-result parts to the assistant message", () => {
 		const job = upsertAgentRun(createJob(), agentEvent());
 
@@ -255,7 +280,6 @@ describe("upsertAgentRun", () => {
 		);
 
 		expect(assistant?.parts).toEqual([
-			{ type: "text", content: "" },
 			{
 				type: "tool-call",
 				id: "agent-1:tool-call:0",
@@ -271,6 +295,388 @@ describe("upsertAgentRun", () => {
 				state: "complete",
 			},
 		]);
+	});
+
+	it("preserves existing tool parts when a later lifecycle event updates prompts or status", () => {
+		const job = upsertAgentRun(
+			createJob(),
+			agentEvent({
+				systemPrompt: "initial system",
+				userPrompt: "initial user",
+			}),
+		);
+
+		const withToolParts = appendToolResultToAgentRun(
+			appendToolCallToAgentRun(
+				job,
+				agentEvent({
+					eventType: "tool-call",
+					name: "update_extracted_question",
+					arguments: '{"questionId":"q1"}',
+					input: { questionId: "q1" },
+					state: "input-complete",
+					meta: { toolCallId: "tool-1" },
+				}),
+			),
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: true, questionId: "q1" },
+				state: "complete",
+				meta: { toolCallId: "tool-1" },
+			}),
+		);
+
+		const updated = upsertAgentRun(
+			withToolParts,
+			agentEvent({
+				status: "done",
+				systemPrompt: "updated system",
+				userPrompt: "updated user",
+				rawText: "final raw text",
+			}),
+		);
+
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(updated.agentRuns[0].status).toBe("done");
+		expect(updated.agentRuns[0].systemPrompt).toBe("updated system");
+		expect(updated.agentRuns[0].userPrompt).toBe("updated user");
+		expect(assistant?.parts).toEqual([
+			{
+				type: "tool-call",
+				id: "tool-1",
+				name: "update_extracted_question",
+				arguments: '{"questionId":"q1"}',
+				input: { questionId: "q1" },
+				output: undefined,
+				state: "input-complete",
+			},
+			{
+				type: "tool-result",
+				toolCallId: "tool-1",
+				content: '{\n  "ok": true,\n  "questionId": "q1"\n}',
+				state: "complete",
+				error: undefined,
+			},
+		]);
+	});
+
+	it("preserves warning status when a later done lifecycle arrives", () => {
+		const job = upsertAgentRun(
+			createJob(),
+			agentEvent({
+				status: "warning",
+				warning: "Review failed for question #1. Keeping the original extracted question.",
+			}),
+		);
+
+		const updated = upsertAgentRun(
+			job,
+			agentEvent({
+				status: "done",
+				rawText: "Reviewer finished without applying changes.",
+			}),
+		);
+
+		expect(updated.agentRuns[0]?.status).toBe("warning");
+		expect(updated.agentRuns[0]?.warnings).toContain(
+			"Review failed for question #1. Keeping the original extracted question.",
+		);
+	});
+
+	it("keeps structured tools before the final assistant text and strips pseudo tool transcript", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+
+		const withTranscript = appendChunkToAgentRun(
+			job,
+			"agent-1",
+			[
+				"Extraction complete. Successfully added 1 question.",
+				"",
+				"TOOL CALL: add_extracted_question",
+				'{"question":"Qual e a derivada de f(x) = x^2?"}',
+			].join("\n"),
+		);
+		const withToolCall = appendToolCallToAgentRun(
+			withTranscript,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: '{"question":"Qual e a derivada de f(x) = x^2?"}',
+				input: { question: "Qual e a derivada de f(x) = x^2?" },
+				state: "input-complete",
+				meta: { toolCallId: "tool-structured-1" },
+			}),
+		);
+		const updated = appendToolResultToAgentRun(
+			withToolCall,
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: true },
+				state: "complete",
+				meta: { toolCallId: "tool-structured-1" },
+			}),
+		);
+
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+		const textPart = assistant?.parts.find((part) => part.type === "text");
+
+		expect(updated.agentRuns[0].outputText).toContain("TOOL CALL: add_extracted_question");
+		expect(assistant?.parts).toContainEqual({
+			type: "tool-call",
+			id: "tool-structured-1",
+			name: "add_extracted_question",
+			arguments: '{"question":"Qual e a derivada de f(x) = x^2?"}',
+			input: { question: "Qual e a derivada de f(x) = x^2?" },
+			output: undefined,
+			state: "input-complete",
+		});
+		expect(assistant?.parts).toContainEqual({
+			type: "tool-result",
+			toolCallId: "tool-structured-1",
+			content: "{\n  \"ok\": true\n}",
+			state: "complete",
+			error: undefined,
+		});
+		expect(assistant?.parts[0]).toEqual({
+			type: "text",
+			content: "Extraction complete. Successfully added 1 question.",
+		});
+		expect(textPart).toEqual(assistant?.parts[0]);
+	});
+
+	it("stores completed tool results independently for consecutive tool calls", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+		const withFirstCall = appendToolCallToAgentRun(
+			job,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: '{"questionId":"q1"}',
+				state: "input-complete",
+				meta: { toolCallId: "tc-1" },
+			}),
+		);
+		const withSecondCall = appendToolCallToAgentRun(
+			withFirstCall,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: '{"questionId":"q2"}',
+				state: "input-streaming",
+				meta: { toolCallId: "tc-2" },
+			}),
+		);
+		const withFirstResult = appendToolResultToAgentRun(
+			withSecondCall,
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: true, questionId: "q1" },
+				state: "complete",
+				meta: { toolCallId: "tc-1" },
+			}),
+		);
+
+		const assistant = withFirstResult.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+		const toolResults =
+			assistant?.parts.filter((part) => part.type === "tool-result") ?? [];
+
+		expect(toolResults).toEqual([
+			{
+				type: "tool-result",
+				toolCallId: "tc-1",
+				content: '{\n  "ok": true,\n  "questionId": "q1"\n}',
+				state: "complete",
+				error: undefined,
+			},
+		]);
+	});
+
+	it("preserves streaming order when new assistant text arrives after a tool event", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+
+		const withLeadingText = appendChunkToAgentRun(
+			job,
+			"agent-1",
+			"Vou conferir a pergunta antes de editar.",
+		);
+		const withToolCall = appendToolCallToAgentRun(
+			withLeadingText,
+			agentEvent({
+				eventType: "tool-call",
+				name: "list_extracted_questions",
+				arguments: "{}",
+				input: {},
+				state: "input-complete",
+				meta: { toolCallId: "tool-order-1" },
+			}),
+		);
+		const withToolResult = appendToolResultToAgentRun(
+			withToolCall,
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: true },
+				state: "complete",
+				meta: { toolCallId: "tool-order-1" },
+			}),
+		);
+		const updated = appendChunkToAgentRun(
+			withToolResult,
+			"agent-1",
+			"Agora vou ajustar a alternativa correta.",
+		);
+
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(assistant?.parts).toEqual([
+			{ type: "text", content: "Vou conferir a pergunta antes de editar." },
+			{
+				type: "tool-call",
+				id: "tool-order-1",
+				name: "list_extracted_questions",
+				arguments: "{}",
+				input: {},
+				output: undefined,
+				state: "input-complete",
+			},
+			{
+				type: "tool-result",
+				toolCallId: "tool-order-1",
+				content: "{\n  \"ok\": true\n}",
+				state: "complete",
+				error: undefined,
+			},
+			{
+				type: "text",
+				content: "Agora vou ajustar a alternativa correta.",
+			},
+		]);
+	});
+
+	it("deduplicates repeated tool-call and tool-result events for the same toolCallId", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+
+		const withToolCall = appendToolCallToAgentRun(
+			job,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: '{"question":"Q1"}',
+				input: { question: "Q1" },
+				state: "input-complete",
+				meta: { toolCallId: "tool-dedupe-1" },
+			}),
+		);
+		const withDuplicateToolCall = appendToolCallToAgentRun(
+			withToolCall,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: '{"question":"Q1","topic":"General"}',
+				input: { question: "Q1", topic: "General" },
+				state: "input-complete",
+				meta: { toolCallId: "tool-dedupe-1" },
+			}),
+		);
+		const withToolResult = appendToolResultToAgentRun(
+			withDuplicateToolCall,
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: false, error: { message: "retry" } },
+				state: "error",
+				error: "retry",
+				meta: { toolCallId: "tool-dedupe-1" },
+			}),
+		);
+		const updated = appendToolResultToAgentRun(
+			withToolResult,
+			agentEvent({
+				eventType: "tool-result",
+				content: { ok: true, questionId: "q1" },
+				state: "complete",
+				meta: { toolCallId: "tool-dedupe-1" },
+			}),
+		);
+
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+		const toolCalls =
+			assistant?.parts.filter((part) => part.type === "tool-call") ?? [];
+		const toolResults =
+			assistant?.parts.filter((part) => part.type === "tool-result") ?? [];
+
+		expect(toolCalls).toEqual([
+			{
+				type: "tool-call",
+				id: "tool-dedupe-1",
+				name: "add_extracted_question",
+				arguments: '{"question":"Q1","topic":"General"}',
+				input: { question: "Q1", topic: "General" },
+				output: undefined,
+				state: "input-complete",
+			},
+		]);
+		expect(toolResults).toEqual([
+			{
+				type: "tool-result",
+				toolCallId: "tool-dedupe-1",
+				content: '{\n  "ok": true,\n  "questionId": "q1"\n}',
+				state: "complete",
+				error: undefined,
+			},
+		]);
+	});
+
+	it("keeps the richer original tool-call input when a duplicate replay arrives empty", () => {
+		const job = upsertAgentRun(createJob(), agentEvent());
+
+		const withToolCall = appendToolCallToAgentRun(
+			job,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: '{"question":"Qual e a derivada?","answer":"2x"}',
+				input: { question: "Qual e a derivada?", answer: "2x" },
+				state: "input-complete",
+				meta: { toolCallId: "tool-rich-1" },
+			}),
+		);
+		const updated = appendToolCallToAgentRun(
+			withToolCall,
+			agentEvent({
+				eventType: "tool-call",
+				name: "add_extracted_question",
+				arguments: "{}",
+				input: {},
+				output: { ok: true, questionId: "q1" },
+				state: "input-complete",
+				meta: { toolCallId: "tool-rich-1" },
+			}),
+		);
+
+		const assistant = updated.agentRuns[0].messages.find(
+			(message) => message.role === "assistant",
+		);
+		const toolCall = assistant?.parts.find((part) => part.type === "tool-call");
+
+		expect(toolCall).toEqual({
+			type: "tool-call",
+			id: "tool-rich-1",
+			name: "add_extracted_question",
+			arguments: '{"question":"Qual e a derivada?","answer":"2x"}',
+			input: { question: "Qual e a derivada?", answer: "2x" },
+			output: undefined,
+			state: "input-complete",
+		});
 	});
 });
 

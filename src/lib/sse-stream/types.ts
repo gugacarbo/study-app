@@ -18,6 +18,7 @@ export type IngestChunkEvent = {
 	stageId?: string;
 	agentRunId?: string;
 	text: string;
+	kind?: "text" | "reasoning";
 	timestamp?: number;
 };
 

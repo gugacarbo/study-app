@@ -20,6 +20,12 @@ const optionalNullableTrimmedStringSchema = z
 	.optional()
 	.transform((value) => value ?? undefined);
 
+const optionalNullableStringArraySchema = z
+	.array(z.string())
+	.nullable()
+	.optional()
+	.transform((value) => value ?? undefined);
+
 export const extractionQuestionFieldsSchema = z.object({
 	question: z.string().trim().min(1),
 	options: z.array(z.string()).default([]),
@@ -28,27 +34,20 @@ export const extractionQuestionFieldsSchema = z.object({
 	topic: optionalNullableTrimmedStringSchema,
 });
 
-export const extractionQuestionPatchSchema = z
-	.object({
-		questionId: extractionQuestionIdSchema,
-		question: z.string().trim().min(1).optional(),
-		options: z.array(z.string()).optional(),
-		answer: z.string().trim().min(1).optional(),
-		topic: optionalNullableTrimmedStringSchema,
-		explanation: optionalNullableStringSchema,
-	})
-	.refine(
-		(input) =>
-			input.question !== undefined ||
-			input.options !== undefined ||
-			input.answer !== undefined ||
-			input.topic !== undefined ||
-			input.explanation !== undefined,
-		{
-			message:
-				"Provide at least one field to update: question, options, answer, topic, or explanation.",
-		},
-	);
+export const extractionQuestionPatchSchema = z.object({
+	questionId: extractionQuestionIdSchema,
+	question: optionalNullableTrimmedStringSchema.refine(
+		(value) => value === undefined || value.length > 0,
+		"Question cannot be empty.",
+	),
+	options: optionalNullableStringArraySchema,
+	answer: optionalNullableTrimmedStringSchema.refine(
+		(value) => value === undefined || value.length > 0,
+		"Answer cannot be empty.",
+	),
+	topic: optionalNullableTrimmedStringSchema,
+	explanation: optionalNullableStringSchema,
+});
 
 export const extractionToolErrorSchema = z.object({
 	code: z.string(),

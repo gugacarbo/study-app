@@ -1,62 +1,59 @@
-import type { ToolCallViewModel } from "../../chat-message-utils";
+import type {
+	ToolCallViewModel,
+	ToolResultViewModel,
+} from "../../chat-message-utils";
 import {
-	isLoadingToolState,
-	labelForToolState,
-	safeJson,
-	toneFromState,
+	formatToolPayload,
+	resolveToolCallTriggerPresentation,
 } from "../../chat-message-utils";
 import { DetailAccordion } from "../../detail-accordion/detail-accordion";
+import {
+	DetailPayloadBlock,
+	DetailPayloadSection,
+} from "../../detail-accordion/detail-payload-section";
 
-export function ChatMessageToolCall({ part }: { part: ToolCallViewModel }) {
+export function ChatMessageToolCall({
+	part,
+	toolResult,
+}: {
+	part: ToolCallViewModel;
+	toolResult?: ToolResultViewModel;
+}) {
 	const name = typeof part.name === "string" ? part.name : "unknown_tool";
-	const rawArgs =
-		typeof part.arguments === "string" && part.arguments.trim().length > 0
-			? part.arguments
-			: undefined;
 	const parsedInput = "input" in part ? part.input : undefined;
-	const output = "output" in part ? part.output : undefined;
-	const stateLabel = labelForToolState(part.state);
-	const value = "tool-call";
-	const isLoading = isLoadingToolState(part.state);
+	const rawArgs =
+		typeof part.arguments === "string" ? part.arguments : undefined;
+	const parsedInputText =
+		formatToolPayload(parsedInput) ?? formatToolPayload(rawArgs);
+	const parsedResultText =
+		toolResult && formatToolPayload(toolResult.content);
+	const resultError =
+		toolResult && typeof toolResult.error === "string"
+			? toolResult.error
+			: undefined;
+	const { tone, isLoading } = resolveToolCallTriggerPresentation(
+		part,
+		toolResult,
+	);
 
 	return (
 		<DetailAccordion
-			value={value}
-			label={`Tool call: ${name} (${stateLabel})`}
-			tone={toneFromState(
-				typeof part.state === "string" ? part.state : "unknown",
-			)}
+			value="tool-call"
+			label={`Tool call: ${name}`}
+			tone={tone}
 			isLoading={isLoading}
 		>
-			{rawArgs ? (
-				<div>
-					<p className="mb-1 text-[11px] font-medium text-muted-foreground">
-						Arguments
-					</p>
-					<pre className="max-h-56 overflow-auto rounded bg-muted/40 p-2 text-[11px] leading-relaxed whitespace-pre-wrap text-foreground">
-						{rawArgs}
-					</pre>
-				</div>
+			{parsedInputText ? (
+				<DetailPayloadSection>
+					<DetailPayloadBlock label="Input">{parsedInputText}</DetailPayloadBlock>
+				</DetailPayloadSection>
 			) : null}
-			{parsedInput !== undefined ? (
-				<div>
-					<p className="mb-1 text-[11px] font-medium text-muted-foreground">
-						Parsed input
-					</p>
-					<pre className="max-h-56 overflow-auto rounded bg-muted/40 p-2 text-[11px] leading-relaxed whitespace-pre-wrap text-foreground">
-						{safeJson(parsedInput)}
-					</pre>
-				</div>
-			) : null}
-			{output !== undefined ? (
-				<div>
-					<p className="mb-1 text-[11px] font-medium text-muted-foreground">
-						Output
-					</p>
-					<pre className="max-h-56 overflow-auto rounded bg-muted/40 p-2 text-[11px] leading-relaxed whitespace-pre-wrap text-foreground">
-						{safeJson(output)}
-					</pre>
-				</div>
+			{parsedResultText ? (
+				<DetailPayloadSection error={resultError}>
+					<DetailPayloadBlock label="Result">
+						{parsedResultText}
+					</DetailPayloadBlock>
+				</DetailPayloadSection>
 			) : null}
 		</DetailAccordion>
 	);

@@ -36,6 +36,7 @@ function dispatch(
 	if (event === "chunk" && typeof raw === "object" && raw) {
 		const d = raw as {
 			text?: string;
+			kind?: "text" | "reasoning";
 			stageId?: string;
 			agentRunId?: string;
 			timestamp?: number;
@@ -43,6 +44,7 @@ function dispatch(
 		if (d.text)
 			c.onChunk?.(d.text, {
 				text: d.text,
+				kind: d.kind === "reasoning" ? "reasoning" : "text",
 				stageId: d.stageId,
 				agentRunId: d.agentRunId,
 				timestamp: d.timestamp,

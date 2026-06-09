@@ -135,6 +135,11 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 					}
 
 					if (event.eventType === "warning" && event.warning) {
+						send("warning", {
+							message: event.warning,
+							stageId: event.stageId,
+							agentRunId: event.agentRunId,
+						});
 						agentRuns.warning(run, event.warning, meta);
 						return;
 					}

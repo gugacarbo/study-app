@@ -6,16 +6,19 @@ import type { IngestAgentRunViewModel } from "../types";
 
 interface OutputPanelAgentRunsProps {
 	filteredAgents: IngestAgentRunViewModel[];
-	selectedAgent: IngestAgentRunViewModel | null;
-	onSelectAgent: (agent: IngestAgentRunViewModel | null) => void;
+	selectedAgentId: string | null;
+	onSelectAgentId: (agentId: string | null) => void;
 }
 
 export function OutputPanelAgentRuns({
 	filteredAgents,
-	selectedAgent,
-	onSelectAgent,
+	selectedAgentId,
+	onSelectAgentId,
 }: OutputPanelAgentRunsProps) {
 	if (filteredAgents.length === 0) return null;
+
+	const selectedAgent =
+		filteredAgents.find((agent) => agent.id === selectedAgentId) ?? null;
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -29,7 +32,7 @@ export function OutputPanelAgentRuns({
 						<button
 							key={agent.id}
 							type="button"
-							onClick={() => onSelectAgent(agent)}
+							onClick={() => onSelectAgentId(agent.id)}
 							className="flex items-center gap-2 rounded-md border border-border bg-accent px-2.5 py-1.5 text-left transition-colors hover:border-sky-400/40 hover:bg-accent"
 						>
 							<span className="min-w-0 truncate text-[0.7rem] font-medium text-foreground">
@@ -58,9 +61,12 @@ export function OutputPanelAgentRuns({
 				systemPrompt={selectedAgent?.systemPrompt}
 				userPrompt={selectedAgent?.userPrompt}
 				response={selectedAgent?.response}
+				messages={selectedAgent?.messages}
+				rawData={selectedAgent?.raw}
+				isRunning={selectedAgent?.state === "running"}
 				open={selectedAgent != null}
 				onOpenChange={(open) => {
-					if (!open) onSelectAgent(null);
+					if (!open) onSelectAgentId(null);
 				}}
 			/>
 		</div>

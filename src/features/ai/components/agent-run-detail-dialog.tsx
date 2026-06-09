@@ -1,14 +1,12 @@
 import type { UIMessage } from "@tanstack/ai-client";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
+import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
 import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
 import { UserMessage } from "@/features/ai/components/chat/message/user-message";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface AgentRunDetailDialogProps {
 	name: string;
@@ -16,52 +14,225 @@ interface AgentRunDetailDialogProps {
 	systemPrompt?: string;
 	userPrompt?: string;
 	response?: string;
+	messages?: UIMessage[];
+	rawData?: unknown;
+	isRunning?: boolean;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
 
 export function AgentRunDetailDialog({
 	name,
-	summary,
 	systemPrompt,
 	userPrompt,
 	response,
+	messages,
+	rawData,
+	isRunning = false,
 	open,
 	onOpenChange,
 }: AgentRunDetailDialogProps) {
-	const systemMessage = createTextMessage(
-		"agent-system",
-		"system",
-		systemPrompt,
+	const [mode, setMode] = useState<"treated" | "raw">("treated");
+	const [showDebug, setShowDebug] = useState(false);
+	const treatedScrollRef = useRef<HTMLDivElement | null>(null);
+	const rawScrollRef = useRef<HTMLPreElement | null>(null);
+	const renderedMessages =
+		messages && messages.length > 0
+			? messages
+			: createFallbackMessages({
+					systemPrompt,
+					userPrompt,
+					response,
+				});
+
+	const visibleMessages = renderedMessages.filter(
+		(message) => message.parts.length > 0,
 	);
-	const userMessage = createTextMessage("agent-user", "user", userPrompt);
-	const assistantMessage = createTextMessage(
-		"agent-assistant",
-		"assistant",
-		response,
+	const hasRawTab = rawData != null;
+	const rawTranscript = buildRawTranscript(visibleMessages, response);
+	const treatedStreamSignature = useMemo(
+		() =>
+			visibleMessages
+				.map((message) => {
+					const textLength = message.parts.reduce(
+						(total, part) =>
+							part.type === "text" || part.type === "thinking"
+								? total + (part.content?.length ?? 0)
+								: total,
+						0,
+					);
+					const lastToolCall = [...message.parts]
+						.reverse()
+						.find((part) => part.type === "tool-call");
+					const lastToolResult = [...message.parts]
+						.reverse()
+						.find((part) => part.type === "tool-result");
+
+					return [
+						message.id,
+						message.role,
+						message.parts.length,
+						textLength,
+						lastToolCall?.type === "tool-call" ? lastToolCall.id : "",
+						lastToolResult?.type === "tool-result"
+							? lastToolResult.toolCallId
+							: "",
+					].join(":");
+				})
+				.join("|"),
+		[visibleMessages],
 	);
+
+	useEffect(() => {
+		if (open) {
+			setMode("treated");
+			setShowDebug(false);
+		}
+	}, [open, name]);
+
+	useEffect(() => {
+		if (!open || mode !== "treated") return;
+		treatedScrollRef.current?.scrollTo({
+			top: treatedScrollRef.current.scrollHeight,
+			behavior: "smooth",
+		});
+	}, [open, mode, treatedStreamSignature]);
+
+	useEffect(() => {
+		if (!open || mode !== "raw") return;
+		rawScrollRef.current?.scrollTo({
+			top: rawScrollRef.current.scrollHeight,
+			behavior: "smooth",
+		});
+	}, [open, mode, rawTranscript, showDebug, rawData]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="flex h-[92vh] w-[98vw] max-w-[98vw] flex-col border-border bg-card p-6 text-foreground sm:h-[90vh] sm:max-w-350">
-				<DialogHeader>
-					<DialogTitle>{name}</DialogTitle>
-					<DialogDescription className="text-muted-foreground">
-						{summary ?? "Inspect prompts, response, and agent state."}
-					</DialogDescription>
-				</DialogHeader>
-				<div className="mt-2 min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
-					<div className="flex flex-col gap-3 pr-1">
-						{systemMessage ? <SystemMessage message={systemMessage} /> : null}
-						{userMessage ? <UserMessage message={userMessage} /> : null}
-						{assistantMessage ? (
-							<ChatMessage message={assistantMessage} />
-						) : null}
+				<DialogTitle className="sr-only">{name}</DialogTitle>
+				{hasRawTab ? (
+					<Tabs
+						value={mode}
+						onValueChange={(value) => setMode(value as "treated" | "raw")}
+						className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+					>
+						<div className="flex items-center justify-between gap-2 pr-8">
+							<TabsList className="h-8 bg-muted">
+								<TabsTrigger
+									value="treated"
+									className="px-3 text-[0.7rem]"
+									onClick={() => setMode("treated")}
+								>
+									Treated
+								</TabsTrigger>
+								<TabsTrigger
+									value="raw"
+									className="px-3 text-[0.7rem]"
+									onClick={() => setMode("raw")}
+								>
+									Raw
+								</TabsTrigger>
+							</TabsList>
+							{mode === "raw" ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-6 px-2 text-[0.625rem] text-muted-foreground hover:bg-accent hover:text-foreground"
+									onClick={() => setShowDebug((value) => !value)}
+								>
+									{showDebug ? "Back to raw" : "Debug JSON"}
+								</Button>
+							) : null}
+						</div>
+						<TabsContent
+							value="treated"
+							ref={treatedScrollRef}
+							className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3 data-[state=active]:flex data-[state=active]:flex-col"
+						>
+							<div className="flex flex-col gap-3 pr-1">
+								{visibleMessages.map((message) =>
+									message.role === "system" ? (
+										<SystemMessage key={message.id} message={message} />
+									) : message.role === "user" ? (
+										<UserMessage key={message.id} message={message} />
+									) : (
+										<ChatMessage
+											key={message.id}
+											message={message}
+											isPending={isRunning}
+										/>
+									),
+								)}
+							</div>
+						</TabsContent>
+						<TabsContent
+							value="raw"
+							className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3 data-[state=active]:flex"
+						>
+							<pre
+								ref={rawScrollRef}
+								className="min-h-0 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-foreground/80"
+							>
+								{showDebug ? safeJson(rawData) : rawTranscript}
+							</pre>
+						</TabsContent>
+					</Tabs>
+				) : (
+					<div className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
+						<div className="flex flex-col gap-3 pr-1">
+							{visibleMessages.map((message) =>
+								message.role === "system" ? (
+									<SystemMessage key={message.id} message={message} />
+								) : message.role === "user" ? (
+									<UserMessage key={message.id} message={message} />
+								) : (
+									<ChatMessage
+										key={message.id}
+										message={message}
+										isPending={isRunning}
+									/>
+								),
+							)}
+						</div>
 					</div>
-				</div>
+				)}
 			</DialogContent>
 		</Dialog>
 	);
+}
+
+function buildRawTranscript(messages: UIMessage[], response?: string): string {
+	const sections = messages.map((message) => {
+		const lines: string[] = [`[${message.role.toUpperCase()}]`];
+
+		for (const part of message.parts) {
+			if (part.type === "text") {
+				if (part.content) lines.push(part.content);
+				continue;
+			}
+
+			if (part.type === "tool-call") {
+				lines.push(`TOOL CALL: ${part.name}`);
+				if (part.arguments) lines.push(String(part.arguments));
+				continue;
+			}
+
+			if (part.type === "tool-result") {
+				lines.push(`TOOL RESULT (${part.toolCallId}):`);
+				if (part.content) lines.push(String(part.content));
+				if (part.error) lines.push(`ERROR: ${part.error}`);
+			}
+		}
+
+		return lines.join("\n");
+	});
+
+	if (sections.length > 0) {
+		return sections.join("\n\n");
+	}
+
+	return response || "Waiting for stream...";
 }
 
 function createTextMessage(
@@ -70,10 +241,24 @@ function createTextMessage(
 	content?: string,
 ): UIMessage | null {
 	if (!content) return null;
+	return { id, role, parts: [{ type: "text" as const, content }] };
+}
 
-	return {
-		id,
-		role,
-		parts: [{ type: "text", content }],
-	};
+function createFallbackMessages({
+	systemPrompt,
+	userPrompt,
+	response,
+}: Pick<
+	AgentRunDetailDialogProps,
+	"systemPrompt" | "userPrompt" | "response"
+>): UIMessage[] {
+	const fallbackMessages: Array<UIMessage | null> = [
+		createTextMessage("agent-system", "system", systemPrompt),
+		createTextMessage("agent-user", "user", userPrompt),
+		createTextMessage("agent-assistant", "assistant", response),
+	];
+
+	return fallbackMessages.filter(
+		(message): message is UIMessage => message != null,
+	);
 }

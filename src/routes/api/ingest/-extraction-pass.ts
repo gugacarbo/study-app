@@ -1,5 +1,10 @@
 import type { StreamChunk } from "@tanstack/ai";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
+import {
+	createAgentStreamState,
+	isAgentStreamRunErrorChunk,
+	processAgentStreamChunk,
+} from "@/features/ai/core/agent-stream-handler";
 import { streamChatMessages } from "@/features/ai/core/chat-stream";
 import {
 	createExtractionWorkspace,
@@ -8,7 +13,6 @@ import {
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import { buildExtractionUserPrompt } from "./-extract-text";
 import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
-import { isTextChunk } from "./-sse-emitter";
 
 interface ExtractionPassParams {
 	text: string;
@@ -39,7 +43,7 @@ interface ExtractionPassParams {
 				arguments?: string;
 				input?: unknown;
 				output?: unknown;
-				state?: "complete";
+				state?: string;
 			},
 			meta?: Record<string, unknown>,
 		): void;
@@ -48,7 +52,7 @@ interface ExtractionPassParams {
 			result: {
 				content?: unknown;
 				error?: string;
-				state?: "complete" | "error";
+				state?: string;
 			},
 			meta?: Record<string, unknown>,
 		): void;
@@ -83,7 +87,7 @@ export async function runExtractionPass(
 	const run = agentRuns.createRun(stageId, stageLabel);
 	const workspace = createExtractionWorkspace();
 	const tools = createIngestExtractionTools(workspace);
-	let rawText = "";
+	const streamState = createAgentStreamState();
 
 	agentRuns.lifecycle(run, "pending", { systemPrompt, userPrompt });
 	agentRuns.lifecycle(run, "running");
@@ -97,29 +101,36 @@ export async function runExtractionPass(
 				tools: [...tools] as unknown as NonNullable<
 					Parameters<typeof streamChatMessages>[2]
 				>["tools"],
+				toolStreamHandlers: {
+					onToolCall: (toolCall) => {
+						agentRuns.toolCall(
+							run,
+							{
+								name: toolCall.name,
+								arguments: toolCall.arguments,
+								input: toolCall.input,
+								state: toolCall.state,
+							},
+							{ toolCallId: toolCall.toolCallId },
+						);
+					},
+					onToolResult: (toolResult) => {
+						agentRuns.toolResult(
+							run,
+							{
+								content: toolResult.content,
+								error: toolResult.error,
+								state: toolResult.state,
+							},
+							{ toolCallId: toolResult.toolCallId },
+						);
+					},
+				},
 			},
 		);
 
 		for await (const chunk of stream) {
-			if (isTextChunk(chunk) && chunk.delta) {
-				rawText += chunk.delta;
-				send("chunk", {
-					stageId: run.stageId,
-					agentRunId: run.agentRunId,
-					text: chunk.delta,
-				});
-			}
-
-			if ("usage" in chunk && chunk.usage) {
-				send("token", {
-					stageId: run.stageId,
-					agentRunId: run.agentRunId,
-					usage: chunk.usage,
-				});
-				agentRuns.token(run, chunk.usage);
-			}
-
-			if (isRunErrorChunk(chunk)) {
+			if (isAgentStreamRunErrorChunk(chunk)) {
 				log.error("AI extraction pass run error", chunk, {
 					stage: stageId,
 					agentRunId: run.agentRunId,
@@ -128,41 +139,66 @@ export async function runExtractionPass(
 						"toolCallId" in chunk && typeof chunk.toolCallId === "string"
 							? chunk.toolCallId
 							: undefined,
-					rawTextLength: rawText.length,
+					rawTextLength: streamState.rawText.length,
 				});
 				throw new Error(
 					`AI provider returned error: ${chunk.message}${chunk.code ? ` (code: ${chunk.code})` : ""}`,
 				);
 			}
 
-			if (isToolCallEndChunk(chunk)) {
-				const toolMeta = {
-					toolCallId:
-						typeof chunk.toolCallId === "string" ? chunk.toolCallId : undefined,
-				};
-				const toolEvent = buildToolEvent(chunk);
-				agentRuns.toolCall(
-					run,
-					{
-						name: toolEvent.name,
-						arguments: toolEvent.arguments,
-						input: toolEvent.input,
-						output: toolEvent.output,
-						state: "complete",
+			processAgentStreamChunk(
+				chunk as StreamChunk,
+				{
+					onTextDelta: (delta) => {
+						send("chunk", {
+							stageId: run.stageId,
+							agentRunId: run.agentRunId,
+							text: delta,
+							kind: "text",
+						});
 					},
-					toolMeta,
-				);
-				agentRuns.toolResult(
-					run,
-					{
-						content: toolEvent.resultContent,
-						error: toolEvent.resultError,
-						state: toolEvent.resultError ? "error" : "complete",
+					onReasoningDelta: (delta) => {
+						send("chunk", {
+							stageId: run.stageId,
+							agentRunId: run.agentRunId,
+							text: delta,
+							kind: "reasoning",
+						});
 					},
-					toolMeta,
-				);
-				rawText += buildToolResultLogLine(chunk);
-			}
+					onUsage: (usage) => {
+						send("token", {
+							stageId: run.stageId,
+							agentRunId: run.agentRunId,
+							usage,
+						});
+						agentRuns.token(run, usage);
+					},
+					onToolCall: (toolCall) => {
+						agentRuns.toolCall(
+							run,
+							{
+								name: toolCall.name,
+								arguments: toolCall.arguments,
+								input: toolCall.input,
+								state: toolCall.state,
+							},
+							{ toolCallId: toolCall.toolCallId },
+						);
+					},
+					onToolResult: (toolResult) => {
+						agentRuns.toolResult(
+							run,
+							{
+								content: toolResult.content,
+								error: toolResult.error,
+								state: toolResult.state,
+							},
+							{ toolCallId: toolResult.toolCallId },
+						);
+					},
+				},
+				streamState,
+			);
 		}
 
 		const result = workspace.buildResult();
@@ -175,7 +211,7 @@ export async function runExtractionPass(
 			throw new Error(message);
 		}
 
-		agentRuns.result(run, result, rawText, {
+		agentRuns.result(run, result, streamState.rawText, {
 			toolQuestionCount: workspace.listQuestions().length,
 		});
 		agentRuns.lifecycle(run, "done", {
@@ -190,71 +226,19 @@ export async function runExtractionPass(
 			stage: stageId,
 			agentRunId: run.agentRunId,
 			label: stageLabel,
-			rawTextLength: rawText.length,
+			rawTextLength: streamState.rawText.length,
 			rawTextPreview:
-				rawText.length > 1000 ? `${rawText.slice(0, 1000)}...` : rawText,
+				streamState.rawText.length > 1000
+					? `${streamState.rawText.slice(0, 1000)}...`
+					: streamState.rawText,
 			systemPrompt,
 			userPromptPreview:
 				userPrompt.length > 500 ? `${userPrompt.slice(0, 500)}...` : userPrompt,
 		});
 		agentRuns.lifecycle(run, "error", {
 			error: error instanceof Error ? error.message : "unknown error",
-			rawText,
+			rawText: streamState.rawText,
 		});
 		throw error;
 	}
-}
-
-function isRunErrorChunk(
-	chunk: StreamChunk,
-): chunk is Extract<StreamChunk, { type: "RUN_ERROR" }> {
-	return chunk.type === "RUN_ERROR";
-}
-
-function isToolCallEndChunk(
-	chunk: StreamChunk,
-): chunk is Extract<StreamChunk, { type: "TOOL_CALL_END" }> {
-	return chunk.type === "TOOL_CALL_END";
-}
-
-function buildToolResultLogLine(
-	chunk: Extract<StreamChunk, { type: "TOOL_CALL_END" }>,
-) {
-	const toolEvent = buildToolEvent(chunk);
-	const toolName = toolEvent.name;
-	const input = toolEvent.arguments;
-	const result =
-		toolEvent.resultContent === undefined
-			? ""
-			: typeof toolEvent.resultContent === "string"
-				? toolEvent.resultContent
-				: JSON.stringify(toolEvent.resultContent);
-
-	return `\n[tool:${toolName}] input=${input}${result ? ` result=${result}` : ""}`;
-}
-
-function buildToolEvent(
-	chunk: Extract<StreamChunk, { type: "TOOL_CALL_END" }>,
-) {
-	const toolName = chunk.toolCallName ?? chunk.toolName ?? "unknown_tool";
-	const input = chunk.input ?? {};
-	const result = chunk.result;
-
-	return {
-		name: toolName,
-		arguments: JSON.stringify(input),
-		input,
-		output: result,
-		resultContent: result,
-		resultError: readToolResultError(result),
-	};
-}
-
-function readToolResultError(result: unknown): string | undefined {
-	if (typeof result !== "object" || result === null) return undefined;
-	const errorValue = (result as { error?: unknown }).error;
-	if (typeof errorValue !== "object" || errorValue === null) return undefined;
-	return typeof (errorValue as { message?: unknown }).message === "string"
-		? (errorValue as { message: string }).message
-		: undefined;
 }

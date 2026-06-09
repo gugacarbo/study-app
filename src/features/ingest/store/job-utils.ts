@@ -126,6 +126,28 @@ function normalizeAgentStatus(status?: string): IngestAgentStatus {
 		: "running";
 }
 
+function resolveNextAgentStatus(
+	existingStatus: IngestAgentStatus | undefined,
+	eventStatus: string | undefined,
+	hasExistingWarnings: boolean,
+): IngestAgentStatus {
+	const normalizedEventStatus =
+		eventStatus == null ? existingStatus : normalizeAgentStatus(eventStatus);
+
+	if (existingStatus === "error") {
+		return "error";
+	}
+
+	if (
+		(existingStatus === "warning" || hasExistingWarnings) &&
+		normalizedEventStatus === "done"
+	) {
+		return "warning";
+	}
+
+	return normalizedEventStatus ?? "running";
+}
+
 type AgentRole = "system" | "user" | "assistant";
 type AssistantToolCallPart = Extract<
 	UIMessage["parts"][number],
@@ -138,6 +160,10 @@ type AssistantToolResultPart = Extract<
 
 function createTextPart(content: string) {
 	return { type: "text" as const, content };
+}
+
+function createThinkingPart(content: string) {
+	return { type: "thinking" as const, content };
 }
 
 function createAgentMessage(
@@ -173,15 +199,58 @@ function getAssistantMessageIndex(messages: UIMessage[]): number {
 	return messages.findIndex((message) => message.role === "assistant");
 }
 
-function ensureTextPart(
-	message: UIMessage,
-	initialContent: string,
+function stripStructuredToolTranscript(text: string): string {
+	const markerIndex = text.indexOf("TOOL CALL:");
+	if (markerIndex === -1) return text;
+
+	const lineStart = text.lastIndexOf("\n", markerIndex);
+	const cutIndex = lineStart === -1 ? markerIndex : lineStart;
+	return text.slice(0, cutIndex).trimEnd();
+}
+
+function stripToolTranscriptFromTextParts(
+	parts: UIMessage["parts"],
 ): UIMessage["parts"] {
-	if (message.parts.some((part) => part.type === "text")) {
-		return message.parts;
+	let didStrip = false;
+
+	return parts
+		.map((part) => {
+			if (part.type !== "text" || didStrip) return part;
+			const content = part.content ?? "";
+			const strippedContent = stripStructuredToolTranscript(content);
+			if (strippedContent === content) return part;
+			didStrip = true;
+			return { ...part, content: strippedContent };
+		})
+		.filter((part, index, allParts) => {
+			if (part.type !== "text") return true;
+			if ((part.content ?? "").length > 0) return true;
+			return allParts.some((candidate) => candidate.type !== "text") || index !== 0;
+		});
+}
+
+function hasMeaningfulAssistantParts(parts: UIMessage["parts"]): boolean {
+	return parts.some((part) =>
+		part.type === "text" ? (part.content ?? "").length > 0 : true,
+	);
+}
+
+function updateTrailingTextPart(
+	parts: UIMessage["parts"],
+	chunk: string,
+): UIMessage["parts"] {
+	const nextParts = [...parts];
+	const lastPart = nextParts.at(-1);
+
+	if (lastPart?.type === "text") {
+		nextParts[nextParts.length - 1] = {
+			...lastPart,
+			content: `${lastPart.content ?? ""}${chunk}`,
+		};
+		return nextParts;
 	}
 
-	return [createTextPart(initialContent), ...message.parts];
+	return [...nextParts, createTextPart(chunk)];
 }
 
 function upsertMessageText(
@@ -251,20 +320,52 @@ function withAssistantMessage(
 	};
 }
 
+function updateTrailingThinkingPart(
+	parts: UIMessage["parts"],
+	chunk: string,
+): UIMessage["parts"] {
+	const nextParts = [...parts];
+	const lastPart = nextParts.at(-1);
+
+	if (lastPart?.type === "thinking") {
+		nextParts[nextParts.length - 1] = {
+			...lastPart,
+			content: `${lastPart.content ?? ""}${chunk}`,
+		};
+		return nextParts;
+	}
+
+	return [...nextParts, createThinkingPart(chunk)];
+}
+
 function appendAssistantTextMessage(
 	agentRun: IngestAgentRun,
 	chunk: string,
 ): IngestAgentRun {
 	return withAssistantMessage(agentRun, (message) => {
-		const parts = ensureTextPart(message, "");
-		let consumed = false;
+		const baseParts = hasMeaningfulAssistantParts(message.parts)
+			? message.parts
+			: [];
+
 		return {
 			...message,
-			parts: parts.map((part) => {
-				if (part.type !== "text" || consumed) return part;
-				consumed = true;
-				return { ...part, content: `${part.content}${chunk}` };
-			}),
+			parts: updateTrailingTextPart(baseParts, chunk),
+		};
+	});
+}
+
+function appendAssistantThinkingMessage(
+	agentRun: IngestAgentRun,
+	chunk: string,
+): IngestAgentRun {
+	return withAssistantMessage(agentRun, (message) => {
+		const baseParts = hasMeaningfulAssistantParts(message.parts)
+			? message.parts
+			: [];
+
+		return {
+			...message,
+			parts: updateTrailingThinkingPart(baseParts, chunk),
 		};
 	});
 }
@@ -287,15 +388,21 @@ function syncPromptsIntoMessages(agentRun: IngestAgentRun): IngestAgentRun {
 		nextAgentRun.outputText.length > 0
 			? nextAgentRun.outputText
 			: readAssistantText(nextAgentRun.messages);
+	const assistantMessage = withUser.find(
+		(message) => message.role === "assistant",
+	);
 
 	return {
 		...nextAgentRun,
-		messages: upsertMessageText(
-			nextAgentRun.id,
-			withUser,
-			"assistant",
-			assistantText,
-		),
+		messages:
+			assistantMessage && hasMeaningfulAssistantParts(assistantMessage.parts)
+				? withUser
+				: upsertMessageText(
+						nextAgentRun.id,
+						withUser,
+						"assistant",
+						assistantText,
+					),
 	};
 }
 
@@ -392,8 +499,43 @@ function createToolCallPart(
 				? event.arguments
 				: safeJsonString(event.input ?? {}),
 		input: event.input,
-		output: event.output,
+		output: undefined,
 		state: normalizeToolCallState(event.state),
+	};
+}
+
+function isMeaningfulToolValue(value: unknown): boolean {
+	if (value == null) return false;
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+	}
+	if (Array.isArray(value)) {
+		return value.length > 0;
+	}
+	if (typeof value === "object") {
+		return Object.keys(value as Record<string, unknown>).length > 0;
+	}
+	return true;
+}
+
+function mergeToolCallPart(
+	existing: AssistantToolCallPart,
+	incoming: AssistantToolCallPart,
+): AssistantToolCallPart {
+	return {
+		...existing,
+		...incoming,
+		name:
+			typeof incoming.name === "string" && incoming.name.length > 0
+				? incoming.name
+				: existing.name,
+		arguments: isMeaningfulToolValue(incoming.arguments)
+			? incoming.arguments
+			: existing.arguments,
+		input: isMeaningfulToolValue(incoming.input) ? incoming.input : existing.input,
+		output: undefined,
+		state: normalizeToolCallState(incoming.state ?? existing.state),
 	};
 }
 
@@ -421,10 +563,41 @@ function appendAssistantPart(
 	agentRun: IngestAgentRun,
 	part: AssistantToolCallPart | AssistantToolResultPart,
 ): IngestAgentRun {
-	return withAssistantMessage(agentRun, (message) => ({
-		...message,
-		parts: [...ensureTextPart(message, ""), part],
-	}));
+	return withAssistantMessage(agentRun, (message) => {
+		const baseParts = hasMeaningfulAssistantParts(message.parts)
+			? message.parts
+			: [];
+		const nextParts = stripToolTranscriptFromTextParts(baseParts);
+		const existingIndex = nextParts.findIndex((candidate) => {
+			if (candidate.type !== part.type) return false;
+			if (part.type === "tool-call" && candidate.type === "tool-call") {
+				return candidate.id === part.id;
+			}
+			if (part.type === "tool-result" && candidate.type === "tool-result") {
+				return candidate.toolCallId === part.toolCallId;
+			}
+			return false;
+		});
+
+		if (existingIndex !== -1) {
+			const updatedParts = [...nextParts];
+			const currentPart = updatedParts[existingIndex];
+			updatedParts[existingIndex] =
+				part.type === "tool-call" && currentPart.type === "tool-call"
+					? mergeToolCallPart(currentPart, part)
+					: part;
+
+			return {
+				...message,
+				parts: updatedParts,
+			};
+		}
+
+		return {
+			...message,
+			parts: [...nextParts, part],
+		};
+	});
 }
 
 export function appendToolCallToAgentRun(
@@ -539,7 +712,6 @@ export function upsertAgentRun(
 	event: IngestAgentEvent,
 ): IngestJob {
 	const timestamp = event.timestamp ?? Date.now();
-	const status = normalizeAgentStatus(event.status);
 	const existingIndex = job.agentRuns.findIndex(
 		(agentRun) => agentRun.id === event.agentRunId,
 	);
@@ -549,6 +721,11 @@ export function upsertAgentRun(
 		const systemPrompt = event.systemPrompt ?? "";
 		const userPrompt = event.userPrompt ?? "";
 		const outputText = event.rawText ?? "";
+		const status = resolveNextAgentStatus(
+			undefined,
+			event.status,
+			Boolean(event.warning),
+		);
 		return {
 			...job,
 			agentRuns: [
@@ -585,6 +762,14 @@ export function upsertAgentRun(
 		existing.outputText.length > 0
 			? existing.outputText
 			: (event.rawText ?? existing.outputText);
+	const nextWarnings = event.warning
+		? [...existing.warnings, event.warning]
+		: existing.warnings;
+	const status = resolveNextAgentStatus(
+		existing.status,
+		event.status,
+		nextWarnings.length > 0,
+	);
 	nextAgentRuns[existingIndex] = syncPromptsIntoMessages({
 		...existing,
 		stageId: event.stageId,
@@ -596,9 +781,7 @@ export function upsertAgentRun(
 		outputText: nextOutputText,
 		rawOutput: event.finalObject ?? event.rawText ?? existing.rawOutput,
 		error: event.error ?? existing.error,
-		warnings: event.warning
-			? [...existing.warnings, event.warning]
-			: existing.warnings,
+		warnings: nextWarnings,
 		tokenTotals: tokenTotals ?? existing.tokenTotals,
 		meta: event.meta ?? existing.meta,
 	});
@@ -675,6 +858,28 @@ export function applyChunkEvent(
 		text: event.text,
 		timestamp: event.timestamp,
 	});
+}
+
+export function appendReasoningToAgentRun(
+	job: IngestJob,
+	agentRunId: string,
+	chunk: string,
+): IngestJob {
+	const existingIndex = job.agentRuns.findIndex(
+		(agentRun) => agentRun.id === agentRunId,
+	);
+	if (existingIndex === -1) return job;
+
+	const nextAgentRuns = [...job.agentRuns];
+	nextAgentRuns[existingIndex] = appendAssistantThinkingMessage(
+		nextAgentRuns[existingIndex],
+		chunk,
+	);
+
+	return {
+		...job,
+		agentRuns: nextAgentRuns,
+	};
 }
 
 export function appendChunkToAgentRun(

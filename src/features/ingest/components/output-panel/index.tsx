@@ -2,20 +2,20 @@ import { Filter } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
 	IngestAgentRunViewModel,
 	IngestOutputEntry,
+	IngestPipelineStageViewModel,
 	IngestTokenTotals,
 } from "../types";
 import { OutputPanelAgentRuns } from "./agent-runs";
-import { OutputPanelLogs } from "./logs";
 
 interface OutputPanelProps {
 	entries: IngestOutputEntry[];
 	rawOutput: string;
 	rawStreamText: string;
 	tokenTotals: IngestTokenTotals;
+	stages: IngestPipelineStageViewModel[];
 	selectedStageId: string | null;
 	selectedStageLabel: string | null;
 	agents: IngestAgentRunViewModel[];
@@ -23,26 +23,13 @@ interface OutputPanelProps {
 }
 
 export function OutputPanel({
-	entries,
-	rawOutput,
-	rawStreamText,
 	tokenTotals,
 	selectedStageId,
 	selectedStageLabel,
 	agents,
 	onClearFilter,
 }: OutputPanelProps) {
-	const [mode, setMode] = useState<"treated" | "raw">("treated");
-	const [selectedAgent, setSelectedAgent] =
-		useState<IngestAgentRunViewModel | null>(null);
-
-	const filteredEntries = useMemo(
-		() =>
-			selectedStageId
-				? entries.filter((entry) => entry.stageId === selectedStageId)
-				: entries,
-		[entries, selectedStageId],
-	);
+	const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
 	const filteredAgents = useMemo(
 		() =>
@@ -75,40 +62,12 @@ export function OutputPanel({
 						</Button>
 					</>
 				) : null}
-				<div className="ml-auto">
-					<Tabs
-						value={mode}
-						onValueChange={(value) => setMode(value as "treated" | "raw")}
-					>
-						<TabsList className="h-8 bg-muted">
-							<TabsTrigger value="treated" className="px-3 text-[0.7rem]">
-								Treated
-							</TabsTrigger>
-							<TabsTrigger value="raw" className="px-3 text-[0.7rem]">
-								Raw
-							</TabsTrigger>
-						</TabsList>
-					</Tabs>
-				</div>
 			</div>
-
-			{mode === "treated" ? (
-				<OutputPanelAgentRuns
-					filteredAgents={filteredAgents}
-					selectedAgent={selectedAgent}
-					onSelectAgent={setSelectedAgent}
-				/>
-			) : (
-				<OutputPanelLogs
-					rawStreamText={rawStreamText}
-					selectedStageId={selectedStageId}
-					selectedStageLabel={selectedStageLabel}
-					tokenTotals={tokenTotals}
-					rawOutput={rawOutput}
-					filteredEntries={filteredEntries}
-					filteredAgents={filteredAgents}
-				/>
-			)}
+			<OutputPanelAgentRuns
+				filteredAgents={filteredAgents}
+				selectedAgentId={selectedAgentId}
+				onSelectAgentId={setSelectedAgentId}
+			/>
 		</div>
 	);
 }

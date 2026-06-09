@@ -73,6 +73,7 @@ export function JobDetailPanel({
 							rawOutput={job.rawOutput}
 							rawStreamText={job.rawStreamText}
 							tokenTotals={job.tokenTotals}
+							stages={job.stages}
 							selectedStageId={selectedStageId}
 							selectedStageLabel={selectedStage?.label ?? null}
 							agents={job.agents}

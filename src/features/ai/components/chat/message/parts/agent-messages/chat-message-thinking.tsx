@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ShimmerTextSpan } from "@/components/shimmer-text-span";
 import { DetailAccordion } from "../../detail-accordion/detail-accordion";
 
@@ -11,6 +12,12 @@ export function ChatMessageThinking({
 	isPending = false,
 }: ChatMessageThinkingProps) {
 	const trimmedContent = content.trim();
+	const [open, setOpen] = useState(isPending);
+
+	useEffect(() => {
+		setOpen(isPending);
+	}, [isPending]);
+
 	if (!trimmedContent) return null;
 
 	return (
@@ -18,15 +25,19 @@ export function ChatMessageThinking({
 			value="think"
 			label="Raciocínio"
 			tone="neutral"
-			defaultOpen={isPending}
+			open={open}
+			onOpenChange={setOpen}
 			className="border-0 px-0"
 		>
 			{isPending ? (
-				<ShimmerTextSpan shimmerColor="blue-400">
+				<ShimmerTextSpan
+					shimmerColor="blue-400"
+					className="text-xs leading-relaxed text-muted-foreground"
+				>
 					{trimmedContent}
 				</ShimmerTextSpan>
 			) : (
-				<p className="whitespace-pre-wrap text-xs text-muted-foreground">
+				<p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
 					{trimmedContent}
 				</p>
 			)}

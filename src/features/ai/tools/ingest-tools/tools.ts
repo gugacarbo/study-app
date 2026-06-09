@@ -64,7 +64,7 @@ const addExtractedQuestionDef = toolDefinition({
 const updateExtractedQuestionDef = toolDefinition({
 	name: "update_extracted_question",
 	description:
-		"Update a previously added extracted exam question by its workspace questionId.",
+		"Update a previously added extracted exam question by its workspace questionId. Pass only fields that need correction; omit unchanged fields. A call with only questionId and no field changes is a no-op.",
 	inputSchema: extractionQuestionPatchSchema,
 	outputSchema: z.union([
 		updateExtractionQuestionSuccessSchema,
@@ -82,6 +82,22 @@ const listExtractedQuestionsDef = toolDefinition({
 		extractionToolFailureSchema,
 	]),
 });
+
+function hasMeaningfulQuestionPatch(input: {
+	question?: string | null;
+	options?: string[] | null;
+	answer?: string | null;
+	topic?: string | null;
+	explanation?: string | null;
+}) {
+	return (
+		input.question != null ||
+		input.options != null ||
+		input.answer != null ||
+		input.topic != null ||
+		input.explanation != null
+	);
+}
 
 function toToolFailure(error: unknown) {
 	if (error instanceof ExtractionWorkspaceError) {
@@ -121,22 +137,30 @@ export function createIngestExtractionTools(workspace: ExtractionWorkspaceApi) {
 	const updateExtractedQuestion = updateExtractedQuestionDef.server(
 		async (input) => {
 			try {
+				if (!hasMeaningfulQuestionPatch(input)) {
+					return {
+						ok: true as const,
+						questionId: input.questionId,
+						updatedFields: [],
+					};
+				}
+
 				workspace.updateQuestion(input.questionId as ExtractionQuestionId, {
-					question: input.question,
-					options: input.options,
-					answer: input.answer,
-					topic: input.topic,
-					explanation: input.explanation,
+					question: input.question ?? undefined,
+					options: input.options ?? undefined,
+					answer: input.answer ?? undefined,
+					topic: input.topic ?? undefined,
+					explanation: input.explanation ?? undefined,
 				});
 				return {
 					ok: true as const,
 					questionId: input.questionId,
 					updatedFields: [
-						...(input.question !== undefined ? ["question" as const] : []),
-						...(input.options !== undefined ? ["options" as const] : []),
-						...(input.answer !== undefined ? ["answer" as const] : []),
-						...(input.topic !== undefined ? ["topic" as const] : []),
-						...(input.explanation !== undefined
+						...(input.question != null ? ["question" as const] : []),
+						...(input.options != null ? ["options" as const] : []),
+						...(input.answer != null ? ["answer" as const] : []),
+						...(input.topic != null ? ["topic" as const] : []),
+						...(input.explanation != null
 							? ["explanation" as const]
 							: []),
 					],

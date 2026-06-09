@@ -1,12 +1,13 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { AssistantPerfMetrics } from "./message/chat-message";
 import { ChatMessage } from "./message/chat-message";
 
 interface VirtualizedChatMessagesProps {
 	messages: UIMessage[];
 	metrics: Record<string, AssistantPerfMetrics | undefined>;
+	isLoading: boolean;
 }
 
 /**
@@ -17,9 +18,20 @@ interface VirtualizedChatMessagesProps {
 export function VirtualizedChatMessages({
 	messages,
 	metrics,
+	isLoading,
 }: VirtualizedChatMessagesProps) {
 	const parentRef = useRef<HTMLDivElement>(null);
 	const prevMessageCountRef = useRef(0);
+
+	const latestAssistantId = useMemo(() => {
+		for (let i = messages.length - 1; i >= 0; i -= 1) {
+			const message = messages[i];
+			if (message?.role === "assistant" && message.id !== "welcome") {
+				return message.id;
+			}
+		}
+		return undefined;
+	}, [messages]);
 
 	const virtualizer = useVirtualizer({
 		count: messages.length,
@@ -45,7 +57,16 @@ export function VirtualizedChatMessages({
 		return (
 			<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-2">
 				{messages.map((msg) => (
-					<ChatMessage key={msg.id} message={msg} metrics={metrics[msg.id]} />
+					<ChatMessage
+						key={msg.id}
+						message={msg}
+						metrics={metrics[msg.id]}
+						isPending={
+							isLoading &&
+							msg.role === "assistant" &&
+							msg.id === latestAssistantId
+						}
+					/>
 				))}
 			</div>
 		);
@@ -81,7 +102,15 @@ export function VirtualizedChatMessages({
 							data-index={virtualItem.index}
 							ref={virtualizer.measureElement}
 						>
-							<ChatMessage message={message} metrics={metrics[message.id]} />
+							<ChatMessage
+								message={message}
+								metrics={metrics[message.id]}
+								isPending={
+									isLoading &&
+									message.role === "assistant" &&
+									message.id === latestAssistantId
+								}
+							/>
 						</div>
 					);
 				})}

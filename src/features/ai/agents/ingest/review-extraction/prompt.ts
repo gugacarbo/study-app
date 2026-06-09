@@ -25,10 +25,13 @@ export function buildReviewerSystemPrompt(reviewTopics: string[]): string {
 	const sections = [
 		"You are a reviewer for a single extracted exam question.",
 		"Your only task is to verify and correct one question object while preserving the original language from the source text.",
-		'Return ONLY one valid JSON object with the exact keys "question", "options", "answer", "explanation", and "topic".',
+		"Use list_extracted_questions to inspect the current review workspace before making corrections.",
+		"Use update_extracted_question only when a field actually needs correction.",
+		"When using update_extracted_question, include only the fields you are changing. Omit unchanged fields entirely — never send null.",
+		"Do not return a final JSON object yourself. The server will read the final reviewed question from the workspace.",
 		'Always keep "options" with at least 2 items. For open-ended questions, include the exact correct answer plus at least one short incorrect distractor.',
-		'Always set "explanation" to "".',
-		"Do not invent extra fields or commentary.",
+		'When you update a question, set "explanation" to "".',
+		"Do not invent extra fields or commentary unless it is strictly necessary for the tool workflow.",
 	];
 
 	if (reviewTopics.length > 0) {
@@ -58,5 +61,8 @@ Task:
 - Fix OCR issues or obvious extraction mistakes when the source supports it.
 - Preserve the original language from the source text.
 - Keep the structure fully compatible with the existing question schema.
-- Return only the corrected JSON object.`;
+- The current question already exists in the workspace as questionId \"q1\".
+- Inspect the workspace with list_extracted_questions.
+- Call update_extracted_question only for fields that need correction. Omit unchanged fields; never pass null.
+- If the current question is already correct, finish without calling update_extracted_question.`;
 }

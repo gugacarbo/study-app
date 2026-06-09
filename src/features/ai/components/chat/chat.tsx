@@ -75,6 +75,7 @@ export function Chat() {
 					<VirtualizedChatMessages
 						messages={messages}
 						metrics={assistantMetrics}
+						isLoading={isLoading}
 					/>
 					{error && <ChatError error={error} />}
 					<ChatInput

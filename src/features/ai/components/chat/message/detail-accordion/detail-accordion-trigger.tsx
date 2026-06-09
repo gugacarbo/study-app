@@ -50,7 +50,7 @@ export function DetailTrigger({
 	return (
 		<AccordionPrimitive.Trigger
 			className={cn(
-				"text-xs flex items-center w-full font-medium normal-case py-1 px-0.5 focus-visible:border-0 focus-visible:ring-0 group",
+				"group flex w-full items-center px-0.5 py-1.5 text-xs font-medium normal-case focus-visible:border-0 focus-visible:ring-0",
 				className,
 			)}
 			data-slot="accordion-trigger"
