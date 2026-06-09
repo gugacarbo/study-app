@@ -70,6 +70,23 @@ function tryParseJson(value: string): unknown | undefined {
 	}
 }
 
+function isMeaningfulToolResult(content: unknown): boolean {
+	if (content === undefined || content === null) return false;
+	if (typeof content === "string") {
+		const trimmed = content.trim();
+		return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+	}
+	if (Array.isArray(content)) return content.length > 0;
+	if (typeof content === "object") {
+		return Object.keys(content).length > 0;
+	}
+	return true;
+}
+
+function shouldEmitToolResult(payload: AgentStreamToolResultPayload): boolean {
+	return Boolean(payload.error) || isMeaningfulToolResult(payload.content);
+}
+
 function readToolResultError(result: unknown): string | undefined {
 	if (typeof result === "string") {
 		try {
@@ -179,6 +196,9 @@ export function createToolResultEmitter(
 	state: AgentStreamState,
 ): (payload: AgentStreamToolResultPayload) => void {
 	return (payload) => {
+		if (!shouldEmitToolResult(payload)) {
+			return;
+		}
 		if (state.emittedToolResultIds.has(payload.toolCallId)) {
 			return;
 		}
@@ -202,7 +222,6 @@ export function payloadFromToolExecuteResult(
 
 export function createIncrementalToolEventMiddleware(
 	handlers: Pick<AgentStreamHandlers, "onToolCall" | "onToolResult">,
-	emittedToolResultIds?: Set<string>,
 ): ChatMiddleware {
 	return {
 		name: "incremental-tool-events",
@@ -216,9 +235,7 @@ export function createIncrementalToolEventMiddleware(
 			});
 		},
 		onAfterToolCall(_ctx, info: AfterToolCallInfo) {
-			const payload = resolveAfterToolCallPayload(info);
-			emittedToolResultIds?.add(payload.toolCallId);
-			handlers.onToolResult?.(payload);
+			handlers.onToolResult?.(resolveAfterToolCallPayload(info));
 		},
 	};
 }
@@ -310,13 +327,17 @@ export function processAgentStreamChunk(
 			});
 
 			const resultError = readToolResultError(result);
-			if (!state.emittedToolResultIds.has(toolCallId)) {
-				handlers.onToolResult?.({
-					toolCallId,
-					content: result,
-					error: resultError,
-					state: resultError ? "error" : "complete",
-				});
+			const toolResultPayload: AgentStreamToolResultPayload = {
+				toolCallId,
+				content: result,
+				error: resultError,
+				state: resultError ? "error" : "complete",
+			};
+			if (
+				!state.emittedToolResultIds.has(toolCallId) &&
+				shouldEmitToolResult(toolResultPayload)
+			) {
+				handlers.onToolResult?.(toolResultPayload);
 				state.emittedToolResultIds.add(toolCallId);
 			}
 
@@ -332,12 +353,14 @@ export function processAgentStreamChunk(
 			if (state.emittedToolResultIds.has(toolCallId)) return;
 			const content = record.content;
 			const resultError = readToolResultError(content);
-			handlers.onToolResult?.({
+			const toolResultPayload: AgentStreamToolResultPayload = {
 				toolCallId,
 				content,
 				error: resultError,
 				state: resultError ? "error" : "complete",
-			});
+			};
+			if (!shouldEmitToolResult(toolResultPayload)) return;
+			handlers.onToolResult?.(toolResultPayload);
 			state.emittedToolResultIds.add(toolCallId);
 		}
 	}

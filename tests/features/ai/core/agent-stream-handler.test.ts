@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	createAgentStreamState,
 	createIncrementalToolEventMiddleware,
+	createToolResultEmitter,
 	processAgentStreamChunk,
 } from "@/features/ai/core/agent-stream-handler";
 
@@ -112,14 +113,10 @@ describe("createIncrementalToolEventMiddleware", () => {
 	it("emits input-complete before execution and result right after each tool finishes", async () => {
 		const onToolCall = vi.fn();
 		const onToolResult = vi.fn();
-		const emittedToolResultIds = new Set<string>();
-		const middleware = createIncrementalToolEventMiddleware(
-			{
-				onToolCall,
-				onToolResult,
-			},
-			emittedToolResultIds,
-		);
+		const middleware = createIncrementalToolEventMiddleware({
+			onToolCall,
+			onToolResult,
+		});
 
 		await middleware.onBeforeToolCall?.({} as never, {
 			toolCall: {
@@ -159,6 +156,62 @@ describe("createIncrementalToolEventMiddleware", () => {
 			content: { ok: true, questionId: "q1" },
 			state: "complete",
 		});
-		expect(emittedToolResultIds.has("tc-1")).toBe(true);
+	});
+
+	it("ignores empty tool results so onToolExecuted can emit the real payload later", () => {
+		const state = createAgentStreamState();
+		const emitted: unknown[] = [];
+		const emitToolResult = createToolResultEmitter((payload) => {
+			emitted.push(payload);
+		}, state);
+
+		emitToolResult({ toolCallId: "tc-1", content: undefined, state: "complete" });
+		emitToolResult({
+			toolCallId: "tc-1",
+			content: { ok: true, questionId: "q9" },
+			state: "complete",
+		});
+
+		expect(emitted).toEqual([
+			{
+				toolCallId: "tc-1",
+				content: { ok: true, questionId: "q9" },
+				state: "complete",
+			},
+		]);
+	});
+
+	it("forwards middleware tool results through createToolResultEmitter without dropping payload", () => {
+		const state = createAgentStreamState();
+		const emitted: unknown[] = [];
+		const emitToolResult = createToolResultEmitter((payload) => {
+			emitted.push(payload);
+		}, state);
+		const middleware = createIncrementalToolEventMiddleware({
+			onToolResult: emitToolResult,
+		});
+
+		void middleware.onAfterToolCall?.({} as never, {
+			toolCall: {
+				id: "tc-1",
+				type: "function",
+				function: { name: "add_extracted_question", arguments: "{}" },
+			},
+			tool: undefined,
+			toolName: "add_extracted_question",
+			toolCallId: "tc-1",
+			ok: true,
+			duration: 8,
+			result: { ok: true, questionId: "q9" },
+		});
+
+		expect(emitted).toEqual([
+			{
+				toolCallId: "tc-1",
+				content: { ok: true, questionId: "q9" },
+				error: undefined,
+				state: "complete",
+			},
+		]);
 	});
 });

@@ -28,10 +28,7 @@ export function streamChatMessages(
 
 	if (options?.toolStreamHandlers) {
 		middleware.unshift(
-			createIncrementalToolEventMiddleware(
-				options.toolStreamHandlers,
-				options.streamState?.emittedToolResultIds,
-			),
+			createIncrementalToolEventMiddleware(options.toolStreamHandlers),
 		);
 	}
 
