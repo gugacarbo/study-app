@@ -18,7 +18,7 @@ export function explanationAgentStateBadgeClass(
 }
 
 function buildExplanationAgentSummary(
-	agentRun: { meta?: { questionCount: number } } | null | undefined,
+	agentRun: ExplanationAgentRunSummary | null | undefined,
 ): string {
 	const questionCount = agentRun?.meta?.questionCount;
 	if (!questionCount) return "Inspect prompts, response, and agent state.";

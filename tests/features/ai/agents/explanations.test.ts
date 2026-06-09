@@ -1,49 +1,91 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { generateJson } from "@/features/ai/core/generate";
 
-const { generateJsonMock } = vi.hoisted(() => ({
-	generateJsonMock: vi.fn(),
+vi.mock("@tanstack/ai", () => ({
+	toolDefinition: (definition: Record<string, unknown>) => ({
+		...definition,
+		server: (handler: (input: unknown) => Promise<unknown>) => ({
+			...definition,
+			execute: handler,
+		}),
+	}),
 }));
 
-vi.mock("@/features/ai/core/generate", () => ({
-	generateJson: generateJsonMock,
+const { streamChatMessagesMock } = vi.hoisted(() => ({
+	streamChatMessagesMock: vi.fn(),
 }));
 
-import { runBatchQuestionExplanations } from "@/features/ai/agents/explanations";
+vi.mock("@/features/ai/core/chat-stream", () => ({
+	streamChatMessages: streamChatMessagesMock,
+}));
 
-describe("runBatchQuestionExplanations", () => {
+import {
+	explainSingleQuestion,
+	runQuestionExplanations,
+} from "@/features/ai/agents/explanations";
+
+type Tool = {
+	name: string;
+	execute: (input: Record<string, unknown>) => Promise<unknown>;
+};
+
+function getTool(tools: readonly unknown[] | undefined, name: string): Tool {
+	const tool = tools?.find((candidate) => (candidate as Tool).name === name);
+	if (!tool) throw new Error(`Tool ${name} not found`);
+	return tool as Tool;
+}
+
+function mockSuccessfulExplanationRun(questionId: number) {
+	streamChatMessagesMock.mockImplementation(
+		(
+			_config: unknown,
+			_messages: unknown,
+			options?: { tools?: readonly unknown[] },
+		) =>
+			(async function* () {
+				const updateExplanation = getTool(
+					options?.tools,
+					"update_question_explanation",
+				);
+				await updateExplanation.execute({
+					questionId,
+					explanation: `Curta ${questionId}`,
+					deepExplanation: `Longa ${questionId}`,
+				});
+				yield {
+					type: "RUN_FINISHED",
+					threadId: "thread-1",
+					runId: "run-1",
+					finishReason: "stop",
+				};
+			})(),
+	);
+}
+
+describe("explainSingleQuestion", () => {
 	beforeEach(() => {
-		generateJsonMock.mockReset();
+		streamChatMessagesMock.mockReset();
 	});
 
-	it("emits lifecycle and result events around a batch run", async () => {
-		generateJsonMock.mockResolvedValue({
-			questions: [
-				{
-					id: 10,
-					explanation: "Explicacao curta",
-					deepExplanation: "Explicacao longa",
-				},
-			],
-		});
+	it("emits lifecycle and result events for a single-question explanation run", async () => {
+		mockSuccessfulExplanationRun(10);
 
 		const onAgentEvent = vi.fn();
 
-		const result = await runBatchQuestionExplanations(
+		const result = await explainSingleQuestion(
 			{
 				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
 				apiKey: "test-key",
 			},
-			[
-				{
-					id: 10,
-					question: "O que e escalonamento?",
-					options: ["A", "B"],
-					answer: "A",
-					topic: "SO",
-				},
-			],
+			{
+				id: 10,
+				question: "O que e escalonamento?",
+				options: ["A", "B"],
+				answer: "A",
+				topic: "SO",
+			},
+			0,
+			1,
 			{
 				memoryContext: "Aluno prefere exemplos curtos",
 				onAgentEvent,
@@ -51,81 +93,113 @@ describe("runBatchQuestionExplanations", () => {
 			},
 		);
 
-		expect(result.questions).toEqual([
-			{
+		expect(result).toEqual({
+			success: true,
+			result: {
 				id: 10,
-				explanation: "Explicacao curta",
-				deepExplanation: "Explicacao longa",
-			},
-		]);
-		expect(result.agentRuns).toHaveLength(1);
-		expect(result.agentRuns[0]).toMatchObject({
-			agentRunId: "run:Explanation batch 1",
-			label: "Explanation batch 1",
-			status: "done",
-			finalObject: {
-				questions: [
-					{
-						id: 10,
-						explanation: "Explicacao curta",
-						deepExplanation: "Explicacao longa",
-					},
-				],
+				explanation: "Curta 10",
+				deepExplanation: "Longa 10",
 			},
 		});
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			1,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "lifecycle",
 				status: "pending",
-				agentRunId: "run:Explanation batch 1",
+				agentRunId: "run:Explanation Q1",
+				label: "Explanation Q1",
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			2,
-			expect.objectContaining({
-				eventType: "lifecycle",
-				status: "running",
-				agentRunId: "run:Explanation batch 1",
-			}),
-		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			3,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "result",
-				agentRunId: "run:Explanation batch 1",
-			}),
-		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			4,
-			expect.objectContaining({
-				eventType: "lifecycle",
-				status: "done",
-				agentRunId: "run:Explanation batch 1",
+				agentRunId: "run:Explanation Q1",
+				finalObject: {
+					id: 10,
+					explanation: "Curta 10",
+					deepExplanation: "Longa 10",
+				},
 			}),
 		);
 	});
 
-	it("passes tools and system prompt through generateJson", async () => {
-		generateJsonMock.mockResolvedValue({
-			questions: [
-				{
-					id: 11,
-					explanation: "Curta",
-					deepExplanation: "Longa",
-				},
-			],
-		});
+	it("passes explanation tools and memory context through streamChatMessages", async () => {
+		mockSuccessfulExplanationRun(11);
 
-		const tools = [
+		await explainSingleQuestion(
 			{
-				description: "Busca",
-				parameters: {},
-				execute: vi.fn(),
+				provider: "openrouter",
+				model: "openai/gpt-4o-mini",
+				apiKey: "test-key",
 			},
-		] as unknown as NonNullable<Parameters<typeof generateJson>[3]>["tools"];
+			{
+				id: 11,
+				question: "Pergunta",
+				options: ["A", "B"],
+				answer: "A",
+			},
+			0,
+			1,
+			{
+				memoryContext: "contexto",
+			},
+		);
 
-		await runBatchQuestionExplanations(
+		expect(streamChatMessagesMock).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.arrayContaining([
+				expect.objectContaining({
+					role: "user",
+					content: expect.stringContaining("question #1"),
+				}),
+			]),
+			expect.objectContaining({
+				system: expect.stringContaining(
+					"Use this student memory context to adapt teaching style and emphasis.",
+				),
+				tools: expect.arrayContaining([
+					expect.objectContaining({ name: "update_question_explanation" }),
+					expect.objectContaining({ name: "list_explanation_questions" }),
+				]),
+			}),
+		);
+	});
+});
+
+describe("runQuestionExplanations", () => {
+	beforeEach(() => {
+		streamChatMessagesMock.mockReset();
+	});
+
+	it("runs one agent per question and aggregates the results", async () => {
+		let callCount = 0;
+		streamChatMessagesMock.mockImplementation(
+			(
+				_config: unknown,
+				_messages: unknown,
+				options?: { tools?: readonly unknown[] },
+			) =>
+				(async function* () {
+					callCount += 1;
+					const questionId = callCount === 1 ? 1 : 2;
+					const updateExplanation = getTool(
+						options?.tools,
+						"update_question_explanation",
+					);
+					await updateExplanation.execute({
+						questionId,
+						explanation: `Curta ${questionId}`,
+						deepExplanation: `Longa ${questionId}`,
+					});
+					yield {
+						type: "RUN_FINISHED",
+						threadId: "thread-1",
+						runId: "run-1",
+						finishReason: "stop",
+					};
+				})(),
+		);
+
+		const result = await runQuestionExplanations(
 			{
 				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
@@ -133,28 +207,27 @@ describe("runBatchQuestionExplanations", () => {
 			},
 			[
 				{
-					id: 11,
-					question: "Pergunta",
+					id: 1,
+					question: "Pergunta 1",
 					options: ["A", "B"],
 					answer: "A",
 				},
+				{
+					id: 2,
+					question: "Pergunta 2",
+					options: ["A", "B"],
+					answer: "B",
+				},
 			],
-			{
-				memoryContext: "contexto",
-				tools,
-			},
 		);
 
-		expect(generateJsonMock).toHaveBeenCalledWith(
-			expect.anything(),
-			expect.stringContaining("Generate explanation and deepExplanation"),
-			expect.anything(),
-			expect.objectContaining({
-				system: expect.stringContaining(
-					"Use this student memory context to adapt teaching style and emphasis.",
-				),
-				tools,
-			}),
-		);
+		expect(streamChatMessagesMock).toHaveBeenCalledTimes(2);
+		expect(result.questions).toEqual([
+			{ id: 1, explanation: "Curta 1", deepExplanation: "Longa 1" },
+			{ id: 2, explanation: "Curta 2", deepExplanation: "Longa 2" },
+		]);
+		expect(result.agentRuns).toHaveLength(2);
+		expect(result.generatedQuestionCount).toBe(2);
+		expect(result.failedQuestionCount).toBe(0);
 	});
 });

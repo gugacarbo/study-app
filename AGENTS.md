@@ -84,7 +84,7 @@ migrations/             # Drizzle Kit SQL migrations (0001-0012)
 - **All AI server-side** — never in browser
 - **SPA mode** (no SSR) — single-user app
 - **Quiz eval:** string comparison (not AI) — faster, deterministic
-- **Ingest pipeline:** decode → initial extraction → memory refinement → review → persist (SSE streamed)
+- **Ingest pipeline:** decode → initial extraction → memory refinement → review → explanations → persist (SSE streamed)
 - **Memory:** R2 for content, D1 for metadata/search_text (hybrid)
 - **Chat:** multi-conversation with TanStack Store + localStorage
 - **Agent tools:** `resolveToolsForAgent()` assembles per-agent tool sets (DB + web)

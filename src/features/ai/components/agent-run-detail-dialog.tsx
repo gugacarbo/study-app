@@ -123,7 +123,7 @@ export function AgentRunDetailDialog({
 									className="px-3 text-[0.7rem]"
 									onClick={() => setMode("treated")}
 								>
-									Treated
+									Chat
 								</TabsTrigger>
 								<TabsTrigger
 									value="raw"

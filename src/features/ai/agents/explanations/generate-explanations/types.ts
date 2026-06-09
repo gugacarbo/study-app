@@ -1,4 +1,8 @@
 import { z } from "zod";
+import type {
+	AgentStreamToolCallPayload,
+	AgentStreamToolResultPayload,
+} from "@/features/ai/core/agent-stream-handler";
 
 export const explanationBatchSchema = z.object({
 	questions: z.array(
@@ -11,6 +15,7 @@ export const explanationBatchSchema = z.object({
 });
 
 export type ExplanationBatchResult = z.infer<typeof explanationBatchSchema>;
+export type ExplanationQuestionResult = ExplanationBatchResult["questions"][number];
 
 export interface ExplanationBatchInput {
 	id: number;
@@ -27,8 +32,23 @@ export type ExplanationAgentRunStatus =
 	| "done"
 	| "error";
 
+export interface ExplanationAgentRunMeta {
+	questionIndex?: number;
+	questionNumber?: number;
+	questionCount?: number;
+	questionIds?: number[];
+	topic?: string;
+	toolCallId?: string;
+}
+
 export interface ExplanationAgentRunEvent {
-	eventType: "lifecycle" | "result";
+	eventType:
+		| "lifecycle"
+		| "result"
+		| "warning"
+		| "token"
+		| "tool-call"
+		| "tool-result";
 	stageId: "explanations";
 	agentRunId: string;
 	label: string;
@@ -36,12 +56,16 @@ export interface ExplanationAgentRunEvent {
 	systemPrompt?: string;
 	userPrompt?: string;
 	rawText?: string;
-	finalObject?: ExplanationBatchResult;
+	finalObject?: ExplanationQuestionResult;
 	error?: string;
-	meta?: {
-		questionCount: number;
-		questionIds: number[];
-	};
+	warning?: string;
+	tokens?: unknown;
+	meta?: ExplanationAgentRunMeta;
+	name?: string;
+	arguments?: string;
+	input?: unknown;
+	state?: string;
+	content?: unknown;
 }
 
 export interface ExplanationAgentRunSummary {
@@ -53,15 +77,31 @@ export interface ExplanationAgentRunSummary {
 	rawText?: string;
 	finalObject?: ExplanationBatchResult;
 	error?: string;
-	meta?: {
-		questionCount: number;
-		questionIds: number[];
-	};
+	meta?: ExplanationAgentRunMeta;
 }
 
-export interface RunBatchQuestionExplanationsOptions {
+export interface RunQuestionExplanationsOptions {
 	memoryContext?: string;
+	concurrency?: number;
 	tools?: unknown;
+	onProgress?: (event: { message: string }) => void;
 	onAgentEvent?: (event: ExplanationAgentRunEvent) => void;
+	onToolCall?: (
+		event: {
+			agentRunId: string;
+			label: string;
+			stageId: "explanations";
+		} & AgentStreamToolCallPayload,
+	) => void;
+	onToolResult?: (
+		event: {
+			agentRunId: string;
+			label: string;
+			stageId: "explanations";
+		} & AgentStreamToolResultPayload,
+	) => void;
 	createAgentRunId?: (label: string) => string;
 }
+
+/** @deprecated Use RunQuestionExplanationsOptions */
+export type RunBatchQuestionExplanationsOptions = RunQuestionExplanationsOptions;

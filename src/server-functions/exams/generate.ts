@@ -2,14 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
 	type ExplanationAgentRunSummary,
-	runBatchQuestionExplanations,
+	runQuestionExplanations,
 } from "@/features/ai/agents/explanations";
 import { DBQueries } from "../../db/queries";
 import { env } from "../../env";
 import type { ProviderConfig } from "../../lib/validation";
 import { getDB } from "../db";
 import { getMemoryContext } from "../memory";
-import { chunkArray } from "./types";
 
 export const generateExamQuestionExplanations = createServerFn({
 	method: "POST",
@@ -77,65 +76,59 @@ export const generateExamQuestionExplanations = createServerFn({
 			},
 		}).catch(() => ({ context: "" }));
 
-		const questionChunks = chunkArray(targets, ctx.data.batchSize);
-		let updated = 0;
+		const explanationResult = await runQuestionExplanations(
+			providerConfig,
+			targets.map((question) => ({
+				id: question.id,
+				question: question.question,
+				options: question.options,
+				answer: question.answer,
+				topic: question.topic,
+				explanation: question.explanation,
+			})),
+			{
+				memoryContext: memoryResult.context || undefined,
+				concurrency: ctx.data.batchSize,
+				createAgentRunId: (label) =>
+					`exam-explanations:${label.toLowerCase().replaceAll(" ", "-")}`,
+			},
+		);
+
+		const generatedById = new Map(
+			explanationResult.questions.map((item) => [item.id, item]),
+		);
 		const updatedQuestionIds: number[] = [];
 		const generatedResponses: Array<{
 			id: number;
 			explanation: string;
 			deepExplanation: string;
 		}> = [];
-		const agentRuns: ExplanationAgentRunSummary[] = [];
+		const agentRuns: ExplanationAgentRunSummary[] = explanationResult.agentRuns;
 
-		for (const [batchIndex, chunk] of questionChunks.entries()) {
-			const batchResult = await runBatchQuestionExplanations(
-				providerConfig,
-				chunk.map((question) => ({
-					id: question.id,
-					question: question.question,
-					options: question.options,
-					answer: question.answer,
-					topic: question.topic,
-					explanation: question.explanation,
-				})),
-				{
-					memoryContext: memoryResult.context || undefined,
-					createAgentRunId: (label) =>
-						`explanations-batch-${batchIndex + 1}:${label.toLowerCase().replaceAll(" ", "-")}`,
-				},
-			);
-			agentRuns.push(...batchResult.agentRuns);
-
-			const generatedById = new Map(
-				batchResult.questions.map((item) => [item.id, item]),
-			);
-
-			for (const question of chunk) {
-				const generatedItem = generatedById.get(question.id);
-				if (!generatedItem) {
-					throw new Error(`Missing explanation for question id ${question.id}`);
-				}
-
-				await queries.updateQuestion(question.id, {
-					explanation: generatedItem.explanation.trim(),
-					deepExplanation: generatedItem.deepExplanation.trim(),
-				});
-				updatedQuestionIds.push(question.id);
-				generatedResponses.push({
-					id: question.id,
-					explanation: generatedItem.explanation.trim(),
-					deepExplanation: generatedItem.deepExplanation.trim(),
-				});
-				updated += 1;
+		for (const question of targets) {
+			const generatedItem = generatedById.get(question.id);
+			if (!generatedItem) {
+				continue;
 			}
+
+			await queries.updateQuestion(question.id, {
+				explanation: generatedItem.explanation.trim(),
+				deepExplanation: generatedItem.deepExplanation.trim(),
+			});
+			updatedQuestionIds.push(question.id);
+			generatedResponses.push({
+				id: question.id,
+				explanation: generatedItem.explanation.trim(),
+				deepExplanation: generatedItem.deepExplanation.trim(),
+			});
 		}
 
 		return {
 			success: true,
-			updated,
+			updated: updatedQuestionIds.length,
 			totalQuestions: exam.questions.length,
 			processedQuestions: targets.length,
-			batches: questionChunks.length,
+			batches: targets.length,
 			updatedQuestionIds,
 			generatedResponses,
 			agentRuns,

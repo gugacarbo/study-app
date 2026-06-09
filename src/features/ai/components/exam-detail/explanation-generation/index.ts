@@ -55,7 +55,7 @@ export function useExplanationGeneration({
 	const findAgentRunForQuestionId = useCallback(
 		(questionId: number) =>
 			agentRuns.find((agentRun) =>
-				agentRun.meta?.questionIds.includes(questionId),
+				agentRun.meta?.questionIds?.includes(questionId),
 			),
 		[agentRuns],
 	);
