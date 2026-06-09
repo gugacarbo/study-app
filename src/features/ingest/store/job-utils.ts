@@ -543,6 +543,38 @@ function mergeToolCallPart(
 	};
 }
 
+function readToolResultContent(event: IngestAgentEvent): string {
+	const eventRecord = event as IngestAgentEvent & { result?: unknown };
+	return safeJsonString(
+		event.content ?? event.output ?? eventRecord.result ?? "",
+	);
+}
+
+function isMeaningfulToolResultContent(content: string): boolean {
+	const trimmed = content.trim();
+	return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+}
+
+function mergeToolResultPart(
+	existing: AssistantToolResultPart,
+	incoming: AssistantToolResultPart,
+): AssistantToolResultPart {
+	return {
+		...existing,
+		...incoming,
+		content: isMeaningfulToolResultContent(incoming.content)
+			? incoming.content
+			: existing.content,
+		state: normalizeToolResultState(incoming.state ?? existing.state),
+		error:
+			typeof incoming.error === "string" && incoming.error.length > 0
+				? incoming.error
+				: incoming.state === "complete"
+					? undefined
+					: existing.error,
+	};
+}
+
 function createToolResultPart(
 	agentRun: IngestAgentRun,
 	event: IngestAgentEvent,
@@ -553,7 +585,7 @@ function createToolResultPart(
 		typeof candidate === "string" && candidate.length > 0
 			? candidate
 			: (readLatestToolCallId(agentRun) ?? `${agentRun.id}:tool-call:0`);
-	const content = safeJsonString(event.content ?? event.output ?? "");
+	const content = readToolResultContent(event);
 
 	return {
 		type: "tool-result",
@@ -576,7 +608,10 @@ function upsertAssistantToolResultPart(
 
 	if (callIndex !== -1) {
 		const currentCall = nextParts[callIndex];
-		if (currentCall.type === "tool-call") {
+		if (
+			currentCall.type === "tool-call" &&
+			isMeaningfulToolResultContent(resultPart.content)
+		) {
 			nextParts[callIndex] = {
 				...currentCall,
 				output: resultPart.content,
@@ -591,7 +626,15 @@ function upsertAssistantToolResultPart(
 	);
 
 	if (existingResultIndex !== -1) {
-		nextParts[existingResultIndex] = resultPart;
+		const currentResult = nextParts[existingResultIndex];
+		nextParts[existingResultIndex] =
+			currentResult.type === "tool-result"
+				? mergeToolResultPart(currentResult, resultPart)
+				: resultPart;
+		return nextParts;
+	}
+
+	if (!isMeaningfulToolResultContent(resultPart.content)) {
 		return nextParts;
 	}
 
