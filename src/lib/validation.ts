@@ -2,7 +2,29 @@ import { z } from "zod";
 
 const OPEN_ENDED_INCORRECT_OPTION = "Resposta incorreta.";
 
-function normalizeIngestOptions(options: unknown, answer: string): string[] {
+const scoringModeSchema = z.enum(["exact", "partial"]);
+
+function readAnswers(input: unknown): string[] {
+	if (typeof input !== "object" || input === null) return [];
+
+	if ("answers" in input) {
+		const fromArray = readStringArray(input.answers);
+		if (fromArray.length > 0) return fromArray;
+	}
+
+	if ("answer" in input && typeof input.answer === "string") {
+		const legacy = input.answer.trim();
+		return legacy ? [legacy] : [];
+	}
+
+	return [];
+}
+
+function normalizeIngestOptions(options: unknown, answers: string[]): string[] {
+	const normalizedAnswers = answers
+		.map((answer) => answer.trim())
+		.filter(Boolean);
+
 	const normalizedOptions = Array.isArray(options)
 		? options
 				.filter((option): option is string => typeof option === "string")
@@ -12,28 +34,34 @@ function normalizeIngestOptions(options: unknown, answer: string): string[] {
 
 	const uniqueOptions = Array.from(new Set(normalizedOptions));
 	if (uniqueOptions.length >= 2) {
-		return uniqueOptions;
+		const result = [...uniqueOptions];
+		for (const answer of normalizedAnswers) {
+			if (!result.some((option) => option === answer)) {
+				result.unshift(answer);
+			}
+		}
+		return result;
 	}
 
-	const normalizedAnswer = answer.trim();
 	const fallbackOptions = [...uniqueOptions];
-
-	if (
-		normalizedAnswer &&
-		!fallbackOptions.some((option) => option === normalizedAnswer)
-	) {
-		fallbackOptions.unshift(normalizedAnswer);
+	for (const answer of normalizedAnswers) {
+		if (answer && !fallbackOptions.some((option) => option === answer)) {
+			fallbackOptions.unshift(answer);
+		}
 	}
 
 	if (fallbackOptions.length < 2) {
 		fallbackOptions.push(OPEN_ENDED_INCORRECT_OPTION);
 	}
 
-	if (fallbackOptions[0] === fallbackOptions[1]) {
+	if (
+		fallbackOptions.length >= 2 &&
+		fallbackOptions[0] === fallbackOptions[1]
+	) {
 		fallbackOptions[1] = OPEN_ENDED_INCORRECT_OPTION;
 	}
 
-	return fallbackOptions.slice(0, 2);
+	return fallbackOptions.slice(0, Math.max(2, fallbackOptions.length));
 }
 
 function readNonEmptyString(value: unknown): string | undefined {
@@ -85,11 +113,9 @@ function normalizeExamIngestQuestion(
 	const options = readStringArray(
 		"options" in input ? input.options : undefined,
 	);
-	const answer = readNonEmptyString(
-		"answer" in input ? input.answer : undefined,
-	);
+	const answers = readAnswers(input);
 
-	if (!answer) {
+	if (answers.length === 0) {
 		return {
 			question: null,
 			discarded: {
@@ -99,11 +125,19 @@ function normalizeExamIngestQuestion(
 		};
 	}
 
+	const scoringMode = readNonEmptyString(
+		"scoringMode" in input ? input.scoringMode : undefined,
+	);
+
 	return {
 		question: {
 			question,
-			options: normalizeIngestOptions(options, answer),
-			answer,
+			options: normalizeIngestOptions(options, answers),
+			answers,
+			scoringMode:
+				scoringMode === "partial" || scoringMode === "exact"
+					? scoringMode
+					: "exact",
 			explanation:
 				readNonEmptyString(
 					"explanation" in input ? input.explanation : undefined,
@@ -192,14 +226,31 @@ function normalizeExamIngestResponse(
 	return result.value;
 }
 
-export const questionSchema = z.object({
-	question: z.string().min(1, "Question is required"),
-	options: z.array(z.string()).min(2, "At least 2 options required"),
-	answer: z.string().min(1, "Answer is required"),
-	explanation: z.string().nullish().default(""),
-	deepExplanation: z.string().nullish(),
-	topic: z.string().nullish().default("General"),
-});
+function preprocessLegacyQuestionInput(input: unknown): unknown {
+	if (typeof input !== "object" || input === null) return input;
+
+	const answers = readAnswers(input);
+	if (answers.length === 0) return input;
+
+	const { answer: _answer, ...rest } = input as Record<string, unknown>;
+	return {
+		...rest,
+		answers,
+	};
+}
+
+export const questionSchema = z.preprocess(
+	preprocessLegacyQuestionInput,
+	z.object({
+		question: z.string().min(1, "Question is required"),
+		options: z.array(z.string()).min(2, "At least 2 options required"),
+		answers: z.array(z.string()).min(1, "At least 1 answer required"),
+		scoringMode: scoringModeSchema.default("exact"),
+		explanation: z.string().nullish().default(""),
+		deepExplanation: z.string().nullish(),
+		topic: z.string().nullish().default("General"),
+	}),
+);
 
 export type Question = z.infer<typeof questionSchema>;
 
@@ -213,20 +264,19 @@ export const providerConfigSchema = z.object({
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 
 export const ingestQuestionSchema = z.preprocess((input) => {
-	if (
-		typeof input !== "object" ||
-		input === null ||
-		!("answer" in input) ||
-		typeof input.answer !== "string"
-	) {
-		return input;
+	const normalized = preprocessLegacyQuestionInput(input);
+	if (typeof normalized !== "object" || normalized === null) {
+		return normalized;
 	}
 
+	const answers = readAnswers(normalized);
+	if (answers.length === 0) return normalized;
+
 	return {
-		...input,
+		...normalized,
 		options: normalizeIngestOptions(
-			"options" in input ? input.options : undefined,
-			input.answer,
+			"options" in normalized ? normalized.options : undefined,
+			answers,
 		),
 	};
 }, questionSchema);
@@ -244,23 +294,37 @@ export type ExamIngestResponse = z.infer<typeof examIngestResponseSchema>;
 export const attemptSchema = z.object({
 	questionId: z.number().int().positive(),
 	userAnswer: z.string().min(1),
+	userAnswers: z.array(z.string()).optional(),
 	correct: z.boolean(),
+	credit: z.number().min(0).max(1).optional(),
 });
 
 export const memorySessionSchema = z.object({
 	examName: z.string(),
 	topic: z.string(),
 	totalQuestions: z.number().int().positive(),
-	correctAnswers: z.number().int().min(0),
+	correctAnswers: z.number().min(0),
 	duration: z.number().optional(),
 	questions: z.array(
-		z.object({
-			question: z.string(),
-			userAnswer: z.string(),
-			correctAnswer: z.string(),
-			isCorrect: z.boolean(),
-			explanation: z.string(),
-			topic: z.string(),
-		}),
+		z.preprocess(
+			(input) => {
+				if (typeof input !== "object" || input === null) return input;
+				const answers = readAnswers(input);
+				if (answers.length === 0) return input;
+				const { correctAnswer: _correctAnswer, ...rest } = input as Record<
+					string,
+					unknown
+				>;
+				return { ...rest, correctAnswers: answers };
+			},
+			z.object({
+				question: z.string(),
+				userAnswer: z.string(),
+				correctAnswers: z.array(z.string()).min(1),
+				isCorrect: z.boolean(),
+				explanation: z.string(),
+				topic: z.string(),
+			}),
+		),
 	),
 });

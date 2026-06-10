@@ -12,11 +12,11 @@ afterEach(() => {
 });
 
 describe('questionSchema', () => {
-  it('validates a correct question object', () => {
+  it('validates a correct question object with answers array', () => {
     const valid = {
       question: 'What is 2+2?',
       options: ['3', '4', '5', '6'],
-      answer: '4',
+      answers: ['4'],
       explanation: 'Basic arithmetic',
       topic: 'Math',
     };
@@ -24,10 +24,39 @@ describe('questionSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts legacy answer field and maps to answers array', () => {
+    const legacy = {
+      question: 'What is 2+2?',
+      options: ['3', '4', '5', '6'],
+      answer: '4',
+    };
+    const result = questionSchema.safeParse(legacy);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.answers).toEqual(['4']);
+      expect(result.data.scoringMode).toBe('exact');
+    }
+  });
+
+  it('validates multiple correct answers', () => {
+    const valid = {
+      question: 'Select all primes',
+      options: ['2', '3', '4', '6'],
+      answers: ['2', '3'],
+      scoringMode: 'partial',
+    };
+    const result = questionSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.answers).toEqual(['2', '3']);
+      expect(result.data.scoringMode).toBe('partial');
+    }
+  });
+
   it('rejects missing question field', () => {
     const invalid = {
       options: ['a', 'b'],
-      answer: 'a',
+      answers: ['a'],
     };
     const result = questionSchema.safeParse(invalid);
     expect(result.success).toBe(false);
@@ -37,7 +66,7 @@ describe('questionSchema', () => {
     const invalid = {
       question: 'Test?',
       options: [],
-      answer: 'a',
+      answers: ['a'],
     };
     const result = questionSchema.safeParse(invalid);
     expect(result.success).toBe(false);
@@ -47,7 +76,7 @@ describe('questionSchema', () => {
     const minimal = {
       question: 'Test?',
       options: ['a', 'b'],
-      answer: 'a',
+      answers: ['a'],
     };
     const result = questionSchema.safeParse(minimal);
     expect(result.success).toBe(true);
@@ -55,6 +84,7 @@ describe('questionSchema', () => {
       expect(result.data.explanation).toBe('');
       expect(result.data.deepExplanation).toBeUndefined();
       expect(result.data.topic).toBe('General');
+      expect(result.data.scoringMode).toBe('exact');
     }
   });
 
@@ -62,7 +92,17 @@ describe('questionSchema', () => {
     const invalid = {
       question: 'Test?',
       options: ['only one'],
-      answer: 'only one',
+      answers: ['only one'],
+    };
+    const result = questionSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects empty answers array', () => {
+    const invalid = {
+      question: 'Test?',
+      options: ['a', 'b'],
+      answers: [],
     };
     const result = questionSchema.safeParse(invalid);
     expect(result.success).toBe(false);
@@ -75,6 +115,18 @@ describe('attemptSchema', () => {
       questionId: 1,
       userAnswer: '4',
       correct: true,
+    };
+    const result = attemptSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts optional credit and userAnswers', () => {
+    const valid = {
+      questionId: 1,
+      userAnswer: '["A","B"]',
+      userAnswers: ['A', 'B'],
+      correct: true,
+      credit: 0.5,
     };
     const result = attemptSchema.safeParse(valid);
     expect(result.success).toBe(true);
@@ -150,7 +202,7 @@ describe('examIngestResponseSchema', () => {
         {
           question: 'What is 2+2?',
           options: ['3', '4', '5', '6'],
-          answer: '4',
+          answers: ['4'],
           explanation: 'Math',
           topic: 'Math',
         },
@@ -161,13 +213,33 @@ describe('examIngestResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts legacy answer in ingest response', () => {
+    const valid = {
+      questions: [
+        {
+          question: 'What is 2+2?',
+          options: ['3', '4', '5', '6'],
+          answer: '4',
+          explanation: 'Math',
+          topic: 'Math',
+        },
+      ],
+      topics: ['Math'],
+    };
+    const result = examIngestResponseSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.questions[0].answers).toEqual(['4']);
+    }
+  });
+
   it('rejects invalid nested question', () => {
     const invalid = {
       questions: [
         {
           question: '',
           options: [],
-          answer: '',
+          answers: [],
         },
       ],
       topics: [],
@@ -214,7 +286,7 @@ describe('examIngestResponseSchema', () => {
           'Um modelo de referencia com sete camadas.',
           'Resposta incorreta.',
         ],
-        answer: 'Um modelo de referencia com sete camadas.',
+        answers: ['Um modelo de referencia com sete camadas.'],
         explanation: '',
         topic: 'Redes',
       });
