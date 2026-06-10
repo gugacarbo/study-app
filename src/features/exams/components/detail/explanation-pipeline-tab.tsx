@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
 import { useExplanationGeneration } from "@/features/ai/components/exam-detail/explanation-generation";
 import type { ExplanationProgressItem } from "./exam-utils";
 import { ExplanationResults } from "./explanation-results";

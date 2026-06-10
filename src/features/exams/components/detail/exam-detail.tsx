@@ -2,12 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExplanationPipelineTab } from "./explanation-pipeline-tab";
@@ -43,15 +38,6 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		handleSave,
 		setEditForm,
 	} = useQuestionEditing({ examId });
-
-	const toggleQuestion = (id: number) => {
-		setExpandedQuestions((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
-	};
 
 	const { stats } = exam;
 
@@ -112,12 +98,9 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 								onSave={handleSave}
 								onCancel={cancelEditing}
 								onFormChange={(updates) =>
-									setEditForm((prev) =>
-										prev ? { ...prev, ...updates } : prev,
-									)
+									setEditForm((prev) => (prev ? { ...prev, ...updates } : prev))
 								}
 								saving={saving}
-								toggleQuestion={toggleQuestion}
 							/>
 						</div>
 					</div>

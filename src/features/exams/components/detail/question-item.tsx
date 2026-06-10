@@ -1,5 +1,8 @@
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import {
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
 import type { EditFormData, QuestionData } from "./exam-utils";
 import { QuestionAccordion } from "./question-accordion";
 import { QuestionEditForm } from "./question-edit-form";
@@ -7,10 +10,8 @@ import { QuestionEditForm } from "./question-edit-form";
 interface QuestionItemProps {
 	question: QuestionData;
 	index: number;
-	isExpanded: boolean;
 	isEditing: boolean;
 	editForm: EditFormData | null;
-	onToggle: (id: number) => void;
 	onStartEdit: (q: QuestionData) => void;
 	onSave: (id: number) => void;
 	onCancel: () => void;
@@ -21,10 +22,8 @@ interface QuestionItemProps {
 export function QuestionItem({
 	question,
 	index,
-	isExpanded,
 	isEditing,
 	editForm,
-	onToggle,
 	onStartEdit,
 	onSave,
 	onCancel,
@@ -32,56 +31,35 @@ export function QuestionItem({
 	saving,
 }: QuestionItemProps) {
 	return (
-		<div className="rounded-lg border overflow-hidden">
-			<button
-				type="button"
-				onClick={() => onToggle(question.id)}
-				className="w-full flex items-start gap-3 p-3 text-left hover:bg-muted transition-colors"
-			>
+		<AccordionItem
+			value={String(question.id)}
+			className="overflow-hidden rounded-lg border not-last:border-b"
+		>
+			<AccordionTrigger className="items-start gap-3 p-3 hover:bg-muted hover:no-underline">
 				<div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
 					{index + 1}
 				</div>
-				<div className="flex-1 min-w-0">
+				<div className="min-w-0 flex-1 text-left">
 					<p className="text-sm leading-relaxed line-clamp-2">
 						{question.question}
 					</p>
-					{question.topic && (
-						<Badge variant="secondary" className="mt-1">
-							{question.topic}
-						</Badge>
-					)}
 				</div>
-				<div className="shrink-0 mt-0.5">
-					{isExpanded ? (
-						<ChevronUp className="size-4 text-muted-foreground" />
-					) : (
-						<ChevronDown className="size-4 text-muted-foreground" />
-					)}
-				</div>
-			</button>
+			</AccordionTrigger>
 
-			{isExpanded && (
-				<div className="px-3 pb-3 pt-0 border-t">
-					{isEditing && editForm ? (
-						<QuestionEditForm
-							question={question}
-							editForm={editForm}
-							onSave={onSave}
-							onCancel={onCancel}
-							onFormChange={onFormChange}
-							saving={saving}
-						/>
-					) : (
-						<QuestionAccordion
-							question={question}
-							index={index}
-							isExpanded={isExpanded}
-							onToggle={onToggle}
-							onStartEdit={onStartEdit}
-						/>
-					)}
-				</div>
-			)}
-		</div>
+			<AccordionContent className="border-t px-3 pb-3">
+				{isEditing && editForm ? (
+					<QuestionEditForm
+						question={question}
+						editForm={editForm}
+						onSave={onSave}
+						onCancel={onCancel}
+						onFormChange={onFormChange}
+						saving={saving}
+					/>
+				) : (
+					<QuestionAccordion question={question} onStartEdit={onStartEdit} />
+				)}
+			</AccordionContent>
+		</AccordionItem>
 	);
 }

@@ -1,3 +1,4 @@
+import { Accordion } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EditFormData, QuestionData } from "./exam-utils";
 import { QuestionItem } from "./question-item";
@@ -13,7 +14,6 @@ interface QuestionsCardProps {
 	onCancel: () => void;
 	onFormChange: (updates: Partial<EditFormData>) => void;
 	saving: boolean;
-	toggleQuestion: (id: number) => void;
 }
 
 export function QuestionsCard({
@@ -27,7 +27,6 @@ export function QuestionsCard({
 	onCancel,
 	onFormChange,
 	saving,
-	toggleQuestion,
 }: QuestionsCardProps) {
 	return (
 		<Card>
@@ -55,9 +54,15 @@ export function QuestionsCard({
 				{questions.length === 0 ? (
 					<p className="text-sm text-muted-foreground">No questions found.</p>
 				) : (
-					<div className="flex flex-col gap-2">
+					<Accordion
+						type="multiple"
+						className="flex flex-col gap-2 rounded-none border-0"
+						value={Array.from(expandedQuestions).map(String)}
+						onValueChange={(values) =>
+							setExpandedQuestions(new Set(values.map(Number)))
+						}
+					>
 						{questions.map((q, idx) => {
-							const isExpanded = expandedQuestions.has(q.id);
 							const isEditing = editingQuestionId === q.id && !!editForm;
 
 							return (
@@ -65,10 +70,8 @@ export function QuestionsCard({
 									key={q.id}
 									question={q}
 									index={idx}
-									isExpanded={isExpanded}
 									isEditing={isEditing}
 									editForm={editForm}
-									onToggle={toggleQuestion}
 									onStartEdit={onStartEdit}
 									onSave={onSave}
 									onCancel={onCancel}
@@ -77,7 +80,7 @@ export function QuestionsCard({
 								/>
 							);
 						})}
-					</div>
+					</Accordion>
 				)}
 			</CardContent>
 		</Card>
