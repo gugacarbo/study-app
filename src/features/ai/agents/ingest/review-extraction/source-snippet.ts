@@ -30,7 +30,9 @@ function buildSearchNeedles(
 		needles.push(answer);
 	}
 
-	return [...new Set(needles)].sort((left, right) => right.length - left.length);
+	return [...new Set(needles)].sort(
+		(left, right) => right.length - left.length,
+	);
 }
 
 function findBestMatch(

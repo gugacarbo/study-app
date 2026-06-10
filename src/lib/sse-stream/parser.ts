@@ -38,5 +38,3 @@ export function readTokenValue(
 
 	return undefined;
 }
-
-

@@ -2,8 +2,8 @@ import type { UIMessage } from "@tanstack/ai-client";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef } from "react";
 import type { AssistantPerfMetrics } from "./message/chat-message";
-import { mergeAssistantTurnMessages } from "./message/chat-message-utils";
 import { ChatMessage } from "./message/chat-message";
+import { mergeAssistantTurnMessages } from "./message/chat-message-utils";
 
 interface VirtualizedChatMessagesProps {
 	messages: UIMessage[];

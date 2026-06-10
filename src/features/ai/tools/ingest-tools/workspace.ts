@@ -19,8 +19,6 @@ export interface ExtractionWorkspaceState {
 	nextQuestionNumber: number;
 }
 
-
-
 export class ExtractionWorkspaceError extends Error {
 	code: string;
 

@@ -15,7 +15,8 @@ export const explanationBatchSchema = z.object({
 });
 
 export type ExplanationBatchResult = z.infer<typeof explanationBatchSchema>;
-export type ExplanationQuestionResult = ExplanationBatchResult["questions"][number];
+export type ExplanationQuestionResult =
+	ExplanationBatchResult["questions"][number];
 
 export interface ExplanationBatchInput {
 	id: number;
@@ -26,11 +27,7 @@ export interface ExplanationBatchInput {
 	explanation?: string;
 }
 
-type ExplanationAgentRunStatus =
-	| "pending"
-	| "running"
-	| "done"
-	| "error";
+type ExplanationAgentRunStatus = "pending" | "running" | "done" | "error";
 
 interface ExplanationAgentRunMeta {
 	questionIndex?: number;
@@ -108,4 +105,5 @@ export interface RunQuestionExplanationsOptions {
 }
 
 /** @deprecated Use RunQuestionExplanationsOptions */
-export type RunBatchQuestionExplanationsOptions = RunQuestionExplanationsOptions;
+export type RunBatchQuestionExplanationsOptions =
+	RunQuestionExplanationsOptions;

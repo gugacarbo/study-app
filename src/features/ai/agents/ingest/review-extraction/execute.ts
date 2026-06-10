@@ -1,4 +1,8 @@
-import type { ExamIngestResponse, ProviderConfig, Question } from "@/lib/validation";
+import type {
+	ExamIngestResponse,
+	ProviderConfig,
+	Question,
+} from "@/lib/validation";
 import { mapWithConcurrency } from "./execute-helpers";
 import { deriveTopics } from "./prompt";
 import { reviewSingleQuestion } from "./review-question";
@@ -82,7 +86,7 @@ async function reviewAllQuestionsWithRetries(
 	const totalQuestions = questions.length;
 	const concurrency = options.concurrency ?? REVIEW_CONCURRENCY;
 
-	let results = await mapWithConcurrency(
+	const results = await mapWithConcurrency(
 		questions,
 		concurrency,
 		(question, index) =>

@@ -1,4 +1,7 @@
-import type { ExplanationAgentRunEvent, RunQuestionExplanationsOptions } from "./types";
+import type {
+	ExplanationAgentRunEvent,
+	RunQuestionExplanationsOptions,
+} from "./types";
 
 export function emitAgentEvent(
 	options: RunQuestionExplanationsOptions,

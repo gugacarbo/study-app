@@ -5,8 +5,8 @@ export {
 export {
 	EXPLANATION_CONCURRENCY,
 	MAX_EXPLANATION_ATTEMPTS,
-	runQuestionExplanations,
 	type QuestionExplanationsResult,
+	runQuestionExplanations,
 } from "./execute";
 export { explainSingleQuestion } from "./explain-single-question";
 export { buildExplanationUserPrompt } from "./prompt";

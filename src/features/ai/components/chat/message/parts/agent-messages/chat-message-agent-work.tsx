@@ -1,8 +1,8 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import {
 	buildAgentWorkSummary,
-	resolveAgentWorkPresentation,
 	type GroupedAgentMessagePart,
+	resolveAgentWorkPresentation,
 } from "../../chat-message-utils";
 import { DetailAccordion } from "../../detail-accordion/detail-accordion";
 import { AgentMessages } from "./agent-messages";

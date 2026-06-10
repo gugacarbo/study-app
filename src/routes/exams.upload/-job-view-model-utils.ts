@@ -114,8 +114,6 @@ export function normalizeAgentState(
 	}
 }
 
-
-
 export function readArray(value: unknown): unknown[] {
 	return Array.isArray(value) ? value : [];
 }

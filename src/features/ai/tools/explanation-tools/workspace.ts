@@ -6,6 +6,7 @@ import {
 } from "./shared";
 
 export interface ExplanationWorkspaceQuestion extends ExplanationBatchInput {
+	explanation: string;
 	deepExplanation: string;
 }
 

@@ -3,9 +3,9 @@ import { chat } from "@tanstack/ai";
 import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
 import type { ProviderConfig } from "@/lib/validation";
 import {
-	createIncrementalToolEventMiddleware,
 	type AgentStreamHandlers,
 	type AgentStreamState,
+	createIncrementalToolEventMiddleware,
 } from "./agent-stream-handler";
 
 export function streamChatMessages(

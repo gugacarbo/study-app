@@ -26,8 +26,7 @@ export function ChatMessageToolCall({
 		typeof part.arguments === "string" ? part.arguments : undefined;
 	const parsedInputText =
 		formatToolPayload(parsedInput) ?? formatToolPayload(rawArgs);
-	const parsedResultText =
-		toolResult && formatToolPayload(toolResult.content);
+	const parsedResultText = toolResult && formatToolPayload(toolResult.content);
 	const resultError =
 		toolResult && typeof toolResult.error === "string"
 			? toolResult.error
@@ -46,7 +45,9 @@ export function ChatMessageToolCall({
 		>
 			{parsedInputText ? (
 				<DetailPayloadSection>
-					<DetailPayloadBlock label="Input">{parsedInputText}</DetailPayloadBlock>
+					<DetailPayloadBlock label="Input">
+						{parsedInputText}
+					</DetailPayloadBlock>
 				</DetailPayloadSection>
 			) : null}
 			{parsedResultText ? (

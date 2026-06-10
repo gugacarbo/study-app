@@ -1,4 +1,4 @@
-import { toolDefinition, type ToolExecutionContext } from "@tanstack/ai";
+import { type ToolExecutionContext, toolDefinition } from "@tanstack/ai";
 import { z } from "zod";
 import type { Question } from "@/lib/validation";
 import {
@@ -130,7 +130,13 @@ export type IngestToolExecutedEvent = {
 };
 
 async function notifyToolExecuted(
-	options: { onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void> } | undefined,
+	options:
+		| {
+				onToolExecuted?: (
+					event: IngestToolExecutedEvent,
+				) => void | Promise<void>;
+		  }
+		| undefined,
 	toolName: string,
 	input: unknown,
 	output: unknown,
@@ -154,11 +160,13 @@ export function createIngestExtractionTools(
 ) {
 	const addExtractedQuestion = addExtractedQuestionDef.server(
 		async (input, context) => {
-			let output: Awaited<ReturnType<typeof toToolFailure>> | {
-				ok: true;
-				questionId: string;
-				totalQuestions: number;
-			};
+			let output:
+				| Awaited<ReturnType<typeof toToolFailure>>
+				| {
+						ok: true;
+						questionId: string;
+						totalQuestions: number;
+				  };
 			try {
 				const question = workspace.addQuestion(input);
 				output = {
@@ -214,9 +222,7 @@ export function createIngestExtractionTools(
 							...(input.options != null ? ["options" as const] : []),
 							...(input.answer != null ? ["answer" as const] : []),
 							...(input.topic != null ? ["topic" as const] : []),
-							...(input.explanation != null
-								? ["explanation" as const]
-								: []),
+							...(input.explanation != null ? ["explanation" as const] : []),
 						],
 					};
 				}

@@ -81,9 +81,7 @@ function firstToolCallPartIndex(parts: UIMessage["parts"]): number {
 	return parts.findIndex((part) => part.type === "tool-call");
 }
 
-function thinkingOnlyTextResponse(
-	parsed: ParsedPart[],
-): string | undefined {
+function thinkingOnlyTextResponse(parsed: ParsedPart[]): string | undefined {
 	const responseText = parsed
 		.filter((segment) => segment.type === "think")
 		.map((segment) => segment.content.trim())
@@ -100,7 +98,9 @@ export function expandAssistantMessageParts(
 	const firstToolIndex = firstToolCallPartIndex(parts);
 
 	for (let index = 0; index < parts.length; index += 1) {
-		const part = parts[index]!;
+		const part = parts[index];
+
+		if (!part) continue;
 
 		if (part.type === "thinking") {
 			if ((part.content ?? "").trim().length > 0) {
@@ -207,7 +207,6 @@ export function formatToolPayload(value: unknown): string | undefined {
 	return String(value);
 }
 
-
 export function triggerToneClass(tone: DetailTriggerTone): string {
 	switch (tone) {
 		case "success":
@@ -242,7 +241,10 @@ export function isLoadingToolState(state: unknown): boolean {
 }
 
 type AssistantMessagePart = UIMessage["parts"][number];
-type AssistantToolCallPart = Extract<AssistantMessagePart, { type: "tool-call" }>;
+type AssistantToolCallPart = Extract<
+	AssistantMessagePart,
+	{ type: "tool-call" }
+>;
 type AssistantToolResultPart = Extract<
 	AssistantMessagePart,
 	{ type: "tool-result" }
@@ -358,16 +360,12 @@ export type RenderableAssistantBlock =
 	| AgentWorkBlock
 	| { kind: "content"; groupedPart: GroupedAgentMessagePart };
 
-function isAgentWorkPart(
-	groupedPart: GroupedAgentMessagePart,
-): boolean {
+function isAgentWorkPart(groupedPart: GroupedAgentMessagePart): boolean {
 	if (groupedPart.kind === "tool-call") return true;
 	return groupedPart.part.type === "thinking";
 }
 
-function isAgentWorkRunComplete(
-	parts: GroupedAgentMessagePart[],
-): boolean {
+function isAgentWorkRunComplete(parts: GroupedAgentMessagePart[]): boolean {
 	for (const part of parts) {
 		if (part.kind !== "tool-call") continue;
 
@@ -461,10 +459,30 @@ function hasVisibleTextContentBlock(
 	);
 }
 
+type SingleThinkingGroupedPart = Extract<
+	GroupedAgentMessagePart,
+	{ kind: "single" }
+> & {
+	part: Extract<AssistantMessagePart, { type: "thinking" }>;
+};
+
+function findLastIndex<T>(
+	items: T[],
+	predicate: (item: T, index: number) => boolean,
+): number {
+	for (let index = items.length - 1; index >= 0; index -= 1) {
+		const item = items[index];
+		if (item !== undefined && predicate(item, index)) {
+			return index;
+		}
+	}
+	return -1;
+}
+
 function lastToolCallGroupedIndex(
 	groupedParts: GroupedAgentMessagePart[],
 ): number {
-	return groupedParts.findLastIndex((part) => part.kind === "tool-call");
+	return findLastIndex(groupedParts, (part) => part.kind === "tool-call");
 }
 
 function ensureVisibleAssistantResponse(
@@ -484,9 +502,7 @@ function ensureVisibleAssistantResponse(
 	const responseThinking = groupedParts
 		.slice(lastToolCallIndex + 1)
 		.filter(
-			(
-				part,
-			): part is Extract<GroupedAgentMessagePart, { kind: "single" }> =>
+			(part): part is SingleThinkingGroupedPart =>
 				part.kind === "single" &&
 				part.part.type === "thinking" &&
 				(part.part.content ?? "").trim().length > 0,
@@ -506,7 +522,8 @@ function ensureVisibleAssistantResponse(
 		index: responseThinking.index,
 	};
 
-	const lastAgentWorkIndex = blocks.findLastIndex(
+	const lastAgentWorkIndex = findLastIndex(
+		blocks,
 		(block) => block.kind === "agent-work",
 	);
 	const insertAt = lastAgentWorkIndex === -1 ? 0 : lastAgentWorkIndex + 1;
@@ -532,9 +549,7 @@ export function buildRenderableAssistantBlocks(
  * iteration. Merge those into one virtual message so agent-work grouping
  * spans the full turn.
  */
-export function mergeAssistantTurnMessages(
-	messages: UIMessage[],
-): UIMessage[] {
+export function mergeAssistantTurnMessages(messages: UIMessage[]): UIMessage[] {
 	const merged: UIMessage[] = [];
 
 	for (const message of messages) {
@@ -568,7 +583,9 @@ export function buildAgentWorkSummary(
 	return `Agent Work: ${toolCount} tools`;
 }
 
-export function resolveAgentWorkPresentation(parts: GroupedAgentMessagePart[]): {
+export function resolveAgentWorkPresentation(
+	parts: GroupedAgentMessagePart[],
+): {
 	tone: DetailTriggerTone;
 	isLoading: boolean;
 	defaultOpen: boolean;

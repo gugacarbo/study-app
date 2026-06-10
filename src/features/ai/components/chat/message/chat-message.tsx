@@ -7,8 +7,8 @@ import {
 	type GroupedAgentMessagePart,
 	shouldShowAssistantThinkingPlaceholder,
 } from "./chat-message-utils";
-import { ChatMessageAgentWork } from "./parts/agent-messages/chat-message-agent-work";
 import { AgentMessages } from "./parts/agent-messages/agent-messages";
+import { ChatMessageAgentWork } from "./parts/agent-messages/chat-message-agent-work";
 import { ChatMessageThinkingPlaceholder } from "./parts/agent-messages/chat-message-thinking-placeholder";
 import { UserMessages } from "./parts/user-messages/user-messages";
 
@@ -26,8 +26,7 @@ export function ChatMessage({
 	const isUser = message.role === "user";
 	const pending = isPending ?? metrics?.isStreaming ?? false;
 	const showThinkingPlaceholder =
-		!isUser &&
-		shouldShowAssistantThinkingPlaceholder(message.parts, pending);
+		!isUser && shouldShowAssistantThinkingPlaceholder(message.parts, pending);
 	const renderableAssistantBlocks = isUser
 		? []
 		: buildRenderableAssistantBlocks(message.parts, { isPending: pending });

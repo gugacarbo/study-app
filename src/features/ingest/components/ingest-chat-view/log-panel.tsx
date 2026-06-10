@@ -115,10 +115,7 @@ export function BubbleMessage({ bubble }: { bubble: ChatBubble }) {
 			) : bubble.message.role === "user" ? (
 				<UserMessage message={bubble.message} />
 			) : (
-				<ChatMessage
-					message={bubble.message}
-					isPending={bubble.isStreaming}
-				/>
+				<ChatMessage message={bubble.message} isPending={bubble.isStreaming} />
 			)}
 		</div>
 	);

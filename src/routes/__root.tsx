@@ -1,5 +1,5 @@
 import { createRootRoute } from "@tanstack/react-router";
-import { RootDocument, DefaultNotFound, rootHead } from "./__root/-index";
+import { DefaultNotFound, RootDocument, rootHead } from "./__root/-index";
 
 export { queryClient } from "./__root/-index";
 

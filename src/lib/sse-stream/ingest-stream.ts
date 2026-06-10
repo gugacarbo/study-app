@@ -151,10 +151,7 @@ function dispatch(
 	}
 }
 
-function shouldYieldAfterAgentToolEvent(
-	event: string,
-	raw: unknown,
-): boolean {
+function shouldYieldAfterAgentToolEvent(event: string, raw: unknown): boolean {
 	if (event !== "agent" || typeof raw !== "object" || raw == null) {
 		return false;
 	}

@@ -6,13 +6,13 @@ import {
 	processAgentStreamChunk,
 } from "@/features/ai/core/agent-stream-handler";
 import { streamChatMessages } from "@/features/ai/core/chat-stream";
-import {
-	createExtractionWorkspace,
-	createIngestExtractionTools,
-} from "@/features/ai/tools/ingest-tools";
 import type {
 	ExtractionWorkspaceQuestion,
 	ExtractionWorkspaceState,
+} from "@/features/ai/tools/ingest-tools";
+import {
+	createExtractionWorkspace,
+	createIngestExtractionTools,
 } from "@/features/ai/tools/ingest-tools";
 import type { ProviderConfig, Question } from "@/lib/validation";
 import { emitAgentEvent } from "./execute-helpers";

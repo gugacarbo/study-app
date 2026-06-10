@@ -1,7 +1,7 @@
+import { flushSync } from "react-dom";
 import type { IngestAgentEvent, IngestStageEvent } from "@/lib/sse-stream";
 import { ingestStream } from "@/lib/sse-stream";
 import { queryClient } from "@/routes/__root";
-import { flushSync } from "react-dom";
 import { getConfig } from "@/server-functions/config";
 import {
 	appendChunkToAgentRun,
@@ -357,8 +357,6 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
 		e.preventDefault();
 	}
 }
-
-
 
 if (typeof window !== "undefined") {
 	window.addEventListener("beforeunload", handleBeforeUnload);

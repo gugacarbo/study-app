@@ -1,10 +1,10 @@
 import {
-	runQuestionExplanations,
 	type ExplanationAgentRunEvent,
+	runQuestionExplanations,
 } from "@/features/ai/agents/explanations";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
-import { buildTopicMemoryResolver } from "../../../lib/memory/topic-context";
 import type { MemoryManager } from "../../../lib/memory";
+import { buildTopicMemoryResolver } from "../../../lib/memory/topic-context";
 import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
 import { sendStage } from "./-sse-emitter";
 
@@ -152,7 +152,9 @@ export async function runExplanationsStage(
 	} = params;
 
 	if (!enableExplanations) {
-		send("progress", { step: "Explanation generation disabled for this ingest." });
+		send("progress", {
+			step: "Explanation generation disabled for this ingest.",
+		});
 		sendStage(send, "explanations", "Generating explanations", "skipped", {
 			disabled: true,
 		});

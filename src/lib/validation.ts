@@ -5,9 +5,9 @@ const OPEN_ENDED_INCORRECT_OPTION = "Resposta incorreta.";
 function normalizeIngestOptions(options: unknown, answer: string): string[] {
 	const normalizedOptions = Array.isArray(options)
 		? options
-			.filter((option): option is string => typeof option === "string")
-			.map((option) => option.trim())
-			.filter(Boolean)
+				.filter((option): option is string => typeof option === "string")
+				.map((option) => option.trim())
+				.filter(Boolean)
 		: [];
 
 	const uniqueOptions = Array.from(new Set(normalizedOptions));
@@ -135,20 +135,20 @@ export function normalizeExamIngestResponseWithDiagnostics(input: unknown): {
 	const discardedQuestions: DiscardedIngestQuestion[] = [];
 	const normalizedQuestions = Array.isArray(typedInput.questions)
 		? typedInput.questions.reduce<Record<string, unknown>[]>(
-			(acc, question, index) => {
-				const normalized = normalizeExamIngestQuestion(question);
-				if (normalized.question) {
-					acc.push(normalized.question);
-				} else if (normalized.discarded) {
-					discardedQuestions.push({
-						index,
-						...normalized.discarded,
-					});
-				}
-				return acc;
-			},
-			[],
-		)
+				(acc, question, index) => {
+					const normalized = normalizeExamIngestQuestion(question);
+					if (normalized.question) {
+						acc.push(normalized.question);
+					} else if (normalized.discarded) {
+						discardedQuestions.push({
+							index,
+							...normalized.discarded,
+						});
+					}
+					return acc;
+				},
+				[],
+			)
 		: typedInput.questions;
 	const shouldKeepOriginalQuestions =
 		Array.isArray(typedInput.questions) &&
@@ -158,13 +158,13 @@ export function normalizeExamIngestResponseWithDiagnostics(input: unknown): {
 
 	const normalizedTopics = Array.isArray(typedInput.topics)
 		? Array.from(
-			new Set(
-				typedInput.topics
-					.filter((topic): topic is string => typeof topic === "string")
-					.map((topic) => topic.trim())
-					.filter(Boolean),
-			),
-		)
+				new Set(
+					typedInput.topics
+						.filter((topic): topic is string => typeof topic === "string")
+						.map((topic) => topic.trim())
+						.filter(Boolean),
+				),
+			)
 		: typedInput.topics;
 
 	return {

@@ -6,9 +6,9 @@ import {
 } from "@/features/ai/agents/explanations";
 import { DBQueries } from "../../db/queries";
 import { env } from "../../env";
-import type { ProviderConfig } from "../../lib/validation";
 import { MemoryManager } from "../../lib/memory";
 import { buildTopicMemoryResolver } from "../../lib/memory/topic-context";
+import type { ProviderConfig } from "../../lib/validation";
 import { getDB } from "../db";
 
 export const generateExamQuestionExplanations = createServerFn({

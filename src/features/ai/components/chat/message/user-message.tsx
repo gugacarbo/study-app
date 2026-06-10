@@ -38,7 +38,10 @@ export function UserMessage({ message }: UserMessageProps) {
 	return (
 		<div className="flex flex-col items-end gap-1.5">
 			<div className="flex items-center gap-1.5 px-1">
-				<UserIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+				<UserIcon
+					className="size-3 shrink-0 text-muted-foreground"
+					aria-hidden
+				/>
 				<span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">
 					User Prompt
 				</span>
@@ -49,10 +52,7 @@ export function UserMessage({ message }: UserMessageProps) {
 					className="overflow-hidden transition-[max-height] duration-200 ease-out"
 					style={{ maxHeight }}
 				>
-					<div
-						ref={contentRef}
-						className={cn("relative", !expanded && "pb-6")}
-					>
+					<div ref={contentRef} className={cn("relative", !expanded && "pb-6")}>
 						<div className={USER_PROMPT_TEXT_CLASS}>{content}</div>
 
 						{!expanded ? (

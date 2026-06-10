@@ -130,8 +130,4 @@ function tryParseFallbackCandidates<T>(
 	return null;
 }
 
-export {
-	extractLikelyJson,
-	stripThinkBlocks,
-	tryParseFallbackCandidates,
-};
+export { extractLikelyJson, stripThinkBlocks, tryParseFallbackCandidates };

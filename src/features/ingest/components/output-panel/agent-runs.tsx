@@ -34,29 +34,29 @@ export function OutputPanelAgentRuns({
 					<TokenTotalsBadge tokenTotals={tokenTotals} />
 				</div>
 				{filteredAgents.length > 0 ? (
-				<div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
-					{filteredAgents.map((agent) => (
-						<button
-							key={agent.id}
-							type="button"
-							onClick={() => onSelectAgentId(agent.id)}
-							className="flex items-center gap-2 rounded-md border border-border bg-accent px-2.5 py-1.5 text-left transition-colors hover:border-sky-400/40 hover:bg-accent"
-						>
-							<span className="min-w-0 truncate text-[0.7rem] font-medium text-foreground">
-								{agent.name}
-							</span>
-							<Badge
-								variant="secondary"
-								className={cn(
-									"shrink-0 text-[0.6rem]",
-									agentStateBadgeClass(agent.state),
-								)}
+					<div className="grid gap-1.5 md:grid-cols-2 xl:grid-cols-3">
+						{filteredAgents.map((agent) => (
+							<button
+								key={agent.id}
+								type="button"
+								onClick={() => onSelectAgentId(agent.id)}
+								className="flex items-center gap-2 rounded-md border border-border bg-accent px-2.5 py-1.5 text-left transition-colors hover:border-sky-400/40 hover:bg-accent"
 							>
-								{agent.state}
-							</Badge>
-						</button>
-					))}
-				</div>
+								<span className="min-w-0 truncate text-[0.7rem] font-medium text-foreground">
+									{agent.name}
+								</span>
+								<Badge
+									variant="secondary"
+									className={cn(
+										"shrink-0 text-[0.6rem]",
+										agentStateBadgeClass(agent.state),
+									)}
+								>
+									{agent.state}
+								</Badge>
+							</button>
+						))}
+					</div>
 				) : null}
 			</div>
 

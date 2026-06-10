@@ -1,6 +1,6 @@
 import type { ProviderConfig } from "@/lib/validation";
-import { explainSingleQuestion } from "./explain-single-question";
 import { mapWithConcurrency } from "./execute-helpers";
+import { explainSingleQuestion } from "./explain-single-question";
 import type {
 	ExplanationAgentRunEvent,
 	ExplanationAgentRunSummary,
@@ -65,7 +65,9 @@ export async function runQuestionExplanations(
 	const generatedQuestions = results.flatMap((result) =>
 		result.success ? [result.result] : [],
 	);
-	const failedQuestionCount = results.filter((result) => !result.success).length;
+	const failedQuestionCount = results.filter(
+		(result) => !result.success,
+	).length;
 
 	return {
 		questions: generatedQuestions,
@@ -86,17 +88,11 @@ async function explainAllQuestionsWithRetries(
 ): Promise<QuestionExplanationResult[]> {
 	const totalQuestions = questions.length;
 
-	let results = await mapWithConcurrency(
+	const results = await mapWithConcurrency(
 		questions,
 		concurrency,
 		(question, index) =>
-			explainSingleQuestion(
-				config,
-				question,
-				index,
-				totalQuestions,
-				options,
-			),
+			explainSingleQuestion(config, question, index, totalQuestions, options),
 	);
 
 	if (results.every((result) => !result.success)) {

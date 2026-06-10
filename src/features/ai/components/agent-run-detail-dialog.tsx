@@ -1,17 +1,17 @@
 import type { UIMessage } from "@tanstack/ai-client";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
 import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
 import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
 import { UserMessage } from "@/features/ai/components/chat/message/user-message";
 import { useLiveAgentMessages } from "@/features/ingest/hooks/use-live-agent-messages";
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	normalizeTokenTotals,
-	TokenTotalsBadge,
 	type TokenTotals,
+	TokenTotalsBadge,
 } from "./token-totals-badge";
 
 interface AgentRunDetailDialogProps {
@@ -66,48 +66,12 @@ export function AgentRunDetailDialog({
 	);
 	const hasRawTab = rawData != null;
 	const rawTranscript = buildRawTranscript(visibleMessages, response);
-	const treatedStreamSignature = useMemo(
-		() =>
-			visibleMessages
-				.map((message) => {
-					const textLength = message.parts.reduce(
-						(total, part) =>
-							part.type === "text" || part.type === "thinking"
-								? total + (part.content?.length ?? 0)
-								: total,
-						0,
-					);
-					const toolCallCount = message.parts.filter(
-						(part) => part.type === "tool-call",
-					).length;
-					const toolResultCount = message.parts.filter(
-						(part) => part.type === "tool-result",
-					).length;
-					const completedToolResultCount = message.parts.filter(
-						(part) =>
-							part.type === "tool-result" && part.state === "complete",
-					).length;
-
-					return [
-						message.id,
-						message.role,
-						message.parts.length,
-						textLength,
-						toolCallCount,
-						toolResultCount,
-						completedToolResultCount,
-					].join(":");
-				})
-				.join("|"),
-		[visibleMessages],
-	);
-
 	useEffect(() => {
 		if (open) {
 			setMode("treated");
 			setShowDebug(false);
 		}
-	}, [open, name]);
+	}, [open]);
 
 	useEffect(() => {
 		if (!open || mode !== "treated") return;
@@ -115,7 +79,7 @@ export function AgentRunDetailDialog({
 			top: treatedScrollRef.current.scrollHeight,
 			behavior: "smooth",
 		});
-	}, [open, mode, treatedStreamSignature]);
+	}, [open, mode]);
 
 	useEffect(() => {
 		if (!open || mode !== "raw") return;
@@ -123,7 +87,7 @@ export function AgentRunDetailDialog({
 			top: rawScrollRef.current.scrollHeight,
 			behavior: "smooth",
 		});
-	}, [open, mode, rawTranscript, showDebug, rawData]);
+	}, [open, mode]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,23 +173,23 @@ export function AgentRunDetailDialog({
 								<TokenTotalsBadge tokenTotals={resolvedTokenTotals} />
 							</div>
 						) : null}
-					<div className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
-						<div className="flex flex-col gap-3 pr-1">
-							{visibleMessages.map((message) =>
-								message.role === "system" ? (
-									<SystemMessage key={message.id} message={message} />
-								) : message.role === "user" ? (
-									<UserMessage key={message.id} message={message} />
-								) : (
-									<ChatMessage
-										key={message.id}
-										message={message}
-										isPending={isRunning}
-									/>
-								),
-							)}
+						<div className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
+							<div className="flex flex-col gap-3 pr-1">
+								{visibleMessages.map((message) =>
+									message.role === "system" ? (
+										<SystemMessage key={message.id} message={message} />
+									) : message.role === "user" ? (
+										<UserMessage key={message.id} message={message} />
+									) : (
+										<ChatMessage
+											key={message.id}
+											message={message}
+											isPending={isRunning}
+										/>
+									),
+								)}
+							</div>
 						</div>
-					</div>
 					</div>
 				)}
 			</DialogContent>

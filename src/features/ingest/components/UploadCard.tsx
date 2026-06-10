@@ -36,12 +36,7 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 
 	function handleUpload() {
 		if (!selectedFile) return;
-		onUpload(
-			selectedFile,
-			enableReview,
-			enableExplanations,
-			agentConcurrency,
-		);
+		onUpload(selectedFile, enableReview, enableExplanations, agentConcurrency);
 		setSelectedFile(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
@@ -95,7 +90,8 @@ export function UploadCard({ onUpload }: UploadCardProps) {
 				</div>
 				<div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2">
 					<Label htmlFor="ingest-agent-concurrency" className="text-xs">
-						Agentes em paralelo ({MIN_AGENT_CONCURRENCY}-{MAX_AGENT_CONCURRENCY})
+						Agentes em paralelo ({MIN_AGENT_CONCURRENCY}-{MAX_AGENT_CONCURRENCY}
+						)
 					</Label>
 					<Input
 						id="ingest-agent-concurrency"

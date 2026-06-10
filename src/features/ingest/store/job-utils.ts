@@ -230,7 +230,9 @@ function stripToolTranscriptFromTextParts(
 		.filter((part, index, allParts) => {
 			if (part.type !== "text") return true;
 			if ((part.content ?? "").length > 0) return true;
-			return allParts.some((candidate) => candidate.type !== "text") || index !== 0;
+			return (
+				allParts.some((candidate) => candidate.type !== "text") || index !== 0
+			);
 		});
 }
 
@@ -538,7 +540,9 @@ function mergeToolCallPart(
 		arguments: isMeaningfulToolValue(incoming.arguments)
 			? incoming.arguments
 			: existing.arguments,
-		input: isMeaningfulToolValue(incoming.input) ? incoming.input : existing.input,
+		input: isMeaningfulToolValue(incoming.input)
+			? incoming.input
+			: existing.input,
 		output: isMeaningfulToolValue(incoming.output)
 			? incoming.output
 			: existing.output,
@@ -619,10 +623,7 @@ function upsertAssistantToolResultPart(
 			const nextOutput = isMeaningfulToolResultContent(resultPart.content)
 				? typeof currentCall.output === "string" &&
 					isMeaningfulToolResultContent(currentCall.output)
-					? pickRicherToolResultContent(
-							currentCall.output,
-							resultPart.content,
-						)
+					? pickRicherToolResultContent(currentCall.output, resultPart.content)
 					: resultPart.content
 				: currentCall.output;
 
