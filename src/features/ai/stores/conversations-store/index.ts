@@ -17,5 +17,6 @@ export {
 	type ChatTokenTotals,
 	type Conversation,
 	conversationsStore,
+	hydrateConversationsFromStorage,
 	type PersistedData,
 } from "./types";

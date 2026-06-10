@@ -1,11 +1,12 @@
 import { useSelector } from "@tanstack/react-store";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
 import { useChatClient } from "@/features/ai/hooks/use-chat-client";
 import { chatStore, setInput } from "@/features/ai/stores/chat-store";
 import {
 	conversationsStore,
+	hydrateConversationsFromStorage,
 	updateConversationTitle,
 } from "@/features/ai/stores/conversations-store";
 import { ChatError } from "./chat-error";
@@ -25,6 +26,10 @@ export function Chat() {
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [titleDraft, setTitleDraft] = useState("");
 	const [reviewMode, setReviewMode] = useState(false);
+
+	useEffect(() => {
+		hydrateConversationsFromStorage();
+	}, []);
 
 	useAutoTitle(activeId, messages, conversations);
 	const {

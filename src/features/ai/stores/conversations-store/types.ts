@@ -49,18 +49,37 @@ function ensureWelcomeMessage(messages: UIMessage[]): UIMessage[] {
 	return messages;
 }
 
+const EMPTY_PERSISTED_DATA: PersistedData = {
+	conversations: [],
+	activeId: null,
+	messagesMap: {},
+	tokenTotalsMap: {},
+	metricsMap: {},
+};
+
 function loadFromStorage(): PersistedData {
+	if (typeof window === "undefined") {
+		return EMPTY_PERSISTED_DATA;
+	}
+
 	try {
 		const saved = localStorage.getItem(STORAGE_KEY);
 		if (saved) {
 			const parsed = JSON.parse(saved);
 			if (parsed && typeof parsed === "object") {
+				const conversations = Array.isArray(parsed.conversations)
+					? parsed.conversations
+					: [];
+				const activeId =
+					typeof parsed.activeId === "string"
+						? parsed.activeId
+						: conversations.length > 0
+							? conversations[0].id
+							: null;
+
 				return {
-					conversations: Array.isArray(parsed.conversations)
-						? parsed.conversations
-						: [],
-					activeId:
-						typeof parsed.activeId === "string" ? parsed.activeId : null,
+					conversations,
+					activeId,
 					messagesMap:
 						parsed.messagesMap && typeof parsed.messagesMap === "object"
 							? parsed.messagesMap
@@ -79,25 +98,21 @@ function loadFromStorage(): PersistedData {
 	} catch {
 		// corrupt data
 	}
-	return {
-		conversations: [],
-		activeId: null,
-		messagesMap: {},
-		tokenTotalsMap: {},
-		metricsMap: {},
-	};
+	return EMPTY_PERSISTED_DATA;
 }
 
-const initial = loadFromStorage();
-
-if (initial.conversations.length > 0 && !initial.activeId) {
-	initial.activeId = initial.conversations[0].id;
+export function hydrateConversationsFromStorage() {
+	if (typeof window === "undefined") return;
+	conversationsStore.setState(() => loadFromStorage());
 }
 
-export const conversationsStore = new Store<PersistedData>(initial);
+export const conversationsStore = new Store<PersistedData>(
+	EMPTY_PERSISTED_DATA,
+);
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 conversationsStore.subscribe(() => {
+	if (typeof window === "undefined") return;
 	if (persistTimer) clearTimeout(persistTimer);
 	persistTimer = setTimeout(() => {
 		try {
