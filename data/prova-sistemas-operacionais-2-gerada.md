@@ -174,8 +174,8 @@ e) `134.257`
 
 Um processo utiliza alocação contígua com:
 
-* registrador base = `110.000`;
-* registrador limite = `45.000`.
+- registrador base = `110.000`;
+- registrador limite = `45.000`.
 
 Assinale a alternativa correta.
 
@@ -191,8 +191,8 @@ e) O registrador limite deve ser somado ao endereço lógico para determinar o e
 
 Considere uma tabela de segmentos em que o segmento 4 possui:
 
-* base = `32.300`;
-* limite = `8.750`.
+- base = `32.300`;
+- limite = `8.750`.
 
 Um processo realiza acesso ao endereço lógico `[4:6.914]`.
 
@@ -222,8 +222,8 @@ e) São necessários 12 bits para o offset e 20 bits para identificar a página,
 
 Em um sistema com páginas de 4 KB, o endereço lógico hexadecimal `0000 5E9A` é dividido em:
 
-* página lógica `0000 5`;
-* offset `E9A`.
+- página lógica `0000 5`;
+- offset `E9A`.
 
 A tabela de páginas informa que a página lógica `0000 5` está armazenada no quadro físico `2F`.
 
@@ -241,10 +241,10 @@ e) `0000 5E2F`
 
 Considere quatro áreas livres de memória:
 
-* A1 = `20 MB`;
-* A2 = `8 MB`;
-* A3 = `12 MB`;
-* A4 = `28 MB`.
+- A1 = `20 MB`;
+- A2 = `8 MB`;
+- A3 = `12 MB`;
+- A4 = `28 MB`.
 
 Um novo processo solicita `10 MB`.
 
@@ -262,9 +262,9 @@ e) Nenhuma estratégia pode atender ao pedido, porque não existe uma área livr
 
 Uma memória apresenta processos separados por lacunas. Três estratégias de compactação produzem uma única região livre contínua suficiente:
 
-* mover P2 e P3: custo total de `60 MB`;
-* mover somente P3: custo de `40 MB`;
-* mover somente P2: custo de `20 MB`.
+- mover P2 e P3: custo total de `60 MB`;
+- mover somente P3: custo de `40 MB`;
+- mover somente P2: custo de `20 MB`.
 
 Assinale a alternativa correta.
 
@@ -392,9 +392,9 @@ e) A FAT elimina qualquer risco decorrente de defeitos nos metadados, pois seus 
 
 Um sistema utiliza alocação indexada com:
 
-* blocos de `4 KB`;
-* um índice com `64` entradas;
-* cada entrada apontando diretamente para um bloco de dados.
+- blocos de `4 KB`;
+- um índice com `64` entradas;
+- cada entrada apontando diretamente para um bloco de dados.
 
 Qual é o tamanho máximo de arquivo representável por esse índice?
 
@@ -422,12 +422,12 @@ e) Cada bloco indireto comporta `1024` ponteiros, podendo referenciar `1024 × 4
 
 Considere um i-node com:
 
-* 12 ponteiros diretos;
-* 1 ponteiro indireto simples;
-* 1 ponteiro duplamente indireto;
-* 1 ponteiro triplamente indireto;
-* blocos de `4096 bytes`;
-* ponteiros de `4 bytes`.
+- 12 ponteiros diretos;
+- 1 ponteiro indireto simples;
+- 1 ponteiro duplamente indireto;
+- 1 ponteiro triplamente indireto;
+- blocos de `4096 bytes`;
+- ponteiros de `4 bytes`.
 
 Qual alternativa apresenta corretamente o tamanho máximo aproximado do arquivo calculado segundo esse modelo?
 
@@ -524,81 +524,81 @@ Como esta avaliação foi solicitada integralmente em formato de múltipla escol
 
 **Resposta correta: C**
 
-* **a) Incorreta.** A RAM é memória principal e volátil; arquivos persistentes são mantidos em dispositivos não voláteis.
-* **b) Incorreta.** A cache L1 é menor e mais rápida que a RAM, não maior e mais lenta.
-* **c) Correta.** A memória principal mantém processos, estruturas do núcleo, bibliotecas e demais dados necessários à execução.
-* **d) Incorreta.** Ao descer na hierarquia, tende a aumentar a capacidade e diminuir a velocidade e o custo por byte.
-* **e) Incorreta.** O material considera, em sentido amplo, discos e unidades externas como formas de memória ou armazenamento.
+- **a) Incorreta.** A RAM é memória principal e volátil; arquivos persistentes são mantidos em dispositivos não voláteis.
+- **b) Incorreta.** A cache L1 é menor e mais rápida que a RAM, não maior e mais lenta.
+- **c) Correta.** A memória principal mantém processos, estruturas do núcleo, bibliotecas e demais dados necessários à execução.
+- **d) Incorreta.** Ao descer na hierarquia, tende a aumentar a capacidade e diminuir a velocidade e o custo por byte.
+- **e) Incorreta.** O material considera, em sentido amplo, discos e unidades externas como formas de memória ou armazenamento.
 
 ## Questão 2
 
 **Resposta correta: A**
 
-* **a) Correta.** O processador produz endereços lógicos, e a MMU pode convertê-los em endereços físicos.
-* **b) Incorreta.** Endereços físicos correspondem a posições reais da memória, não a símbolos de compilação.
-* **c) Incorreta.** A MMU é um componente de hardware, não uma biblioteca do processo.
-* **d) Incorreta.** A existência da MMU permite que endereços lógicos sejam diferentes dos físicos.
-* **e) Incorreta.** Um acesso inválido produz interrupção ou exceção, não realocação silenciosa.
+- **a) Correta.** O processador produz endereços lógicos, e a MMU pode convertê-los em endereços físicos.
+- **b) Incorreta.** Endereços físicos correspondem a posições reais da memória, não a símbolos de compilação.
+- **c) Incorreta.** A MMU é um componente de hardware, não uma biblioteca do processo.
+- **d) Incorreta.** A existência da MMU permite que endereços lógicos sejam diferentes dos físicos.
+- **e) Incorreta.** Um acesso inválido produz interrupção ou exceção, não realocação silenciosa.
 
 ## Questão 3
 
 **Resposta correta: E**
 
-* **a) Incorreta.** TEXT contém código e normalmente permite leitura e execução, não escrita.
-* **b) Incorreta.** DATA contém dados estáticos, como variáveis globais e locais estáticas.
-* **c) Incorreta.** `malloc` e `free` operam sobre o HEAP, não sobre a STACK.
-* **d) Incorreta.** Threads adicionais possuem suas próprias pilhas.
-* **e) Correta.** O HEAP armazena memória dinâmica e pode apresentar fragmentação entre blocos alocados.
+- **a) Incorreta.** TEXT contém código e normalmente permite leitura e execução, não escrita.
+- **b) Incorreta.** DATA contém dados estáticos, como variáveis globais e locais estáticas.
+- **c) Incorreta.** `malloc` e `free` operam sobre o HEAP, não sobre a STACK.
+- **d) Incorreta.** Threads adicionais possuem suas próprias pilhas.
+- **e) Correta.** O HEAP armazena memória dinâmica e pode apresentar fragmentação entre blocos alocados.
 
 ## Questão 4
 
 **Resposta correta: B**
 
-* **a) Incorreta.** A combinação de arquivos-objeto e bibliotecas é função do ligador, não da etapa de carga.
-* **b) Correta.** O ligador resolve símbolos e produz o executável a partir de objetos e bibliotecas.
-* **c) Incorreta.** Durante a execução, a tradução normalmente é realizada por hardware, não por escolha manual do programador.
-* **d) Incorreta.** O código independente de posição utiliza justamente referências relativas.
-* **e) Incorreta.** Bibliotecas dinâmicas podem ter endereços definidos durante a carga.
+- **a) Incorreta.** A combinação de arquivos-objeto e bibliotecas é função do ligador, não da etapa de carga.
+- **b) Correta.** O ligador resolve símbolos e produz o executável a partir de objetos e bibliotecas.
+- **c) Incorreta.** Durante a execução, a tradução normalmente é realizada por hardware, não por escolha manual do programador.
+- **d) Incorreta.** O código independente de posição utiliza justamente referências relativas.
+- **e) Incorreta.** Bibliotecas dinâmicas podem ter endereços definidos durante a carga.
 
 ## Questão 5
 
 **Resposta correta: D**
 
-* **a) Incorreta.** Um arquivo pode ser tratado simplesmente como sequência de bytes.
-* **b) Incorreta.** Localização indica dispositivo e posição interna de armazenamento.
-* **c) Incorreta.** Permissões regulam operações como leitura, escrita e execução.
-* **d) Correta.** A alternativa reúne corretamente conceito e atributos comuns de arquivos.
-* **e) Incorreta.** Um mesmo sistema de arquivos pode armazenar arquivos de formatos diversos.
+- **a) Incorreta.** Um arquivo pode ser tratado simplesmente como sequência de bytes.
+- **b) Incorreta.** Localização indica dispositivo e posição interna de armazenamento.
+- **c) Incorreta.** Permissões regulam operações como leitura, escrita e execução.
+- **d) Correta.** A alternativa reúne corretamente conceito e atributos comuns de arquivos.
+- **e) Incorreta.** Um mesmo sistema de arquivos pode armazenar arquivos de formatos diversos.
 
 ## Questão 6
 
 **Resposta correta: C**
 
-* **a) Incorreta.** Diretórios mantêm referências, não os bytes internos de todos os conteúdos referenciados.
-* **b) Incorreta.** Caminho absoluto parte da raiz; caminho relativo parte do diretório de trabalho.
-* **c) Correta.** Diretórios podem ser implementados como arquivos estruturados contendo entradas.
-* **d) Incorreta.** O separador típico no UNIX é `/`.
-* **e) Incorreta.** `.` representa o próprio diretório e `..` representa o diretório pai.
+- **a) Incorreta.** Diretórios mantêm referências, não os bytes internos de todos os conteúdos referenciados.
+- **b) Incorreta.** Caminho absoluto parte da raiz; caminho relativo parte do diretório de trabalho.
+- **c) Correta.** Diretórios podem ser implementados como arquivos estruturados contendo entradas.
+- **d) Incorreta.** O separador típico no UNIX é `/`.
+- **e) Incorreta.** `.` representa o próprio diretório e `..` representa o diretório pai.
 
 ## Questão 7
 
 **Resposta correta: E**
 
-* **a) Incorreta.** Manter a tradução de P1 para P2 violaria o isolamento entre processos.
-* **b) Incorreta.** Processos possuem espaços protegidos, ainda que coexistam na memória.
-* **c) Incorreta.** A MMU traduz endereços; não converte instruções em linguagem de alto nível.
-* **d) Incorreta.** A MMU participa da proteção durante a execução.
-* **e) Correta.** A troca de contexto exige atualização das informações usadas para traduzir e proteger o espaço do processo corrente.
+- **a) Incorreta.** Manter a tradução de P1 para P2 violaria o isolamento entre processos.
+- **b) Incorreta.** Processos possuem espaços protegidos, ainda que coexistam na memória.
+- **c) Incorreta.** A MMU traduz endereços; não converte instruções em linguagem de alto nível.
+- **d) Incorreta.** A MMU participa da proteção durante a execução.
+- **e) Correta.** A troca de contexto exige atualização das informações usadas para traduzir e proteger o espaço do processo corrente.
 
 ## Questão 8
 
 **Resposta correta: A**
 
-* **a) Correta.** Partições fixas limitam a quantidade de processos carregados e podem desperdiçar espaço interno.
-* **b) Incorreta.** A alocação contígua é sujeita à fragmentação externa.
-* **c) Incorreta.** Um processo precisa caber em uma partição individual.
-* **d) Incorreta.** A alternativa descreve paginação, não alocação contígua.
-* **e) Incorreta.** A proteção exige verificar se o endereço lógico está dentro do limite permitido.
+- **a) Correta.** Partições fixas limitam a quantidade de processos carregados e podem desperdiçar espaço interno.
+- **b) Incorreta.** A alocação contígua é sujeita à fragmentação externa.
+- **c) Incorreta.** Um processo precisa caber em uma partição individual.
+- **d) Incorreta.** A alternativa descreve paginação, não alocação contígua.
+- **e) Incorreta.** A proteção exige verificar se o endereço lógico está dentro do limite permitido.
 
 ## Questão 9
 
@@ -608,11 +608,11 @@ Cálculo:
 
 `110.000 + 14.257 = 124.257`
 
-* **a) Incorreta.** Corresponde a uma subtração inexistente no mecanismo apresentado.
-* **b) Incorreta.** Considera apenas a base, ignorando o endereço lógico.
-* **c) Incorreta.** Soma apenas parte do deslocamento necessário.
-* **d) Correta.** O endereço físico é a soma entre realocação e endereço lógico.
-* **e) Incorreta.** Produz valor superior ao resultado da soma correta.
+- **a) Incorreta.** Corresponde a uma subtração inexistente no mecanismo apresentado.
+- **b) Incorreta.** Considera apenas a base, ignorando o endereço lógico.
+- **c) Incorreta.** Soma apenas parte do deslocamento necessário.
+- **d) Correta.** O endereço físico é a soma entre realocação e endereço lógico.
+- **e) Incorreta.** Produz valor superior ao resultado da soma correta.
 
 ## Questão 10
 
@@ -622,11 +622,11 @@ A faixa válida é de `110.000` até `154.999`, pois:
 
 `110.000 + 45.000 - 1 = 154.999`
 
-* **a) Incorreta.** Um endereço lógico igual ao limite já deve ser rejeitado.
-* **b) Correta.** `44.999` é o último offset válido, e `45.000` está fora da partição.
-* **c) Incorreta.** Endereços inferiores ao limite são permitidos.
-* **d) Incorreta.** O limite representa o tamanho, não o último offset válido.
-* **e) Incorreta.** A base é somada ao endereço lógico; o limite é usado na validação.
+- **a) Incorreta.** Um endereço lógico igual ao limite já deve ser rejeitado.
+- **b) Correta.** `44.999` é o último offset válido, e `45.000` está fora da partição.
+- **c) Incorreta.** Endereços inferiores ao limite são permitidos.
+- **d) Incorreta.** O limite representa o tamanho, não o último offset válido.
+- **e) Incorreta.** A base é somada ao endereço lógico; o limite é usado na validação.
 
 ## Questão 11
 
@@ -638,11 +638,11 @@ Cálculos:
 
 `32.300 + 8.750 - 1 = 41.049`
 
-* **a) Incorreta.** Um offset válido deve ser menor que o limite.
-* **b) Incorreta.** O cálculo não envolve subtrair o número do segmento.
-* **c) Correta.** Apresenta corretamente a tradução e o último endereço permitido.
-* **d) Incorreta.** Confunde limite do segmento com endereço efetivamente acessado.
-* **e) Incorreta.** Segmentos podem ser posicionados separadamente na memória física.
+- **a) Incorreta.** Um offset válido deve ser menor que o limite.
+- **b) Incorreta.** O cálculo não envolve subtrair o número do segmento.
+- **c) Correta.** Apresenta corretamente a tradução e o último endereço permitido.
+- **d) Incorreta.** Confunde limite do segmento com endereço efetivamente acessado.
+- **e) Incorreta.** Segmentos podem ser posicionados separadamente na memória física.
 
 ## Questão 12
 
@@ -650,11 +650,11 @@ Cálculos:
 
 Como `4 KB = 4096 bytes = 2¹²`, são necessários 12 bits para o offset. Restam 20 bits para o número da página.
 
-* **a) Incorreta.** Quatro bits representariam apenas 16 posições internas.
-* **b) Incorreta.** Dez bits permitiriam páginas de apenas 1024 bytes.
-* **c) Incorreta.** Dezesseis bits indicariam páginas de 64 KB.
-* **d) Incorreta.** Inverte os campos de página e offset.
-* **e) Correta.** A divisão 20/12 permite alcançar `2³²` bytes, equivalentes a 4 GB.
+- **a) Incorreta.** Quatro bits representariam apenas 16 posições internas.
+- **b) Incorreta.** Dez bits permitiriam páginas de apenas 1024 bytes.
+- **c) Incorreta.** Dezesseis bits indicariam páginas de 64 KB.
+- **d) Incorreta.** Inverte os campos de página e offset.
+- **e) Correta.** A divisão 20/12 permite alcançar `2³²` bytes, equivalentes a 4 GB.
 
 ## Questão 13
 
@@ -662,91 +662,91 @@ Como `4 KB = 4096 bytes = 2¹²`, são necessários 12 bits para o offset. Resta
 
 O offset permanece `E9A`, enquanto o número da página lógica é substituído pelo quadro físico `2F`.
 
-* **a) Incorreta.** Apresenta montagem incompleta e deslocada.
-* **b) Correta.** O endereço físico formado é `0002 FE9A`.
-* **c) Incorreta.** Mantém indevidamente o número da página lógica.
-* **d) Incorreta.** Combina quadro e endereço lógico completo sem preservar a estrutura correta.
-* **e) Incorreta.** Apenas concatena campos em ordem incorreta.
+- **a) Incorreta.** Apresenta montagem incompleta e deslocada.
+- **b) Correta.** O endereço físico formado é `0002 FE9A`.
+- **c) Incorreta.** Mantém indevidamente o número da página lógica.
+- **d) Incorreta.** Combina quadro e endereço lógico completo sem preservar a estrutura correta.
+- **e) Incorreta.** Apenas concatena campos em ordem incorreta.
 
 ## Questão 14
 
 **Resposta correta: A**
 
-* **a) Correta.** First-fit escolhe a primeira área suficiente, A1; best-fit escolhe a menor suficiente, A3; worst-fit escolhe a maior, A4.
-* **b) Incorreta.** A2 possui apenas 8 MB e não comporta o pedido de 10 MB.
-* **c) Incorreta.** Best-fit procura a menor área adequada, não a maior.
-* **d) Incorreta.** Worst-fit escolhe a maior área disponível.
-* **e) Incorreta.** A área livre não precisa ter tamanho exatamente igual ao pedido.
+- **a) Correta.** First-fit escolhe a primeira área suficiente, A1; best-fit escolhe a menor suficiente, A3; worst-fit escolhe a maior, A4.
+- **b) Incorreta.** A2 possui apenas 8 MB e não comporta o pedido de 10 MB.
+- **c) Incorreta.** Best-fit procura a menor área adequada, não a maior.
+- **d) Incorreta.** Worst-fit escolhe a maior área disponível.
+- **e) Incorreta.** A área livre não precisa ter tamanho exatamente igual ao pedido.
 
 ## Questão 15
 
 **Resposta correta: D**
 
-* **a) Incorreta.** Mover mais processos aumenta, neste cenário, o volume deslocado.
-* **b) Incorreta.** O próprio cenário informa que mover apenas P2 também gera a compactação desejada.
-* **c) Incorreta.** O resultado espacial pode ser igual, mas o custo de movimentação é diferente.
-* **d) Correta.** Mover somente P2 custa 20 MB, menor valor entre as soluções.
-* **e) Incorreta.** A desfragmentação exige atualização das informações de alocação e interrupção da execução durante a movimentação.
+- **a) Incorreta.** Mover mais processos aumenta, neste cenário, o volume deslocado.
+- **b) Incorreta.** O próprio cenário informa que mover apenas P2 também gera a compactação desejada.
+- **c) Incorreta.** O resultado espacial pode ser igual, mas o custo de movimentação é diferente.
+- **d) Correta.** Mover somente P2 custa 20 MB, menor valor entre as soluções.
+- **e) Incorreta.** A desfragmentação exige atualização das informações de alocação e interrupção da execução durante a movimentação.
 
 ## Questão 16
 
 **Resposta correta: C**
 
-* **a) Incorreta.** O núcleo geralmente trata muitos arquivos apenas como sequências de bytes.
-* **b) Incorreta.** No UNIX, o separador de linha apresentado é `\n`.
-* **c) Correta.** UNIX utiliza `\n`, enquanto DOS/Windows utiliza `\r\n`.
-* **d) Incorreta.** Arquivos de imagem não se tornam executáveis por possuírem formatos reconhecíveis.
-* **e) Incorreta.** Arquivos de texto podem possuir linhas de tamanhos variáveis.
+- **a) Incorreta.** O núcleo geralmente trata muitos arquivos apenas como sequências de bytes.
+- **b) Incorreta.** No UNIX, o separador de linha apresentado é `\n`.
+- **c) Correta.** UNIX utiliza `\n`, enquanto DOS/Windows utiliza `\r\n`.
+- **d) Incorreta.** Arquivos de imagem não se tornam executáveis por possuírem formatos reconhecíveis.
+- **e) Incorreta.** Arquivos de texto podem possuir linhas de tamanhos variáveis.
 
 ## Questão 17
 
 **Resposta correta: A**
 
-* **a) Correta.** O conteúdo apresenta dispositivos, interfaces do núcleo e canais de comunicação como arquivos especiais.
-* **b) Incorreta.** Executáveis podem conter código, símbolos, dependências e informações de realocação.
-* **c) Incorreta.** ELF é associado a plataformas UNIX modernas e PE a plataformas Windows.
-* **d) Incorreta.** Socket é abstração de comunicação, não arquivo gravado em setores para acesso direto.
-* **e) Incorreta.** Diretórios são objetos reconhecidos e gerenciados pelo sistema de arquivos.
+- **a) Correta.** O conteúdo apresenta dispositivos, interfaces do núcleo e canais de comunicação como arquivos especiais.
+- **b) Incorreta.** Executáveis podem conter código, símbolos, dependências e informações de realocação.
+- **c) Incorreta.** ELF é associado a plataformas UNIX modernas e PE a plataformas Windows.
+- **d) Incorreta.** Socket é abstração de comunicação, não arquivo gravado em setores para acesso direto.
+- **e) Incorreta.** Diretórios são objetos reconhecidos e gerenciados pelo sistema de arquivos.
 
 ## Questão 18
 
 **Resposta correta: E**
 
-* **a) Incorreta.** A descrição corresponde ao MBR, não ao VBR.
-* **b) Incorreta.** Um volume resulta da preparação e formatação da partição para conter um sistema de arquivos.
-* **c) Incorreta.** O MBR pertence à organização inicial do dispositivo, não ao interior de cada arquivo.
-* **d) Incorreta.** O boot-loader não depende de diretórios individuais de usuários.
-* **e) Correta.** A alternativa diferencia adequadamente MBR e VBR.
+- **a) Incorreta.** A descrição corresponde ao MBR, não ao VBR.
+- **b) Incorreta.** Um volume resulta da preparação e formatação da partição para conter um sistema de arquivos.
+- **c) Incorreta.** O MBR pertence à organização inicial do dispositivo, não ao interior de cada arquivo.
+- **d) Incorreta.** O boot-loader não depende de diretórios individuais de usuários.
+- **e) Correta.** A alternativa diferencia adequadamente MBR e VBR.
 
 ## Questão 19
 
 **Resposta correta: D**
 
-* **a) Incorreta.** Soft links armazenam caminhos e podem quebrar se o alvo for removido.
-* **b) Incorreta.** A descrição dada corresponde ao soft link, não ao hard link.
-* **c) Incorreta.** O conteúdo somente deve ser removido quando não restarem referências físicas.
-* **d) Correta.** A alternativa identifica corretamente o comportamento e a restrição de cada tipo de link.
-* **e) Incorreta.** Links evitam a duplicação integral dos dados.
+- **a) Incorreta.** Soft links armazenam caminhos e podem quebrar se o alvo for removido.
+- **b) Incorreta.** A descrição dada corresponde ao soft link, não ao hard link.
+- **c) Incorreta.** O conteúdo somente deve ser removido quando não restarem referências físicas.
+- **d) Correta.** A alternativa identifica corretamente o comportamento e a restrição de cada tipo de link.
+- **e) Incorreta.** Links evitam a duplicação integral dos dados.
 
 ## Questão 20
 
 **Resposta correta: B**
 
-* **a) Incorreta.** Montagem não exige copiar os arquivos para o volume principal.
-* **b) Correta.** Em UNIX, volumes podem ser inseridos na árvore principal por meio de pontos de montagem.
-* **c) Incorreta.** A desmontagem remove estruturas de gerenciamento após encerrar acessos pendentes.
-* **d) Incorreta.** Letras de unidades são formas tradicionais de identificação de volumes no Windows.
-* **e) Incorreta.** O volume montado passa a ser acessível naquele ponto lógico, sem substituir fisicamente o disco principal.
+- **a) Incorreta.** Montagem não exige copiar os arquivos para o volume principal.
+- **b) Correta.** Em UNIX, volumes podem ser inseridos na árvore principal por meio de pontos de montagem.
+- **c) Incorreta.** A desmontagem remove estruturas de gerenciamento após encerrar acessos pendentes.
+- **d) Incorreta.** Letras de unidades são formas tradicionais de identificação de volumes no Windows.
+- **e) Incorreta.** O volume montado passa a ser acessível naquele ponto lógico, sem substituir fisicamente o disco principal.
 
 ## Questão 21
 
 **Resposta correta: E**
 
-* **a) Incorreta.** O driver não vem imediatamente após o processo, e o VFS não fica abaixo do controlador.
-* **b) Incorreta.** O processo não aparece depois da camada de alocação; ele origina a requisição.
-* **c) Incorreta.** A biblioteca de E/S deve anteceder as chamadas ao núcleo.
-* **d) Incorreta.** O processo não acessa diretamente o dispositivo antes das camadas do núcleo.
-* **e) Correta.** Representa corretamente o fluxo abstrato da aplicação até o hardware.
+- **a) Incorreta.** O driver não vem imediatamente após o processo, e o VFS não fica abaixo do controlador.
+- **b) Incorreta.** O processo não aparece depois da camada de alocação; ele origina a requisição.
+- **c) Incorreta.** A biblioteca de E/S deve anteceder as chamadas ao núcleo.
+- **d) Incorreta.** O processo não acessa diretamente o dispositivo antes das camadas do núcleo.
+- **e) Correta.** Representa corretamente o fluxo abstrato da aplicação até o hardware.
 
 ## Questão 22
 
@@ -758,11 +758,11 @@ Cálculo:
 
 `12.288 - 10.417 = 1.871 bytes`
 
-* **a) Incorreta.** Dois blocos comportariam apenas 8192 bytes.
-* **b) Incorreta.** A quantidade de blocos está correta, mas o desperdício foi calculado incorretamente.
-* **c) Correta.** São necessários 3 blocos, com 1871 bytes não utilizados.
-* **d) Incorreta.** Quatro blocos não são necessários para esse tamanho.
-* **e) Incorreta.** O tamanho do arquivo não é múltiplo exato do bloco.
+- **a) Incorreta.** Dois blocos comportariam apenas 8192 bytes.
+- **b) Incorreta.** A quantidade de blocos está correta, mas o desperdício foi calculado incorretamente.
+- **c) Correta.** São necessários 3 blocos, com 1871 bytes não utilizados.
+- **d) Incorreta.** Quatro blocos não são necessários para esse tamanho.
+- **e) Incorreta.** O tamanho do arquivo não é múltiplo exato do bloco.
 
 ## Questão 23
 
@@ -774,21 +774,21 @@ Cálculo:
 
 `20.480 - 19.116 = 1.364 bytes`
 
-* **a) Correta.** Cinco blocos consecutivos a partir do bloco 24 ocupam a faixa 24 a 28.
-* **b) Incorreta.** Quatro blocos armazenariam apenas 16.384 bytes.
-* **c) Incorreta.** A sequência indicada não é contígua.
-* **d) Incorreta.** A alocação contígua não reserva automaticamente um bloco adicional para indicar fim.
-* **e) Incorreta.** O tipo de conteúdo não impede a utilização da estratégia.
+- **a) Correta.** Cinco blocos consecutivos a partir do bloco 24 ocupam a faixa 24 a 28.
+- **b) Incorreta.** Quatro blocos armazenariam apenas 16.384 bytes.
+- **c) Incorreta.** A sequência indicada não é contígua.
+- **d) Incorreta.** A alocação contígua não reserva automaticamente um bloco adicional para indicar fim.
+- **e) Incorreta.** O tipo de conteúdo não impede a utilização da estratégia.
 
 ## Questão 24
 
 **Resposta correta: D**
 
-* **a) Incorreta.** A alocação encadeada permite blocos espalhados pelo disco.
-* **b) Incorreta.** O acesso direto é prejudicado porque pode exigir percorrer a cadeia.
-* **c) Incorreta.** A descrição corresponde ao modelo de i-nodes, não à FAT.
-* **d) Correta.** A FAT mantém os encadeamentos em tabela separada e utiliza marcas especiais para estados dos blocos.
-* **e) Incorreta.** Defeitos em estruturas de metadados podem comprometer o acesso à cadeia de dados.
+- **a) Incorreta.** A alocação encadeada permite blocos espalhados pelo disco.
+- **b) Incorreta.** O acesso direto é prejudicado porque pode exigir percorrer a cadeia.
+- **c) Incorreta.** A descrição corresponde ao modelo de i-nodes, não à FAT.
+- **d) Correta.** A FAT mantém os encadeamentos em tabela separada e utiliza marcas especiais para estados dos blocos.
+- **e) Incorreta.** Defeitos em estruturas de metadados podem comprometer o acesso à cadeia de dados.
 
 ## Questão 25
 
@@ -798,11 +798,11 @@ Cálculo:
 
 `64 × 4 KB = 256 KB`
 
-* **a) Incorreta.** Considera incorretamente apenas 1 KB por entrada.
-* **b) Correta.** Sessenta e quatro blocos de 4 KB totalizam 256 KB.
-* **c) Incorreta.** Corresponderia a 128 blocos de 4 KB.
-* **d) Incorreta.** Corresponderia a 256 blocos de 4 KB.
-* **e) Incorreta.** Corresponderia a 1024 blocos de 4 KB.
+- **a) Incorreta.** Considera incorretamente apenas 1 KB por entrada.
+- **b) Correta.** Sessenta e quatro blocos de 4 KB totalizam 256 KB.
+- **c) Incorreta.** Corresponderia a 128 blocos de 4 KB.
+- **d) Incorreta.** Corresponderia a 256 blocos de 4 KB.
+- **e) Incorreta.** Corresponderia a 1024 blocos de 4 KB.
 
 ## Questão 26
 
@@ -816,11 +816,11 @@ Cálculos:
 
 `1024 × 4096 = 4.194.304 bytes`
 
-* **a) Incorreta.** Confunde bits com bytes.
-* **b) Incorreta.** Utiliza tamanho de ponteiro não previsto no cenário.
-* **c) Incorreta.** Um ponteiro ocupa 4 bytes, não 1 byte.
-* **d) Incorreta.** O limite corresponde a milhões de bytes de dados, não a 1024 bytes.
-* **e) Correta.** Apresenta corretamente a quantidade de ponteiros e a capacidade referenciada.
+- **a) Incorreta.** Confunde bits com bytes.
+- **b) Incorreta.** Utiliza tamanho de ponteiro não previsto no cenário.
+- **c) Incorreta.** Um ponteiro ocupa 4 bytes, não 1 byte.
+- **d) Incorreta.** O limite corresponde a milhões de bytes de dados, não a 1024 bytes.
+- **e) Correta.** Apresenta corretamente a quantidade de ponteiros e a capacidade referenciada.
 
 ## Questão 27
 
@@ -832,31 +832,31 @@ Cálculo:
 
 `= 4.402.345.721.856 bytes`
 
-* **a) Incorreta.** Ignora todos os níveis indiretos.
-* **b) Incorreta.** Considera apenas parte da estrutura.
-* **c) Correta.** É o resultado obtido com os ponteiros diretos, simples, duplos e triplos.
-* **d) Incorreta.** O número de ponteiros alcançáveis permite superar 4 GB nesse modelo.
-* **e) Incorreta.** O valor apresentado não corresponde ao cálculo estabelecido.
+- **a) Incorreta.** Ignora todos os níveis indiretos.
+- **b) Incorreta.** Considera apenas parte da estrutura.
+- **c) Correta.** É o resultado obtido com os ponteiros diretos, simples, duplos e triplos.
+- **d) Incorreta.** O número de ponteiros alcançáveis permite superar 4 GB nesse modelo.
+- **e) Incorreta.** O valor apresentado não corresponde ao cálculo estabelecido.
 
 ## Questão 28
 
 **Resposta correta: D**
 
-* **a) Incorreta.** Na paginação apresentada, páginas e quadros possuem tamanho fixo, evitando fragmentação externa.
-* **b) Incorreta.** A alocação contígua de arquivos sofre com fragmentação externa e dificuldade de crescimento.
-* **c) Incorreta.** Fragmentação interna decorre de espaço não utilizado dentro de blocos reservados.
-* **d) Correta.** A alternativa distingue adequadamente fragmentação externa em memória e interna em blocos de arquivos.
-* **e) Incorreta.** Segmentação e alocação contígua continuam sujeitas a buracos externos.
+- **a) Incorreta.** Na paginação apresentada, páginas e quadros possuem tamanho fixo, evitando fragmentação externa.
+- **b) Incorreta.** A alocação contígua de arquivos sofre com fragmentação externa e dificuldade de crescimento.
+- **c) Incorreta.** Fragmentação interna decorre de espaço não utilizado dentro de blocos reservados.
+- **d) Correta.** A alternativa distingue adequadamente fragmentação externa em memória e interna em blocos de arquivos.
+- **e) Incorreta.** Segmentação e alocação contígua continuam sujeitas a buracos externos.
 
 ## Questão 29
 
 **Resposta correta: B**
 
-* **a) Incorreta.** Dados alocados dinamicamente ficam no HEAP, não na seção de código.
-* **b) Correta.** A alternativa relaciona corretamente HEAP, interface de arquivos, blocos, drivers e controladores.
-* **c) Incorreta.** Leitura de arquivos depende das camadas de sistema de arquivos e não é realizada pelo compilador.
-* **d) Incorreta.** O arquivo é lido em execução; não precisa ser incorporado ao processo na compilação.
-* **e) Incorreta.** MMU trata mapeamento de memória; sistema de arquivos trata localização persistente de dados em armazenamento.
+- **a) Incorreta.** Dados alocados dinamicamente ficam no HEAP, não na seção de código.
+- **b) Correta.** A alternativa relaciona corretamente HEAP, interface de arquivos, blocos, drivers e controladores.
+- **c) Incorreta.** Leitura de arquivos depende das camadas de sistema de arquivos e não é realizada pelo compilador.
+- **d) Incorreta.** O arquivo é lido em execução; não precisa ser incorporado ao processo na compilação.
+- **e) Incorreta.** MMU trata mapeamento de memória; sistema de arquivos trata localização persistente de dados em armazenamento.
 
 ## Questão 30
 
@@ -864,24 +864,24 @@ Cálculo:
 
 Cálculos da memória:
 
-* Worst-fit escolhe a maior área: `28 MB`.
-* Sobra: `28 - 18 = 10 MB`.
+- Worst-fit escolhe a maior área: `28 MB`.
+- Sobra: `28 - 18 = 10 MB`.
 
 Cálculos do arquivo:
 
-* `2 × 4096 = 8192 bytes`.
+- `2 × 4096 = 8192 bytes`.
 
-* `8192 - 6214 = 1978 bytes`.
+- `8192 - 6214 = 1978 bytes`.
 
-* **a) Correta.** Apresenta corretamente a escolha do worst-fit e a ocupação do arquivo em blocos.
+- **a) Correta.** Apresenta corretamente a escolha do worst-fit e a ocupação do arquivo em blocos.
 
-* **b) Incorreta.** Worst-fit escolhe a maior área disponível, não a de 20 MB; além disso, um bloco é insuficiente.
+- **b) Incorreta.** Worst-fit escolhe a maior área disponível, não a de 20 MB; além disso, um bloco é insuficiente.
 
-* **c) Incorreta.** A área de 12 MB não comporta o processo.
+- **c) Incorreta.** A área de 12 MB não comporta o processo.
 
-* **d) Incorreta.** Não é necessário que exista uma área exatamente igual ao pedido.
+- **d) Incorreta.** Não é necessário que exista uma área exatamente igual ao pedido.
 
-* **e) Incorreta.** A sobra na memória e o desperdício no arquivo foram calculados incorretamente.
+- **e) Incorreta.** A sobra na memória e o desperdício no arquivo foram calculados incorretamente.
 
 ---
 

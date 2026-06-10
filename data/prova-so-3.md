@@ -1,4 +1,4 @@
-Usei o texto consolidado fornecido como limite de conteúdo da avaliação.  A pesquisa externa foi usada apenas para conferência técnica: a documentação do kernel Linux confirma E/S mapeada em memória e o carregamento de `initrd`; o manual do GNU GRUB confirma o papel do bootloader em carregar o kernel e transferir-lhe o controle. ([Linux Kernel Archives][1])
+Usei o texto consolidado fornecido como limite de conteúdo da avaliação. A pesquisa externa foi usada apenas para conferência técnica: a documentação do kernel Linux confirma E/S mapeada em memória e o carregamento de `initrd`; o manual do GNU GRUB confirma o papel do bootloader em carregar o kernel e transferir-lhe o controle. ([Linux Kernel Archives][1])
 
 **Adaptação de formato:** como você solicitou explicitamente **30 questões, todas de múltipla escolha a–e**, a prova abaixo utiliza alternativa única correta em cada questão. Assim, “gabarito de somatória” foi substituído por **gabarito objetivo**, e a seção de respostas discursivas consta como **não aplicável**.
 
@@ -181,8 +181,8 @@ e) Toda posição de memória física passa a representar simultaneamente um dis
 
 No exemplo de uma impressora LPT mapeada em memória, foram associados os seguintes endereços:
 
-* `FFE0`: caractere a ser impresso;
-* `FFE2`: status da impressora.
+- `FFE0`: caractere a ser impresso;
+- `FFE2`: status da impressora.
 
 Assinale a alternativa correta.
 
@@ -871,13 +871,13 @@ O modelo originalmente mencionado para “somatória” não foi utilizado porqu
 
 A avaliação foi estruturada para verificar:
 
-* reconhecimento de definições essenciais, sem depender apenas de memorização;
-* distinção entre E/S em porta, E/S mapeada em memória e DMA;
-* diferenciação entre buffering, caching e spooling;
-* interpretação do comportamento de processos em operações bloqueantes e assíncronas;
-* compreensão da função de drivers, sockets, temporizadores, kernel e microkernel;
-* análise ordenada da inicialização Linux por BIOS/MBR ou EFI/UEFI, GRUB, kernel e processo inicial;
-* integração entre bootloader, drivers e gerenciamento de dispositivos.
+- reconhecimento de definições essenciais, sem depender apenas de memorização;
+- distinção entre E/S em porta, E/S mapeada em memória e DMA;
+- diferenciação entre buffering, caching e spooling;
+- interpretação do comportamento de processos em operações bloqueantes e assíncronas;
+- compreensão da função de drivers, sockets, temporizadores, kernel e microkernel;
+- análise ordenada da inicialização Linux por BIOS/MBR ou EFI/UEFI, GRUB, kernel e processo inicial;
+- integração entre bootloader, drivers e gerenciamento de dispositivos.
 
 As alternativas incorretas foram construídas por troca de função, inversão de etapas, atribuição ao mecanismo errado ou associação inadequada entre conceitos tecnicamente próximos.
 

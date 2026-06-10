@@ -159,8 +159,8 @@ e) `134.257`
 
 Um processo utiliza alocação contígua com:
 
-* registrador base = `110.000`;
-* registrador limite = `45.000`.
+- registrador base = `110.000`;
+- registrador limite = `45.000`.
 
 Assinale a alternativa correta.
 
@@ -176,8 +176,8 @@ e) O registrador limite deve ser somado ao endereço lógico para determinar o e
 
 Considere uma tabela de segmentos em que o segmento 4 possui:
 
-* base = `32.300`;
-* limite = `8.750`.
+- base = `32.300`;
+- limite = `8.750`.
 
 Um processo realiza acesso ao endereço lógico `[4:6.914]`.
 
@@ -207,8 +207,8 @@ e) São necessários 12 bits para o offset e 20 bits para identificar a página,
 
 Em um sistema com páginas de 4 KB, o endereço lógico hexadecimal `0000 5E9A` é dividido em:
 
-* página lógica `0000 5`;
-* offset `E9A`.
+- página lógica `0000 5`;
+- offset `E9A`.
 
 A tabela de páginas informa que a página lógica `0000 5` está armazenada no quadro físico `2F`.
 
@@ -226,10 +226,10 @@ e) `0000 5E2F`
 
 Considere quatro áreas livres de memória:
 
-* A1 = `20 MB`;
-* A2 = `8 MB`;
-* A3 = `12 MB`;
-* A4 = `28 MB`.
+- A1 = `20 MB`;
+- A2 = `8 MB`;
+- A3 = `12 MB`;
+- A4 = `28 MB`.
 
 Um novo processo solicita `10 MB`.
 
@@ -247,9 +247,9 @@ e) Nenhuma estratégia pode atender ao pedido, porque não existe uma área livr
 
 Uma memória apresenta processos separados por lacunas. Três estratégias de compactação produzem uma única região livre contínua suficiente:
 
-* mover P2 e P3: custo total de `60 MB`;
-* mover somente P3: custo de `40 MB`;
-* mover somente P2: custo de `20 MB`.
+- mover P2 e P3: custo total de `60 MB`;
+- mover somente P3: custo de `40 MB`;
+- mover somente P2: custo de `20 MB`.
 
 Assinale a alternativa correta.
 
@@ -298,81 +298,81 @@ Como esta avaliação foi solicitada integralmente em formato de múltipla escol
 
 **Resposta correta: C**
 
-* **a) Incorreta.** A RAM é memória principal e volátil; arquivos persistentes são mantidos em dispositivos não voláteis.
-* **b) Incorreta.** A cache L1 é menor e mais rápida que a RAM, não maior e mais lenta.
-* **c) Correta.** A memória principal mantém processos, estruturas do núcleo, bibliotecas e demais dados necessários à execução.
-* **d) Incorreta.** Ao descer na hierarquia, tende a aumentar a capacidade e diminuir a velocidade e o custo por byte.
-* **e) Incorreta.** O material considera, em sentido amplo, discos e unidades externas como formas de memória ou armazenamento.
+- **a) Incorreta.** A RAM é memória principal e volátil; arquivos persistentes são mantidos em dispositivos não voláteis.
+- **b) Incorreta.** A cache L1 é menor e mais rápida que a RAM, não maior e mais lenta.
+- **c) Correta.** A memória principal mantém processos, estruturas do núcleo, bibliotecas e demais dados necessários à execução.
+- **d) Incorreta.** Ao descer na hierarquia, tende a aumentar a capacidade e diminuir a velocidade e o custo por byte.
+- **e) Incorreta.** O material considera, em sentido amplo, discos e unidades externas como formas de memória ou armazenamento.
 
 ## Questão 2
 
 **Resposta correta: A**
 
-* **a) Correta.** O processador produz endereços lógicos, e a MMU pode convertê-los em endereços físicos.
-* **b) Incorreta.** Endereços físicos correspondem a posições reais da memória, não a símbolos de compilação.
-* **c) Incorreta.** A MMU é um componente de hardware, não uma biblioteca do processo.
-* **d) Incorreta.** A existência da MMU permite que endereços lógicos sejam diferentes dos físicos.
-* **e) Incorreta.** Um acesso inválido produz interrupção ou exceção, não realocação silenciosa.
+- **a) Correta.** O processador produz endereços lógicos, e a MMU pode convertê-los em endereços físicos.
+- **b) Incorreta.** Endereços físicos correspondem a posições reais da memória, não a símbolos de compilação.
+- **c) Incorreta.** A MMU é um componente de hardware, não uma biblioteca do processo.
+- **d) Incorreta.** A existência da MMU permite que endereços lógicos sejam diferentes dos físicos.
+- **e) Incorreta.** Um acesso inválido produz interrupção ou exceção, não realocação silenciosa.
 
 ## Questão 3
 
 **Resposta correta: E**
 
-* **a) Incorreta.** TEXT contém código e normalmente permite leitura e execução, não escrita.
-* **b) Incorreta.** DATA contém dados estáticos, como variáveis globais e locais estáticas.
-* **c) Incorreta.** `malloc` e `free` operam sobre o HEAP, não sobre a STACK.
-* **d) Incorreta.** Threads adicionais possuem suas próprias pilhas.
-* **e) Correta.** O HEAP armazena memória dinâmica e pode apresentar fragmentação entre blocos alocados.
+- **a) Incorreta.** TEXT contém código e normalmente permite leitura e execução, não escrita.
+- **b) Incorreta.** DATA contém dados estáticos, como variáveis globais e locais estáticas.
+- **c) Incorreta.** `malloc` e `free` operam sobre o HEAP, não sobre a STACK.
+- **d) Incorreta.** Threads adicionais possuem suas próprias pilhas.
+- **e) Correta.** O HEAP armazena memória dinâmica e pode apresentar fragmentação entre blocos alocados.
 
 ## Questão 4
 
 **Resposta correta: B**
 
-* **a) Incorreta.** A combinação de arquivos-objeto e bibliotecas é função do ligador, não da etapa de carga.
-* **b) Correta.** O ligador resolve símbolos e produz o executável a partir de objetos e bibliotecas.
-* **c) Incorreta.** Durante a execução, a tradução normalmente é realizada por hardware, não por escolha manual do programador.
-* **d) Incorreta.** O código independente de posição utiliza justamente referências relativas.
-* **e) Incorreta.** Bibliotecas dinâmicas podem ter endereços definidos durante a carga.
+- **a) Incorreta.** A combinação de arquivos-objeto e bibliotecas é função do ligador, não da etapa de carga.
+- **b) Correta.** O ligador resolve símbolos e produz o executável a partir de objetos e bibliotecas.
+- **c) Incorreta.** Durante a execução, a tradução normalmente é realizada por hardware, não por escolha manual do programador.
+- **d) Incorreta.** O código independente de posição utiliza justamente referências relativas.
+- **e) Incorreta.** Bibliotecas dinâmicas podem ter endereços definidos durante a carga.
 
 ## Questão 5
 
 **Resposta correta: D**
 
-* **a) Incorreta.** Um arquivo pode ser tratado simplesmente como sequência de bytes.
-* **b) Incorreta.** Localização indica dispositivo e posição interna de armazenamento.
-* **c) Incorreta.** Permissões regulam operações como leitura, escrita e execução.
-* **d) Correta.** A alternativa reúne corretamente conceito e atributos comuns de arquivos.
-* **e) Incorreta.** Um mesmo sistema de arquivos pode armazenar arquivos de formatos diversos.
+- **a) Incorreta.** Um arquivo pode ser tratado simplesmente como sequência de bytes.
+- **b) Incorreta.** Localização indica dispositivo e posição interna de armazenamento.
+- **c) Incorreta.** Permissões regulam operações como leitura, escrita e execução.
+- **d) Correta.** A alternativa reúne corretamente conceito e atributos comuns de arquivos.
+- **e) Incorreta.** Um mesmo sistema de arquivos pode armazenar arquivos de formatos diversos.
 
 ## Questão 6
 
 **Resposta correta: C**
 
-* **a) Incorreta.** Diretórios mantêm referências, não os bytes internos de todos os conteúdos referenciados.
-* **b) Incorreta.** Caminho absoluto parte da raiz; caminho relativo parte do diretório de trabalho.
-* **c) Correta.** Diretórios podem ser implementados como arquivos estruturados contendo entradas.
-* **d) Incorreta.** O separador típico no UNIX é `/`.
-* **e) Incorreta.** `.` representa o próprio diretório e `..` representa o diretório pai.
+- **a) Incorreta.** Diretórios mantêm referências, não os bytes internos de todos os conteúdos referenciados.
+- **b) Incorreta.** Caminho absoluto parte da raiz; caminho relativo parte do diretório de trabalho.
+- **c) Correta.** Diretórios podem ser implementados como arquivos estruturados contendo entradas.
+- **d) Incorreta.** O separador típico no UNIX é `/`.
+- **e) Incorreta.** `.` representa o próprio diretório e `..` representa o diretório pai.
 
 ## Questão 7
 
 **Resposta correta: E**
 
-* **a) Incorreta.** Manter a tradução de P1 para P2 violaria o isolamento entre processos.
-* **b) Incorreta.** Processos possuem espaços protegidos, ainda que coexistam na memória.
-* **c) Incorreta.** A MMU traduz endereços; não converte instruções em linguagem de alto nível.
-* **d) Incorreta.** A MMU participa da proteção durante a execução.
-* **e) Correta.** A troca de contexto exige atualização das informações usadas para traduzir e proteger o espaço do processo corrente.
+- **a) Incorreta.** Manter a tradução de P1 para P2 violaria o isolamento entre processos.
+- **b) Incorreta.** Processos possuem espaços protegidos, ainda que coexistam na memória.
+- **c) Incorreta.** A MMU traduz endereços; não converte instruções em linguagem de alto nível.
+- **d) Incorreta.** A MMU participa da proteção durante a execução.
+- **e) Correta.** A troca de contexto exige atualização das informações usadas para traduzir e proteger o espaço do processo corrente.
 
 ## Questão 8
 
 **Resposta correta: A**
 
-* **a) Correta.** Partições fixas limitam a quantidade de processos carregados e podem desperdiçar espaço interno.
-* **b) Incorreta.** A alocação contígua é sujeita à fragmentação externa.
-* **c) Incorreta.** Um processo precisa caber em uma partição individual.
-* **d) Incorreta.** A alternativa descreve paginação, não alocação contígua.
-* **e) Incorreta.** A proteção exige verificar se o endereço lógico está dentro do limite permitido.
+- **a) Correta.** Partições fixas limitam a quantidade de processos carregados e podem desperdiçar espaço interno.
+- **b) Incorreta.** A alocação contígua é sujeita à fragmentação externa.
+- **c) Incorreta.** Um processo precisa caber em uma partição individual.
+- **d) Incorreta.** A alternativa descreve paginação, não alocação contígua.
+- **e) Incorreta.** A proteção exige verificar se o endereço lógico está dentro do limite permitido.
 
 ## Questão 9
 
@@ -382,11 +382,11 @@ Cálculo:
 
 `110.000 + 14.257 = 124.257`
 
-* **a) Incorreta.** Corresponde a uma subtração inexistente no mecanismo apresentado.
-* **b) Incorreta.** Considera apenas a base, ignorando o endereço lógico.
-* **c) Incorreta.** Soma apenas parte do deslocamento necessário.
-* **d) Correta.** O endereço físico é a soma entre realocação e endereço lógico.
-* **e) Incorreta.** Produz valor superior ao resultado da soma correta.
+- **a) Incorreta.** Corresponde a uma subtração inexistente no mecanismo apresentado.
+- **b) Incorreta.** Considera apenas a base, ignorando o endereço lógico.
+- **c) Incorreta.** Soma apenas parte do deslocamento necessário.
+- **d) Correta.** O endereço físico é a soma entre realocação e endereço lógico.
+- **e) Incorreta.** Produz valor superior ao resultado da soma correta.
 
 ## Questão 10
 
@@ -396,11 +396,11 @@ A faixa válida é de `110.000` até `154.999`, pois:
 
 `110.000 + 45.000 - 1 = 154.999`
 
-* **a) Incorreta.** Um endereço lógico igual ao limite já deve ser rejeitado.
-* **b) Correta.** `44.999` é o último offset válido, e `45.000` está fora da partição.
-* **c) Incorreta.** Endereços inferiores ao limite são permitidos.
-* **d) Incorreta.** O limite representa o tamanho, não o último offset válido.
-* **e) Incorreta.** A base é somada ao endereço lógico; o limite é usado na validação.
+- **a) Incorreta.** Um endereço lógico igual ao limite já deve ser rejeitado.
+- **b) Correta.** `44.999` é o último offset válido, e `45.000` está fora da partição.
+- **c) Incorreta.** Endereços inferiores ao limite são permitidos.
+- **d) Incorreta.** O limite representa o tamanho, não o último offset válido.
+- **e) Incorreta.** A base é somada ao endereço lógico; o limite é usado na validação.
 
 ## Questão 11
 
@@ -412,11 +412,11 @@ Cálculos:
 
 `32.300 + 8.750 - 1 = 41.049`
 
-* **a) Incorreta.** Um offset válido deve ser menor que o limite.
-* **b) Incorreta.** O cálculo não envolve subtrair o número do segmento.
-* **c) Correta.** Apresenta corretamente a tradução e o último endereço permitido.
-* **d) Incorreta.** Confunde limite do segmento com endereço efetivamente acessado.
-* **e) Incorreta.** Segmentos podem ser posicionados separadamente na memória física.
+- **a) Incorreta.** Um offset válido deve ser menor que o limite.
+- **b) Incorreta.** O cálculo não envolve subtrair o número do segmento.
+- **c) Correta.** Apresenta corretamente a tradução e o último endereço permitido.
+- **d) Incorreta.** Confunde limite do segmento com endereço efetivamente acessado.
+- **e) Incorreta.** Segmentos podem ser posicionados separadamente na memória física.
 
 ## Questão 12
 
@@ -424,11 +424,11 @@ Cálculos:
 
 Como `4 KB = 4096 bytes = 2¹²`, são necessários 12 bits para o offset. Restam 20 bits para o número da página.
 
-* **a) Incorreta.** Quatro bits representariam apenas 16 posições internas.
-* **b) Incorreta.** Dez bits permitiriam páginas de apenas 1024 bytes.
-* **c) Incorreta.** Dezesseis bits indicariam páginas de 64 KB.
-* **d) Incorreta.** Inverte os campos de página e offset.
-* **e) Correta.** A divisão 20/12 permite alcançar `2³²` bytes, equivalentes a 4 GB.
+- **a) Incorreta.** Quatro bits representariam apenas 16 posições internas.
+- **b) Incorreta.** Dez bits permitiriam páginas de apenas 1024 bytes.
+- **c) Incorreta.** Dezesseis bits indicariam páginas de 64 KB.
+- **d) Incorreta.** Inverte os campos de página e offset.
+- **e) Correta.** A divisão 20/12 permite alcançar `2³²` bytes, equivalentes a 4 GB.
 
 ## Questão 13
 
@@ -436,31 +436,31 @@ Como `4 KB = 4096 bytes = 2¹²`, são necessários 12 bits para o offset. Resta
 
 O offset permanece `E9A`, enquanto o número da página lógica é substituído pelo quadro físico `2F`.
 
-* **a) Incorreta.** Apresenta montagem incompleta e deslocada.
-* **b) Correta.** O endereço físico formado é `0002 FE9A`.
-* **c) Incorreta.** Mantém indevidamente o número da página lógica.
-* **d) Incorreta.** Combina quadro e endereço lógico completo sem preservar a estrutura correta.
-* **e) Incorreta.** Apenas concatena campos em ordem incorreta.
+- **a) Incorreta.** Apresenta montagem incompleta e deslocada.
+- **b) Correta.** O endereço físico formado é `0002 FE9A`.
+- **c) Incorreta.** Mantém indevidamente o número da página lógica.
+- **d) Incorreta.** Combina quadro e endereço lógico completo sem preservar a estrutura correta.
+- **e) Incorreta.** Apenas concatena campos em ordem incorreta.
 
 ## Questão 14
 
 **Resposta correta: A**
 
-* **a) Correta.** First-fit escolhe a primeira área suficiente, A1; best-fit escolhe a menor suficiente, A3; worst-fit escolhe a maior, A4.
-* **b) Incorreta.** A2 possui apenas 8 MB e não comporta o pedido de 10 MB.
-* **c) Incorreta.** Best-fit procura a menor área adequada, não a maior.
-* **d) Incorreta.** Worst-fit escolhe a maior área disponível.
-* **e) Incorreta.** A área livre não precisa ter tamanho exatamente igual ao pedido.
+- **a) Correta.** First-fit escolhe a primeira área suficiente, A1; best-fit escolhe a menor suficiente, A3; worst-fit escolhe a maior, A4.
+- **b) Incorreta.** A2 possui apenas 8 MB e não comporta o pedido de 10 MB.
+- **c) Incorreta.** Best-fit procura a menor área adequada, não a maior.
+- **d) Incorreta.** Worst-fit escolhe a maior área disponível.
+- **e) Incorreta.** A área livre não precisa ter tamanho exatamente igual ao pedido.
 
 ## Questão 15
 
 **Resposta correta: D**
 
-* **a) Incorreta.** Mover mais processos aumenta, neste cenário, o volume deslocado.
-* **b) Incorreta.** O próprio cenário informa que mover apenas P2 também gera a compactação desejada.
-* **c) Incorreta.** O resultado espacial pode ser igual, mas o custo de movimentação é diferente.
-* **d) Correta.** Mover somente P2 custa 20 MB, menor valor entre as soluções.
-* **e) Incorreta.** A desfragmentação exige atualização das informações de alocação e interrupção da execução durante a movimentação.
+- **a) Incorreta.** Mover mais processos aumenta, neste cenário, o volume deslocado.
+- **b) Incorreta.** O próprio cenário informa que mover apenas P2 também gera a compactação desejada.
+- **c) Incorreta.** O resultado espacial pode ser igual, mas o custo de movimentação é diferente.
+- **d) Correta.** Mover somente P2 custa 20 MB, menor valor entre as soluções.
+- **e) Incorreta.** A desfragmentação exige atualização das informações de alocação e interrupção da execução durante a movimentação.
 
 ---
 

@@ -92,4 +92,3 @@ b) O atributo localização informa somente o nome apresentado ao usuário, sem 
 c) Permissões de acesso definem apenas o tamanho máximo do arquivo e não controlam operações de leitura ou escrita.
 d) Um arquivo é uma unidade de armazenamento em dispositivo não volátil, podendo possuir atributos como nome, tamanho, proprietário, permissões e localização.
 e) Arquivos de texto, imagens e vídeos não podem coexistir em um mesmo sistema de arquivos porque utilizam formatos internos diferentes.
-

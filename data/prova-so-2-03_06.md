@@ -10,7 +10,7 @@
 
 ## Questão 1 (1,0 ponto)
 
-No projeto de sistemas operacionais, o mapeamento de instruções e dados contidos no código-fonte para endereços físicos de memória (*address binding*) pode ocorrer em diferentes etapas do ciclo de desenvolvimento e execução de um programa.
+No projeto de sistemas operacionais, o mapeamento de instruções e dados contidos no código-fonte para endereços físicos de memória (_address binding_) pode ocorrer em diferentes etapas do ciclo de desenvolvimento e execução de um programa.
 
 Suponha que um engenheiro de software esteja desenvolvendo uma aplicação industrial crítica para um microcontrolador que executa o código diretamente a partir da memória flash (ROM). Como a posição física inicial onde o programa residirá na memória é fixa e conhecida em tempo de projeto, o sistema não possui (e nem necessita de) uma Unidade de Gerenciamento de Memória (MMU) ou carregador dinâmico.
 
@@ -18,13 +18,13 @@ Considerando os cinco momentos de amarração de endereços (edição, compilaç
 
 **a)** Na edição, onde o programador define manualmente os endereços físicos de todas as variáveis globais no editor de texto, eliminando a necessidade de ferramentas de automação e garantindo a portabilidade do código entre diferentes hardwares.
 
-**b)** Na compilação (ou ligação), gerando código absoluto; os endereços físicos são fixados no arquivo binário final, o que maximiza o desempenho e elimina qualquer *overhead* de tradução de endereços durante a inicialização ou execução do sistema.
+**b)** Na compilação (ou ligação), gerando código absoluto; os endereços físicos são fixados no arquivo binário final, o que maximiza o desempenho e elimina qualquer _overhead_ de tradução de endereços durante a inicialização ou execução do sistema.
 
-**c)** No carregamento (*load time*), momento em que o compilador gera um código estritamente relocável e o sistema operacional calcula os deslocamentos de memória na RAM toda vez que o dispositivo é energizado.
+**c)** No carregamento (_load time_), momento em que o compilador gera um código estritamente relocável e o sistema operacional calcula os deslocamentos de memória na RAM toda vez que o dispositivo é energizado.
 
-**d)** Na execução (*runtime*), pois mesmo em hardwares simples sem MMU, o mapeamento dinâmico instrução por instrução feito via software é o único mecanismo capaz de garantir que o programa não sofra com travamentos por fragmentação.
+**d)** Na execução (_runtime_), pois mesmo em hardwares simples sem MMU, o mapeamento dinâmico instrução por instrução feito via software é o único mecanismo capaz de garantir que o programa não sofra com travamentos por fragmentação.
 
-**e)** Na ligação (*link time*) de forma dinâmica, onde as referências de memória são deixadas em aberto no arquivo binário para que o módulo seja acoplado a outras bibliotecas apenas quando o processador executar a primeira instrução de desvio (*jump*).
+**e)** Na ligação (_link time_) de forma dinâmica, onde as referências de memória são deixadas em aberto no arquivo binário para que o módulo seja acoplado a outras bibliotecas apenas quando o processador executar a primeira instrução de desvio (_jump_).
 
 ---
 
@@ -36,13 +36,13 @@ Considere um cenário onde uma função em linguagem C realiza a leitura de dado
 
 Assinale a alternativa que descreve corretamente a distribuição desses elementos nos respectivos espaços de memória e o comportamento dessas regiões.
 
-**a)** O contador `int i` é armazenado no *heap* devido à sua natureza volátil; o espaço alocado via `malloc()` fica no *stack*, crescendo em direção aos endereços mais altos da memória.
+**a)** O contador `int i` é armazenado no _heap_ devido à sua natureza volátil; o espaço alocado via `malloc()` fica no _stack_, crescendo em direção aos endereços mais altos da memória.
 
 **b)** O código binário das instruções é armazenado no segmento **text** com permissões de escrita e execução; a variável global `status_sistema` fica no segmento **data**, que possui tamanho estático definido em tempo de compilação.
 
-**c)** O contador `int i` é alocado no **stack**; o espaço para os dados do sensor gerado por `malloc()` é alocado no **heap**; e as instruções do programa residem no segmento **text**, que geralmente é marcado como somente leitura (*read-only*).
+**c)** O contador `int i` é alocado no **stack**; o espaço para os dados do sensor gerado por `malloc()` é alocado no **heap**; e as instruções do programa residem no segmento **text**, que geralmente é marcado como somente leitura (_read-only_).
 
-**d)** As regiões do **heap** e do **stack** possuem tamanhos fixos idênticos alocados na inicialização do processo e crescem na mesma direção da memória, evitando que uma região sobrescreva a outra em caso de *overflow*.
+**d)** As regiões do **heap** e do **stack** possuem tamanhos fixos idênticos alocados na inicialização do processo e crescem na mesma direção da memória, evitando que uma região sobrescreva a outra em caso de _overflow_.
 
 **e)** A variável global `status_sistema` é alocada no **stack** por ser compartilhada entre funções, enquanto todas as constantes do código e literais de string são empurradas para o **heap** durante a execução.
 
@@ -52,7 +52,7 @@ Assinale a alternativa que descreve corretamente a distribuição desses element
 
 No gerenciamento de memória por **alocação contígua**, cada programa ocupa um bloco único e ininterrupto de endereços físicos na memória RAM. À medida que processos são criados e encerrados, a memória tende a se fragmentar.
 
-Considere um sistema operacional que utiliza alocação contígua com partições dinâmicas e que, em um determinado instante, possui quatro lacunas (*holes*) livres na memória, ordenadas pelo endereço físico inicial:
+Considere um sistema operacional que utiliza alocação contígua com partições dinâmicas e que, em um determinado instante, possui quatro lacunas (_holes_) livres na memória, ordenadas pelo endereço físico inicial:
 
 | Lacuna   | Tamanho |
 | -------- | ------- |
@@ -63,21 +63,21 @@ Considere um sistema operacional que utiliza alocação contígua com partiçõe
 
 Suponha que três novos processos de tamanho fixo cheguem consecutivamente na seguinte ordem de requisição:
 
-* **P₁:** 120 KB
-* **P₂:** 280 KB
-* **P₃:** 180 KB
+- **P₁:** 120 KB
+- **P₂:** 280 KB
+- **P₃:** 180 KB
 
 Considerando a aplicação estrita do algoritmo **best-fit** (melhor escolha) para acomodar essa sequência de processos, assinale a alternativa correta:
 
 **a)** O processo P₁ será alocado na Lacuna 1, P₂ na Lacuna 4, e P₃ ocupará o restante da Lacuna 1; o sistema sofrerá exclusivamente de fragmentação interna.
 
-**b)** O algoritmo *best-fit* falhará ao tentar alocar o processo P₃, resultando em um cenário de fragmentação externa, cuja única solução imediata sem *swap* seria um processo de compactação de memória.
+**b)** O algoritmo _best-fit_ falhará ao tentar alocar o processo P₃, resultando em um cenário de fragmentação externa, cuja única solução imediata sem _swap_ seria um processo de compactação de memória.
 
 **c)** Todos os três processos serão alocados com sucesso, restando ao final do processo uma lacuna totalmente livre de 500 KB (Lacuna 2) e gerando pequenos resíduos de fragmentação externa nas demais.
 
 **d)** O processo P₂ será obrigatoriamente alocado na Lacuna 2 por ser a maior disponível, seguindo a premissa do algoritmo de deixar o maior espaço residual possível para requisições futuras.
 
-**e)** A alocação contígua dinâmica com *best-fit* elimina completamente a fragmentação externa, pois o algoritmo varre a memória de forma linear para garantir que os processos fiquem perfeitamente compactados no topo da RAM.
+**e)** A alocação contígua dinâmica com _best-fit_ elimina completamente a fragmentação externa, pois o algoritmo varre a memória de forma linear para garantir que os processos fiquem perfeitamente compactados no topo da RAM.
 
 ---
 
@@ -99,17 +99,17 @@ No subsistema de gerência de arquivos de um sistema operacional, a identificaç
 
 Considere um cenário em que um usuário mal-intencionado altere manualmente o nome de um script malicioso em Python de `script.py` para `foto.png` em um servidor Linux, na tentativa de ludibriar o administrador do sistema.
 
-Com base nos conceitos de organização de arquivos e *magic numbers*, assinale a alternativa que descreve corretamente o comportamento do sistema operacional ou das ferramentas de auditoria padrão (como o comando `file` do Linux) diante dessa alteração:
+Com base nos conceitos de organização de arquivos e _magic numbers_, assinale a alternativa que descreve corretamente o comportamento do sistema operacional ou das ferramentas de auditoria padrão (como o comando `file` do Linux) diante dessa alteração:
 
-**a)** O sistema operacional Linux passará a renderizar o arquivo como uma imagem rasterizada estática, pois a alteração da extensão modifica automaticamente o cabeçalho (*header*) interno do arquivo para o formato padrão PNG.
+**a)** O sistema operacional Linux passará a renderizar o arquivo como uma imagem rasterizada estática, pois a alteração da extensão modifica automaticamente o cabeçalho (_header_) interno do arquivo para o formato padrão PNG.
 
 **b)** O comando `file` falhará em identificar o arquivo, gerando um erro de segmentação, uma vez que a tabela de alocação de arquivos do sistema de arquivos (como o EXT4) exige congruência absoluta entre extensão nominal e formato binário.
 
-**c)** O arquivo continuará sendo identificado essencialmente como um arquivo de texto/script (código-fonte), pois o sistema lerá os primeiros bytes do arquivo para verificar o *magic number*, ignorando a extensão `.png` para fins de determinação do tipo real.
+**c)** O arquivo continuará sendo identificado essencialmente como um arquivo de texto/script (código-fonte), pois o sistema lerá os primeiros bytes do arquivo para verificar o _magic number_, ignorando a extensão `.png` para fins de determinação do tipo real.
 
-**d)** Os *magic numbers* são metadados armazenados exclusivamente fora do arquivo, dentro dos nós de índice (*inodes*); portanto, ao alterar a extensão, o *inode* é atualizado automaticamente para refletir que o arquivo agora armazena pixels e não texto executável.
+**d)** Os _magic numbers_ são metadados armazenados exclusivamente fora do arquivo, dentro dos nós de índice (_inodes_); portanto, ao alterar a extensão, o _inode_ é atualizado automaticamente para refletir que o arquivo agora armazena pixels e não texto executável.
 
-**e)** O interpretador Python do sistema operacional se recusará a executar o arquivo se ele for chamado via linha de comando, pois os sistemas operacionais modernos bloqueiam a execução de qualquer arquivo cujo *magic number* não coincida textualmente com a sua extensão nominal.
+**e)** O interpretador Python do sistema operacional se recusará a executar o arquivo se ele for chamado via linha de comando, pois os sistemas operacionais modernos bloqueiam a execução de qualquer arquivo cujo _magic number_ não coincida textualmente com a sua extensão nominal.
 
 ---
 
@@ -123,11 +123,11 @@ Assinale a alternativa correta:
 
 **a)** Esse método elimina completamente a fragmentação interna, uma vez que os blocos de disco podem ser preenchidos byte a byte de forma contínua, independentemente do tamanho padrão do bloco do sistema.
 
-**b)** O acesso aleatório (*direto*) a um bloco específico no meio de um arquivo grande é altamente eficiente, pois o sistema operacional consegue calcular o endereço físico exato do bloco realizando uma operação aritmética simples a partir do bloco inicial.
+**b)** O acesso aleatório (_direto_) a um bloco específico no meio de um arquivo grande é altamente eficiente, pois o sistema operacional consegue calcular o endereço físico exato do bloco realizando uma operação aritmética simples a partir do bloco inicial.
 
 **c)** A confiabilidade é um ponto forte desse sistema de alocação, pois a perda ou corrupção de um único bloco no meio do arquivo não afeta o acesso aos blocos subsequentes.
 
-**d)** O tamanho útil de armazenamento de dados dentro de cada bloco é ligeiramente menor do que o tamanho físico do bloco de disco, devido ao *overhead* de espaço necessário para armazenar o ponteiro para o próximo bloco.
+**d)** O tamanho útil de armazenamento de dados dentro de cada bloco é ligeiramente menor do que o tamanho físico do bloco de disco, devido ao _overhead_ de espaço necessário para armazenar o ponteiro para o próximo bloco.
 
 **e)** Para contornar o problema do acesso sequencial lento, a alocação encadeada pura exige o uso obrigatório de uma Tabela de Alocação de Arquivos (FAT) residente em memória RAM, descaracterizando o armazenamento de ponteiros dentro dos próprios blocos de disco.
 
@@ -149,7 +149,7 @@ Considere um sistema de arquivos que utiliza **alocação indexada pura** (onde 
 
 **d)** Caso um arquivo precise crescer além do limite do bloco de índice único, o sistema operacional é obrigado a realocar fisicamente todo o conteúdo do arquivo para uma nova região contígua do disco através de desfragmentação em tempo de execução.
 
-**e)** O tamanho máximo de um arquivo é de **4 MB (1024 ponteiros × 4 KB)**, e a principal desvantagem do modelo puro é o desperdício de espaço (*overhead*) para arquivos muito pequenos, que gastam um bloco inteiro de 4 KB apenas para armazenar poucos índices.
+**e)** O tamanho máximo de um arquivo é de **4 MB (1024 ponteiros × 4 KB)**, e a principal desvantagem do modelo puro é o desperdício de espaço (_overhead_) para arquivos muito pequenos, que gastam um bloco inteiro de 4 KB apenas para armazenar poucos índices.
 
 ---
 
@@ -157,15 +157,15 @@ Considere um sistema de arquivos que utiliza **alocação indexada pura** (onde 
 
 Assuma um sistema de arquivos **EXT3** que utiliza **i-nodes** com:
 
-* 10 ponteiros diretos;
-* 2 ponteiros indiretos simples;
-* 2 ponteiros indiretos duplos;
-* 1 ponteiro indireto triplo.
+- 10 ponteiros diretos;
+- 2 ponteiros indiretos simples;
+- 2 ponteiros indiretos duplos;
+- 1 ponteiro indireto triplo.
 
 Considerando:
 
-* blocos de **2 KB**;
-* ponteiros de **32 bits**;
+- blocos de **2 KB**;
+- ponteiros de **32 bits**;
 
 qual o **tamanho máximo de um arquivo** neste sistema?
 
@@ -183,7 +183,7 @@ Apresente o cálculo detalhado.
 | 4a      | **16 KB**           | Tamanho da página = $2^{14}$ bytes = 16384 B = **16 KB**.                                                                               |
 | 4b      | **262.144 páginas** | Número de páginas = $2^{18}$.                                                                                                           |
 | 4c      | **4 GB**            | Memória máxima = $2^{32}$ bytes = **4 GB**.                                                                                             |
-| 5       | **C**               | Linux e o comando `file` identificam o tipo pelo conteúdo (*magic number*), não apenas pela extensão.                                   |
+| 5       | **C**               | Linux e o comando `file` identificam o tipo pelo conteúdo (_magic number_), não apenas pela extensão.                                   |
 | 6       | **D**               | Na alocação encadeada cada bloco reserva espaço para o ponteiro do próximo bloco.                                                       |
 | 7       | **E**               | Bloco de índice: $4096/4 = 1024$ ponteiros; cada ponteiro referencia 4 KB ⇒ $1024 \times 4\text{ KB} = 4\text{ MB}$.                    |
 | 8       | **≈ 257 GB**        | Cálculo usando 10 diretos, 2 indiretos simples, 2 duplos e 1 triplo com blocos de 2 KB e ponteiros de 4 bytes.                          |
@@ -193,6 +193,7 @@ Apresente o cálculo detalhado.
 ## Questão 8 — Cálculo Detalhado
 
 **Dados:**
+
 - Bloco = 2 KB = 2048 bytes
 - Ponteiro = 4 bytes
 - Ponteiros por bloco indireto: $2048 / 4 = 512$
