@@ -17,7 +17,7 @@ export function buildUserPrompt(question: DraftQuestion): string {
 			: "(empty — add a helpful explanation if you change options or the answer)";
 
 	return [
-		`Improve question for question #${question.id}.`,
+		`Improve question #${question.id}.`,
 		`The question already exists in the workspace with id ${question.id}.`,
 		"",
 		"Workflow:",
