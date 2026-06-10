@@ -1,38 +1,47 @@
 # Routes
 
-**Last updated:** 2026-06-03 — added exams.explanations route
+**Last updated:** 2026-06-10
 
-TanStack Router file-based routing. Entries in `src/routes/`.
+TanStack Router file-based. Árvore gerada em `src/routeTree.gen.ts` — não editar.
 
 ## Route Table
 
-| File | Path | Type | Data Source |
-|---|---|---|---|
-| `__root.tsx` | (root layout) | Layout | QueryClientProvider, theme, devtools, `<Scripts>` |
-| `index.tsx` | `/` | Page | `getExams` via TanStack Query |
-| `upload.tsx` | `/upload` | Page | — |
-| `exams.tsx` | `/exams` | Layout | `<Outlet>` renders child routes |
-| `exams.index.tsx` | `/exams/` | Page | `getExamsDetailed` via TanStack Query |
-| `exams.$id.tsx` | `/exams/$id` | Page (params) | `getExamDetail` via TanStack Query |
-| `quiz.$id.tsx` | `/quiz/$id` | Page (params) | `generateQuiz` via server fn, `quizStore` |
-| `exams.stats.tsx` | `/exams/stats` | Page | `getStats` via TanStack Query |
-| `config.tsx` | `/config` | Page | `getConfig`/`setConfig` via server fns |
-| `chat.tsx` | `/chat` | Page | Chat API stream |
-| `about.tsx` | `/about` | Page | — |
-| `memory.tsx` | `/memory` | Page | Memory visualization dashboard (uses MemoryVisualization from `components/memory-visualization/`) |
-| `exams.explanations.tsx` | `/exams/explanations` | Page | Explanation pipeline UI agent run tracking |
-| `api/chat.ts` | `/api/chat` | **API** (POST) | Server-side handler via `server.handlers` |
-| `api/ingest.ts` | `/api/ingest` | **API** (POST, SSE) | Server-side handler via `server.handlers` |
-| `api/test-connection.ts` | `/api/test-connection` | **API** (POST, SSE) | Server-side handler via `server.handlers` |
+| File                           | Path                   | Tipo         | Notas                                       |
+| ------------------------------ | ---------------------- | ------------ | ------------------------------------------- |
+| `__root.tsx`                   | layout                 | Shell        | nav, providers, theme — ver `__root/-*.tsx` |
+| `index.tsx`                    | `/`                    | Page         | dashboard                                   |
+| `exams.tsx`                    | `/exams`               | Layout       | `<Tabs>` + `<Outlet>`                       |
+| `exams.index.tsx`              | `/exams/`              | Page         | lista detalhada                             |
+| `exams.$id.tsx`                | `/exams/$id`           | Page         | detalhe do exame                            |
+| `exams.stats.tsx`              | `/exams/stats`         | Page         | estatísticas                                |
+| `exams.explanations/index.tsx` | `/exams/explanations`  | Page         | pipeline de explicações                     |
+| `exams.upload/index.tsx`       | `/exams/upload`        | Page         | upload + job queue UI                       |
+| `quiz.$id.tsx`                 | `/quiz/$id`            | Page         | quiz player                                 |
+| `config.tsx`                   | `/config`              | Page         | provider config                             |
+| `chat.tsx`                     | `/chat`                | Page         | chat multi-conversa                         |
+| `memory.tsx`                   | `/memory`              | Page         | memória R2+D1                               |
+| `about.tsx`                    | `/about`               | Page         | —                                           |
+| `api/chat/index.ts`            | `/api/chat`            | API POST     | streaming chat                              |
+| `api/ingest/index.ts`          | `/api/ingest`          | API POST SSE | pipeline ingestão                           |
+| `api/test-connection.ts`       | `/api/test-connection` | API POST SSE | teste de provider                           |
 
-## Conventions
-- **File naming:** TanStack Start file conventions — `__root.tsx` for layout, `$param` for dynamic params, `.` for path nesting (`quiz.$id.tsx` → `/quiz/$id`)
-- **API routes:** Use `server.handlers` on `createFileRoute` — `api/chat.ts`, `api/ingest.ts`, and `api/test-connection.ts` do this
-- **Data loading:** Route components call server functions via TanStack Query's `useSuspenseQuery` (not route loaders)
-- **No route guards/layouts** — single-user app, no auth
+## Colocated modules (`-prefix`)
+
+Lógica pesada fica ao lado da rota, não importada pelo client:
+
+- `api/ingest/-pipeline.ts`, `-extraction-pass.ts`, `-review-stage.ts`, `-sse-emitter.ts`, …
+- `exams.upload/-job-view-model.ts`, `-use-upload.ts`, `-output-processors.ts`, …
+- `api/chat/-handlers.ts`, `-streaming.ts`, `-tools.ts`
+
+## Convenções
+
+- Páginas delegam para `src/features/` — rotas ~10 linhas quando possível
+- API routes: `createFileRoute` + `server.handlers`
+- Data: `useSuspenseQuery` + server functions — não route loaders
+- Sem auth / guards — app single-user
+- SSE: `text/event-stream` em ingest e test-connection (`src/lib/sse-stream/`)
 
 ## Notable
-- `__root.tsx` is the shell — wraps `<Outlet>` with nav, query client, theme
-- `exams.tsx` is a layout route with route-driven `<Tabs>` + `<Outlet>` — child routes `exams.index.tsx`, `exams.stats.tsx`, and `exams.$id.tsx` render inside it
-- API routes live in `src/routes/api/` directory (chat, ingest, test-connection)
-- `api/test-connection.ts` and `api/ingest.ts` use SSE (text/event-stream) for streaming
+
+- `exams.upload/` substitui rota flat `upload.tsx`
+- `api/chat` e `api/ingest` são diretórios com `index.ts`, não arquivos únicos

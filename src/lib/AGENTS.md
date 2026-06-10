@@ -5,12 +5,15 @@ Shared utilities, R2+D1 hybrid memory layer, and SSE streaming primitives.
 ## Submodules
 
 ### `memory/` — R2+D1 Hybrid Memory
+
 MemoryManager singleton with lazy init (cached bucket/tables promises). R2 stores full content blobs; D1 stores metadata + search_text for queries. Supports quiz sessions, topic notes, question banks, web research, user stats, and profile content. All content stored as markdown with YAML frontmatter.
 
 ### `sse-stream/` — SSE Streaming
+
 Shared SSE utilities consumed by `/api/ingest` and `/api/test-connection`. Events are `\n\n`-delimited blocks with `event:`/`data:` fields. Exports `ingestStream()`, `testConnectionWithStream()`, `parseEventBlock()`, and `createSSEClient()`.
 
 ### Root
+
 - `utils.ts` — `cn()` Tailwind class merging helper
 - `validation.ts` — Zod schemas: `questionSchema`, `providerConfigSchema`, ingest responses, memory sessions
 - `file-service.ts` — `FileService` class wrapping R2 + D1 for exam file storage

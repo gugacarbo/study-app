@@ -29,13 +29,13 @@ features/ai/
 
 Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + domain logic.
 
-| Agent | Purpose | Tools Used |
-|-------|---------|------------|
-| `chat/` | Conversational AI assistant | DB tools, web tools |
-| `ingest/` | PDF → structured questions extraction (tool-based via workspace) | DB tools, ingest extraction tools |
-| `explanations/` | Batch deep explanations for questions | DB tools |
-| `quiz/` | Question generation from topics | DB tools |
-| `reviewer/` | Critical-topic verification with web research | Web tools (search, fetch) |
+| Agent           | Purpose                                                          | Tools Used                        |
+| --------------- | ---------------------------------------------------------------- | --------------------------------- |
+| `chat/`         | Conversational AI assistant                                      | DB tools, web tools               |
+| `ingest/`       | PDF → structured questions extraction (tool-based via workspace) | DB tools, ingest extraction tools |
+| `explanations/` | Batch deep explanations for questions                            | DB tools                          |
+| `quiz/`         | Question generation from topics                                  | DB tools                          |
+| `reviewer/`     | Critical-topic verification with web research                    | Web tools (search, fetch)         |
 
 ## Tool System
 
@@ -62,14 +62,15 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 ## Components
 
-| Folder | Purpose |
-|--------|---------|
-| `components/chat/` | Chat UI: sidebar, messages, input, virtualized list |
-| `components/config/` | Test connection dialog |
-| `components/exam-detail/` | Explanation generation hook |
+| Folder                                   | Purpose                                                    |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `components/chat/`                       | Chat UI: sidebar, messages, input, virtualized list        |
+| `components/config/`                     | Test connection dialog                                     |
+| `components/exam-detail/`                | Explanation generation hook                                |
 | `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
 
 ## Key Patterns
+
 - **Agent isolation:** Each agent has its own system prompt + domain logic — don't mix
 - **Tool resolution:** `resolveToolsForAgent()` determines which tools each agent gets
 - **SSE streaming:** Chat + ingest use Server-Sent Events for real-time progress

@@ -1,26 +1,35 @@
 # Server Functions
 
-Server-side functions using TanStack Start's `createServerFn`. 6 files.
+**Last updated:** 2026-06-10
+
+TanStack Start `createServerFn`. Toda mutação/query server-side passa por aqui.
 
 ## Inventory
 
-| File        | Exports                                                                                                 | Type                                 |
-| ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| `config.ts` | `getConfig`, `setConfig`                                                                                | `createServerFn` (GET/POST)          |
-| `quiz.ts`   | `generateQuiz`, `submitAnswer`                                                                          | `createServerFn` (POST)              |
-| `stats.ts`  | `getStats`, `getExams`                                                                                  | `createServerFn` (GET)               |
-| `exams.ts`  | `getExamDetail`, `getExamsDetailed`, `deleteExam`, `updateQuestion`, `generateExamQuestionExplanations` | `createServerFn` (GET/POST)          |
-| `memory.ts` | `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`                                      | `createServerFn` (GET/POST)          |
-| `db.ts`     | `getDB`                                                                                                 | **NOT a server fn** — utility helper |
+| File / dir           | Exports                                                                   | Método                     |
+| -------------------- | ------------------------------------------------------------------------- | -------------------------- |
+| `config.ts`          | `getConfig`, `setConfig`                                                  | GET / POST                 |
+| `stats.ts`           | `getStats`, `getExams`                                                    | GET                        |
+| `quiz.ts`            | `generateQuiz`, `submitAnswer`, `listQuizAttempts`, `abandonQuizAttempts` | POST                       |
+| `memory.ts`          | `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`        | GET / POST                 |
+| `exams/detail.ts`    | `getExamDetail`, `getExamsDetailed`                                       | GET                        |
+| `exams/delete.ts`    | `deleteExam`                                                              | POST                       |
+| `exams/questions.ts` | `updateQuestion`                                                          | POST                       |
+| `exams/generate.ts`  | `generateExamQuestionExplanations`                                        | POST                       |
+| `exams/index.ts`     | re-exports do subdir                                                      | —                          |
+| `db.ts`              | `getDB`                                                                   | **util** — não é server fn |
+| `storage.ts`         | `getFilesBucket`, `getMemoryBucket`                                       | **util** — não é server fn |
 
 ## Patterns
-- **Input validation:** Zod schemas passed via `inputValidator` (from `src/lib/validation.ts`)
-- **D1 access:** All DB fns import `getDB` from `./db.ts` which resolves the `D1Database` binding
-- **AI calls:** Via `src/lib/ai/` module (ai.ts core, prompts/extract-questions, prompts/generate-quiz, prompts/explain-answer, prompts/generate-question-explanations)
-- **Memory calls:** Via `src/lib/memory.ts` — D1-based MemoryManager
-- **Environment:** Server-only by default — never importable from client
+
+- Input: Zod + `inputValidator` (`src/lib/validation.ts`)
+- DB: `getDB()` → `DBQueries` (`src/db/queries/`)
+- R2: `getFilesBucket()` / `getMemoryBucket()` em `storage.ts`
+- Memória: `src/lib/memory/`
+- IA: `src/features/ai/` (agents, `core/generate`, `chat-stream`)
 
 ## Rules
-- `db.ts` is a utility, not a server fn — don't import it from client code
-- All AI calls must go through server functions (never directly from components)
-- Use `inputValidator` with Zod for all user-facing inputs
+
+- `db.ts` e `storage.ts` — server-only; nunca importar de componentes client
+- Chaves de API nunca no bundle client — config via D1
+- Novas funções: um export por operação, validação Zod obrigatória para input de usuário

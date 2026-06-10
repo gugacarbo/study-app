@@ -4,27 +4,27 @@ Drizzle ORM + D1 (SQLite), 10 tables. `DBQueries` class assembled via `Object.as
 
 ## Structure
 
-| Module | Files | Purpose |
-|--------|-------|---------|
-| `schema.ts` | 1 | Drizzle table definitions |
-| `queries/` | 12 | `DBQueries` class + standalone query functions |
+| Module      | Files | Purpose                                        |
+| ----------- | ----- | ---------------------------------------------- |
+| `schema.ts` | 1     | Drizzle table definitions                      |
+| `queries/`  | 12    | `DBQueries` class + standalone query functions |
 
 ## Query Modules
 
-| File | Purpose |
-|------|---------|
-| `base.ts` | `DBQueries` class + interface |
-| `types.ts` | TypeScript interfaces (`ExamRecord`, `ExamDetail`, `QuestionListItem`, `PaginatedResult`, etc.) |
-| `helpers.ts` | Pagination utilities |
-| `exams.ts` | Exam CRUD + paged listing |
-| `questions.ts` | Question CRUD + random fetch |
-| `questions-list.ts` | Paged question/answer-key listing with filters |
-| `attempts.ts` | Attempt session management (create, answer, refresh) |
-| `attempts-stats.ts` | Stats aggregation (exam-level + global) |
-| `files.ts` | File metadata CRUD |
-| `config.ts` | Key-value config store (upsert) |
-| `llm-logs.ts` | LLM call logging (upsert with `ON CONFLICT`) |
-| `memory.ts` | **Stub** — `getMemoryStats` returns zeros |
+| File                | Purpose                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| `base.ts`           | `DBQueries` class + interface                                                                   |
+| `types.ts`          | TypeScript interfaces (`ExamRecord`, `ExamDetail`, `QuestionListItem`, `PaginatedResult`, etc.) |
+| `helpers.ts`        | Pagination utilities                                                                            |
+| `exams.ts`          | Exam CRUD + paged listing                                                                       |
+| `questions.ts`      | Question CRUD + random fetch                                                                    |
+| `questions-list.ts` | Paged question/answer-key listing with filters                                                  |
+| `attempts.ts`       | Attempt session management (create, answer, refresh)                                            |
+| `attempts-stats.ts` | Stats aggregation (exam-level + global)                                                         |
+| `files.ts`          | File metadata CRUD                                                                              |
+| `config.ts`         | Key-value config store (upsert)                                                                 |
+| `llm-logs.ts`       | LLM call logging (upsert with `ON CONFLICT`)                                                    |
+| `memory.ts`         | **Stub** — `getMemoryStats` returns zeros                                                       |
 
 ## Conventions
 

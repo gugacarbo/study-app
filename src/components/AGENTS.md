@@ -8,11 +8,11 @@ Shared UI components in TanStack Start SPA. Feature-specific components now live
 
 Only shared/ui primitives remain here:
 
-| Folder / File       | Purpose                                          |
-| ------------------- | ------------------------------------------------ |
-| `ui/*`              | shadcn/ui primitives (badge, button, card, etc.) |
-| `ui/markdown.tsx`   | Markdown → React via `react-markdown` + `remark-gfm` |
-| `shimmer-text-span.tsx` | Animated shimmer text placeholder (chat)     |
+| Folder / File           | Purpose                                              |
+| ----------------------- | ---------------------------------------------------- |
+| `ui/*`                  | shadcn/ui primitives (badge, button, card, etc.)     |
+| `ui/markdown.tsx`       | Markdown → React via `react-markdown` + `remark-gfm` |
+| `shimmer-text-span.tsx` | Animated shimmer text placeholder (chat)             |
 
 ## Patterns
 
