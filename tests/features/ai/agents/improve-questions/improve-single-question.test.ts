@@ -171,11 +171,9 @@ describe("improveSingleQuestion", () => {
 				agentRunId: "improve-q7",
 				status: "done",
 				systemPrompt: expect.stringContaining(
-					"You are an exam-question options specialist.",
+					"You are an exam-question specialist.",
 				),
-				userPrompt: expect.stringContaining(
-					"Improve question for question #7.",
-				),
+				userPrompt: expect.stringContaining("Improve question #7."),
 			}),
 		);
 		expect(streamChatMessagesMock).toHaveBeenCalledWith(
@@ -183,7 +181,7 @@ describe("improveSingleQuestion", () => {
 			[
 				{
 					role: "user",
-					content: expect.stringContaining("Improve question for question #7."),
+					content: expect.stringContaining("Improve question #7."),
 				},
 			],
 			expect.objectContaining({
@@ -193,7 +191,7 @@ describe("improveSingleQuestion", () => {
 					expect.objectContaining({ name: "web_search" }),
 				]),
 				system: expect.stringContaining(
-					"You are an exam-question options specialist.",
+					"You are an exam-question specialist.",
 				),
 			}),
 		);
