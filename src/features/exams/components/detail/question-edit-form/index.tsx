@@ -35,7 +35,7 @@ export function QuestionEditForm({
 						saving ||
 						!editForm.question ||
 						editForm.options.length < 2 ||
-						!editForm.answer
+						editForm.answers.length < 1
 					}
 				>
 					<Save className="size-4" />

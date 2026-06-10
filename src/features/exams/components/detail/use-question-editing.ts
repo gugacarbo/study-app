@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { updateQuestion } from "@/server-functions/exams";
-import type { EditFormData } from "./exam-utils";
+import type { EditFormData, QuestionData } from "./exam-utils";
 
 interface UseQuestionEditingProps {
 	examId: number;
@@ -15,20 +15,13 @@ export function useQuestionEditing({ examId }: UseQuestionEditingProps) {
 	const [editForm, setEditForm] = useState<EditFormData | null>(null);
 	const [saving, setSaving] = useState(false);
 
-	const startEditing = (q: {
-		id: number;
-		question: string;
-		options: string[];
-		answer: string;
-		explanation?: string | null;
-		deepExplanation?: string | null;
-		topic?: string | null;
-	}) => {
+	const startEditing = (q: QuestionData) => {
 		setEditingQuestionId(q.id);
 		setEditForm({
 			question: q.question,
 			options: [...q.options],
-			answer: q.answer,
+			answers: [...q.answers],
+			scoringMode: q.scoringMode,
 			explanation: q.explanation || "",
 			deepExplanation: q.deepExplanation || "",
 			topic: q.topic || "",
@@ -41,7 +34,7 @@ export function useQuestionEditing({ examId }: UseQuestionEditingProps) {
 	};
 
 	const handleSave = async (questionId: number) => {
-		if (!editForm) return;
+		if (!editForm || editForm.answers.length < 1) return;
 		setSaving(true);
 		try {
 			await updateQuestion({
@@ -49,7 +42,8 @@ export function useQuestionEditing({ examId }: UseQuestionEditingProps) {
 					id: questionId,
 					question: editForm.question,
 					options: editForm.options,
-					answer: editForm.answer,
+					answers: editForm.answers,
+					scoringMode: editForm.scoringMode,
 					explanation: editForm.explanation || "",
 					deepExplanation: editForm.deepExplanation || "",
 					topic: editForm.topic || "",

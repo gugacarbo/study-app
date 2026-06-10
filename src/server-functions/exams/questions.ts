@@ -3,13 +3,16 @@ import { z } from "zod";
 import { DBQueries } from "../../db/queries";
 import { getDB } from "../db";
 
+const scoringModeSchema = z.enum(["exact", "partial"]);
+
 export const updateQuestion = createServerFn({ method: "POST" })
 	.inputValidator(
 		z.object({
 			id: z.number(),
 			question: z.string().min(1).optional(),
 			options: z.array(z.string()).min(2).optional(),
-			answer: z.string().min(1).optional(),
+			answers: z.array(z.string()).min(1).optional(),
+			scoringMode: scoringModeSchema.optional(),
 			explanation: z.string().optional(),
 			deepExplanation: z.string().optional(),
 			topic: z.string().optional(),

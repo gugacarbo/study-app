@@ -1,4 +1,5 @@
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import type { ScoringMode } from "@/lib/answer-scoring";
 
 export function formatDate(dateStr: string | null): string {
 	if (!dateStr) return "—";
@@ -64,7 +65,8 @@ export interface ExplanationProgressItem {
 export interface EditFormData {
 	question: string;
 	options: string[];
-	answer: string;
+	answers: string[];
+	scoringMode: ScoringMode;
 	explanation: string;
 	deepExplanation: string;
 	topic: string;
@@ -75,8 +77,42 @@ export interface QuestionData {
 	exam_id: number | null;
 	question: string;
 	options: string[];
-	answer: string;
+	answers: string[];
+	scoringMode: ScoringMode;
 	explanation: string;
 	deepExplanation: string;
 	topic: string;
+}
+
+export function isAnswerSelected(answers: string[], option: string): boolean {
+	const normalized = option.trim().toLowerCase();
+	return answers.some((answer) => answer.trim().toLowerCase() === normalized);
+}
+
+export function toggleAnswerSelection(
+	answers: string[],
+	option: string,
+): string[] {
+	if (isAnswerSelected(answers, option)) {
+		const normalized = option.trim().toLowerCase();
+		return answers.filter(
+			(answer) => answer.trim().toLowerCase() !== normalized,
+		);
+	}
+	return [...answers, option];
+}
+
+export function remapAnswersForOptionRename(
+	answers: string[],
+	oldOption: string,
+	newOption: string,
+): string[] {
+	return answers.map((answer) => (answer === oldOption ? newOption : answer));
+}
+
+export function removeAnswersForOption(
+	answers: string[],
+	removedOption: string,
+): string[] {
+	return answers.filter((answer) => answer !== removedOption);
 }

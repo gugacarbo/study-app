@@ -13,6 +13,7 @@ interface QuestionItemProps {
 	isEditing: boolean;
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
+	onImproveOptions: (q: QuestionData) => void;
 	onSave: (id: number) => void;
 	onCancel: () => void;
 	onFormChange: (updates: Partial<EditFormData>) => void;
@@ -25,6 +26,7 @@ export function QuestionItem({
 	isEditing,
 	editForm,
 	onStartEdit,
+	onImproveOptions,
 	onSave,
 	onCancel,
 	onFormChange,
@@ -57,7 +59,11 @@ export function QuestionItem({
 						saving={saving}
 					/>
 				) : (
-					<QuestionAccordion question={question} onStartEdit={onStartEdit} />
+					<QuestionAccordion
+						question={question}
+						onStartEdit={onStartEdit}
+						onImproveOptions={onImproveOptions}
+					/>
 				)}
 			</AccordionContent>
 		</AccordionItem>

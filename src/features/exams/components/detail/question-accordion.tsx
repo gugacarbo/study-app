@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { Pencil, Sparkles } from "lucide-react";
 import {
 	Accordion,
 	AccordionContent,
@@ -8,21 +8,32 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown";
+import { isOptionCorrect } from "@/lib/answer-scoring";
 import { cn } from "@/lib/utils";
 import type { QuestionData } from "./exam-utils";
 
 interface QuestionAccordionProps {
 	question: QuestionData;
 	onStartEdit: (q: QuestionData) => void;
+	onImproveOptions: (q: QuestionData) => void;
 }
 
 export function QuestionAccordion({
 	question,
 	onStartEdit,
+	onImproveOptions,
 }: QuestionAccordionProps) {
 	return (
 		<div className="pt-2">
-			<div className="flex justify-end">
+			<div className="flex justify-end gap-1">
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => onImproveOptions(question)}
+				>
+					<Sparkles className="size-3.5" />
+					Improve Options
+				</Button>
 				<Button variant="ghost" size="sm" onClick={() => onStartEdit(question)}>
 					<Pencil className="size-3.5" />
 					Edit
@@ -32,7 +43,7 @@ export function QuestionAccordion({
 			<div className="mt-1 flex flex-col gap-1.5">
 				{question.options.map((opt, optIdx) => {
 					const letter = String.fromCharCode(65 + optIdx);
-					const isCorrect = opt === question.answer;
+					const isCorrect = isOptionCorrect(opt, question.answers);
 					return (
 						<div
 							key={`${question.id}:${letter}:${opt}`}

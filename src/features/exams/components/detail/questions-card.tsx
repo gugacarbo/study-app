@@ -10,6 +10,8 @@ interface QuestionsCardProps {
 	editingQuestionId: number | null;
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
+	onImproveOptions?: (q: QuestionData) => void;
+	draftOverride?: { questionId: number; question: QuestionData } | null;
 	onSave: (id: number) => void;
 	onCancel: () => void;
 	onFormChange: (updates: Partial<EditFormData>) => void;
@@ -23,6 +25,8 @@ export function QuestionsCard({
 	editingQuestionId,
 	editForm,
 	onStartEdit,
+	onImproveOptions = () => {},
+	draftOverride = null,
 	onSave,
 	onCancel,
 	onFormChange,
@@ -64,15 +68,20 @@ export function QuestionsCard({
 					>
 						{questions.map((q, idx) => {
 							const isEditing = editingQuestionId === q.id && !!editForm;
+							const displayQuestion =
+								draftOverride?.questionId === q.id
+									? draftOverride.question
+									: q;
 
 							return (
 								<QuestionItem
 									key={q.id}
-									question={q}
+									question={displayQuestion}
 									index={idx}
 									isEditing={isEditing}
 									editForm={editForm}
 									onStartEdit={onStartEdit}
+									onImproveOptions={onImproveOptions}
 									onSave={onSave}
 									onCancel={onCancel}
 									onFormChange={onFormChange}

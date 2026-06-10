@@ -2,7 +2,15 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { EditFormData, QuestionData } from "../exam-utils";
+import type { ScoringMode } from "@/lib/answer-scoring";
+import {
+	isAnswerSelected,
+	remapAnswersForOptionRename,
+	removeAnswersForOption,
+	toggleAnswerSelection,
+	type EditFormData,
+	type QuestionData,
+} from "../exam-utils";
 
 interface QuestionEditFieldsProps {
 	question: QuestionData;
@@ -41,11 +49,15 @@ export function QuestionEditFields({
 								className="flex items-center gap-2"
 							>
 								<input
-									type="radio"
-									name={`correct-${question.id}`}
-									checked={editForm.answer === opt}
-									onChange={() => onFormChange({ answer: opt })}
+									type="checkbox"
+									checked={isAnswerSelected(editForm.answers, opt)}
+									onChange={() =>
+										onFormChange({
+											answers: toggleAnswerSelection(editForm.answers, opt),
+										})
+									}
 									className="shrink-0 accent-primary"
+									aria-label={`Mark option ${letter} as correct`}
 								/>
 								<span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted text-[11px] font-bold text-muted-foreground">
 									{letter}
@@ -57,10 +69,11 @@ export function QuestionEditFields({
 										newOptions[optIdx] = e.target.value;
 										onFormChange({
 											options: newOptions,
-											answer:
-												editForm.answer === opt
-													? e.target.value
-													: editForm.answer,
+											answers: remapAnswersForOptionRename(
+												editForm.answers,
+												opt,
+												e.target.value,
+											),
 										});
 									}}
 									className="flex-1"
@@ -74,11 +87,13 @@ export function QuestionEditFields({
 											const newOptions = editForm.options.filter(
 												(_, i) => i !== optIdx,
 											);
-											const newAnswer =
-												editForm.answer === opt
-													? (newOptions[0] ?? "")
-													: editForm.answer;
-											onFormChange({ options: newOptions, answer: newAnswer });
+											onFormChange({
+												options: newOptions,
+												answers: removeAnswersForOption(
+													editForm.answers,
+													opt,
+												),
+											});
 										}}
 										className="text-muted-foreground hover:text-destructive"
 									>
@@ -98,6 +113,37 @@ export function QuestionEditFields({
 				>
 					+ Add option
 				</Button>
+			</div>
+
+			<div>
+				<span className="text-xs font-semibold text-muted-foreground mb-1 block">
+					Scoring mode
+				</span>
+				<div className="flex flex-wrap gap-3 text-sm">
+					{(
+						[
+							{ value: "exact", label: "Exact match" },
+							{ value: "partial", label: "Partial credit" },
+						] as const satisfies ReadonlyArray<{
+							value: ScoringMode;
+							label: string;
+						}>
+					).map(({ value, label }) => (
+						<label
+							key={value}
+							className="inline-flex cursor-pointer items-center gap-1.5"
+						>
+							<input
+								type="radio"
+								name={`scoring-${question.id}`}
+								checked={editForm.scoringMode === value}
+								onChange={() => onFormChange({ scoringMode: value })}
+								className="accent-primary"
+							/>
+							{label}
+						</label>
+					))}
+				</div>
 			</div>
 
 			<div>
