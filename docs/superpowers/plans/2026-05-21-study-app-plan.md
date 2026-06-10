@@ -47,6 +47,7 @@
 ### Task 1: Project Scaffold & Cloudflare Setup
 
 **Files:**
+
 - Create: `wrangler.toml`
 - Create: `migrations/001_initial.sql`
 - Create: `.env.example`
@@ -158,6 +159,7 @@ git commit -m "chore: scaffold project with Cloudflare D1 setup"
 ### Task 2: Types, Validation Schemas & Tests
 
 **Files:**
+
 - Create: `app/lib/validation.ts`
 - Create: `tests/lib/validation.test.ts`
 
@@ -166,68 +168,72 @@ git commit -m "chore: scaffold project with Cloudflare D1 setup"
 Create `tests/lib/validation.test.ts`:
 
 ```ts
-import { describe, it, expect } from 'vitest';
-import { questionSchema, attemptSchema, providerConfigSchema } from '../lib/validation';
+import { describe, it, expect } from "vitest";
+import {
+  questionSchema,
+  attemptSchema,
+  providerConfigSchema,
+} from "../lib/validation";
 
-describe('questionSchema', () => {
-  it('validates a correct question object', () => {
+describe("questionSchema", () => {
+  it("validates a correct question object", () => {
     const valid = {
-      question: 'What is 2+2?',
-      options: ['3', '4', '5', '6'],
-      answer: '4',
-      explanation: 'Basic arithmetic',
-      topic: 'Math',
+      question: "What is 2+2?",
+      options: ["3", "4", "5", "6"],
+      answer: "4",
+      explanation: "Basic arithmetic",
+      topic: "Math",
     };
     const result = questionSchema.safeParse(valid);
     expect(result.success).toBe(true);
   });
 
-  it('rejects missing question field', () => {
+  it("rejects missing question field", () => {
     const invalid = {
-      options: ['a', 'b'],
-      answer: 'a',
+      options: ["a", "b"],
+      answer: "a",
     };
     const result = questionSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
 
-  it('rejects empty options array', () => {
+  it("rejects empty options array", () => {
     const invalid = {
-      question: 'Test?',
+      question: "Test?",
       options: [],
-      answer: 'a',
+      answer: "a",
     };
     const result = questionSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
 });
 
-describe('providerConfigSchema', () => {
-  it('validates OpenRouter config', () => {
+describe("providerConfigSchema", () => {
+  it("validates OpenRouter config", () => {
     const config = {
-      provider: 'openrouter',
-      model: 'openai/gpt-4o-mini',
-      apiKey: 'sk-or-v1-xxx',
+      provider: "openrouter",
+      model: "openai/gpt-4o-mini",
+      apiKey: "sk-or-v1-xxx",
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(true);
   });
 
-  it('validates custom provider with baseUrl', () => {
+  it("validates custom provider with baseUrl", () => {
     const config = {
-      provider: 'custom',
-      model: 'llama3',
-      baseUrl: 'http://localhost:11434/v1',
-      apiKey: 'ollama',
+      provider: "custom",
+      model: "llama3",
+      baseUrl: "http://localhost:11434/v1",
+      apiKey: "ollama",
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(true);
   });
 
-  it('rejects missing apiKey', () => {
+  it("rejects missing apiKey", () => {
     const config = {
-      provider: 'openrouter',
-      model: 'openai/gpt-4o-mini',
+      provider: "openrouter",
+      model: "openai/gpt-4o-mini",
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
@@ -248,14 +254,14 @@ Expected: FAIL with "Cannot find module '../lib/validation'"
 Create `app/lib/validation.ts`:
 
 ```ts
-import { z } from 'zod';
+import { z } from "zod";
 
 export const questionSchema = z.object({
-  question: z.string().min(1, 'Question is required'),
-  options: z.array(z.string()).min(2, 'At least 2 options required'),
-  answer: z.string().min(1, 'Answer is required'),
-  explanation: z.string().optional().default(''),
-  topic: z.string().optional().default('General'),
+  question: z.string().min(1, "Question is required"),
+  options: z.array(z.string()).min(2, "At least 2 options required"),
+  answer: z.string().min(1, "Answer is required"),
+  explanation: z.string().optional().default(""),
+  topic: z.string().optional().default("General"),
 });
 
 export type Question = z.infer<typeof questionSchema>;
@@ -269,10 +275,10 @@ export const attemptSchema = z.object({
 export type Attempt = z.infer<typeof attemptSchema>;
 
 export const providerConfigSchema = z.object({
-  provider: z.enum(['openrouter', 'openai', 'groq', 'ollama', 'custom']),
-  model: z.string().min(1, 'Model is required'),
+  provider: z.enum(["openrouter", "openai", "groq", "ollama", "custom"]),
+  model: z.string().min(1, "Model is required"),
   baseUrl: z.string().url().optional(),
-  apiKey: z.string().min(1, 'API key is required'),
+  apiKey: z.string().min(1, "API key is required"),
 });
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
@@ -305,6 +311,7 @@ git commit -m "feat: add Zod validation schemas with tests"
 ### Task 3: AI Integration Layer
 
 **Files:**
+
 - Create: `app/lib/ai.ts`
 
 - [ ] **Step 1: Create AI setup module**
@@ -312,10 +319,10 @@ git commit -m "feat: add Zod validation schemas with tests"
 Create `app/lib/ai.ts`:
 
 ```ts
-import { OpenRouter } from '@openrouter/sdk';
-import { createOpenAI } from '@tanstack/ai-openai/adapters';
-import { chat } from '@tanstack/ai';
-import type { ProviderConfig } from './validation';
+import { OpenRouter } from "@openrouter/sdk";
+import { createOpenAI } from "@tanstack/ai-openai/adapters";
+import { chat } from "@tanstack/ai";
+import type { ProviderConfig } from "./validation";
 
 let openrouter: OpenRouter | null = null;
 
@@ -327,9 +334,11 @@ function getOpenRouterClient(apiKey: string): OpenRouter {
 }
 
 export function getAiAdapter(config: ProviderConfig) {
-  const baseURL = config.baseUrl || (config.provider === 'openrouter'
-    ? 'https://openrouter.ai/api/v1'
-    : undefined);
+  const baseURL =
+    config.baseUrl ||
+    (config.provider === "openrouter"
+      ? "https://openrouter.ai/api/v1"
+      : undefined);
 
   return createOpenAI({
     apiKey: config.apiKey,
@@ -340,7 +349,7 @@ export function getAiAdapter(config: ProviderConfig) {
 export async function generateText(
   config: ProviderConfig,
   prompt: string,
-  options?: { json?: boolean; system?: string }
+  options?: { json?: boolean; system?: string },
 ) {
   const adapter = getAiAdapter(config);
   const model = adapter.text(config.model);
@@ -349,16 +358,18 @@ export async function generateText(
     prompt,
     system: options?.system,
     experimental_output: options?.json
-      ? { type: 'json_object' as const }
+      ? { type: "json_object" as const }
       : undefined,
   });
 }
 
 export async function extractQuestionsFromText(
   config: ProviderConfig,
-  text: string
+  text: string,
 ): Promise<{ questions: any[]; topics: string[] }> {
-  const result = await generateText(config, `
+  const result = await generateText(
+    config,
+    `
     Extract all exam questions from the following text.
     Return ONLY a valid JSON object with this exact structure:
     {
@@ -376,7 +387,13 @@ export async function extractQuestionsFromText(
 
     Text to extract from:
     ${text}
-  `, { json: true, system: 'You are a helpful assistant that extracts exam questions from text. Always return valid JSON.' });
+  `,
+    {
+      json: true,
+      system:
+        "You are a helpful assistant that extracts exam questions from text. Always return valid JSON.",
+    },
+  );
 
   const parsed = JSON.parse(result.text);
   return parsed;
@@ -385,9 +402,11 @@ export async function extractQuestionsFromText(
 export async function generateQuizQuestions(
   config: ProviderConfig,
   topic: string,
-  count: number = 10
+  count: number = 10,
 ): Promise<any[]> {
-  const result = await generateText(config, `
+  const result = await generateText(
+    config,
+    `
     Generate ${count} multiple-choice questions about: ${topic}
     Return ONLY a valid JSON array with this exact structure:
     [
@@ -399,7 +418,13 @@ export async function generateQuizQuestions(
         "topic": "${topic}"
       }
     ]
-  `, { json: true, system: 'You are a helpful assistant that generates exam questions. Always return valid JSON.' });
+  `,
+    {
+      json: true,
+      system:
+        "You are a helpful assistant that generates exam questions. Always return valid JSON.",
+    },
+  );
 
   return JSON.parse(result.text);
 }
@@ -409,14 +434,21 @@ export async function getExplanation(
   question: string,
   userAnswer: string,
   correctAnswer: string,
-  isCorrect: boolean
+  isCorrect: boolean,
 ): Promise<string> {
-  const result = await generateText(config, `
+  const result = await generateText(
+    config,
+    `
     The user answered "${userAnswer}" to the question: "${question}"
     The correct answer is: "${correctAnswer}"
-    The user was ${isCorrect ? 'correct' : 'incorrect'}.
+    The user was ${isCorrect ? "correct" : "incorrect"}.
     Provide a brief, helpful explanation.
-  `, { system: 'You are a helpful tutor. Explain why the answer is correct or incorrect in 2-3 sentences.' });
+  `,
+    {
+      system:
+        "You are a helpful tutor. Explain why the answer is correct or incorrect in 2-3 sentences.",
+    },
+  );
 
   return result.text;
 }
@@ -434,6 +466,7 @@ git commit -m "feat: add AI integration layer with OpenRouter and TanStack AI"
 ### Task 4: D1 Query Layer
 
 **Files:**
+
 - Create: `app/db/queries.ts`
 
 - [ ] **Step 1: Create D1 query functions**
@@ -441,8 +474,8 @@ git commit -m "feat: add AI integration layer with OpenRouter and TanStack AI"
 Create `app/db/queries.ts`:
 
 ```ts
-import type { D1Database } from '@cloudflare/workers-types';
-import type { Question, ProviderConfig } from '../lib/validation';
+import type { D1Database } from "@cloudflare/workers-types";
+import type { Question, ProviderConfig } from "../lib/validation";
 
 export interface ExamRecord {
   id: number;
@@ -471,7 +504,7 @@ export class DBQueries {
 
   async insertExam(name: string, source?: string): Promise<number> {
     const result = await this.db
-      .prepare('INSERT INTO exams (name, source) VALUES (?, ?)')
+      .prepare("INSERT INTO exams (name, source) VALUES (?, ?)")
       .bind(name, source || null)
       .run();
     return result.meta.last_row_id;
@@ -479,96 +512,112 @@ export class DBQueries {
 
   async getExams(): Promise<ExamRecord[]> {
     return await this.db
-      .prepare('SELECT * FROM exams ORDER BY created_at DESC')
+      .prepare("SELECT * FROM exams ORDER BY created_at DESC")
       .all()
-      .then(r => r.results);
+      .then((r) => r.results);
   }
 
   async insertQuestions(examId: number, questions: Question[]): Promise<void> {
     const stmt = this.db.prepare(
-      'INSERT INTO questions (exam_id, question, options, answer, explanation, topic) VALUES (?, ?, ?, ?, ?, ?)'
+      "INSERT INTO questions (exam_id, question, options, answer, explanation, topic) VALUES (?, ?, ?, ?, ?, ?)",
     );
 
     for (const q of questions) {
-      await stmt.bind(
-        examId,
-        q.question,
-        JSON.stringify(q.options),
-        q.answer,
-        q.explanation || '',
-        q.topic || 'General'
-      ).run();
+      await stmt
+        .bind(
+          examId,
+          q.question,
+          JSON.stringify(q.options),
+          q.answer,
+          q.explanation || "",
+          q.topic || "General",
+        )
+        .run();
     }
   }
 
   async getQuestionsByExam(examId: number): Promise<any[]> {
     return await this.db
-      .prepare('SELECT * FROM questions WHERE exam_id = ? ORDER BY id')
+      .prepare("SELECT * FROM questions WHERE exam_id = ? ORDER BY id")
       .bind(examId)
       .all()
-      .then(r => r.results.map(q => ({
-        ...q,
-        options: JSON.parse(q.options as string),
-      })));
+      .then((r) =>
+        r.results.map((q) => ({
+          ...q,
+          options: JSON.parse(q.options as string),
+        })),
+      );
   }
 
   async getRandomQuestions(count: number, topic?: string): Promise<any[]> {
-    let sql = 'SELECT * FROM questions';
+    let sql = "SELECT * FROM questions";
     const params: any[] = [];
 
     if (topic) {
-      sql += ' WHERE topic = ?';
+      sql += " WHERE topic = ?";
       params.push(topic);
     }
 
-    sql += ' ORDER BY RANDOM() LIMIT ?';
+    sql += " ORDER BY RANDOM() LIMIT ?";
     params.push(count);
 
     return await this.db
       .prepare(sql)
       .bind(...params)
       .all()
-      .then(r => r.results.map(q => ({
-        ...q,
-        options: JSON.parse(q.options as string),
-      })));
+      .then((r) =>
+        r.results.map((q) => ({
+          ...q,
+          options: JSON.parse(q.options as string),
+        })),
+      );
   }
 
-  async recordAttempt(questionId: number, userAnswer: string, correct: boolean): Promise<void> {
+  async recordAttempt(
+    questionId: number,
+    userAnswer: string,
+    correct: boolean,
+  ): Promise<void> {
     await this.db
-      .prepare('INSERT INTO attempts (question_id, user_answer, correct) VALUES (?, ?, ?)')
+      .prepare(
+        "INSERT INTO attempts (question_id, user_answer, correct) VALUES (?, ?, ?)",
+      )
       .bind(questionId, userAnswer, correct)
       .run();
   }
 
   async getStats(): Promise<{ totalAttempts: number; topics: TopicStats[] }> {
     const totalResult = await this.db
-      .prepare('SELECT COUNT(*) as count FROM attempts')
+      .prepare("SELECT COUNT(*) as count FROM attempts")
       .first<{ count: number }>();
 
     const topicsResult = await this.db
-      .prepare(`
+      .prepare(
+        `
         SELECT q.topic, COUNT(*) as total, SUM(a.correct) as correct
         FROM attempts a
         JOIN questions q ON a.question_id = q.id
         GROUP BY q.topic
-      `)
+      `,
+      )
       .all();
 
     return {
       totalAttempts: totalResult?.count || 0,
-      topics: topicsResult.results.map(t => ({
+      topics: topicsResult.results.map((t) => ({
         topic: t.topic as string,
         total: t.total as number,
         correct: t.correct as number,
-        accuracy: t.total ? Math.round((t.correct as number / t.total as number) * 100) : 0,
+        accuracy: t.total
+          ? Math.round((((t.correct as number) / t.total) as number) * 100)
+          : 0,
       })),
     };
   }
 
   async getConfig(key: string): Promise<string | null> {
     const result = await this.db
-      .prepare('SELECT value FROM config WHERE key = ?')
+      .prepare("SELECT value FROM config WHERE key = ?")
       .bind(key)
       .first<{ value: string }>();
     return result?.value || null;
@@ -576,14 +625,14 @@ export class DBQueries {
 
   async setConfig(key: string, value: string): Promise<void> {
     await this.db
-      .prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)')
+      .prepare("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)")
       .bind(key, value)
       .run();
   }
 
   async getAllConfig(): Promise<Record<string, string>> {
     const results = await this.db
-      .prepare('SELECT key, value FROM config')
+      .prepare("SELECT key, value FROM config")
       .all();
     const config: Record<string, string> = {};
     for (const row of results.results) {
@@ -606,6 +655,7 @@ git commit -m "feat: add D1 query layer with type-safe database operations"
 ### Task 5: Server Functions — Config
 
 **Files:**
+
 - Create: `app/server-functions/config.ts`
 - Create: `tests/server-functions/config.test.ts`
 
@@ -614,36 +664,38 @@ git commit -m "feat: add D1 query layer with type-safe database operations"
 Create `tests/server-functions/config.test.ts`:
 
 ```ts
-import { describe, it, expect, vi } from 'vitest';
-import { getConfig, setConfig } from '../../app/server-functions/config';
+import { describe, it, expect, vi } from "vitest";
+import { getConfig, setConfig } from "../../app/server-functions/config";
 
 const mockDB = {
   prepare: vi.fn((sql: string) => ({
     bind: vi.fn(() => ({
-      first: vi.fn(() => ({ value: 'openrouter' })),
+      first: vi.fn(() => ({ value: "openrouter" })),
       run: vi.fn(() => ({ success: true })),
-      all: vi.fn(() => ({ results: [
-        { key: 'ai_provider', value: 'openrouter' },
-        { key: 'ai_model', value: 'openai/gpt-4o-mini' },
-      ]})),
+      all: vi.fn(() => ({
+        results: [
+          { key: "ai_provider", value: "openrouter" },
+          { key: "ai_model", value: "openai/gpt-4o-mini" },
+        ],
+      })),
     })),
   })),
 };
 
-describe('getConfig', () => {
-  it('returns provider config from database', async () => {
+describe("getConfig", () => {
+  it("returns provider config from database", async () => {
     const result = await getConfig(mockDB as any);
-    expect(result.provider).toBe('openrouter');
-    expect(result.model).toBe('openai/gpt-4o-mini');
+    expect(result.provider).toBe("openrouter");
+    expect(result.model).toBe("openai/gpt-4o-mini");
   });
 });
 
-describe('setConfig', () => {
-  it('saves provider config to database', async () => {
+describe("setConfig", () => {
+  it("saves provider config to database", async () => {
     const config = {
-      provider: 'openai' as const,
-      model: 'gpt-4o',
-      apiKey: 'sk-test',
+      provider: "openai" as const,
+      model: "gpt-4o",
+      apiKey: "sk-test",
     };
     const result = await setConfig(mockDB as any, config);
     expect(result.success).toBe(true);
@@ -664,51 +716,54 @@ Expected: FAIL with "Cannot find module '../../app/server-functions/config'"
 Create `app/server-functions/config.ts`:
 
 ```ts
-import { createServerFn } from '@tanstack/start';
-import type { D1Database } from '@cloudflare/workers-types';
-import { DBQueries } from '../db/queries';
-import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
+import { createServerFn } from "@tanstack/start";
+import type { D1Database } from "@cloudflare/workers-types";
+import { DBQueries } from "../db/queries";
+import { providerConfigSchema, type ProviderConfig } from "../lib/validation";
 
 function getDB(): D1Database {
   // TanStack Start provides Cloudflare bindings via env
   return (globalThis as any).env?.DB;
 }
 
-export const getConfig = createServerFn({ method: 'GET' }).handler(async () => {
+export const getConfig = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDB();
   if (!db) {
-    throw new Error('D1 database not available');
+    throw new Error("D1 database not available");
   }
 
   const queries = new DBQueries(db);
   const config = await queries.getAllConfig();
 
   return {
-    provider: (config.ai_provider || 'openrouter') as ProviderConfig['provider'],
-    model: config.ai_model || 'openai/gpt-4o-mini',
+    provider: (config.ai_provider ||
+      "openrouter") as ProviderConfig["provider"],
+    model: config.ai_model || "openai/gpt-4o-mini",
     baseUrl: config.ai_base_url || undefined,
-    apiKey: config.ai_api_key || '',
+    apiKey: config.ai_api_key || "",
   };
 });
 
-export const setConfig = createServerFn({ method: 'POST' }).handler(async ({ data }: { data: ProviderConfig }) => {
-  const validated = providerConfigSchema.parse(data);
+export const setConfig = createServerFn({ method: "POST" }).handler(
+  async ({ data }: { data: ProviderConfig }) => {
+    const validated = providerConfigSchema.parse(data);
 
-  const db = getDB();
-  if (!db) {
-    throw new Error('D1 database not available');
-  }
+    const db = getDB();
+    if (!db) {
+      throw new Error("D1 database not available");
+    }
 
-  const queries = new DBQueries(db);
-  await queries.setConfig('ai_provider', validated.provider);
-  await queries.setConfig('ai_model', validated.model);
-  if (validated.baseUrl) {
-    await queries.setConfig('ai_base_url', validated.baseUrl);
-  }
-  await queries.setConfig('ai_api_key', validated.apiKey);
+    const queries = new DBQueries(db);
+    await queries.setConfig("ai_provider", validated.provider);
+    await queries.setConfig("ai_model", validated.model);
+    if (validated.baseUrl) {
+      await queries.setConfig("ai_base_url", validated.baseUrl);
+    }
+    await queries.setConfig("ai_api_key", validated.apiKey);
 
-  return { success: true };
-});
+    return { success: true };
+  },
+);
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -731,6 +786,7 @@ git commit -m "feat: add config server functions with tests"
 ### Task 6: Server Functions — Ingest
 
 **Files:**
+
 - Create: `app/server-functions/ingest.ts`
 - Create: `tests/server-functions/ingest.test.ts`
 
@@ -739,8 +795,8 @@ git commit -m "feat: add config server functions with tests"
 Create `tests/server-functions/ingest.test.ts`:
 
 ```ts
-import { describe, it, expect, vi } from 'vitest';
-import { ingestExam } from '../../app/server-functions/ingest';
+import { describe, it, expect, vi } from "vitest";
+import { ingestExam } from "../../app/server-functions/ingest";
 
 const mockDB = {
   prepare: vi.fn((sql: string) => ({
@@ -752,33 +808,37 @@ const mockDB = {
   })),
 };
 
-vi.mock('../../app/lib/ai', () => ({
-  extractQuestionsFromText: vi.fn(() => Promise.resolve({
-    questions: [
-      {
-        question: 'What is 2+2?',
-        options: ['3', '4', '5', '6'],
-        answer: '4',
-        explanation: 'Basic math',
-        topic: 'Math',
-      },
-    ],
-    topics: ['Math'],
-  })),
+vi.mock("../../app/lib/ai", () => ({
+  extractQuestionsFromText: vi.fn(() =>
+    Promise.resolve({
+      questions: [
+        {
+          question: "What is 2+2?",
+          options: ["3", "4", "5", "6"],
+          answer: "4",
+          explanation: "Basic math",
+          topic: "Math",
+        },
+      ],
+      topics: ["Math"],
+    }),
+  ),
 }));
 
-describe('ingestExam', () => {
-  it('extracts questions from PDF text and saves to DB', async () => {
-    const mockFile = new File(['test content'], 'test.pdf', { type: 'application/pdf' });
+describe("ingestExam", () => {
+  it("extracts questions from PDF text and saves to DB", async () => {
+    const mockFile = new File(["test content"], "test.pdf", {
+      type: "application/pdf",
+    });
     const config = {
-      provider: 'openrouter' as const,
-      model: 'openai/gpt-4o-mini',
-      apiKey: 'sk-test',
+      provider: "openrouter" as const,
+      model: "openai/gpt-4o-mini",
+      apiKey: "sk-test",
     };
 
     const result = await ingestExam(mockDB as any, mockFile, config);
     expect(result.questions).toBe(1);
-    expect(result.topics).toEqual(['Math']);
+    expect(result.topics).toEqual(["Math"]);
   });
 });
 ```
@@ -796,11 +856,11 @@ Expected: FAIL with "Cannot find module '../../app/server-functions/ingest'"
 Create `app/server-functions/ingest.ts`:
 
 ```ts
-import { createServerFn } from '@tanstack/start';
-import type { D1Database } from '@cloudflare/workers-types';
-import { DBQueries } from '../db/queries';
-import { extractQuestionsFromText } from '../lib/ai';
-import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
+import { createServerFn } from "@tanstack/start";
+import type { D1Database } from "@cloudflare/workers-types";
+import { DBQueries } from "../db/queries";
+import { extractQuestionsFromText } from "../lib/ai";
+import { providerConfigSchema, type ProviderConfig } from "../lib/validation";
 
 function getDB(): D1Database {
   return (globalThis as any).env?.DB;
@@ -815,16 +875,16 @@ async function extractTextFromFile(file: File): Promise<string> {
   const text = new TextDecoder().decode(bytes);
 
   // Strip non-printable characters
-  return text.replace(/[^\x20-\x7E\n\r\t]/g, ' ').trim();
+  return text.replace(/[^\x20-\x7E\n\r\t]/g, " ").trim();
 }
 
-export const ingestExam = createServerFn({ method: 'POST' }).handler(
+export const ingestExam = createServerFn({ method: "POST" }).handler(
   async ({ data }: { data: { file: File; config: ProviderConfig } }) => {
     const validatedConfig = providerConfigSchema.parse(data.config);
 
     const db = getDB();
     if (!db) {
-      throw new Error('D1 database not available');
+      throw new Error("D1 database not available");
     }
 
     const queries = new DBQueries(db);
@@ -833,14 +893,16 @@ export const ingestExam = createServerFn({ method: 'POST' }).handler(
     const text = await extractTextFromFile(data.file);
 
     if (!text || text.length < 50) {
-      throw new Error('Could not extract enough text from file. Try pasting text manually.');
+      throw new Error(
+        "Could not extract enough text from file. Try pasting text manually.",
+      );
     }
 
     // Extract questions via AI
     const extracted = await extractQuestionsFromText(validatedConfig, text);
 
     // Save exam
-    const examId = await queries.insertExam(data.file.name, 'upload');
+    const examId = await queries.insertExam(data.file.name, "upload");
 
     // Save questions
     if (extracted.questions.length > 0) {
@@ -852,7 +914,7 @@ export const ingestExam = createServerFn({ method: 'POST' }).handler(
       topics: extracted.topics,
       examId,
     };
-  }
+  },
 );
 ```
 
@@ -876,6 +938,7 @@ git commit -m "feat: add exam ingestion server function with tests"
 ### Task 7: Server Functions — Quiz & Stats
 
 **Files:**
+
 - Create: `app/server-functions/quiz.ts`
 - Create: `app/server-functions/stats.ts`
 - Create: `tests/server-functions/quiz.test.ts`
@@ -885,21 +948,30 @@ git commit -m "feat: add exam ingestion server function with tests"
 Create `app/server-functions/quiz.ts`:
 
 ```ts
-import { createServerFn } from '@tanstack/start';
-import type { D1Database } from '@cloudflare/workers-types';
-import { DBQueries } from '../db/queries';
-import { generateQuizQuestions, getExplanation } from '../lib/ai';
-import { providerConfigSchema, type ProviderConfig } from '../lib/validation';
+import { createServerFn } from "@tanstack/start";
+import type { D1Database } from "@cloudflare/workers-types";
+import { DBQueries } from "../db/queries";
+import { generateQuizQuestions, getExplanation } from "../lib/ai";
+import { providerConfigSchema, type ProviderConfig } from "../lib/validation";
 
 function getDB(): D1Database {
   return (globalThis as any).env?.DB;
 }
 
-export const generateQuiz = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { topic?: string; count?: number; config: ProviderConfig; examId?: number } }) => {
+export const generateQuiz = createServerFn({ method: "POST" }).handler(
+  async ({
+    data,
+  }: {
+    data: {
+      topic?: string;
+      count?: number;
+      config: ProviderConfig;
+      examId?: number;
+    };
+  }) => {
     const validatedConfig = providerConfigSchema.parse(data.config);
     const db = getDB();
-    if (!db) throw new Error('D1 database not available');
+    if (!db) throw new Error("D1 database not available");
 
     const queries = new DBQueries(db);
 
@@ -917,18 +989,28 @@ export const generateQuiz = createServerFn({ method: 'POST' }).handler(
     }
 
     // Generate new questions via AI
-    const topic = data.topic || 'General';
+    const topic = data.topic || "General";
     return await generateQuizQuestions(validatedConfig, topic, count);
-  }
+  },
 );
 
-export const submitAnswer = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: { questionId: number; userAnswer: string; correctAnswer: string; question: string; config: ProviderConfig } }) => {
+export const submitAnswer = createServerFn({ method: "POST" }).handler(
+  async ({
+    data,
+  }: {
+    data: {
+      questionId: number;
+      userAnswer: string;
+      correctAnswer: string;
+      question: string;
+      config: ProviderConfig;
+    };
+  }) => {
     const validatedConfig = providerConfigSchema.parse(data.config);
     const isCorrect = data.userAnswer === data.correctAnswer;
 
     const db = getDB();
-    if (!db) throw new Error('D1 database not available');
+    if (!db) throw new Error("D1 database not available");
 
     const queries = new DBQueries(db);
     await queries.recordAttempt(data.questionId, data.userAnswer, isCorrect);
@@ -939,14 +1021,14 @@ export const submitAnswer = createServerFn({ method: 'POST' }).handler(
       data.question,
       data.userAnswer,
       data.correctAnswer,
-      isCorrect
+      isCorrect,
     );
 
     return {
       correct: isCorrect,
       explanation,
     };
-  }
+  },
 );
 ```
 
@@ -955,25 +1037,25 @@ export const submitAnswer = createServerFn({ method: 'POST' }).handler(
 Create `app/server-functions/stats.ts`:
 
 ```ts
-import { createServerFn } from '@tanstack/start';
-import type { D1Database } from '@cloudflare/workers-types';
-import { DBQueries } from '../db/queries';
+import { createServerFn } from "@tanstack/start";
+import type { D1Database } from "@cloudflare/workers-types";
+import { DBQueries } from "../db/queries";
 
 function getDB(): D1Database {
   return (globalThis as any).env?.DB;
 }
 
-export const getStats = createServerFn({ method: 'GET' }).handler(async () => {
+export const getStats = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDB();
-  if (!db) throw new Error('D1 database not available');
+  if (!db) throw new Error("D1 database not available");
 
   const queries = new DBQueries(db);
   return await queries.getStats();
 });
 
-export const getExams = createServerFn({ method: 'GET' }).handler(async () => {
+export const getExams = createServerFn({ method: "GET" }).handler(async () => {
   const db = getDB();
-  if (!db) throw new Error('D1 database not available');
+  if (!db) throw new Error("D1 database not available");
 
   const queries = new DBQueries(db);
   return await queries.getExams();
@@ -985,8 +1067,8 @@ export const getExams = createServerFn({ method: 'GET' }).handler(async () => {
 Create `tests/server-functions/quiz.test.ts`:
 
 ```ts
-import { describe, it, expect, vi } from 'vitest';
-import { submitAnswer } from '../../app/server-functions/quiz';
+import { describe, it, expect, vi } from "vitest";
+import { submitAnswer } from "../../app/server-functions/quiz";
 
 const mockDB = {
   prepare: vi.fn((sql: string) => ({
@@ -998,30 +1080,40 @@ const mockDB = {
   })),
 };
 
-vi.mock('../../app/lib/ai', () => ({
-  getExplanation: vi.fn(() => Promise.resolve('This is the correct answer because...')),
+vi.mock("../../app/lib/ai", () => ({
+  getExplanation: vi.fn(() =>
+    Promise.resolve("This is the correct answer because..."),
+  ),
   generateQuizQuestions: vi.fn(() => Promise.resolve([])),
 }));
 
-describe('submitAnswer', () => {
-  it('returns correct when answer matches', async () => {
+describe("submitAnswer", () => {
+  it("returns correct when answer matches", async () => {
     const result = await submitAnswer(mockDB as any, {
       questionId: 1,
-      userAnswer: '4',
-      correctAnswer: '4',
-      question: 'What is 2+2?',
-      config: { provider: 'openrouter', model: 'gpt-4o-mini', apiKey: 'sk-test' },
+      userAnswer: "4",
+      correctAnswer: "4",
+      question: "What is 2+2?",
+      config: {
+        provider: "openrouter",
+        model: "gpt-4o-mini",
+        apiKey: "sk-test",
+      },
     });
     expect(result.correct).toBe(true);
   });
 
-  it('returns incorrect when answer does not match', async () => {
+  it("returns incorrect when answer does not match", async () => {
     const result = await submitAnswer(mockDB as any, {
       questionId: 1,
-      userAnswer: '3',
-      correctAnswer: '4',
-      question: 'What is 2+2?',
-      config: { provider: 'openrouter', model: 'gpt-4o-mini', apiKey: 'sk-test' },
+      userAnswer: "3",
+      correctAnswer: "4",
+      question: "What is 2+2?",
+      config: {
+        provider: "openrouter",
+        model: "gpt-4o-mini",
+        apiKey: "sk-test",
+      },
     });
     expect(result.correct).toBe(false);
   });
@@ -1048,6 +1140,7 @@ git commit -m "feat: add quiz and stats server functions with tests"
 ### Task 8: Quiz Store (TanStack Store)
 
 **Files:**
+
 - Create: `app/stores/quizStore.ts`
 
 - [ ] **Step 1: Create quiz store**
@@ -1055,7 +1148,7 @@ git commit -m "feat: add quiz and stats server functions with tests"
 Create `app/stores/quizStore.ts`:
 
 ```ts
-import { Store } from '@tanstack/store';
+import { Store } from "@tanstack/store";
 
 export interface QuizState {
   currentQuestionIndex: number;
@@ -1077,7 +1170,7 @@ const initialState: QuizState = {
   total: 0,
   isComplete: false,
   showExplanation: false,
-  explanation: '',
+  explanation: "",
   isCorrect: null,
 };
 
@@ -1091,11 +1184,11 @@ export function resetQuiz(totalQuestions: number) {
 }
 
 export function selectAnswer(answer: string) {
-  quizStore.setState(s => ({ ...s, selectedAnswer: answer }));
+  quizStore.setState((s) => ({ ...s, selectedAnswer: answer }));
 }
 
 export function nextQuestion() {
-  quizStore.setState(s => {
+  quizStore.setState((s) => {
     const nextIndex = s.currentQuestionIndex + 1;
     return {
       ...s,
@@ -1109,7 +1202,7 @@ export function nextQuestion() {
 }
 
 export function recordAnswer(isCorrect: boolean, explanation: string) {
-  quizStore.setState(s => ({
+  quizStore.setState((s) => ({
     ...s,
     score: isCorrect ? s.score + 1 : s.score,
     showExplanation: true,
@@ -1131,6 +1224,7 @@ git commit -m "feat: add quiz state store with TanStack Store"
 ### Task 9: Root Layout & Global Styles
 
 **Files:**
+
 - Create: `app/routes/__root.tsx`
 - Create: `app/styles/globals.css`
 
@@ -1160,7 +1254,8 @@ Create `app/styles/globals.css`:
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -1234,7 +1329,8 @@ nav a {
   transition: color 0.2s;
 }
 
-nav a:hover, nav a[data-active] {
+nav a:hover,
+nav a[data-active] {
   color: var(--text);
 }
 ```
@@ -1244,10 +1340,15 @@ nav a:hover, nav a[data-active] {
 Create `app/routes/__root.tsx`:
 
 ```tsx
-import { createRootRoute, Outlet, Link, useRouterState } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/router-devtools';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import '../styles/globals.css';
+import {
+  createRootRoute,
+  Outlet,
+  Link,
+  useRouterState,
+} from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "../styles/globals.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -1259,10 +1360,10 @@ const queryClient = new QueryClient({
 });
 
 const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/upload', label: 'Upload' },
-  { to: '/stats', label: 'Stats' },
-  { to: '/config', label: 'Config' },
+  { to: "/", label: "Dashboard" },
+  { to: "/upload", label: "Upload" },
+  { to: "/stats", label: "Stats" },
+  { to: "/config", label: "Config" },
 ];
 
 function Nav() {
@@ -1271,12 +1372,14 @@ function Nav() {
 
   return (
     <nav>
-      <span style={{ fontWeight: 'bold', marginRight: '1rem' }}>📚 Study App</span>
-      {navItems.map(item => (
+      <span style={{ fontWeight: "bold", marginRight: "1rem" }}>
+        📚 Study App
+      </span>
+      {navItems.map((item) => (
         <Link
           key={item.to}
           to={item.to}
-          data-active={pathname === item.to ? '' : undefined}
+          data-active={pathname === item.to ? "" : undefined}
         >
           {item.label}
         </Link>
@@ -1292,7 +1395,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div style={{ minHeight: '100vh' }}>
+      <div style={{ minHeight: "100vh" }}>
         <Nav />
         <main className="container">
           <Outlet />
@@ -1316,6 +1419,7 @@ git commit -m "feat: add root layout with navigation and global styles"
 ### Task 10: Dashboard Page
 
 **Files:**
+
 - Create: `app/routes/index.tsx`
 - Create: `app/components/Dashboard.tsx`
 
@@ -1324,55 +1428,86 @@ git commit -m "feat: add root layout with navigation and global styles"
 Create `app/components/Dashboard.tsx`:
 
 ```tsx
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import { getExams, getStats } from '../server-functions/stats';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { getExams, getStats } from "../server-functions/stats";
 
 export function Dashboard() {
   const { data: exams } = useSuspenseQuery({
-    queryKey: ['exams'],
+    queryKey: ["exams"],
     queryFn: () => getExams(),
   });
 
   const { data: stats } = useSuspenseQuery({
-    queryKey: ['stats'],
+    queryKey: ["stats"],
     queryFn: () => getStats(),
   });
 
   return (
     <div>
-      <h1 style={{ marginBottom: '1.5rem' }}>Dashboard</h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>Dashboard</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "1rem",
+          marginBottom: "2rem",
+        }}
+      >
         <div className="card">
-          <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.totalAttempts}</div>
-          <div style={{ color: 'var(--text-muted)' }}>Total Attempts</div>
+          <div style={{ fontSize: "2rem", fontWeight: "bold" }}>
+            {stats.totalAttempts}
+          </div>
+          <div style={{ color: "var(--text-muted)" }}>Total Attempts</div>
         </div>
         <div className="card">
-          <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{exams.length}</div>
-          <div style={{ color: 'var(--text-muted)' }}>Exams Imported</div>
+          <div style={{ fontSize: "2rem", fontWeight: "bold" }}>
+            {exams.length}
+          </div>
+          <div style={{ color: "var(--text-muted)" }}>Exams Imported</div>
         </div>
         <div className="card">
-          <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.topics.length}</div>
-          <div style={{ color: 'var(--text-muted)' }}>Topics Covered</div>
+          <div style={{ fontSize: "2rem", fontWeight: "bold" }}>
+            {stats.topics.length}
+          </div>
+          <div style={{ color: "var(--text-muted)" }}>Topics Covered</div>
         </div>
       </div>
 
-      <h2 style={{ marginBottom: '1rem' }}>Imported Exams</h2>
+      <h2 style={{ marginBottom: "1rem" }}>Imported Exams</h2>
       {exams.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          No exams imported yet. <Link to="/upload" style={{ color: 'var(--primary)' }}>Upload one now</Link>
+        <div
+          className="card"
+          style={{ textAlign: "center", color: "var(--text-muted)" }}
+        >
+          No exams imported yet.{" "}
+          <Link to="/upload" style={{ color: "var(--primary)" }}>
+            Upload one now
+          </Link>
         </div>
       ) : (
-        exams.map(exam => (
-          <div key={exam.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        exams.map((exam) => (
+          <div
+            key={exam.id}
+            className="card"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <div>
-              <div style={{ fontWeight: 'bold' }}>{exam.name}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <div style={{ fontWeight: "bold" }}>{exam.name}</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                 {new Date(exam.created_at).toLocaleDateString()}
               </div>
             </div>
-            <Link to="/quiz/$id" params={{ id: exam.id.toString() }} className="btn">
+            <Link
+              to="/quiz/$id"
+              params={{ id: exam.id.toString() }}
+              className="btn"
+            >
               Start Quiz
             </Link>
           </div>
@@ -1388,10 +1523,10 @@ export function Dashboard() {
 Create `app/routes/index.tsx`:
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router';
-import { Dashboard } from '../components/Dashboard';
+import { createFileRoute } from "@tanstack/react-router";
+import { Dashboard } from "../components/Dashboard";
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   component: DashboardPage,
 });
 
@@ -1412,6 +1547,7 @@ git commit -m "feat: add dashboard page with stats and exam list"
 ### Task 11: Upload Page
 
 **Files:**
+
 - Create: `app/routes/upload.tsx`
 - Create: `app/components/UploadForm.tsx`
 
@@ -1420,16 +1556,18 @@ git commit -m "feat: add dashboard page with stats and exam list"
 Create `app/components/UploadForm.tsx`:
 
 ```tsx
-import { useState } from 'react';
-import { useForm, formOptions } from '@tanstack/react-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ingestExam } from '../server-functions/ingest';
-import { getConfig } from '../server-functions/config';
+import { useState } from "react";
+import { useForm, formOptions } from "@tanstack/react-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ingestExam } from "../server-functions/ingest";
+import { getConfig } from "../server-functions/config";
 
 export function UploadForm() {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<
+    "idle" | "uploading" | "success" | "error"
+  >("idle");
+  const [message, setMessage] = useState("");
 
   const form = useForm({
     defaultValues: {
@@ -1438,56 +1576,65 @@ export function UploadForm() {
     onSubmit: async ({ value }) => {
       if (!value.file) return;
 
-      setStatus('uploading');
+      setStatus("uploading");
       try {
         const config = await getConfig();
         const result = await ingestExam({ file: value.file!, config });
-        setStatus('success');
-        setMessage(`Extracted ${result.questions} questions from ${result.topics.join(', ')}`);
-        queryClient.invalidateQueries({ queryKey: ['exams'] });
+        setStatus("success");
+        setMessage(
+          `Extracted ${result.questions} questions from ${result.topics.join(", ")}`,
+        );
+        queryClient.invalidateQueries({ queryKey: ["exams"] });
       } catch (err) {
-        setStatus('error');
-        setMessage(err instanceof Error ? err.message : 'Unknown error');
+        setStatus("error");
+        setMessage(err instanceof Error ? err.message : "Unknown error");
       }
     },
   });
 
   return (
     <div className="card">
-      <h2 style={{ marginBottom: '1rem' }}>Upload Exam</h2>
+      <h2 style={{ marginBottom: "1rem" }}>Upload Exam</h2>
       <form
-        onSubmit={e => {
+        onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
           form.handleSubmit();
         }}
       >
         <form.Field name="file">
-          {field => (
-            <div style={{ marginBottom: '1rem' }}>
+          {(field) => (
+            <div style={{ marginBottom: "1rem" }}>
               <input
                 type="file"
                 accept=".pdf,.txt"
-                onChange={e => field.handleChange(e.target.files?.[0] || null)}
+                onChange={(e) =>
+                  field.handleChange(e.target.files?.[0] || null)
+                }
                 className="input"
               />
             </div>
           )}
         </form.Field>
 
-        <button type="submit" className="btn" disabled={status === 'uploading'}>
-          {status === 'uploading' ? 'Processing...' : 'Upload & Extract Questions'}
+        <button type="submit" className="btn" disabled={status === "uploading"}>
+          {status === "uploading"
+            ? "Processing..."
+            : "Upload & Extract Questions"}
         </button>
       </form>
 
-      {status !== 'idle' && (
+      {status !== "idle" && (
         <div
           style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            borderRadius: '6px',
-            background: status === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-            color: status === 'success' ? 'var(--success)' : 'var(--error)',
+            marginTop: "1rem",
+            padding: "0.75rem",
+            borderRadius: "6px",
+            background:
+              status === "success"
+                ? "rgba(34,197,94,0.1)"
+                : "rgba(239,68,68,0.1)",
+            color: status === "success" ? "var(--success)" : "var(--error)",
           }}
         >
           {message}
@@ -1503,17 +1650,17 @@ export function UploadForm() {
 Create `app/routes/upload.tsx`:
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router';
-import { UploadForm } from '../components/UploadForm';
+import { createFileRoute } from "@tanstack/react-router";
+import { UploadForm } from "../components/UploadForm";
 
-export const Route = createFileRoute('/upload')({
+export const Route = createFileRoute("/upload")({
   component: UploadPage,
 });
 
 function UploadPage() {
   return (
     <div>
-      <h1 style={{ marginBottom: '1.5rem' }}>Upload Exam</h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>Upload Exam</h1>
       <UploadForm />
     </div>
   );
@@ -1532,6 +1679,7 @@ git commit -m "feat: add upload page with TanStack Form"
 ### Task 12: Quiz Page
 
 **Files:**
+
 - Create: `app/routes/quiz.$id.tsx`
 - Create: `app/components/Quiz.tsx`
 
@@ -1540,13 +1688,23 @@ git commit -m "feat: add upload page with TanStack Form"
 Create `app/components/Quiz.tsx`:
 
 ```tsx
-import { useState } from 'react';
-import { useSuspenseQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSelector } from '@tanstack/react-store';
-import { useHotkeys } from '@tanstack/react-hotkeys';
-import { generateQuiz, submitAnswer } from '../server-functions/quiz';
-import { getConfig } from '../server-functions/config';
-import { quizStore, resetQuiz, selectAnswer, nextQuestion, recordAnswer } from '../stores/quizStore';
+import { useState } from "react";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useSelector } from "@tanstack/react-store";
+import { useHotkeys } from "@tanstack/react-hotkeys";
+import { generateQuiz, submitAnswer } from "../server-functions/quiz";
+import { getConfig } from "../server-functions/config";
+import {
+  quizStore,
+  resetQuiz,
+  selectAnswer,
+  nextQuestion,
+  recordAnswer,
+} from "../stores/quizStore";
 
 interface QuizProps {
   examId?: number;
@@ -1558,15 +1716,25 @@ export function Quiz({ examId, topic }: QuizProps) {
   const [config] = useState(() => getConfig());
 
   const { data: questions } = useSuspenseQuery({
-    queryKey: ['quiz', examId, topic],
-    queryFn: () => generateQuiz({ examId, topic, count: 10, config: { provider: 'openrouter', model: 'openai/gpt-4o-mini', apiKey: '' } }),
+    queryKey: ["quiz", examId, topic],
+    queryFn: () =>
+      generateQuiz({
+        examId,
+        topic,
+        count: 10,
+        config: {
+          provider: "openrouter",
+          model: "openai/gpt-4o-mini",
+          apiKey: "",
+        },
+      }),
   });
 
   const submitMutation = useMutation({
     mutationFn: submitAnswer,
     onSuccess: (data) => {
       recordAnswer(data.correct, data.explanation);
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
   });
 
@@ -1582,7 +1750,7 @@ export function Quiz({ examId, topic }: QuizProps) {
   // Hotkeys
   useHotkeys([
     {
-      keys: ['1', '2', '3', '4'],
+      keys: ["1", "2", "3", "4"],
       callback: (e) => {
         const index = parseInt(e.key) - 1;
         if (currentQuestion?.options[index]) {
@@ -1591,15 +1759,23 @@ export function Quiz({ examId, topic }: QuizProps) {
       },
     },
     {
-      keys: ['Enter'],
+      keys: ["Enter"],
       callback: () => {
-        if (quizState.selectedAnswer && currentQuestion && !quizState.showExplanation) {
+        if (
+          quizState.selectedAnswer &&
+          currentQuestion &&
+          !quizState.showExplanation
+        ) {
           submitMutation.mutate({
             questionId: currentQuestion.id,
             userAnswer: quizState.selectedAnswer,
             correctAnswer: currentQuestion.answer,
             question: currentQuestion.question,
-            config: { provider: 'openrouter', model: 'openai/gpt-4o-mini', apiKey: '' },
+            config: {
+              provider: "openrouter",
+              model: "openai/gpt-4o-mini",
+              apiKey: "",
+            },
           });
         } else if (quizState.showExplanation) {
           nextQuestion();
@@ -1612,28 +1788,41 @@ export function Quiz({ examId, topic }: QuizProps) {
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <span style={{ color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "1rem",
+        }}
+      >
+        <span style={{ color: "var(--text-muted)" }}>
           Question {quizState.currentQuestionIndex + 1} of {quizState.total}
         </span>
-        <span style={{ color: 'var(--success)' }}>Score: {quizState.score}</span>
+        <span style={{ color: "var(--success)" }}>
+          Score: {quizState.score}
+        </span>
       </div>
 
-      <h3 style={{ marginBottom: '1rem' }}>{currentQuestion.question}</h3>
+      <h3 style={{ marginBottom: "1rem" }}>{currentQuestion.question}</h3>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {currentQuestion.options.map((option: string, i: number) => (
           <button
             key={i}
-            className={`btn ${quizState.selectedAnswer === option ? 'btn-primary' : ''}`}
+            className={`btn ${quizState.selectedAnswer === option ? "btn-primary" : ""}`}
             style={{
-              justifyContent: 'flex-start',
-              background: quizState.selectedAnswer === option ? 'var(--primary)' : 'var(--surface)',
-              border: `1px solid ${quizState.selectedAnswer === option ? 'var(--primary)' : 'var(--border)'}`,
+              justifyContent: "flex-start",
+              background:
+                quizState.selectedAnswer === option
+                  ? "var(--primary)"
+                  : "var(--surface)",
+              border: `1px solid ${quizState.selectedAnswer === option ? "var(--primary)" : "var(--border)"}`,
             }}
             onClick={() => selectAnswer(option)}
           >
-            <span style={{ marginRight: '0.5rem', fontWeight: 'bold' }}>{String.fromCharCode(97 + i)})</span>
+            <span style={{ marginRight: "0.5rem", fontWeight: "bold" }}>
+              {String.fromCharCode(97 + i)})
+            </span>
             {option}
           </button>
         ))}
@@ -1642,7 +1831,7 @@ export function Quiz({ examId, topic }: QuizProps) {
       {!quizState.showExplanation && (
         <button
           className="btn"
-          style={{ marginTop: '1rem', width: '100%' }}
+          style={{ marginTop: "1rem", width: "100%" }}
           disabled={!quizState.selectedAnswer}
           onClick={() => {
             submitMutation.mutate({
@@ -1650,7 +1839,11 @@ export function Quiz({ examId, topic }: QuizProps) {
               userAnswer: quizState.selectedAnswer!,
               correctAnswer: currentQuestion.answer,
               question: currentQuestion.question,
-              config: { provider: 'openrouter', model: 'openai/gpt-4o-mini', apiKey: '' },
+              config: {
+                provider: "openrouter",
+                model: "openai/gpt-4o-mini",
+                apiKey: "",
+              },
             });
           }}
         >
@@ -1659,29 +1852,37 @@ export function Quiz({ examId, topic }: QuizProps) {
       )}
 
       {quizState.showExplanation && (
-        <div style={{ marginTop: '1rem' }}>
+        <div style={{ marginTop: "1rem" }}>
           <div
             style={{
-              padding: '0.75rem',
-              borderRadius: '6px',
-              background: quizState.isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-              color: quizState.isCorrect ? 'var(--success)' : 'var(--error)',
-              marginBottom: '0.5rem',
+              padding: "0.75rem",
+              borderRadius: "6px",
+              background: quizState.isCorrect
+                ? "rgba(34,197,94,0.1)"
+                : "rgba(239,68,68,0.1)",
+              color: quizState.isCorrect ? "var(--success)" : "var(--error)",
+              marginBottom: "0.5rem",
             }}
           >
-            {quizState.isCorrect ? '✓ Correct!' : '✗ Incorrect'}
+            {quizState.isCorrect ? "✓ Correct!" : "✗ Incorrect"}
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{quizState.explanation}</p>
-          <button className="btn" style={{ marginTop: '0.5rem' }} onClick={nextQuestion}>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+            {quizState.explanation}
+          </p>
+          <button
+            className="btn"
+            style={{ marginTop: "0.5rem" }}
+            onClick={nextQuestion}
+          >
             Next Question (Enter)
           </button>
         </div>
       )}
 
       {quizState.isComplete && (
-        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+        <div style={{ marginTop: "1rem", textAlign: "center" }}>
           <h2>Quiz Complete!</h2>
-          <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+          <p style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
             {quizState.score} / {quizState.total}
           </p>
         </div>
@@ -1696,10 +1897,10 @@ export function Quiz({ examId, topic }: QuizProps) {
 Create `app/routes/quiz.$id.tsx`:
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router';
-import { Quiz } from '../components/Quiz';
+import { createFileRoute } from "@tanstack/react-router";
+import { Quiz } from "../components/Quiz";
 
-export const Route = createFileRoute('/quiz/$id')({
+export const Route = createFileRoute("/quiz/$id")({
   component: QuizPage,
 });
 
@@ -1707,7 +1908,7 @@ function QuizPage() {
   const { id } = Route.useParams();
   return (
     <div>
-      <h1 style={{ marginBottom: '1.5rem' }}>Quiz</h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>Quiz</h1>
       <Quiz examId={parseInt(id)} />
     </div>
   );
@@ -1726,6 +1927,7 @@ git commit -m "feat: add quiz page with hotkeys and streaming feedback"
 ### Task 13: Stats Page
 
 **Files:**
+
 - Create: `app/routes/stats.tsx`
 - Create: `app/components/StatsTable.tsx`
 
@@ -1734,25 +1936,34 @@ git commit -m "feat: add quiz page with hotkeys and streaming feedback"
 Create `app/components/StatsTable.tsx`:
 
 ```tsx
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { useReactTable, createColumnHelper, flexRender } from '@tanstack/react-table';
-import { getStats } from '../server-functions/stats';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useReactTable,
+  createColumnHelper,
+  flexRender,
+} from "@tanstack/react-table";
+import { getStats } from "../server-functions/stats";
 
-const columnHelper = createColumnHelper<{ topic: string; total: number; correct: number; accuracy: number }>();
+const columnHelper = createColumnHelper<{
+  topic: string;
+  total: number;
+  correct: number;
+  accuracy: number;
+}>();
 
 const columns = [
-  columnHelper.accessor('topic', { header: 'Topic' }),
-  columnHelper.accessor('total', { header: 'Attempts' }),
-  columnHelper.accessor('correct', { header: 'Correct' }),
-  columnHelper.accessor('accuracy', {
-    header: 'Accuracy',
-    cell: info => `${info.getValue()}%`,
+  columnHelper.accessor("topic", { header: "Topic" }),
+  columnHelper.accessor("total", { header: "Attempts" }),
+  columnHelper.accessor("correct", { header: "Correct" }),
+  columnHelper.accessor("accuracy", {
+    header: "Accuracy",
+    cell: (info) => `${info.getValue()}%`,
   }),
 ];
 
 export function StatsTable() {
   const { data: stats } = useSuspenseQuery({
-    queryKey: ['stats'],
+    queryKey: ["stats"],
     queryFn: () => getStats(),
   });
 
@@ -1763,37 +1974,40 @@ export function StatsTable() {
 
   return (
     <div className="card">
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          {table.getHeaderGroups().map(headerGroup => (
+          {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
+              {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
                   style={{
-                    textAlign: 'left',
-                    padding: '0.5rem',
-                    borderBottom: '1px solid var(--border)',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.75rem',
-                    textTransform: 'uppercase',
+                    textAlign: "left",
+                    padding: "0.5rem",
+                    borderBottom: "1px solid var(--border)",
+                    color: "var(--text-muted)",
+                    fontSize: "0.75rem",
+                    textTransform: "uppercase",
                   }}
                 >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
+                  {flexRender(
+                    header.column.columnDef.header,
+                    header.getContext(),
+                  )}
                 </th>
               ))}
             </tr>
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map(row => (
+          {table.getRowModel().rows.map((row) => (
             <tr key={row.id}>
-              {row.getVisibleCells().map(cell => (
+              {row.getVisibleCells().map((cell) => (
                 <td
                   key={cell.id}
                   style={{
-                    padding: '0.5rem',
-                    borderBottom: '1px solid var(--border)',
+                    padding: "0.5rem",
+                    borderBottom: "1px solid var(--border)",
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -1813,17 +2027,17 @@ export function StatsTable() {
 Create `app/routes/stats.tsx`:
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router';
-import { StatsTable } from '../components/StatsTable';
+import { createFileRoute } from "@tanstack/react-router";
+import { StatsTable } from "../components/StatsTable";
 
-export const Route = createFileRoute('/stats')({
+export const Route = createFileRoute("/stats")({
   component: StatsPage,
 });
 
 function StatsPage() {
   return (
     <div>
-      <h1 style={{ marginBottom: '1.5rem' }}>Statistics</h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>Statistics</h1>
       <StatsTable />
     </div>
   );
@@ -1842,6 +2056,7 @@ git commit -m "feat: add stats page with TanStack Table"
 ### Task 14: Config Page
 
 **Files:**
+
 - Create: `app/routes/config.tsx`
 - Create: `app/components/ConfigForm.tsx`
 
@@ -1850,55 +2065,69 @@ git commit -m "feat: add stats page with TanStack Table"
 Create `app/components/ConfigForm.tsx`:
 
 ```tsx
-import { useState } from 'react';
-import { useForm } from '@tanstack/react-form';
-import { useSuspenseQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getConfig, setConfig } from '../server-functions/config';
-import type { ProviderConfig } from '../lib/validation';
+import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import {
+  useSuspenseQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { getConfig, setConfig } from "../server-functions/config";
+import type { ProviderConfig } from "../lib/validation";
 
 export function ConfigForm() {
   const queryClient = useQueryClient();
   const { data: currentConfig } = useSuspenseQuery({
-    queryKey: ['config'],
+    queryKey: ["config"],
     queryFn: () => getConfig(),
   });
 
-  const [status, setStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">(
+    "idle",
+  );
+  const [message, setMessage] = useState("");
 
   const form = useForm<ProviderConfig>({
     defaultValues: currentConfig,
     onSubmit: async ({ value }) => {
-      setStatus('saving');
+      setStatus("saving");
       try {
         await setConfig({ data: value });
-        setStatus('success');
-        setMessage('Config saved successfully');
-        queryClient.invalidateQueries({ queryKey: ['config'] });
+        setStatus("success");
+        setMessage("Config saved successfully");
+        queryClient.invalidateQueries({ queryKey: ["config"] });
       } catch (err) {
-        setStatus('error');
-        setMessage(err instanceof Error ? err.message : 'Unknown error');
+        setStatus("error");
+        setMessage(err instanceof Error ? err.message : "Unknown error");
       }
     },
   });
 
   return (
     <div className="card">
-      <h2 style={{ marginBottom: '1rem' }}>AI Provider Configuration</h2>
+      <h2 style={{ marginBottom: "1rem" }}>AI Provider Configuration</h2>
       <form
-        onSubmit={e => {
+        onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
           form.handleSubmit();
         }}
       >
         <form.Field name="provider">
-          {field => (
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Provider</label>
+          {(field) => (
+            <div style={{ marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.25rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Provider
+              </label>
               <select
                 value={field.state.value}
-                onChange={e => field.handleChange(e.target.value as any)}
+                onChange={(e) => field.handleChange(e.target.value as any)}
                 className="input"
               >
                 <option value="openrouter">OpenRouter</option>
@@ -1912,13 +2141,21 @@ export function ConfigForm() {
         </form.Field>
 
         <form.Field name="model">
-          {field => (
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Model</label>
+          {(field) => (
+            <div style={{ marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.25rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Model
+              </label>
               <input
                 type="text"
                 value={field.state.value}
-                onChange={e => field.handleChange(e.target.value)}
+                onChange={(e) => field.handleChange(e.target.value)}
                 className="input"
                 placeholder="openai/gpt-4o-mini"
               />
@@ -1927,13 +2164,21 @@ export function ConfigForm() {
         </form.Field>
 
         <form.Field name="baseUrl">
-          {field => (
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>Base URL (optional)</label>
+          {(field) => (
+            <div style={{ marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.25rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Base URL (optional)
+              </label>
               <input
                 type="text"
-                value={field.state.value || ''}
-                onChange={e => field.handleChange(e.target.value)}
+                value={field.state.value || ""}
+                onChange={(e) => field.handleChange(e.target.value)}
                 className="input"
                 placeholder="http://localhost:11434/v1"
               />
@@ -1942,13 +2187,21 @@ export function ConfigForm() {
         </form.Field>
 
         <form.Field name="apiKey">
-          {field => (
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem' }}>API Key</label>
+          {(field) => (
+            <div style={{ marginBottom: "1rem" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "0.25rem",
+                  fontSize: "0.875rem",
+                }}
+              >
+                API Key
+              </label>
               <input
                 type="password"
                 value={field.state.value}
-                onChange={e => field.handleChange(e.target.value)}
+                onChange={(e) => field.handleChange(e.target.value)}
                 className="input"
                 placeholder="sk-..."
               />
@@ -1956,19 +2209,22 @@ export function ConfigForm() {
           )}
         </form.Field>
 
-        <button type="submit" className="btn" disabled={status === 'saving'}>
-          {status === 'saving' ? 'Saving...' : 'Save Configuration'}
+        <button type="submit" className="btn" disabled={status === "saving"}>
+          {status === "saving" ? "Saving..." : "Save Configuration"}
         </button>
       </form>
 
-      {status !== 'idle' && (
+      {status !== "idle" && (
         <div
           style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            borderRadius: '6px',
-            background: status === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-            color: status === 'success' ? 'var(--success)' : 'var(--error)',
+            marginTop: "1rem",
+            padding: "0.75rem",
+            borderRadius: "6px",
+            background:
+              status === "success"
+                ? "rgba(34,197,94,0.1)"
+                : "rgba(239,68,68,0.1)",
+            color: status === "success" ? "var(--success)" : "var(--error)",
           }}
         >
           {message}
@@ -1984,17 +2240,17 @@ export function ConfigForm() {
 Create `app/routes/config.tsx`:
 
 ```tsx
-import { createFileRoute } from '@tanstack/react-router';
-import { ConfigForm } from '../components/ConfigForm';
+import { createFileRoute } from "@tanstack/react-router";
+import { ConfigForm } from "../components/ConfigForm";
 
-export const Route = createFileRoute('/config')({
+export const Route = createFileRoute("/config")({
   component: ConfigPage,
 });
 
 function ConfigPage() {
   return (
     <div>
-      <h1 style={{ marginBottom: '1.5rem' }}>Configuration</h1>
+      <h1 style={{ marginBottom: "1.5rem" }}>Configuration</h1>
       <ConfigForm />
     </div>
   );
@@ -2013,27 +2269,32 @@ git commit -m "feat: add config page with TanStack Form for provider settings"
 ### Task 15: AGENTS.md & Final Setup
 
 **Files:**
+
 - Create: `AGENTS.md`
 
 - [ ] **Step 1: Create AGENTS.md**
 
 Create `AGENTS.md`:
 
-```markdown
+````markdown
 # Study App — Agent Context
 
 ## TanStack CLI Command Used
+
 ```bash
 npx @tanstack/cli@latest create study-app --agent --deployment cloudflare
 ```
+````
 
 ## Follow-up Commands
+
 ```bash
 npx @tanstack/intent@latest install
 npx @tanstack/intent@latest list
 ```
 
 ## Stack
+
 - TanStack Start (SPA, no SSR)
 - TanStack Router, AI, Query, Form, Store, DB, Table, Hotkeys, Virtual, CLI, Intent
 - Cloudflare Workers + D1
@@ -2042,16 +2303,19 @@ npx @tanstack/intent@latest list
 - Vitest for testing
 
 ## Environment Variables
+
 - `OPENROUTER_API_KEY` — Required. OpenRouter API key.
 - `AI_PROVIDER` — Optional. Default: `openrouter`
 - `AI_MODEL` — Optional. Default: `openai/gpt-4o-mini`
 
 ## Deployment Notes
+
 - Local: `npm run dev` + `wrangler dev`
 - D1 migrations: `npm run db:migrate`
 - Deploy: `wrangler deploy` + `npx wrangler pages deploy dist`
 
 ## Key Architectural Decisions
+
 - Single-user, local-first app
 - All AI calls go through server functions (never client-side)
 - D1 used directly (TanStack DB adapter not yet available for D1)
@@ -2059,29 +2323,33 @@ npx @tanstack/intent@latest list
 - SPA mode (no SSR) — appropriate for single-user app
 
 ## Known Gotchas
+
 - `pdf-parse` doesn't work in Cloudflare Workers — uses text extraction fallback
 - TanStack DB may not have D1 adapter yet — uses direct D1 bindings
 - OpenRouter rate limits may require retry logic
 
 ## Next Steps
+
 - Add TanStack Virtual for long question lists
 - Add E2E tests with Playwright
 - Add offline mode with service worker
 - Polish UI with animations
-```
+
+````
 
 - [ ] **Step 2: Final commit**
 
 ```bash
 git add AGENTS.md
 git commit -m "docs: add AGENTS.md with project context and setup notes"
-```
+````
 
 ---
 
 ## Self-Review
 
 ### Spec Coverage Check
+
 | Spec Section              | Task                               |
 | ------------------------- | ---------------------------------- |
 | TanStack Start SPA        | Tasks 1, 9                         |
@@ -2101,16 +2369,19 @@ git commit -m "docs: add AGENTS.md with project context and setup notes"
 | Testing                   | Tasks 2, 5, 6, 7                   |
 
 ### Placeholder Scan
+
 - No TBD/TODO found
 - All code blocks contain actual implementation
 - All types are consistent across tasks
 
 ### Type Consistency
+
 - `ProviderConfig` defined in Task 2, used consistently in Tasks 3, 5, 6, 7, 12, 14
 - `Question` schema consistent across Tasks 2, 4, 6
 - Server function signatures match between definition and usage
 
 ### Missing: TanStack Virtual
+
 Need to add Virtual to Quiz component for long question lists. Adding as Task 12b.
 
 ---
@@ -2122,8 +2393,8 @@ Need to add Virtual to Quiz component for long question lists. Adding as Task 12
 Modify `app/components/Quiz.tsx` — add virtual scroll for question navigation:
 
 ```tsx
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef } from 'react';
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef } from "react";
 
 // Add to Quiz component:
 const parentRef = useRef<HTMLDivElement>(null);
@@ -2135,22 +2406,22 @@ const virtualizer = useVirtualizer({
 });
 
 // Replace question list rendering with:
-<div ref={parentRef} style={{ overflow: 'auto', maxHeight: '60vh' }}>
+<div ref={parentRef} style={{ overflow: "auto", maxHeight: "60vh" }}>
   <div
     style={{
       height: `${virtualizer.getTotalSize()}px`,
-      width: '100%',
-      position: 'relative',
+      width: "100%",
+      position: "relative",
     }}
   >
-    {virtualizer.getVirtualItems().map(virtualRow => (
+    {virtualizer.getVirtualItems().map((virtualRow) => (
       <div
         key={virtualRow.index}
         style={{
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
-          width: '100%',
+          width: "100%",
           transform: `translateY(${virtualRow.start}px)`,
         }}
       >
@@ -2158,7 +2429,7 @@ const virtualizer = useVirtualizer({
       </div>
     ))}
   </div>
-</div>
+</div>;
 ```
 
 - [ ] **Step 2: Commit**

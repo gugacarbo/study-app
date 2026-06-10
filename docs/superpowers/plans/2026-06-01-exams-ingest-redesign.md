@@ -28,6 +28,7 @@ src/components/ingest/
 ### Task 1: Create `PipelineFlow` Component
 
 **Files:**
+
 - Create: `src/components/ingest/PipelineFlow.tsx`
 
 **Context:** Extract the `FlowStageCard` logic from `exams.ingest.tsx` into a reusable horizontal flow component. Each stage is clickable.
@@ -62,7 +63,11 @@ const indicatorColors: Record<FlowStage["status"], string> = {
   pending: "bg-muted-foreground/40",
 };
 
-export function PipelineFlow({ stages, activeStageId, onStageClick }: PipelineFlowProps) {
+export function PipelineFlow({
+  stages,
+  activeStageId,
+  onStageClick,
+}: PipelineFlowProps) {
   if (stages.length === 0) {
     return (
       <p className="text-center text-xs text-muted-foreground py-4">
@@ -127,6 +132,7 @@ git commit -m "feat(ingest): add PipelineFlow component"
 ### Task 2: Create `UploadCard` Component
 
 **Files:**
+
 - Create: `src/components/ingest/UploadCard.tsx`
 
 **Context:** Extract the upload area from `exams.ingest.tsx` — file picker, review toggle, and upload button.
@@ -237,6 +243,7 @@ git commit -m "feat(ingest): add UploadCard component"
 ### Task 3: Create `QueueList` Component
 
 **Files:**
+
 - Create: `src/components/ingest/QueueList.tsx`
 
 **Context:** Extract the job queue list from `exams.ingest.tsx`. Shows jobs in reverse order with status badges and cancel buttons.
@@ -258,7 +265,12 @@ interface QueueListProps {
   onCancelJob: (jobId: string) => void;
 }
 
-export function QueueList({ jobs, focusedJobId, onFocusJob, onCancelJob }: QueueListProps) {
+export function QueueList({
+  jobs,
+  focusedJobId,
+  onFocusJob,
+  onCancelJob,
+}: QueueListProps) {
   return (
     <Card>
       <CardHeader>
@@ -372,6 +384,7 @@ git commit -m "feat(ingest): add QueueList component"
 ### Task 4: Create `OutputPanel` Component
 
 **Files:**
+
 - Create: `src/components/ingest/OutputPanel.tsx`
 
 **Context:** Extract the Output tab content from `exams.ingest.tsx`.
@@ -388,7 +401,11 @@ interface OutputPanelProps {
   isRunning: boolean;
 }
 
-export function OutputPanel({ text, tokenTotals, isRunning }: OutputPanelProps) {
+export function OutputPanel({
+  text,
+  tokenTotals,
+  isRunning,
+}: OutputPanelProps) {
   return (
     <div className="flex flex-1 flex-col">
       <div className="mb-2 flex items-center gap-2">
@@ -425,6 +442,7 @@ git commit -m "feat(ingest): add OutputPanel component"
 ### Task 5: Create `LogsPanel` Component
 
 **Files:**
+
 - Create: `src/components/ingest/LogsPanel.tsx`
 
 **Context:** Extract the Logs tab content with stage filtering support. When `filteredStageId` is set, only show logs that contain the stage label.
@@ -443,12 +461,17 @@ interface LogsPanelProps {
   onClearFilter: () => void;
 }
 
-export function LogsPanel({ logs, stages, filteredStageId, onClearFilter }: LogsPanelProps) {
+export function LogsPanel({
+  logs,
+  stages,
+  filteredStageId,
+  onClearFilter,
+}: LogsPanelProps) {
   const filteredStage = stages.find((s) => s.stageId === filteredStageId);
-  
+
   const displayLogs = filteredStage
     ? logs.filter((log) =>
-        log.toLowerCase().includes(filteredStage.label.toLowerCase())
+        log.toLowerCase().includes(filteredStage.label.toLowerCase()),
       )
     : logs;
 
@@ -514,6 +537,7 @@ git commit -m "feat(ingest): add LogsPanel component with stage filtering"
 ### Task 6: Create `JobDetailPanel` Component
 
 **Files:**
+
 - Create: `src/components/ingest/JobDetailPanel.tsx`
 
 **Context:** Extract the right-column job detail from `exams.ingest.tsx`. Combines PipelineFlow, Tabs, OutputPanel, and LogsPanel.
@@ -609,7 +633,10 @@ export function JobDetailPanel({
 function StatusBadge({ status }: { status: IngestJob["status"] }) {
   const variantMap: Record<
     IngestJob["status"],
-    { variant: "default" | "secondary" | "destructive" | "outline"; label: string }
+    {
+      variant: "default" | "secondary" | "destructive" | "outline";
+      label: string;
+    }
   > = {
     queued: { variant: "secondary", label: "Queued" },
     running: { variant: "default", label: "Running" },
@@ -644,6 +671,7 @@ git commit -m "feat(ingest): add JobDetailPanel component"
 ### Task 7: Refactor `exams.ingest.tsx` Route
 
 **Files:**
+
 - Modify: `src/routes/exams.ingest.tsx`
 
 **Context:** Replace the monolithic route component with the thin orchestrator that uses all extracted components. Add local state for `activeTab` and `selectedStageId`.
@@ -687,11 +715,7 @@ function IngestPage() {
 
   async function handleUpload(file: File, enableReview: boolean) {
     const buffer = await file.arrayBuffer();
-    enqueueIngest(
-      file.name,
-      Array.from(new Uint8Array(buffer)),
-      enableReview,
-    );
+    enqueueIngest(file.name, Array.from(new Uint8Array(buffer)), enableReview);
   }
 
   function handleStageClick(stageId: string) {
@@ -768,16 +792,16 @@ git commit -m "refactor(ingest): rewrite exams.ingest route with extracted compo
 
 ## Spec Coverage Check
 
-| Spec Requirement | Task |
-|---|---|
-| Sidebar + Main Stage layout | Task 7 |
-| UploadCard component | Task 2 |
-| QueueList component | Task 3 |
-| PipelineFlow fixed at top | Task 6 |
+| Spec Requirement                     | Task            |
+| ------------------------------------ | --------------- |
+| Sidebar + Main Stage layout          | Task 7          |
+| UploadCard component                 | Task 2          |
+| QueueList component                  | Task 3          |
+| PipelineFlow fixed at top            | Task 6          |
 | PipelineFlow clickable → filter logs | Task 1, 5, 6, 7 |
-| Output scrollable | Task 4, 6 |
-| Logs filterable by stage | Task 5, 6, 7 |
-| All UI extracted to components | Tasks 1-6 |
+| Output scrollable                    | Task 4, 6       |
+| Logs filterable by stage             | Task 5, 6, 7    |
+| All UI extracted to components       | Tasks 1-6       |
 
 ## Placeholder Scan
 

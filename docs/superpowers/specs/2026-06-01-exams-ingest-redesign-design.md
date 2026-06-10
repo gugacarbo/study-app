@@ -53,12 +53,14 @@ The page uses a **two-column layout**:
 **Props:** `onUpload(file, enableReview)`
 
 **Responsibilities:**
+
 - File input (hidden) + trigger button
 - Drag & drop zone visual (optional enhancement)
 - "Revisão crítica" toggle switch
 - Upload button (disabled when no file)
 
 **States:**
+
 - Idle (no file)
 - File selected (show filename)
 
@@ -67,6 +69,7 @@ The page uses a **two-column layout**:
 **Props:** `jobs: IngestJob[], focusedJobId: string | null`
 
 **Responsibilities:**
+
 - Reverse-chronological list of jobs
 - Each row shows filename + status badge
 - Click to focus job
@@ -78,6 +81,7 @@ The page uses a **two-column layout**:
 **Props:** `job: IngestJob`
 
 **Responsibilities:**
+
 - Header with filename, status badge, review badge
 - Renders `PipelineFlow`
 - Renders tab switcher (Output / Logs)
@@ -88,6 +92,7 @@ The page uses a **two-column layout**:
 **Props:** `stages: FlowStage[], activeStageId: string | null, onStageClick: (stageId) => void`
 
 **Responsibilities:**
+
 - Horizontal row of stage cards
 - Each stage shows dot indicator + label
 - Color by status: done (green), running (blue), warning (amber), error (red), pending (gray)
@@ -99,6 +104,7 @@ The page uses a **two-column layout**:
 **Props:** `text: string, tokenTotals: TokenTotals`
 
 **Responsibilities:**
+
 - Token count badge
 - Scrollable monospace output area
 - Empty state placeholder
@@ -108,6 +114,7 @@ The page uses a **two-column layout**:
 **Props:** `logs: string[], filteredStageId: string | null, onClearFilter: () => void`
 
 **Responsibilities:**
+
 - If `filteredStageId` is set, show filter chip + clear button
 - Filter logs to only those containing the stage label (or use stage metadata if available)
 - Scrollable monospace log list

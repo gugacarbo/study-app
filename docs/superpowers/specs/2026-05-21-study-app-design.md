@@ -240,10 +240,10 @@ CREATE TABLE IF NOT EXISTS config (
 
 ```ts
 interface ProviderConfig {
-	provider: "openrouter" | "openai" | "groq" | "ollama" | "custom";
-	model: string;
-	baseUrl?: string;
-	apiKey: string;
+  provider: "openrouter" | "openai" | "groq" | "ollama" | "custom";
+  model: string;
+  baseUrl?: string;
+  apiKey: string;
 }
 ```
 

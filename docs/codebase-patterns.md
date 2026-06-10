@@ -61,7 +61,7 @@ import { ExamHeader } from "./exam-header";
 | Shared utilities  | `src/lib/`              |
 | Shared hooks      | `src/hooks/`            |
 | Types             | `src/types/`            |
-| Feature modules   | `src/features/`          |
+| Feature modules   | `src/features/`         |
 | AI integration    | `src/features/ai/`      |
 
 ### Feature Module Structure

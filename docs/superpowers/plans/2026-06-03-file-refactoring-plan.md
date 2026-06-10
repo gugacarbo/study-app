@@ -33,6 +33,7 @@ Ensure a clean or committed state before starting any refactoring.
 ### Task A1: Refactor `src/db/queries.ts` (1151L)
 
 **Files:**
+
 - Read: `src/db/queries.ts`
 - Create: `src/db/queries/base.ts`, `exams.ts`, `questions.ts`, `attempts.ts`, `config.ts`, `files.ts`, `memory.ts`, `llm-logs.ts`, `index.ts`
 - Delete: `src/db/queries.ts` (replace with folder)
@@ -41,6 +42,7 @@ Ensure a clean or committed state before starting any refactoring.
 - [ ] **Step 1: Read and understand the original file**
 
 Read `src/db/queries.ts` fully. Identify:
+
 - All public exports (DBQueries class, type exports)
 - Method groupings by entity (exams, questions, attempts, config, files, memory, llm-logs)
 - Shared imports used across all methods
@@ -55,6 +57,7 @@ Create `src/db/queries/types.ts` — extract shared types/interfaces that multip
 Create one file per entity, each exporting a function that takes the DB and returns methods:
 
 `src/db/queries/base.ts` — DBQueries class constructor + shared Drizzle client:
+
 ```typescript
 import { getDB } from "@/server-functions/db";
 
@@ -67,6 +70,7 @@ export class DBQueries {
 ```
 
 `src/db/queries/exams.ts` — exam CRUD methods (extends DBQueries via prototype or mixin pattern):
+
 ```typescript
 // Extend DBQueries prototype with exam methods
 import { DBQueries } from "./base";
@@ -80,6 +84,7 @@ DBQueries.prototype.getExams = async function () {
 Alternatively, use a class-extension approach that preserves `this.db` access.
 
 `src/db/queries/questions.ts` — question CRUD:
+
 ```typescript
 import { DBQueries } from "./base";
 import { questionTable } from "../schema";
@@ -90,6 +95,7 @@ DBQueries.prototype.getQuestions = async function (examId: string) {
 ```
 
 `src/db/queries/attempts.ts` — attempts + stats:
+
 ```typescript
 import { DBQueries } from "./base";
 import { attemptTable } from "../schema";
@@ -107,6 +113,7 @@ DBQueries.prototype.getStats = async function () {
 - [ ] **Step 4: Create barrel index**
 
 Create `src/db/queries/index.ts`:
+
 ```typescript
 export { DBQueries } from "./base";
 import "./exams";
@@ -145,6 +152,7 @@ git commit -m "refactor: split db/queries.ts into entity files"
 ### Task A2: Refactor `src/stores/ingestStore.ts` (996L)
 
 **Files:**
+
 - Read: `src/stores/ingestStore.ts`
 - Create: `src/stores/ingest-store/types.ts`, `actions.ts`, `selectors.ts`, `persistence.ts`, `index.ts`
 - Delete: `src/stores/ingestStore.ts` (replace with folder)
@@ -172,6 +180,7 @@ Identify: store creation function, all exported symbols, types, action functions
 - [ ] **Step 6: Create barrel index**
 
 `src/stores/ingest-store/index.ts`:
+
 ```typescript
 export { createIngestStore, useIngestStore } from "./store";
 export type { Job, JobState, IngestStore } from "./types";
@@ -203,6 +212,7 @@ git commit -m "refactor: split ingestStore.ts into domain files"
 ### Task B1: Refactor `src/lib/memory.ts` (793L)
 
 **Files:**
+
 - Read: `src/lib/memory.ts`
 - Create: `src/lib/memory/types.ts`, `manager.ts`, `r2-operations.ts`, `d1-operations.ts`, `search.ts`, `index.ts`
 - Delete: `src/lib/memory.ts`
@@ -234,6 +244,7 @@ Identify: MemoryManager class, all methods, R2 operations, D1 operations, search
 - [ ] **Step 7: Create barrel and verify**
 
 `src/lib/memory/index.ts`:
+
 ```typescript
 export { MemoryManager } from "./manager";
 export type { MemorySession, MemoryDocument, MemoryTopicNote } from "./types";
@@ -257,6 +268,7 @@ git commit -m "refactor: split lib/memory.ts into domain files"
 ### Task B2: Refactor `src/lib/sse-stream.ts` (418L)
 
 **Files:**
+
 - Read: `src/lib/sse-stream.ts`
 - Create: `src/lib/sse-stream/types.ts`, `emitter.ts`, `parser.ts`, `index.ts`
 - Delete: `src/lib/sse-stream.ts`
@@ -296,6 +308,7 @@ git commit -m "refactor: split lib/sse-stream.ts into domain files"
 ### Task C1: Refactor `src/routes/api/ingest.ts` (731L)
 
 **Files:**
+
 - Read: `src/routes/api/ingest.ts`
 - Create: `src/routes/api/ingest/pipeline.ts`, `extract-text.ts`, `memory-refinement.ts`, `review.ts`, `persist.ts`, `sse-emitter.ts`, `index.ts`
 - Delete: `src/routes/api/ingest.ts`
@@ -311,6 +324,7 @@ Identify: POST handler, pipeline stages (decode → extract → memory refine �
 - [ ] **Step 3: Create stage files**
 
 One function per stage:
+
 - `extract-text.ts` — `extractQuestions` stage
 - `memory-refinement.ts` — memory refinement stage
 - `review.ts` — `reviewExtraction` stage
@@ -341,6 +355,7 @@ git commit -m "refactor: split routes/api/ingest.ts into pipeline stages"
 ### Task C2: Refactor `src/routes/exams.upload.tsx` (585L)
 
 **Files:**
+
 - Read: `src/routes/exams.upload.tsx`
 - Create: `src/routes/exams.upload/upload-form.tsx`, `ingest-progress.tsx`, `job-list.tsx`, `use-upload.ts`, `index.tsx`
 - Delete: `src/routes/exams.upload.tsx`
@@ -378,6 +393,7 @@ git commit -m "refactor: split routes/exams.upload.tsx into components"
 ### Task C3: Refactor `src/components/ingest/IngestChatView.tsx` (345L)
 
 **Files:**
+
 - Read: `src/components/ingest/IngestChatView.tsx`
 - Create: `src/components/ingest/ingest-chat-view/chat-panel.tsx`, `log-panel.tsx`, `use-ingest-chat.ts`, `index.tsx`
 - Delete: `src/components/ingest/IngestChatView.tsx`
@@ -408,6 +424,7 @@ git commit -m "refactor: split IngestChatView into focused components"
 ### Task C4: Refactor `src/components/ingest/OutputPanel.tsx` (204L)
 
 **Files:**
+
 - Read: `src/components/ingest/OutputPanel.tsx`
 - Create: `src/components/ingest/OutputPanelLogs.tsx`, `src/components/ingest/OutputPanelAgentRuns.tsx`
 - Modify: `src/components/ingest/OutputPanel.tsx` (thin down)
@@ -439,6 +456,7 @@ git commit -m "refactor: extract OutputPanel sub-components"
 ### Task D1: Refactor `src/features/ai/core/generate.ts` (436L)
 
 **Files:**
+
 - Read: `src/features/ai/core/generate.ts`
 - Create: `src/features/ai/core/generate/types.ts`, `generate-text.ts`, `generate-structured.ts`, `generate-stream.ts`, `provider.ts`, `index.ts`
 - Delete: `src/features/ai/core/generate.ts`
@@ -470,6 +488,7 @@ git commit -m "refactor: split generate.ts into focused generation functions"
 ### Task D2: Refactor `src/features/ai/tools/db-tools.ts` (325L)
 
 **Files:**
+
 - Read: `src/features/ai/tools/db-tools.ts`
 - Create: `src/features/ai/tools/db-tools/exam-tools.ts`, `question-tools.ts`, `memory-tools.ts`, `config-tools.ts`, `index.ts`
 - Delete: `src/features/ai/tools/db-tools.ts`
@@ -504,6 +523,7 @@ git commit -m "refactor: split db-tools.ts by tool domain"
 ### Task D3: Refactor `src/features/ai/tools/tool-resolver.ts` (185L)
 
 **Files:**
+
 - Read: `src/features/ai/tools/tool-resolver.ts`
 - Create: `src/features/ai/tools/tool-definitions.ts`, `src/features/ai/tools/tool-factories.ts`
 - Modify: `src/features/ai/tools/tool-resolver.ts` (thin down)
@@ -531,6 +551,7 @@ git commit -m "refactor: extract tool definitions and factories from resolver"
 ### Task D4: Refactor `src/features/ai/agents/ingest/review-extraction.ts` (313L)
 
 **Files:**
+
 - Read: `src/features/ai/agents/ingest/review-extraction.ts`
 - Create: `src/features/ai/agents/ingest/review-extraction/prompt.ts`, `execute.ts`, `types.ts`, `index.ts`
 - Delete: `src/features/ai/agents/ingest/review-extraction.ts`
@@ -560,11 +581,12 @@ git commit -m "refactor: split review-extraction into prompt, execute, types"
 
 ## Task Group E: Chat + Exams + Quiz (~10 files → ~24 new files)
 
-**Scope:** routes (__root, chat, exams.explanations), server-functions (exams), exam-detail components, chat hooks/stores, quiz
+**Scope:** routes (\_\_root, chat, exams.explanations), server-functions (exams), exam-detail components, chat hooks/stores, quiz
 
 ### Task E1: Refactor `src/routes/__root.tsx` (265L)
 
 **Files:**
+
 - Read: `src/routes/__root.tsx`
 - Create: `src/routes/root-nav.tsx`, `src/routes/root-providers.tsx`
 - Modify: `src/routes/__root.tsx` (thin down to ~60L)
@@ -592,6 +614,7 @@ git commit -m "refactor: extract nav and providers from __root.tsx"
 ### Task E2: Refactor `src/routes/api/chat.ts` (254L)
 
 **Files:**
+
 - Read: `src/routes/api/chat.ts`
 - Create: `src/routes/api/chat/handlers.ts`, `streaming.ts`, `tools.ts`, `index.ts`
 - Delete: `src/routes/api/chat.ts`
@@ -622,6 +645,7 @@ git commit -m "refactor: split routes/api/chat.ts into focused modules"
 ### Task E3: Refactor `src/routes/exams.explanations.tsx` (322L)
 
 **Files:**
+
 - Read: `src/routes/exams.explanations.tsx`
 - Create: `src/routes/exams.explanations/pipeline-controls.tsx`, `explanation-results.tsx`, `use-explanation-pipeline.ts`, `index.tsx`
 - Delete: `src/routes/exams.explanations.tsx`
@@ -652,6 +676,7 @@ git commit -m "refactor: split exams.explanations into components and hook"
 ### Task E4: Refactor `src/server-functions/exams.ts` (212L)
 
 **Files:**
+
 - Read: `src/server-functions/exams.ts`
 - Create: `src/server-functions/exams/detail.ts`, `questions.ts`, `delete.ts`, `types.ts`, `index.ts`
 - Delete: `src/server-functions/exams.ts`
@@ -683,6 +708,7 @@ git commit -m "refactor: split server-functions/exams.ts by operation"
 ### Task E5: Refactor `src/components/exam-detail/explanation-dialog.tsx` (273L)
 
 **Files:**
+
 - Read: `src/components/exam-detail/explanation-dialog.tsx`
 - Create: `src/components/exam-detail/explanation-dialog/dialog-content.tsx`, `dialog-actions.tsx`, `use-explanation.ts`, `index.tsx`
 - Delete: `src/components/exam-detail/explanation-dialog.tsx`
@@ -713,6 +739,7 @@ git commit -m "refactor: split explanation-dialog into focused components"
 ### Task E6: Refactor `src/components/exam-detail/question-edit-form.tsx` (151L)
 
 **Files:**
+
 - Read: `src/components/exam-detail/question-edit-form.tsx`
 - Create: `src/components/exam-detail/question-edit-fields.tsx`
 - Modify: `src/components/exam-detail/question-edit-form.tsx` (thin down)
@@ -739,6 +766,7 @@ git commit -m "refactor: extract question edit fields from form"
 ### Task E7: Refactor `src/features/ai/components/exam-detail/use-explanation-generation.ts` (271L)
 
 **Files:**
+
 - Read: `src/features/ai/components/exam-detail/use-explanation-generation.ts`
 - Create: `src/features/ai/components/exam-detail/explanation-queue.ts`, `explanation-generator.ts`
 - Modify: `use-explanation-generation.ts` (thin down)
@@ -766,6 +794,7 @@ git commit -m "refactor: extract queue and generator from use-explanation-genera
 ### Task E8: Refactor `src/features/ai/hooks/use-chat-client.ts` (284L)
 
 **Files:**
+
 - Read: `src/features/ai/hooks/use-chat-client.ts`
 - Create: `src/features/ai/hooks/use-chat-client/types.ts`, `send-message.ts`, `tool-calls.ts`, `streaming.ts`, `index.ts`
 - Delete: `src/features/ai/hooks/use-chat-client.ts`
@@ -797,6 +826,7 @@ git commit -m "refactor: split use-chat-client by concern"
 ### Task E9: Refactor `src/features/ai/stores/conversations-store.ts` (234L)
 
 **Files:**
+
 - Read: `src/features/ai/stores/conversations-store.ts`
 - Create: `src/features/ai/stores/conversations-store/types.ts`, `actions.ts`, `selectors.ts`, `index.ts`
 - Delete: `src/features/ai/stores/conversations-store.ts`
@@ -827,6 +857,7 @@ git commit -m "refactor: split conversations-store by concern"
 ### Task E10: Refactor `src/features/ai/agents/explanations/generate-explanations.ts` (190L)
 
 **Files:**
+
 - Read: `src/features/ai/agents/explanations/generate-explanations.ts`
 - Create: `src/features/ai/agents/explanations/generate-explanations/prompt.ts`, `batch-generator.ts`, `types.ts`, `index.ts`
 - Delete: `src/features/ai/agents/explanations/generate-explanations.ts`
@@ -857,6 +888,7 @@ git commit -m "refactor: split generate-explanations into focused modules"
 ### Task E11: Refactor `src/components/quiz/quiz.tsx` (159L)
 
 **Files:**
+
 - Read: `src/components/quiz/quiz.tsx`
 - Create: `src/components/quiz/quiz/quiz-navigation.tsx`, `quiz-timer.tsx`, `use-quiz-state.ts`, `index.tsx`
 - Delete: `src/components/quiz/quiz.tsx`
@@ -887,6 +919,7 @@ git commit -m "refactor: split quiz into navigation, timer, state hook"
 ### Task E12: Cleanup `src/features/ai/components/chat/message/chat-message-utils.ts` (149L)
 
 **Files:**
+
 - Read: `src/features/ai/components/chat/message/chat-message-utils.ts`
 - Create: (only if needed to stay under 150L)
 - Modify: `chat-message-utils.ts` (minor cleanup if needed)

@@ -177,6 +177,7 @@ src/components/exam-detail/explanation-dialog/
 ### 14. `src/features/ai/components/exam-detail/use-explanation-generation.ts` (271L)
 
 Sibling splits — already in `exam-detail/` directory (no sub-folder needed):
+
 - `use-explanation-generation.ts` → thin API layer, delegates to sub-modules
 - `explanation-queue.ts` → queue management
 - `explanation-generator.ts` → single explanation generation
@@ -184,6 +185,7 @@ Sibling splits — already in `exam-detail/` directory (no sub-folder needed):
 ### 15. `src/routes/__root.tsx` (265L)
 
 Sibling splits — in `routes/` directory (no sub-folder needed):
+
 - `__root.tsx` → thin route component
 - `root-nav.tsx` → nav bar + ingest indicator
 - `root-providers.tsx` → QueryClient, theme, Scripts setup
@@ -278,17 +280,18 @@ so file-based routing continues to work.
 
 Refactor in **5 parallel groups** (independent domains):
 
-| Group | Files | ~New Files |
-|-------|-------|-----------|
-| **A: Data Layer** | `db/queries.ts`, `stores/ingestStore.ts` | 15 |
-| **B: Memory + SSE** | `lib/memory.ts`, `lib/sse-stream.ts` | 12 |
-| **C: Ingest Pipeline** | `routes/api/ingest.ts`, `routes/exams.upload.tsx`, `components/ingest/IngestChatView.tsx`, `components/ingest/OutputPanel.tsx` | 17 |
-| **D: AI Core + Tools** | `features/ai/core/generate.ts`, `features/ai/tools/db-tools.ts`, `features/ai/tools/tool-resolver.ts`, `features/ai/agents/ingest/review-extraction.ts` | 20 |
-| **E: Chat + Exams + Quiz** | `routes/__root.tsx`, `routes/api/chat.ts`, `routes/exams.explanations.tsx`, `server-functions/exams.ts`, `components/exam-detail/*`, `features/ai/hooks/*`, `features/ai/stores/*`, `features/ai/agents/explanations/*`, `components/quiz/quiz.tsx` | 24 |
+| Group                      | Files                                                                                                                                                                                                                                               | ~New Files |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| **A: Data Layer**          | `db/queries.ts`, `stores/ingestStore.ts`                                                                                                                                                                                                            | 15         |
+| **B: Memory + SSE**        | `lib/memory.ts`, `lib/sse-stream.ts`                                                                                                                                                                                                                | 12         |
+| **C: Ingest Pipeline**     | `routes/api/ingest.ts`, `routes/exams.upload.tsx`, `components/ingest/IngestChatView.tsx`, `components/ingest/OutputPanel.tsx`                                                                                                                      | 17         |
+| **D: AI Core + Tools**     | `features/ai/core/generate.ts`, `features/ai/tools/db-tools.ts`, `features/ai/tools/tool-resolver.ts`, `features/ai/agents/ingest/review-extraction.ts`                                                                                             | 20         |
+| **E: Chat + Exams + Quiz** | `routes/__root.tsx`, `routes/api/chat.ts`, `routes/exams.explanations.tsx`, `server-functions/exams.ts`, `components/exam-detail/*`, `features/ai/hooks/*`, `features/ai/stores/*`, `features/ai/agents/explanations/*`, `components/quiz/quiz.tsx` | 24         |
 
 ## Verification
 
 After all groups complete:
+
 1. `npm run typecheck` — must pass
 2. `npm run lint` — must pass
 3. `npm run test` — all existing tests must pass
