@@ -14,7 +14,12 @@ export function rootHead() {
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
 			{ title: "Study App" },
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
+		links: [
+			{ rel: "stylesheet", href: appCss },
+			{ rel: "icon", type: "image/svg+xml", href: "/logo-icon.svg" },
+			{ rel: "icon", type: "image/png", sizes: "32x32", href: "/logo192.png" },
+			{ rel: "apple-touch-icon", sizes: "192x192", href: "/logo192.png" },
+		],
 	};
 }
 

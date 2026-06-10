@@ -3,6 +3,7 @@ import { useStore } from "@tanstack/react-store";
 import { Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/logo";
 import {
 	NavigationMenu,
 	NavigationMenuItem,
@@ -153,7 +154,13 @@ export function RootNav() {
 
 	return (
 		<header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-			<div className="flex h-14 items-center px-6">
+			<div className="flex h-14 items-center px-6 gap-4">
+				<Link
+					to="/"
+					className="flex items-center hover:opacity-80 transition-opacity"
+				>
+					<Logo variant="full" />
+				</Link>
 				<NavigationMenu>
 					<NavigationMenuList>
 						{navItems.map((item) => (
