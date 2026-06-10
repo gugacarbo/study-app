@@ -194,6 +194,7 @@ describe("ingestStream", () => {
 				agentRunId: "review_q1",
 				text: "delta",
 				timestamp: 113,
+				kind: "text",
 			},
 		]);
 		expect(warnings).toEqual([

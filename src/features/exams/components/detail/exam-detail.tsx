@@ -7,7 +7,9 @@ import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExplanationPipelineTab } from "./explanation-pipeline-tab";
 import { FileList } from "./file-list";
+import { ImproveOptionsDialog } from "./improve-options-dialog";
 import { QuestionsCard } from "./questions-card";
+import type { QuestionData } from "./exam-utils";
 import { StatsCards } from "./stats-cards";
 import { TopicList } from "./topic-list";
 import { TopicStatsCard } from "./topic-stats-card";
@@ -20,6 +22,10 @@ interface ExamDetailProps {
 
 export function ExamDetail({ examId }: ExamDetailProps) {
 	const [expandedQuestions, setExpandedQuestions] = useState(new Set<number>());
+	const [improveOptionsQuestion, setImproveOptionsQuestion] =
+		useState<QuestionData | null>(null);
+	const [improveOptionsOpen, setImproveOptionsOpen] = useState(false);
+	const [draftOverride, setDraftOverride] = useState<QuestionData | null>(null);
 
 	const { data: exam } = useSuspenseQuery({
 		queryKey: ["exam-detail", examId],
@@ -95,6 +101,18 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 								editingQuestionId={editingQuestionId}
 								editForm={editForm}
 								onStartEdit={startEditing}
+								onImproveOptions={(q) => {
+									setImproveOptionsQuestion(q);
+									setImproveOptionsOpen(true);
+								}}
+								draftOverride={
+									improveOptionsOpen && improveOptionsQuestion && draftOverride
+										? {
+												questionId: improveOptionsQuestion.id,
+												question: draftOverride,
+											}
+										: null
+								}
 								onSave={handleSave}
 								onCancel={cancelEditing}
 								onFormChange={(updates) =>
@@ -110,6 +128,23 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 					<ExplanationPipelineTab examId={examId} questions={exam.questions} />
 				</TabsContent>
 			</Tabs>
+
+			{improveOptionsQuestion && (
+				<ImproveOptionsDialog
+					open={improveOptionsOpen}
+					onOpenChange={(open) => {
+						setImproveOptionsOpen(open);
+						if (!open) {
+							setImproveOptionsQuestion(null);
+							setDraftOverride(null);
+						}
+					}}
+					questionId={improveOptionsQuestion.id}
+					examId={examId}
+					question={improveOptionsQuestion}
+					onDraftChange={setDraftOverride}
+				/>
+			)}
 		</div>
 	);
 }
