@@ -59,7 +59,8 @@ export interface DBQueries {
 		data: {
 			question?: string;
 			options?: string[];
-			answer?: string;
+			answers?: string[];
+			scoringMode?: "exact" | "partial";
 			explanation?: string;
 			deepExplanation?: string;
 			topic?: string;
@@ -87,8 +88,9 @@ export interface DBQueries {
 	upsertAttemptAnswer(input: {
 		attemptId: number;
 		questionId: number;
-		userAnswer: string;
+		userAnswers: string[];
 		correct: boolean;
+		credit: number;
 	}): Promise<void>;
 	refreshAttemptProgress(attemptId: number): Promise<void>;
 	getAttemptById(attemptId: number): Promise<AttemptListItem | null>;
@@ -118,7 +120,8 @@ interface ParsedQuestion {
 	exam_id: number | null;
 	question: string;
 	options: string[];
-	answer: string;
+	answers: string[];
+	scoringMode: "exact" | "partial";
 	explanation: string;
 	deepExplanation: string;
 	topic: string;

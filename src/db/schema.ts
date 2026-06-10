@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	index,
 	integer,
+	real,
 	sqliteTable,
 	text,
 	uniqueIndex,
@@ -23,7 +24,8 @@ export const questions = sqliteTable(
 		}),
 		question: text("question").notNull(),
 		options: text("options").notNull(), // JSON array of strings
-		answer: text("answer").notNull(),
+		answers: text("answers").notNull(), // JSON array of correct option strings
+		scoring_mode: text("scoring_mode").notNull().default("exact"),
 		explanation: text("explanation"),
 		deep_explanation: text("deep_explanation"),
 		topic: text("topic"),
@@ -42,7 +44,7 @@ export const attempts = sqliteTable(
 		topic: text("topic"),
 		total_questions: integer("total_questions").notNull(),
 		answered_questions: integer("answered_questions").notNull().default(0),
-		correct_answers: integer("correct_answers").notNull().default(0),
+		correct_answers: real("correct_answers").notNull().default(0),
 		status: text("status").notNull().default("in_progress"),
 		started_at: text("started_at").default(sql`CURRENT_TIMESTAMP`),
 		completed_at: text("completed_at"),
@@ -70,6 +72,7 @@ export const attemptAnswers = sqliteTable(
 			}),
 		user_answer: text("user_answer").notNull(),
 		correct: integer("correct", { mode: "boolean" }).notNull(),
+		credit: real("credit"),
 		answered_at: text("answered_at").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [

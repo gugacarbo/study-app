@@ -148,7 +148,8 @@ export interface QuestionListItem {
 	deepExplanation: string;
 	topic: string;
 	created_at: string | null;
-	answer?: string;
+	answers?: string[];
+	scoringMode?: "exact" | "partial";
 }
 
 export interface AnswerKeyListItem {
@@ -156,7 +157,8 @@ export interface AnswerKeyListItem {
 	exam_id: number | null;
 	topic: string | null;
 	question: string;
-	answer: string;
+	answers: string[];
+	scoringMode: "exact" | "partial";
 	created_at: string | null;
 }
 
@@ -179,7 +181,8 @@ interface ParsedQuestion {
 	exam_id: number | null;
 	question: string;
 	options: string[];
-	answer: string;
+	answers: string[];
+	scoringMode: "exact" | "partial";
 	explanation: string;
 	deepExplanation: string;
 	topic: string;

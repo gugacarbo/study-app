@@ -3,6 +3,36 @@ import type { Question } from "../../lib/validation";
 import * as schema from "../schema";
 import type { DBQueries } from "./base";
 
+function parseAnswersJson(value: string): string[] {
+	const parsed: unknown = JSON.parse(value);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((entry): entry is string => typeof entry === "string");
+}
+
+function mapQuestionRow<
+	TRow extends {
+		options: string;
+		answers: string;
+		scoring_mode: string;
+		explanation: string | null;
+		deep_explanation: string | null;
+		topic: string | null;
+	},
+>(row: TRow) {
+	return {
+		...row,
+		options: JSON.parse(row.options) as string[],
+		answers: parseAnswersJson(row.answers),
+		scoringMode:
+			row.scoring_mode === "partial"
+				? ("partial" as const)
+				: ("exact" as const),
+		explanation: row.explanation ?? "",
+		deepExplanation: row.deep_explanation ?? "",
+		topic: row.topic ?? "",
+	};
+}
+
 export function insertQuestions(
 	this: DBQueries,
 	examId: number,
@@ -17,7 +47,8 @@ export function insertQuestions(
 				exam_id: examId,
 				question: q.question,
 				options: JSON.stringify(q.options),
-				answer: q.answer,
+				answers: JSON.stringify(q.answers),
+				scoring_mode: q.scoringMode,
 				explanation: q.explanation || "",
 				deep_explanation: q.deepExplanation || "",
 				topic: q.topic || "General",
@@ -34,7 +65,8 @@ export function updateQuestion(
 	data: {
 		question?: string;
 		options?: string[];
-		answer?: string;
+		answers?: string[];
+		scoringMode?: "exact" | "partial";
 		explanation?: string;
 		deepExplanation?: string;
 		topic?: string;
@@ -44,7 +76,9 @@ export function updateQuestion(
 	if (data.question !== undefined) updates.question = data.question;
 	if (data.options !== undefined)
 		updates.options = JSON.stringify(data.options);
-	if (data.answer !== undefined) updates.answer = data.answer;
+	if (data.answers !== undefined)
+		updates.answers = JSON.stringify(data.answers);
+	if (data.scoringMode !== undefined) updates.scoring_mode = data.scoringMode;
 	if (data.explanation !== undefined) updates.explanation = data.explanation;
 	if (data.deepExplanation !== undefined) {
 		updates.deep_explanation = data.deepExplanation;
@@ -76,15 +110,7 @@ export function getQuestionsByExam(this: DBQueries, examId: number) {
 		.where(eq(schema.questions.exam_id, examId))
 		.orderBy(schema.questions.id)
 		.all()
-		.then((rows) =>
-			rows.map((r) => ({
-				...r,
-				options: JSON.parse(r.options) as string[],
-				explanation: r.explanation ?? "",
-				deepExplanation: r.deep_explanation ?? "",
-				topic: r.topic ?? "",
-			})),
-		);
+		.then((rows) => rows.map(mapQuestionRow));
 }
 
 export function getQuestionById(this: DBQueries, questionId: number) {
@@ -93,16 +119,7 @@ export function getQuestionById(this: DBQueries, questionId: number) {
 		.from(schema.questions)
 		.where(eq(schema.questions.id, questionId))
 		.get()
-		.then((row) => {
-			if (!row) return null;
-			return {
-				...row,
-				options: JSON.parse(row.options) as string[],
-				explanation: row.explanation ?? "",
-				deepExplanation: row.deep_explanation ?? "",
-				topic: row.topic ?? "",
-			};
-		});
+		.then((row) => (row ? mapQuestionRow(row) : null));
 }
 
 export function getRandomQuestions(
@@ -119,13 +136,5 @@ export function getRandomQuestions(
 		.orderBy(sql`RANDOM()`)
 		.limit(limit)
 		.all()
-		.then((rows) =>
-			rows.map((r) => ({
-				...r,
-				options: JSON.parse(r.options) as string[],
-				explanation: r.explanation ?? "",
-				deepExplanation: r.deep_explanation ?? "",
-				topic: r.topic ?? "",
-			})),
-		);
+		.then((rows) => rows.map(mapQuestionRow));
 }

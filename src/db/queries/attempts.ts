@@ -10,6 +10,12 @@ import type {
 	PaginatedResult,
 } from "./types";
 
+function serializeUserAnswers(userAnswers: string[]): string {
+	return userAnswers.length === 1
+		? userAnswers[0]
+		: JSON.stringify(userAnswers);
+}
+
 export function createAttemptSession(
 	this: DBQueries,
 	input: { examId?: number; topic?: string; totalQuestions: number },
@@ -63,25 +69,28 @@ export function upsertAttemptAnswer(
 	input: {
 		attemptId: number;
 		questionId: number;
-		userAnswer: string;
+		userAnswers: string[];
 		correct: boolean;
+		credit: number;
 	},
 ): Promise<void> {
 	return this.d1
 		.prepare(
 			`INSERT INTO attempt_answers (
-				attempt_id, question_id, user_answer, correct, answered_at
-			) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+				attempt_id, question_id, user_answer, correct, credit, answered_at
+			) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 			ON CONFLICT(attempt_id, question_id) DO UPDATE SET
 				user_answer = excluded.user_answer,
 				correct = excluded.correct,
+				credit = excluded.credit,
 				answered_at = CURRENT_TIMESTAMP`,
 		)
 		.bind(
 			input.attemptId,
 			input.questionId,
-			input.userAnswer,
+			serializeUserAnswers(input.userAnswers),
 			Number(input.correct),
+			input.credit,
 		)
 		.run()
 		.then(() => undefined);
@@ -100,7 +109,7 @@ export function refreshAttemptProgress(
 			 	WHERE attempt_id = attempts.id
 			 ),
 			 correct_answers = COALESCE((
-			 	SELECT SUM(correct)
+			 	SELECT SUM(credit)
 			 	FROM attempt_answers
 			 	WHERE attempt_id = attempts.id
 			 ), 0),

@@ -10,6 +10,12 @@ import type {
 	QuestionListItem,
 } from "./types";
 
+function parseAnswersJson(value: string): string[] {
+	const parsed: unknown = JSON.parse(value);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter((entry): entry is string => typeof entry === "string");
+}
+
 export function listQuestionsPaged(
 	this: DBQueries,
 	filters: ListQuestionsFilters = {},
@@ -52,7 +58,12 @@ export function listQuestionsPaged(
 		deep_explanation: schema.questions.deep_explanation,
 		topic: schema.questions.topic,
 		created_at: schema.questions.created_at,
-		...(includeAnswer ? { answer: schema.questions.answer } : {}),
+		...(includeAnswer
+			? {
+					answers: schema.questions.answers,
+					scoring_mode: schema.questions.scoring_mode,
+				}
+			: {}),
 	};
 
 	const itemsPromise = this.db
@@ -75,7 +86,15 @@ export function listQuestionsPaged(
 			topic: row.topic ?? "",
 			created_at: row.created_at,
 			...(includeAnswer
-				? { answer: (row as Record<string, unknown>).answer as string }
+				? {
+						answers: parseAnswersJson(
+							(row as Record<string, unknown>).answers as string,
+						),
+						scoringMode:
+							(row as Record<string, unknown>).scoring_mode === "partial"
+								? ("partial" as const)
+								: ("exact" as const),
+					}
 				: {}),
 		})) as QuestionListItem[],
 		pagination: buildPaginationMeta(page, pageSize, total?.count ?? 0),
@@ -117,7 +136,8 @@ export function listAnswerKeysPaged(
 			exam_id: schema.questions.exam_id,
 			topic: schema.questions.topic,
 			question: schema.questions.question,
-			answer: schema.questions.answer,
+			answers: schema.questions.answers,
+			scoring_mode: schema.questions.scoring_mode,
 			created_at: schema.questions.created_at,
 		})
 		.from(schema.questions)
@@ -128,7 +148,18 @@ export function listAnswerKeysPaged(
 		.all();
 
 	return Promise.all([totalPromise, itemsPromise]).then(([total, items]) => ({
-		items,
+		items: items.map((item) => ({
+			id: item.id,
+			exam_id: item.exam_id,
+			topic: item.topic,
+			question: item.question,
+			answers: parseAnswersJson(item.answers),
+			scoringMode:
+				item.scoring_mode === "partial"
+					? ("partial" as const)
+					: ("exact" as const),
+			created_at: item.created_at,
+		})),
 		pagination: buildPaginationMeta(page, pageSize, total?.count ?? 0),
 	}));
 }

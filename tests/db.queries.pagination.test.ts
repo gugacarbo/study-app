@@ -149,10 +149,10 @@ describe("DBQueries pagination contracts", () => {
     ]);
 
     const result = await queries.listQuestionsPaged({ includeAnswer: false });
-    expect(result.items[0]).not.toHaveProperty("answer");
+    expect(result.items[0]).not.toHaveProperty("answers");
   });
 
-  it("includes answer when includeAnswer=true", async () => {
+  it("includes answers when includeAnswer=true", async () => {
     state.gets.push({ count: 1 });
     state.alls.push([
       {
@@ -160,7 +160,8 @@ describe("DBQueries pagination contracts", () => {
         exam_id: 7,
         question: "What is 2+2?",
         options: JSON.stringify(["3", "4"]),
-        answer: "4",
+        answers: JSON.stringify(["4"]),
+        scoring_mode: "exact",
         explanation: "base",
         deep_explanation: "deep",
         topic: "Math",
@@ -169,14 +170,33 @@ describe("DBQueries pagination contracts", () => {
     ]);
 
     const result = await queries.listQuestionsPaged({ includeAnswer: true });
-    expect(result.items[0]).toHaveProperty("answer", "4");
+    expect(result.items[0]).toMatchObject({
+      answers: ["4"],
+      scoringMode: "exact",
+    });
   });
 
   it("returns pagination object shape for answer keys and session attempts", async () => {
     state.gets.push({ count: 2 });
     state.alls.push([
-      { id: 22, exam_id: 1, topic: "A", question: "new", answer: "x", created_at: "2026-05-02" },
-      { id: 11, exam_id: 1, topic: "A", question: "old", answer: "y", created_at: "2026-05-01" },
+      {
+        id: 22,
+        exam_id: 1,
+        topic: "A",
+        question: "new",
+        answers: JSON.stringify(["x"]),
+        scoring_mode: "exact",
+        created_at: "2026-05-02",
+      },
+      {
+        id: 11,
+        exam_id: 1,
+        topic: "A",
+        question: "old",
+        answers: JSON.stringify(["y"]),
+        scoring_mode: "exact",
+        created_at: "2026-05-01",
+      },
     ]);
     state.gets.push({ count: 1 });
     state.alls.push([
