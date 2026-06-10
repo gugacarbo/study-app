@@ -12,7 +12,7 @@ export async function exportQuestionsToVault(
 	questions: Array<{
 		question: string;
 		options: string[];
-		answer: string;
+		answers: string[];
 		explanation?: string;
 	}>,
 ): Promise<string> {

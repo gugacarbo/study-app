@@ -8,7 +8,7 @@ export interface QuizSessionData {
 	questions: Array<{
 		question: string;
 		userAnswer: string;
-		correctAnswer: string;
+		correctAnswers: string[];
 		isCorrect: boolean;
 		explanation: string;
 		topic: string;

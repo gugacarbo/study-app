@@ -3,6 +3,7 @@ import {
 	nextQuestion,
 	type QuizState,
 	selectAnswer,
+	toggleAnswer,
 } from "@/features/quiz/store/quiz-store";
 import type { Question } from "@/lib/validation";
 
@@ -15,8 +16,8 @@ interface QuizMutationRef {
 					examId?: number;
 					totalQuestions: number;
 					questionId: number;
-					userAnswer: string;
-					correctAnswer: string;
+					userAnswers: string[];
+					correctAnswers: string[];
 					question: string;
 					topic?: string;
 				}) => void;
@@ -48,19 +49,22 @@ export function useQuizKeyboard({
 		const m = mutationRef.current;
 		if (!qs?.[state?.currentQuestionIndex ?? -1]) return;
 		const q = qs[state?.currentQuestionIndex ?? 0];
+		const isMultiAnswer = q.answers.length > 1;
 		const num = Number(e.key) - 1;
-		if (num >= 0 && num < q.options.length && q.options[num])
-			selectAnswer(q.options[num]);
+		if (num >= 0 && num < q.options.length && q.options[num]) {
+			if (isMultiAnswer) toggleAnswer(q.options[num]);
+			else selectAnswer(q.options[num]);
+		}
 		if (e.key === "Enter") {
 			if (m?.isPending) return;
-			if (state?.selectedAnswer && !state?.showExplanation)
+			if (state?.selectedAnswers.length && !state?.showExplanation)
 				m?.mutate({
 					attemptId: attemptIdRef.current,
 					examId,
 					totalQuestions: state.total,
 					questionId: (q as unknown as { id: number }).id,
-					userAnswer: state.selectedAnswer,
-					correctAnswer: q.answer,
+					userAnswers: state.selectedAnswers,
+					correctAnswers: q.answers,
 					question: q.question,
 					topic,
 				});

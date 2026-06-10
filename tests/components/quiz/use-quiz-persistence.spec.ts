@@ -6,7 +6,7 @@ describe("normalizeHydratedQuizState", () => {
 		const state = normalizeHydratedQuizState(
 			{
 				currentQuestionIndex: 0,
-				selectedAnswer: null,
+				selectedAnswers: [],
 				answers: {},
 				score: 0,
 				total: 10,
@@ -26,7 +26,7 @@ describe("normalizeHydratedQuizState", () => {
 		const state = normalizeHydratedQuizState(
 			{
 				currentQuestionIndex: 2,
-				selectedAnswer: null,
+				selectedAnswers: [],
 				answers: { 1: "A" },
 				score: 1,
 				total: 10,
@@ -46,7 +46,7 @@ describe("normalizeHydratedQuizState", () => {
 		const state = normalizeHydratedQuizState(
 			{
 				currentQuestionIndex: 0,
-				selectedAnswer: null,
+				selectedAnswers: [],
 				answers: {},
 				score: 0,
 				total: 10,

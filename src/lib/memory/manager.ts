@@ -102,7 +102,7 @@ export class MemoryManager {
 		questions: Array<{
 			question: string;
 			options: string[];
-			answer: string;
+			answers: string[];
 			explanation?: string;
 		}>,
 	): Promise<string> {

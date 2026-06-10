@@ -2,7 +2,7 @@ import { Store } from "@tanstack/store";
 
 export interface QuizState {
 	currentQuestionIndex: number;
-	selectedAnswer: string | null;
+	selectedAnswers: string[];
 	answers: Record<number, string>;
 	score: number;
 	total: number;
@@ -16,7 +16,7 @@ export interface QuizState {
 
 const initialState: QuizState = {
 	currentQuestionIndex: 0,
-	selectedAnswer: null,
+	selectedAnswers: [],
 	answers: {},
 	score: 0,
 	total: 0,
@@ -50,7 +50,16 @@ export function startQuiz() {
 }
 
 export function selectAnswer(answer: string) {
-	quizStore.setState((s) => ({ ...s, selectedAnswer: answer }));
+	quizStore.setState((s) => ({ ...s, selectedAnswers: [answer] }));
+}
+
+export function toggleAnswer(answer: string) {
+	quizStore.setState((s) => {
+		const selected = s.selectedAnswers.includes(answer)
+			? s.selectedAnswers.filter((item) => item !== answer)
+			: [...s.selectedAnswers, answer];
+		return { ...s, selectedAnswers: selected };
+	});
 }
 
 export function nextQuestion() {
@@ -59,7 +68,7 @@ export function nextQuestion() {
 		return {
 			...s,
 			currentQuestionIndex: nextIndex,
-			selectedAnswer: null,
+			selectedAnswers: [],
 			hasStarted: true,
 			hasSavedProgress: false,
 			showExplanation: false,
@@ -69,13 +78,17 @@ export function nextQuestion() {
 	});
 }
 
-export function recordAnswer(isCorrect: boolean, explanation: string) {
+export function recordAnswer(
+	credit: number,
+	isFullyCorrect: boolean,
+	explanation: string,
+) {
 	quizStore.setState((s) => ({
 		...s,
-		score: isCorrect ? s.score + 1 : s.score,
+		score: s.score + credit,
 		showExplanation: true,
 		explanation,
-		isCorrect,
+		isCorrect: isFullyCorrect,
 		hasSavedProgress: false,
 	}));
 }

@@ -13,6 +13,7 @@ import {
 	quizStore,
 	selectAnswer,
 	startQuiz,
+	toggleAnswer,
 	useQuizState,
 } from "./use-quiz-state";
 
@@ -92,28 +93,30 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 					currentIndex={st.currentQuestionIndex}
 					total={st.total}
 					score={st.score}
-					selectedAnswer={st.selectedAnswer}
+					selectedAnswers={st.selectedAnswers}
 					showExplanation={st.showExplanation}
 					isPending={mut.isPending}
 					onSubmit={() => {
-						if (st.selectedAnswer)
-							mut.mutate({
-								attemptId,
-								examId,
-								totalQuestions: st.total,
-								questionId: cq.id,
-								userAnswer: st.selectedAnswer,
-								correctAnswer: cq.answer,
-								question: cq.question,
-								topic,
-							});
+						if (st.selectedAnswers.length === 0) return;
+						mut.mutate({
+							attemptId,
+							examId,
+							totalQuestions: st.total,
+							questionId: cq.id,
+							userAnswers: st.selectedAnswers,
+							correctAnswers: cq.answers,
+							question: cq.question,
+							topic,
+						});
 					}}
 					onSelectAnswer={selectAnswer}
+					onToggleAnswer={toggleAnswer}
 					submitError={mut.isError ? mut.error.message : null}
 				/>
 				{st.showExplanation && (
 					<QuizExplanation
 						isCorrect={st.isCorrect ?? false}
+						credit={ans.current.at(-1)?.credit}
 						explanation={st.explanation}
 						longExplanation={longExp}
 						onNext={nextQuestion}

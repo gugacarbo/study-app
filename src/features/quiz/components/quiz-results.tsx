@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 interface AnswerRecord {
 	question: string;
 	userAnswer: string;
-	correctAnswer: string;
+	correctAnswers: string[];
 	isCorrect: boolean;
+	credit: number;
 	explanation: string;
 	longExplanation?: string;
 	topic: string;
@@ -21,8 +22,16 @@ interface QuizResultsProps {
 	answers: AnswerRecord[];
 }
 
+function formatScore(value: number): string {
+	return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatCorrectAnswers(answers: string[]): string {
+	return answers.length === 1 ? answers[0] : answers.join("; ");
+}
+
 export function QuizResults({ score, total, answers }: QuizResultsProps) {
-	const incorrect = Math.max(total - score, 0);
+	const missedPoints = Math.max(total - score, 0);
 	const accuracy = total > 0 ? Math.round((score / total) * 100) : 0;
 	const wrongAnswers = answers.filter((a) => !a.isCorrect);
 	const resultLabel =
@@ -60,17 +69,20 @@ export function QuizResults({ score, total, answers }: QuizResultsProps) {
 				</div>
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
 					<SummaryTile
-						label="Acertos"
-						value={String(score)}
+						label="Pontos"
+						value={formatScore(score)}
 						valueClassName="text-success"
 					/>
 					<SummaryTile
-						label="Erros"
-						value={String(incorrect)}
+						label="Pontos perdidos"
+						value={formatScore(missedPoints)}
 						valueClassName="text-destructive"
 					/>
 					<SummaryTile label="Taxa de acerto" value={`${accuracy}%`} />
-					<SummaryTile label="Resultado" value={`${score} / ${total}`} />
+					<SummaryTile
+						label="Resultado"
+						value={`${formatScore(score)} / ${total}`}
+					/>
 				</div>
 			</CardHeader>
 			<CardContent className="space-y-3">
@@ -141,13 +153,18 @@ function WrongAnswerItem({ item }: { item: AnswerRecord }) {
 				/>
 			</p>
 			<p className="text-[11px] text-muted-foreground">
-				Correta:{" "}
+				{item.correctAnswers.length > 1 ? "Corretas" : "Correta"}:{" "}
 				<MarkdownRenderer
-					content={item.correctAnswer}
+					content={formatCorrectAnswers(item.correctAnswers)}
 					className="inline"
 					prose={false}
 				/>
 			</p>
+			{item.credit > 0 && !item.isCorrect && (
+				<p className="text-[11px] text-muted-foreground">
+					Crédito parcial: {formatScore(item.credit)}
+				</p>
+			)}
 			{hasLongExplanation && (
 				<Button
 					variant="ghost"

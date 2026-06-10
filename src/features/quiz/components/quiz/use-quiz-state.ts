@@ -6,6 +6,7 @@ import {
 	recordAnswer,
 	selectAnswer,
 	startQuiz,
+	toggleAnswer,
 } from "@/features/quiz/store/quiz-store";
 import type { ProviderConfig } from "@/lib/validation";
 import { getConfig } from "@/server-functions/config";
@@ -20,6 +21,10 @@ import type { QA } from "../use-quiz-persistence";
 interface UseQuizStateProps {
 	examId?: number;
 	topic?: string;
+}
+
+function formatUserAnswer(userAnswers: string[]): string {
+	return userAnswers.length === 1 ? userAnswers[0] : userAnswers.join("; ");
 }
 
 export function useQuizState({ examId, topic }: UseQuizStateProps) {
@@ -59,8 +64,8 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 			examId?: number;
 			totalQuestions: number;
 			questionId: number;
-			userAnswer: string;
-			correctAnswer: string;
+			userAnswers: string[];
+			correctAnswers: string[];
 			question: string;
 			topic?: string;
 		}) =>
@@ -71,21 +76,22 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 					topic: v.topic,
 					totalQuestions: v.totalQuestions,
 					questionId: v.questionId,
-					userAnswer: v.userAnswer,
+					userAnswers: v.userAnswers,
 				},
 			}),
 		onSuccess: (data, v) => {
 			setAttemptId(data.attemptId);
 			ans.current.push({
 				question: v.question,
-				userAnswer: v.userAnswer,
-				correctAnswer: v.correctAnswer,
+				userAnswer: formatUserAnswer(v.userAnswers),
+				correctAnswers: data.correctAnswers,
 				isCorrect: data.correct,
+				credit: data.credit,
 				explanation: data.explanation,
 				longExplanation: data.longExplanation || "",
 				topic: v.topic || "General",
 			});
-			recordAnswer(data.correct, data.explanation);
+			recordAnswer(data.credit, data.correct, data.explanation);
 			setLongExp(data.longExplanation || "");
 			qc.invalidateQueries({ queryKey: ["stats"] });
 			qc.invalidateQueries({ queryKey: ["quiz-attempts", examId, topic] });
@@ -117,4 +123,4 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 	};
 }
 
-export { nextQuestion, quizStore, selectAnswer, startQuiz };
+export { nextQuestion, quizStore, selectAnswer, startQuiz, toggleAnswer };

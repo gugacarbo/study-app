@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateQuizQuestions } from "@/features/ai/agents/quiz";
+import { scoreAnswer } from "@/lib/answer-scoring";
 import { DBQueries } from "../db/queries";
 import { providerConfigSchema } from "../lib/validation";
 import { getDB } from "./db";
@@ -19,7 +20,7 @@ const submitAnswerSchema = z.object({
 	topic: z.string().optional(),
 	totalQuestions: z.number().int().positive(),
 	questionId: z.number(),
-	userAnswer: z.string(),
+	userAnswers: z.array(z.string()),
 });
 
 const listQuizAttemptsSchema = z.object({
@@ -32,6 +33,10 @@ const abandonQuizAttemptsSchema = z.object({
 	examId: z.number().optional(),
 	topic: z.string().optional(),
 });
+
+function formatCorrectAnswers(answers: string[]): string {
+	return answers.length === 1 ? answers[0] : answers.join("; ");
+}
 
 export const generateQuiz = createServerFn({ method: "POST" })
 	.inputValidator(generateQuizSchema)
@@ -80,15 +85,19 @@ export const submitAnswer = createServerFn({ method: "POST" })
 			throw new Error("Question not found");
 		}
 
-		const normalizeAnswer = (value: string) => value.trim().toLowerCase();
-		const normalizedUserAnswer = normalizeAnswer(data.userAnswer);
-		const normalizedCorrectAnswer = normalizeAnswer(storedQuestion.answer);
-		const correct = normalizedUserAnswer === normalizedCorrectAnswer;
+		const { credit, isFullyCorrect } = scoreAnswer(
+			data.userAnswers,
+			storedQuestion.answers,
+			storedQuestion.scoringMode,
+		);
+		const correctAnswersText = formatCorrectAnswers(storedQuestion.answers);
 		const shortExplanation =
 			storedQuestion.explanation ||
-			(correct
+			(isFullyCorrect
 				? "Resposta correta."
-				: `Resposta incorreta. A resposta correta é: ${storedQuestion.answer}`);
+				: storedQuestion.answers.length > 1
+					? `Resposta incorreta. As respostas corretas são: ${correctAnswersText}`
+					: `Resposta incorreta. A resposta correta é: ${correctAnswersText}`);
 		const longExplanation = storedQuestion.deepExplanation || "";
 
 		let attemptId = data.attemptId;
@@ -107,8 +116,9 @@ export const submitAnswer = createServerFn({ method: "POST" })
 		await queries.upsertAttemptAnswer({
 			attemptId,
 			questionId: data.questionId,
-			userAnswer: data.userAnswer,
-			correct,
+			userAnswers: data.userAnswers,
+			correct: isFullyCorrect,
+			credit,
 		});
 		await queries.refreshAttemptProgress(attemptId);
 		const attempt = await queries.getAttemptById(attemptId);
@@ -119,9 +129,11 @@ export const submitAnswer = createServerFn({ method: "POST" })
 		return {
 			attemptId,
 			attemptStatus: attempt.status,
-			correct,
+			credit,
+			correct: isFullyCorrect,
 			explanation: shortExplanation,
 			longExplanation,
+			correctAnswers: storedQuestion.answers,
 		};
 	});
 

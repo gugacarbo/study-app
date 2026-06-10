@@ -11,20 +11,40 @@ import { saveQuizSessionToMemory } from "@/server-functions/memory";
 export interface QA {
 	question: string;
 	userAnswer: string;
-	correctAnswer: string;
+	correctAnswers: string[];
 	isCorrect: boolean;
+	credit: number;
 	explanation: string;
 	longExplanation?: string;
 	topic: string;
 }
 
 type SavedQuizState = Omit<QuizState, "hasStarted" | "hasSavedProgress"> &
-	Partial<Pick<QuizState, "hasStarted" | "hasSavedProgress">>;
+	Partial<Pick<QuizState, "hasStarted" | "hasSavedProgress">> & {
+		selectedAnswer?: string | null;
+	};
+
+function hasAnswerSelection(state: SavedQuizState): boolean {
+	if (state.selectedAnswers.length > 0) return true;
+	return Boolean(state.selectedAnswer);
+}
+
+function normalizeSelectedAnswers(state: SavedQuizState): string[] {
+	if (state.selectedAnswers.length > 0) return state.selectedAnswers;
+	if (state.selectedAnswer) return [state.selectedAnswer];
+	return [];
+}
 
 export function normalizeHydratedQuizState(
 	state: SavedQuizState,
 	totalQuestions: number,
 ): QuizState {
+	const selectedAnswers = normalizeSelectedAnswers(state);
+	const baseState = {
+		...state,
+		selectedAnswers,
+	};
+
 	if (typeof state.hasStarted === "boolean") {
 		const hasProgress =
 			state.currentQuestionIndex > 0 ||
@@ -32,12 +52,12 @@ export function normalizeHydratedQuizState(
 			state.score > 0 ||
 			state.showExplanation ||
 			state.isComplete ||
-			(state.selectedAnswer !== null && state.selectedAnswer !== "");
+			hasAnswerSelection(state);
 		const hasSavedAttempt =
 			state.hasStarted || state.hasSavedProgress || hasProgress;
 
 		return {
-			...state,
+			...baseState,
 			total: totalQuestions,
 			hasStarted: state.isComplete ? state.hasStarted : false,
 			hasSavedProgress: state.isComplete ? false : hasSavedAttempt,
@@ -50,10 +70,10 @@ export function normalizeHydratedQuizState(
 		state.score > 0 ||
 		state.showExplanation ||
 		state.isComplete ||
-		(state.selectedAnswer !== null && state.selectedAnswer !== "");
+		hasAnswerSelection(state);
 
 	return {
-		...state,
+		...baseState,
 		total: totalQuestions,
 		hasStarted: false,
 		hasSavedProgress: hasProgress,

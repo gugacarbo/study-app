@@ -4,21 +4,37 @@ import { MarkdownRenderer } from "@/components/ui/markdown";
 
 interface QuizExplanationProps {
 	isCorrect: boolean;
+	credit?: number;
 	explanation: string;
 	longExplanation: string;
 	onNext: () => void;
 }
 
+function formatCredit(credit: number): string {
+	return Number.isInteger(credit) ? String(credit) : credit.toFixed(1);
+}
+
 export function QuizExplanation({
 	isCorrect,
+	credit,
 	explanation,
 	longExplanation,
 	onNext,
 }: QuizExplanationProps) {
+	const partialCredit =
+		credit !== undefined && credit > 0 && credit < 1 && !isCorrect;
+
 	return (
 		<div className="mt-4">
-			<Badge variant={isCorrect ? "default" : "destructive"} className="mb-2">
-				{isCorrect ? "✓ Correct!" : "✗ Incorrect"}
+			<Badge
+				variant={isCorrect ? "default" : partialCredit ? "secondary" : "destructive"}
+				className="mb-2"
+			>
+				{isCorrect
+					? "✓ Correct!"
+					: partialCredit
+						? `Partial credit (${formatCredit(credit)})`
+						: "✗ Incorrect"}
 			</Badge>
 			<MarkdownRenderer content={explanation} className="text-sm" />
 			{longExplanation && (

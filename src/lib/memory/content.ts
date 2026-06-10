@@ -30,7 +30,7 @@ ${session.questions
 		(q, i) => `### ${i + 1}. ${q.question}
 
 - **Your answer:** ${q.userAnswer}
-- **Correct answer:** ${q.correctAnswer}
+- **Correct answer:** ${q.correctAnswers.join("; ")}
 - **Result:** ${q.isCorrect ? "Correct" : "Incorrect"}
 - **Explanation:** ${q.explanation}
 - **Topic:** ${q.topic}
@@ -71,7 +71,7 @@ export function buildQuestionBankContent(
 	questions: Array<{
 		question: string;
 		options: string[];
-		answer: string;
+		answers: string[];
 		explanation?: string;
 	}>,
 ): string {
@@ -93,7 +93,7 @@ ${questions
 
 ${q.options.map((o, j) => `${String.fromCharCode(97 + j)}) ${o}`).join("\n")}
 
-**Correct answer:** ${q.answer}
+**Correct answer:** ${q.answers.join("; ")}
 ${q.explanation ? `**Explanation:** ${q.explanation}` : ""}
 `,
 	)

@@ -12,7 +12,7 @@ import { Quiz } from "@/features/quiz/components/quiz";
 const mockState = vi.hoisted(() => ({
 	value: {
 		currentQuestionIndex: 0,
-		selectedAnswer: null,
+		selectedAnswers: [],
 		answers: {},
 		score: 0,
 		total: 2,
@@ -41,6 +41,7 @@ vi.mock("@/features/quiz/components/quiz/use-quiz-state", () => ({
 	quizStore: {},
 	nextQuestion: vi.fn(),
 	selectAnswer: vi.fn(),
+	toggleAnswer: vi.fn(),
 	startQuiz: mockStartQuiz,
 }));
 
@@ -101,7 +102,7 @@ beforeEach(() => {
 				id: 1,
 				question: "Pergunta 1",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
 				explanation: "Explicacao",
 				topic: "Teste",
 			},
@@ -109,7 +110,7 @@ beforeEach(() => {
 				id: 2,
 				question: "Pergunta 2",
 				options: ["C", "D"],
-				answer: "C",
+				answers: ["C"],
 				explanation: "Explicacao",
 				topic: "Teste",
 			},
@@ -133,7 +134,7 @@ beforeEach(() => {
 	mockRestartAttempt.mockReset();
 	mockState.value = {
 		currentQuestionIndex: 0,
-		selectedAnswer: null,
+		selectedAnswers: [],
 		answers: {},
 		score: 0,
 		total: 2,
@@ -166,7 +167,7 @@ describe("Quiz", () => {
 	it("shows the start screen with a continue option when the quiz has saved progress", () => {
 		mockState.value = {
 			currentQuestionIndex: 1,
-			selectedAnswer: null,
+			selectedAnswers: [],
 			answers: { 1: "A" },
 			score: 1,
 			total: 2,
@@ -189,7 +190,7 @@ describe("Quiz", () => {
 	it("restarts the quiz when the user clicks restart on an unfinished attempt", async () => {
 		mockState.value = {
 			currentQuestionIndex: 1,
-			selectedAnswer: null,
+			selectedAnswers: [],
 			answers: { 1: "A" },
 			score: 1,
 			total: 2,
@@ -220,7 +221,7 @@ describe("Quiz", () => {
 					id: 1,
 					question: "Pergunta 1",
 					options: ["A", "B"],
-					answer: "A",
+					answers: ["A"],
 					explanation: "Explicacao",
 					topic: "Teste",
 				},
@@ -271,7 +272,7 @@ describe("Quiz", () => {
 					id: 1,
 					question: "Pergunta 1",
 					options: ["A", "B"],
-					answer: "A",
+					answers: ["A"],
 					explanation: "Explicacao",
 					topic: "Teste",
 				},
@@ -297,7 +298,7 @@ describe("Quiz", () => {
 		});
 		mockState.value = {
 			currentQuestionIndex: 0,
-			selectedAnswer: null,
+			selectedAnswers: [],
 			answers: {},
 			score: 0,
 			total: 1,

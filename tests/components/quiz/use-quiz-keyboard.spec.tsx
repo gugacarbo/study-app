@@ -1,12 +1,13 @@
-import { render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useQuizKeyboard } from "@/features/quiz/components/use-quiz-keyboard";
 import type { QuizState } from "@/features/quiz/store/quiz-store";
 import type { Question } from "@/lib/validation";
 
-const { mockSelectAnswer } = vi.hoisted(() => ({
+const { mockSelectAnswer, mockToggleAnswer } = vi.hoisted(() => ({
 	mockSelectAnswer: vi.fn(),
+	mockToggleAnswer: vi.fn(),
 }));
 
 vi.mock("@/features/quiz/store/quiz-store", async () => {
@@ -18,6 +19,7 @@ vi.mock("@/features/quiz/store/quiz-store", async () => {
 		...actual,
 		nextQuestion: vi.fn(),
 		selectAnswer: mockSelectAnswer,
+		toggleAnswer: mockToggleAnswer,
 	};
 });
 
@@ -43,9 +45,28 @@ function KeyboardHarness({
 	return null;
 }
 
+afterEach(() => {
+	cleanup();
+});
+
+const baseState: QuizState = {
+	currentQuestionIndex: 0,
+	selectedAnswers: [],
+	answers: {},
+	score: 0,
+	total: 1,
+	isComplete: false,
+	hasStarted: true,
+	hasSavedProgress: false,
+	showExplanation: false,
+	explanation: "",
+	isCorrect: null,
+};
+
 describe("useQuizKeyboard", () => {
-	it("selects the fifth answer when key 5 is pressed", () => {
+	it("selects the fifth answer when key 5 is pressed on single-answer questions", () => {
 		mockSelectAnswer.mockReset();
+		mockToggleAnswer.mockReset();
 
 		render(
 			<KeyboardHarness
@@ -53,29 +74,45 @@ describe("useQuizKeyboard", () => {
 					{
 						question: "Qual alternativa esta correta?",
 						options: ["a", "b", "c", "d", "e"],
-						answer: "e",
+						answers: ["e"],
+						scoringMode: "exact",
 						explanation: "",
 						topic: "Teste",
 					},
 				]}
-				state={{
-					currentQuestionIndex: 0,
-					selectedAnswer: null,
-					answers: {},
-					score: 0,
-					total: 1,
-					isComplete: false,
-					hasStarted: true,
-					hasSavedProgress: false,
-					showExplanation: false,
-					explanation: "",
-					isCorrect: null,
-				}}
+				state={baseState}
 			/>,
 		);
 
 		window.dispatchEvent(new KeyboardEvent("keydown", { key: "5" }));
 
 		expect(mockSelectAnswer).toHaveBeenCalledWith("e");
+		expect(mockToggleAnswer).not.toHaveBeenCalled();
+	});
+
+	it("toggles the third answer when key 3 is pressed on multi-answer questions", () => {
+		mockSelectAnswer.mockReset();
+		mockToggleAnswer.mockReset();
+
+		render(
+			<KeyboardHarness
+				questions={[
+					{
+						question: "Quais alternativas estao corretas?",
+						options: ["a", "b", "c"],
+						answers: ["a", "c"],
+						scoringMode: "exact",
+						explanation: "",
+						topic: "Teste",
+					},
+				]}
+				state={baseState}
+			/>,
+		);
+
+		window.dispatchEvent(new KeyboardEvent("keydown", { key: "3" }));
+
+		expect(mockToggleAnswer).toHaveBeenCalledWith("c");
+		expect(mockSelectAnswer).not.toHaveBeenCalled();
 	});
 });

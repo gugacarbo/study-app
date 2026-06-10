@@ -48,12 +48,14 @@ describe('DBQueries quiz operations', () => {
     await queries.upsertAttemptAnswer({
       attemptId: 3,
       questionId: 1,
-      userAnswer: '4',
+      userAnswers: ['4'],
       correct: true,
+      credit: 1,
     });
 
     const [firstCall] = mockDB.prepare.mock.calls as unknown as Array<[string]>;
     expect(firstCall?.[0] ?? '').toContain('INSERT INTO attempt_answers');
+    expect(firstCall?.[0] ?? '').toContain('credit');
   });
 
   it('recomputes attempt counters after recording an answer', async () => {
@@ -61,6 +63,7 @@ describe('DBQueries quiz operations', () => {
 
     const [firstCall] = mockDB.prepare.mock.calls as unknown as Array<[string]>;
     expect(firstCall?.[0] ?? '').toContain('UPDATE attempts');
+    expect(firstCall?.[0] ?? '').toContain('SUM(credit)');
   });
 
   it('marks stale in-progress attempts as abandoned for the same quiz scope', async () => {

@@ -37,8 +37,9 @@ describe("QuizResults", () => {
 					{
 						question: "Pergunta",
 						userAnswer: "Resposta errada",
-						correctAnswer: "Resposta certa",
+						correctAnswers: ["Resposta certa"],
 						isCorrect: false,
+						credit: 0,
 						explanation: "Explicacao curta",
 						longExplanation: "Explicacao completa detalhada",
 						topic: "Teste",
@@ -70,8 +71,9 @@ describe("QuizResults", () => {
 					{
 						question: "Pergunta",
 						userAnswer: "Resposta errada",
-						correctAnswer: "Resposta certa",
+						correctAnswers: ["Resposta certa"],
 						isCorrect: false,
+						credit: 0,
 						explanation: "Explicacao curta",
 						topic: "Teste",
 					},
