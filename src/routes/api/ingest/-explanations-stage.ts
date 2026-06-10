@@ -183,6 +183,7 @@ export async function runExplanationsStage(
 			question: question.question,
 			options: question.options,
 			answers: question.answers,
+			scoringMode: question.scoringMode,
 			topic: question.topic ?? "General",
 			explanation: question.explanation ?? "",
 		}));

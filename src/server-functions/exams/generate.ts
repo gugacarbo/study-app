@@ -85,6 +85,7 @@ export const generateExamQuestionExplanations = createServerFn({
 				question: question.question,
 				options: question.options,
 				answers: question.answers,
+				scoringMode: question.scoringMode,
 				topic: question.topic,
 				explanation: question.explanation,
 			})),

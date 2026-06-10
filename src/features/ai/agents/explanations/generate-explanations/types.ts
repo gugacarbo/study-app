@@ -23,6 +23,7 @@ export interface ExplanationBatchInput {
 	question: string;
 	options: string[];
 	answers: string[];
+	scoringMode?: "exact" | "partial";
 	topic?: string;
 	explanation?: string;
 }

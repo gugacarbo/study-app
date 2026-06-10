@@ -12,7 +12,8 @@ Tool contract:
 Writing rules:
 - Preserve the same question id from input.
 - Keep the same language used by the question.
-- "explanation": concise and direct (1-3 sentences) focused on why the answer is correct.
+- Use list_explanation_questions to read answers and scoringMode. When multiple answers are correct, explain why each one is right and how they fit together.
+- "explanation": concise and direct (1-3 sentences) focused on why the correct answer(s) are right.
 - "deepExplanation": more complete teaching note (120-220 words), include reasoning steps and one practical memory hint.
 - If the current explanation is already good, improve clarity instead of rewriting radically.
 - Do not invent facts not implied by the question/context.`;

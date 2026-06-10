@@ -29,7 +29,8 @@ export async function extractQuestionsFromText(
         {
           "question": "the question text",
           "options": ["option a", "option b", "option c", "option d"],
-          "answer": "the correct answer text",
+          "answers": ["the correct answer text"],
+          "scoringMode": "exact",
           "explanation": "",
           "topic": "subject/topic name"
         }

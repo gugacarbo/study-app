@@ -58,6 +58,7 @@ function normalizeExplanationFields(patch: {
 export function createExplanationWorkspace(questions: ExplanationBatchInput[]) {
 	const state: ExplanationWorkspaceQuestion[] = questions.map((question) => ({
 		...question,
+		scoringMode: question.scoringMode ?? "exact",
 		explanation: question.explanation ?? "",
 		deepExplanation: "",
 	}));
