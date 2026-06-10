@@ -1,7 +1,12 @@
 import { count, desc, eq, gte, like, lte, type SQL } from "drizzle-orm";
 import * as schema from "../schema";
 import type { DBQueries } from "./base";
-import { buildPaginationMeta, normalizePagination, withWhere } from "./helpers";
+import {
+	buildPaginationMeta,
+	normalizePagination,
+	parseAnswersJson,
+	withWhere,
+} from "./helpers";
 import type {
 	AnswerKeyListItem,
 	ListAnswerKeysFilters,
@@ -9,12 +14,6 @@ import type {
 	PaginatedResult,
 	QuestionListItem,
 } from "./types";
-
-function parseAnswersJson(value: string): string[] {
-	const parsed: unknown = JSON.parse(value);
-	if (!Array.isArray(parsed)) return [];
-	return parsed.filter((entry): entry is string => typeof entry === "string");
-}
 
 export function listQuestionsPaged(
 	this: DBQueries,

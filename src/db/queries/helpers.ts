@@ -44,3 +44,28 @@ export function buildPaginationMeta(
 export function withWhere(conditions: SQL[]) {
 	return conditions.length > 0 ? and(...conditions) : undefined;
 }
+
+export function parseAnswersJson(value: unknown): string[] {
+	if (value == null || value === "") return [];
+	if (Array.isArray(value)) {
+		return value.filter((entry): entry is string => typeof entry === "string");
+	}
+	if (typeof value !== "string") return [];
+
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (Array.isArray(parsed)) {
+			return parsed.filter(
+				(entry): entry is string => typeof entry === "string",
+			);
+		}
+		if (typeof parsed === "string" && parsed.trim()) {
+			return [parsed];
+		}
+	} catch {
+		const trimmed = value.trim();
+		return trimmed ? [trimmed] : [];
+	}
+
+	return [];
+}

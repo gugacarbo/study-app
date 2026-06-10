@@ -2,15 +2,13 @@ import { and, eq, sql } from "drizzle-orm";
 import type { Question } from "../../lib/validation";
 import * as schema from "../schema";
 import type { DBQueries } from "./base";
-
-function parseAnswersJson(value: string): string[] {
-	const parsed: unknown = JSON.parse(value);
-	if (!Array.isArray(parsed)) return [];
-	return parsed.filter((entry): entry is string => typeof entry === "string");
-}
+import { parseAnswersJson } from "./helpers";
 
 function mapQuestionRow<
 	TRow extends {
+		id: number;
+		exam_id: number | null;
+		question: string;
 		options: string;
 		answers: string;
 		scoring_mode: string;
@@ -20,7 +18,9 @@ function mapQuestionRow<
 	},
 >(row: TRow) {
 	return {
-		...row,
+		id: row.id,
+		exam_id: row.exam_id,
+		question: row.question,
 		options: JSON.parse(row.options) as string[],
 		answers: parseAnswersJson(row.answers),
 		scoringMode:
