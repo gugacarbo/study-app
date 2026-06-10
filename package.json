@@ -23,7 +23,8 @@
     "db:migrate:prod": "wrangler d1 migrations apply study-app-db --remote",
     "db:reset": "wrangler d1 migrations apply study-app-db --local --reset",
     "db:reset:prod": "wrangler d1 migrations apply study-app-db --remote --reset",
-    "postinstall": "npm run cf-typegen && npm run db:migrate"
+    "postinstall": "npm run cf-typegen && npm run db:migrate",
+    "docs-check": "bash scripts/docks-check"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
