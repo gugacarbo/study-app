@@ -30,8 +30,8 @@ const DOTS = (
 );
 
 const ICON_VIEWBOX = "0 0 128 128";
-/** Crops trailing whitespace so the wordmark sits closer to the dots. */
-const FULL_ICON_VIEWBOX = "0 0 110 128";
+/** Tight crop around the dots for wordmark alignment (matches nav row height). */
+const FULL_ICON_VIEWBOX = "20 12 90 112";
 
 const iconSvgProps = (viewBox: string) => ({
 	viewBox,
@@ -44,18 +44,18 @@ export function Logo({ variant = "icon", className, ...props }: LogoProps) {
 	if (variant === "full") {
 		return (
 			<span
-				className={cn("inline-flex items-center gap-1", className)}
+				className={cn("inline-flex h-9 items-center gap-1", className)}
 				role="img"
 				aria-label="Study"
 			>
 				<svg
 					{...iconSvgProps(FULL_ICON_VIEWBOX)}
 					aria-hidden
-					className="h-8 w-auto shrink-0"
+					className="h-7 w-auto shrink-0"
 				>
 					{DOTS}
 				</svg>
-				<span className="text-lg font-semibold tracking-tight text-foreground">
+				<span className="text-lg font-semibold leading-none tracking-tight text-foreground">
 					Study
 				</span>
 			</span>

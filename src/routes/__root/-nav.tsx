@@ -157,11 +157,11 @@ export function RootNav() {
 			<div className="flex h-14 items-center px-6 gap-4">
 				<Link
 					to="/"
-					className="flex items-center hover:opacity-80 transition-opacity"
+					className="flex h-9 shrink-0 items-center hover:opacity-80 transition-opacity"
 				>
 					<Logo variant="full" />
 				</Link>
-				<NavigationMenu>
+				<NavigationMenu className="h-9">
 					<NavigationMenuList>
 						{navItems.map((item) => (
 							<NavigationMenuItem key={item.to}>
