@@ -3,6 +3,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import type { ImproveOptionsRunPhase } from "@/features/exams/store/improve-options-store";
 import type { EditFormData, QuestionData } from "./exam-utils";
 import { QuestionAccordion } from "./question-accordion";
 import { QuestionEditForm } from "./question-edit-form";
@@ -14,6 +15,7 @@ interface QuestionItemProps {
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
 	onImproveOptions: (q: QuestionData) => void;
+	improveOptionsStatus?: ImproveOptionsRunPhase | null;
 	onSave: (id: number) => void;
 	onCancel: () => void;
 	onFormChange: (updates: Partial<EditFormData>) => void;
@@ -27,6 +29,7 @@ export function QuestionItem({
 	editForm,
 	onStartEdit,
 	onImproveOptions,
+	improveOptionsStatus = null,
 	onSave,
 	onCancel,
 	onFormChange,
@@ -63,6 +66,7 @@ export function QuestionItem({
 						question={question}
 						onStartEdit={onStartEdit}
 						onImproveOptions={onImproveOptions}
+						improveOptionsStatus={improveOptionsStatus}
 					/>
 				)}
 			</AccordionContent>

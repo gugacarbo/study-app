@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { ImproveOptionsDialog as ImproveOptionsDialogView } from "./improve-options-dialog";
 import type { QuestionData } from "../exam-utils";
 import { useImproveOptions } from "./use-improve-options";
@@ -18,7 +17,6 @@ export function ImproveOptionsDialog({
 	questionId,
 	examId,
 	question,
-	onDraftChange,
 }: ImproveOptionsDialogProps) {
 	const state = useImproveOptions({
 		questionId,
@@ -27,14 +25,6 @@ export function ImproveOptionsDialog({
 		question,
 		onOpenChange,
 	});
-
-	useEffect(() => {
-		if (!open) {
-			onDraftChange?.(null);
-			return;
-		}
-		onDraftChange?.(state.draftQuestion);
-	}, [open, state.draftQuestion, onDraftChange]);
 
 	return (
 		<ImproveOptionsDialogView

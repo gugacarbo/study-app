@@ -1,31 +1,20 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-	ChangeDecision,
-	DraftQuestion,
-	ImproveOptionsAgentEvent,
-	QuestionChange,
-} from "@/features/ai/agents/improve-options/contracts";
+import { useStore } from "@tanstack/react-store";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangeDecision } from "@/features/ai/agents/improve-options/contracts";
+import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
 import {
-	createAgentRunState,
-	reduceAgentEvent,
-	type AgentRunState,
-} from "@/features/ai/utils/agent-run-messages";
-import { improveOptionsStream } from "@/lib/sse-stream/improve-options-stream";
-import { updateQuestion } from "@/server-functions/exams";
+	applyImproveOptionsRun,
+	cancelImproveOptionsRun,
+	getImproveOptionsRun,
+	getRunPreviewQuestion,
+	keepAllImproveOptionsChanges,
+	improveOptionsStore,
+	revertAllImproveOptionsChanges,
+	setImproveOptionsDecision,
+	startImproveOptionsRun,
+} from "@/features/exams/store/improve-options-store";
 import type { QuestionData } from "../exam-utils";
-import { getErrorMessage } from "../exam-utils";
-import {
-	applyDecisions,
-	computeQuestionChanges,
-} from "./diff-changes";
-import { resolveQuestion } from "./resolve-question";
 import type { ImproveOptionsAgentStatus } from "./types";
-
-type DraftLike = DraftQuestion & {
-	answer?: string;
-	answers?: string[];
-};
 
 export interface UseImproveOptionsParams {
 	questionId: number;
@@ -33,37 +22,6 @@ export interface UseImproveOptionsParams {
 	open: boolean;
 	question: QuestionData;
 	onOpenChange: (open: boolean) => void;
-}
-
-function cloneQuestion(question: QuestionData): QuestionData {
-	return {
-		...question,
-		options: [...question.options],
-		answers: [...question.answers],
-	};
-}
-
-function draftToQuestionData(draft: DraftLike, base: QuestionData): QuestionData {
-	const answers =
-		draft.answers && draft.answers.length > 0
-			? [...draft.answers]
-			: typeof draft.answer === "string" && draft.answer.trim()
-				? [draft.answer]
-				: [...base.answers];
-
-	return {
-		...base,
-		id: draft.id,
-		question: draft.question,
-		options: [...draft.options],
-		answers,
-		scoringMode: draft.scoringMode ?? base.scoringMode,
-		explanation: draft.explanation ?? base.explanation,
-		...(draft.deepExplanation !== undefined
-			? { deepExplanation: draft.deepExplanation }
-			: {}),
-		...(draft.topic !== undefined ? { topic: draft.topic } : {}),
-	};
 }
 
 function mapRunStatusToUi(
@@ -79,69 +37,6 @@ function mapRunStatusToUi(
 	return "idle";
 }
 
-function syncAgentRunId(
-	state: AgentRunState,
-	event: ImproveOptionsAgentEvent,
-): AgentRunState {
-	if (state.agentRunId === event.agentRunId) return state;
-	return createAgentRunState({
-		agentRunId: event.agentRunId,
-		label: event.label,
-		systemPrompt: event.systemPrompt,
-		userPrompt: event.userPrompt,
-	});
-}
-
-function buildUpdatePayload(
-	original: QuestionData,
-	resolved: QuestionData,
-	changes: QuestionChange[],
-): {
-	options?: string[];
-	answers?: string[];
-	explanation?: string;
-} {
-	const payload: {
-		options?: string[];
-		answers?: string[];
-		explanation?: string;
-	} = {};
-
-	const keepField = (field: QuestionChange["field"]) =>
-		changes.some(
-			(change) => change.field === field && change.decision !== "revert",
-		);
-
-	if (keepField("options")) {
-		payload.options = resolved.options;
-	}
-	if (keepField("answer")) {
-		payload.answers = resolved.answers;
-	}
-	if (keepField("explanation")) {
-		payload.explanation = resolved.explanation;
-	}
-
-	const hasPayload =
-		payload.options !== undefined ||
-		payload.answers !== undefined ||
-		payload.explanation !== undefined;
-
-	if (!hasPayload) {
-		if (resolved.options.join("\0") !== original.options.join("\0")) {
-			payload.options = resolved.options;
-		}
-		if (resolved.answers.join("\0") !== original.answers.join("\0")) {
-			payload.answers = resolved.answers;
-		}
-		if (resolved.explanation !== original.explanation) {
-			payload.explanation = resolved.explanation;
-		}
-	}
-
-	return payload;
-}
-
 export function useImproveOptions({
 	questionId,
 	examId,
@@ -149,204 +44,59 @@ export function useImproveOptions({
 	question,
 	onOpenChange,
 }: UseImproveOptionsParams) {
-	const queryClient = useQueryClient();
-	const abortRef = useRef<AbortController | null>(null);
-	const [originalSnapshot, setOriginalSnapshot] = useState<QuestionData | null>(
-		null,
-	);
-	const [draftQuestion, setDraftQuestion] = useState<QuestionData | null>(null);
-	const [agentRunState, setAgentRunState] = useState<AgentRunState | null>(
-		null,
-	);
-	const [changes, setChanges] = useState<QuestionChange[]>([]);
-	const [isStreaming, setIsStreaming] = useState(false);
+	const run = useStore(improveOptionsStore, (state) => state.runs[questionId]);
 	const [applying, setApplying] = useState(false);
-	const [streamError, setStreamError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (!open) {
-			abortRef.current?.abort();
-			abortRef.current = null;
-			return;
-		}
-
-		const original = cloneQuestion(question);
-		setOriginalSnapshot(original);
-		setDraftQuestion(original);
-		setChanges([]);
-		setStreamError(null);
-		setIsStreaming(true);
-
-		const controller = new AbortController();
-		abortRef.current = controller;
-
-		let runState = createAgentRunState({
-			agentRunId: `improve-options-${questionId}`,
-			label: "Improve options",
-		});
-		setAgentRunState(runState);
-
-		void (async () => {
-			try {
-				await improveOptionsStream(
-					{ questionId, signal: controller.signal },
-					{
-						onAgent: (event) => {
-							runState = syncAgentRunId(runState, event);
-							runState = reduceAgentEvent(runState, event);
-							setAgentRunState({ ...runState });
-						},
-						onChunk: (chunk) => {
-							if (!chunk.text) return;
-							runState = reduceAgentEvent(runState, {
-								eventType: "text-chunk",
-								agentRunId: chunk.agentRunId ?? runState.agentRunId,
-								text: chunk.text,
-								kind: chunk.kind,
-							});
-							setAgentRunState({ ...runState });
-						},
-						onWorkspaceUpdate: ({ question: workspaceQuestion }) => {
-							setDraftQuestion(
-								draftToQuestionData(workspaceQuestion, original),
-							);
-						},
-						onDone: ({ finalQuestion }) => {
-							const finalDraft = draftToQuestionData(finalQuestion, original);
-							setDraftQuestion(finalDraft);
-							setChanges(computeQuestionChanges(original, finalDraft));
-							runState = {
-								...runState,
-								status: "done",
-							};
-							setAgentRunState({ ...runState });
-						},
-					},
-				);
-			} catch (error) {
-				if (controller.signal.aborted) return;
-				const message = getErrorMessage(error);
-				setStreamError(message);
-				runState = {
-					...runState,
-					status: "error",
-					error: message,
-				};
-				setAgentRunState({ ...runState });
-			} finally {
-				if (!controller.signal.aborted) {
-					setIsStreaming(false);
-				}
-			}
-		})();
-
-		return () => {
-			controller.abort();
-			if (abortRef.current === controller) {
-				abortRef.current = null;
-			}
-		};
-	}, [open, question, questionId]);
+		if (!open) return;
+		if (getImproveOptionsRun(questionId)) return;
+		startImproveOptionsRun(questionId, examId, question);
+	}, [open, questionId, examId, question]);
 
 	const previewQuestion = useMemo(() => {
-		if (!originalSnapshot || !draftQuestion) {
-			return question;
-		}
-		if (changes.length === 0) {
-			return draftQuestion;
-		}
-		return {
-			...resolveQuestion(originalSnapshot, draftQuestion, changes),
-			scoringMode: question.scoringMode,
-			deepExplanation: question.deepExplanation,
-			topic: question.topic,
-			exam_id: question.exam_id,
-		};
-	}, [originalSnapshot, draftQuestion, changes, question]);
+		if (!run) return question;
+		return getRunPreviewQuestion(run, question);
+	}, [run, question]);
 
 	const agentStatus = useMemo(
-		() => mapRunStatusToUi(agentRunState?.status ?? null, isStreaming),
-		[agentRunState?.status, isStreaming],
+		() => mapRunStatusToUi(run?.agentRunState?.status ?? null, run?.isStreaming ?? false),
+		[run?.agentRunState?.status, run?.isStreaming],
 	);
 
-	const handleDecision = useCallback((id: string, decision: ChangeDecision) => {
-		setChanges((current) =>
-			current.map((change) =>
-				change.id === id ? { ...change, decision } : change,
-			),
-		);
-	}, []);
+	const handleDecision = useCallback(
+		(id: string, decision: ChangeDecision) => {
+			setImproveOptionsDecision(questionId, id, decision);
+		},
+		[questionId],
+	);
 
 	const handleKeepAll = useCallback(() => {
-		setChanges((current) => applyDecisions(current, "keep"));
-	}, []);
+		keepAllImproveOptionsChanges(questionId);
+	}, [questionId]);
 
 	const handleRevertAll = useCallback(() => {
-		setChanges((current) => applyDecisions(current, "revert"));
-	}, []);
+		revertAllImproveOptionsChanges(questionId);
+	}, [questionId]);
 
 	const handleCancel = useCallback(() => {
-		abortRef.current?.abort();
-		abortRef.current = null;
-		setIsStreaming(false);
+		cancelImproveOptionsRun(questionId);
 		onOpenChange(false);
-	}, [onOpenChange]);
+	}, [questionId, onOpenChange]);
 
 	const handleApply = useCallback(async () => {
-		if (!originalSnapshot || !draftQuestion) return;
-
-		const resolved = {
-			...resolveQuestion(originalSnapshot, draftQuestion, changes),
-			scoringMode: question.scoringMode,
-			deepExplanation: question.deepExplanation,
-			topic: question.topic,
-			exam_id: question.exam_id,
-		};
-		const payload = buildUpdatePayload(originalSnapshot, resolved, changes);
-		if (
-			payload.options === undefined &&
-			payload.answers === undefined &&
-			payload.explanation === undefined
-		) {
-			return;
-		}
-
 		setApplying(true);
 		try {
-			await updateQuestion({
-				data: {
-					id: questionId,
-					...payload,
-				},
-			});
-			await queryClient.invalidateQueries({
-				queryKey: ["exam-detail", examId],
-			});
-			onOpenChange(false);
-		} catch (error) {
-			console.error("Failed to apply improve options:", error);
-			setStreamError(getErrorMessage(error));
+			const result = await applyImproveOptionsRun(questionId, question);
+			if (result.ok) {
+				onOpenChange(false);
+			}
 		} finally {
 			setApplying(false);
 		}
-	}, [
-		originalSnapshot,
-		draftQuestion,
-		changes,
-		question,
-		questionId,
-		examId,
-		queryClient,
-		onOpenChange,
-	]);
+	}, [questionId, question, onOpenChange]);
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
-			if (!nextOpen) {
-				abortRef.current?.abort();
-				abortRef.current = null;
-				setIsStreaming(false);
-			}
 			onOpenChange(nextOpen);
 		},
 		[onOpenChange],
@@ -355,11 +105,11 @@ export function useImproveOptions({
 	return {
 		question,
 		draftQuestion: previewQuestion,
-		messages: agentRunState?.messages ?? [],
-		isStreaming,
+		messages: run?.agentRunState?.messages ?? [],
+		isStreaming: run?.isStreaming ?? false,
 		agentStatus,
-		changes,
-		streamError,
+		changes: run?.changes ?? [],
+		streamError: run?.streamError ?? null,
 		onDecision: handleDecision,
 		onKeepAll: handleKeepAll,
 		onRevertAll: handleRevertAll,

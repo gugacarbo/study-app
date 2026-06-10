@@ -1,5 +1,6 @@
 import { Accordion } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ImproveOptionsRunPhase } from "@/features/exams/store/improve-options-store";
 import type { EditFormData, QuestionData } from "./exam-utils";
 import { QuestionItem } from "./question-item";
 
@@ -11,7 +12,8 @@ interface QuestionsCardProps {
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
 	onImproveOptions?: (q: QuestionData) => void;
-	draftOverride?: { questionId: number; question: QuestionData } | null;
+	improveOptionsStatusByQuestionId?: Map<number, ImproveOptionsRunPhase>;
+	draftOverrideByQuestionId?: Map<number, QuestionData>;
 	onSave: (id: number) => void;
 	onCancel: () => void;
 	onFormChange: (updates: Partial<EditFormData>) => void;
@@ -26,7 +28,8 @@ export function QuestionsCard({
 	editForm,
 	onStartEdit,
 	onImproveOptions = () => {},
-	draftOverride = null,
+	improveOptionsStatusByQuestionId = new Map(),
+	draftOverrideByQuestionId = new Map(),
 	onSave,
 	onCancel,
 	onFormChange,
@@ -69,9 +72,9 @@ export function QuestionsCard({
 						{questions.map((q, idx) => {
 							const isEditing = editingQuestionId === q.id && !!editForm;
 							const displayQuestion =
-								draftOverride?.questionId === q.id
-									? draftOverride.question
-									: q;
+								draftOverrideByQuestionId.get(q.id) ?? q;
+							const improveOptionsStatus =
+								improveOptionsStatusByQuestionId.get(q.id) ?? null;
 
 							return (
 								<QuestionItem
@@ -82,6 +85,7 @@ export function QuestionsCard({
 									editForm={editForm}
 									onStartEdit={onStartEdit}
 									onImproveOptions={onImproveOptions}
+									improveOptionsStatus={improveOptionsStatus}
 									onSave={onSave}
 									onCancel={onCancel}
 									onFormChange={onFormChange}

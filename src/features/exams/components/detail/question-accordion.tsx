@@ -1,4 +1,5 @@
-import { Pencil, Sparkles } from "lucide-react";
+import type { ImproveOptionsRunPhase } from "@/features/exams/store/improve-options-store";
+import { Loader2, Pencil, Sparkles } from "lucide-react";
 import {
 	Accordion,
 	AccordionContent,
@@ -16,16 +17,40 @@ interface QuestionAccordionProps {
 	question: QuestionData;
 	onStartEdit: (q: QuestionData) => void;
 	onImproveOptions: (q: QuestionData) => void;
+	improveOptionsStatus?: ImproveOptionsRunPhase | null;
+}
+
+function improveOptionsStatusLabel(
+	status: ImproveOptionsRunPhase,
+): string | null {
+	if (status === "running") return "Improving options…";
+	if (status === "done") return "Review improvements";
+	return null;
 }
 
 export function QuestionAccordion({
 	question,
 	onStartEdit,
 	onImproveOptions,
+	improveOptionsStatus = null,
 }: QuestionAccordionProps) {
+	const statusLabel = improveOptionsStatus
+		? improveOptionsStatusLabel(improveOptionsStatus)
+		: null;
+	const isRunning = improveOptionsStatus === "running";
+
 	return (
 		<div className="pt-2">
-			<div className="flex justify-end gap-1">
+			<div className="flex items-center justify-end gap-2">
+				{statusLabel && (
+					<Badge
+						variant="outline"
+						className="gap-1 border-primary/40 text-primary"
+					>
+						{isRunning && <Loader2 className="size-3 animate-spin" />}
+						{statusLabel}
+					</Badge>
+				)}
 				<Button
 					variant="ghost"
 					size="sm"

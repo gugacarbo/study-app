@@ -1,8 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useStore } from "@tanstack/react-store";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	getRunPreviewQuestion,
+	improveOptionsStore,
+	type ImproveOptionsRunPhase,
+} from "@/features/exams/store/improve-options-store";
 import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExplanationPipelineTab } from "./explanation-pipeline-tab";
@@ -25,7 +31,10 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	const [improveOptionsQuestion, setImproveOptionsQuestion] =
 		useState<QuestionData | null>(null);
 	const [improveOptionsOpen, setImproveOptionsOpen] = useState(false);
-	const [draftOverride, setDraftOverride] = useState<QuestionData | null>(null);
+	const improveOptionsRuns = useStore(
+		improveOptionsStore,
+		(state) => state.runs,
+	);
 
 	const { data: exam } = useSuspenseQuery({
 		queryKey: ["exam-detail", examId],
@@ -46,6 +55,25 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	} = useQuestionEditing({ examId });
 
 	const { stats } = exam;
+
+	const improveOptionsByQuestionId = useMemo(() => {
+		const statusById = new Map<number, ImproveOptionsRunPhase>();
+		const draftById = new Map<number, QuestionData>();
+
+		for (const run of Object.values(improveOptionsRuns)) {
+			if (run.examId !== examId) continue;
+			statusById.set(run.questionId, run.phase);
+			const liveQuestion = exam.questions.find((q) => q.id === run.questionId);
+			if (liveQuestion) {
+				draftById.set(
+					run.questionId,
+					getRunPreviewQuestion(run, liveQuestion),
+				);
+			}
+		}
+
+		return { statusById, draftById };
+	}, [improveOptionsRuns, examId, exam.questions]);
 
 	return (
 		<div>
@@ -105,14 +133,10 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 									setImproveOptionsQuestion(q);
 									setImproveOptionsOpen(true);
 								}}
-								draftOverride={
-									improveOptionsOpen && improveOptionsQuestion && draftOverride
-										? {
-												questionId: improveOptionsQuestion.id,
-												question: draftOverride,
-											}
-										: null
+								improveOptionsStatusByQuestionId={
+									improveOptionsByQuestionId.statusById
 								}
+								draftOverrideByQuestionId={improveOptionsByQuestionId.draftById}
 								onSave={handleSave}
 								onCancel={cancelEditing}
 								onFormChange={(updates) =>
@@ -132,17 +156,10 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 			{improveOptionsQuestion && (
 				<ImproveOptionsDialog
 					open={improveOptionsOpen}
-					onOpenChange={(open) => {
-						setImproveOptionsOpen(open);
-						if (!open) {
-							setImproveOptionsQuestion(null);
-							setDraftOverride(null);
-						}
-					}}
+					onOpenChange={setImproveOptionsOpen}
 					questionId={improveOptionsQuestion.id}
 					examId={examId}
 					question={improveOptionsQuestion}
-					onDraftChange={setDraftOverride}
 				/>
 			)}
 		</div>
