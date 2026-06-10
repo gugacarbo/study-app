@@ -1,6 +1,6 @@
 # Features
 
-**Generated:** 2026-06-10 · Domínios colocados em `src/features/{domain}/`.
+**Generated:** 2026-06-10 · **Last updated:** 2026-06-10 · Domínios colocados em `src/features/{domain}/`.
 
 Cada feature agrupa components, hooks e stores do mesmo domínio. Rotas em `src/routes/` são wrappers finos que importam daqui.
 
@@ -10,7 +10,7 @@ Cada feature agrupa components, hooks e stores do mesmo domínio. Rotas em `src/
 | ----------- | ------------ | -------------------------------------------------------------- |
 | `ai`        | `ai/`        | Agents, tools, chat, streaming, providers → ver `ai/AGENTS.md` |
 | `ingest`    | `ingest/`    | Upload PDF, fila de jobs, UI de ingestão, `ingest/store/`      |
-| `exams`     | `exams/`     | Lista, detalhe, stats, explicações                             |
+| `exams`     | `exams/`     | Lista, detalhe, stats, explicações; `exams/store/improve-options-store/` (runs SSE em background, session-scoped) |
 | `quiz`      | `quiz/`      | Player de quiz, `quiz/store/` (localStorage por exam/topic)    |
 | `memory`    | `memory/`    | Dashboard de visualização de memória                           |
 | `dashboard` | `dashboard/` | Home / overview                                                |
