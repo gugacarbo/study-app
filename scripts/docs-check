@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""
+docs-check — implementação de referência do CASA Standard (STANDARD.md §8).
+
+Uso:
+  scripts/docs-check [--root .] [--emit-index] [--warn-only]
+
+O que faz:
+  1. Lê docs/adr/*.md e docs/specs/*.md.
+  2. DERIVA id do filename (docs/adr/0032-x.md → ADR-0032) e title do primeiro
+     H1 do corpo (após o frontmatter; comentários HTML não contam).
+  3. Valida frontmatter: só o subconjunto YAML suportado (escalar, lista
+     inline, lista em bloco) — linha não reconhecida é ERRO, nunca ignorada;
+     campos obrigatórios (status, date), data de calendário real AAAA-MM-DD,
+     vocabulário de status por camada; campo fora do vocabulário → AVISO.
+  4. Valida grafo: builds-on/superseded-by resolvem (cross-repo vira AVISO);
+     sem auto-supersessão; superseded-by só em ADR; ADR superseded exige o
+     bloco "VERDADE ATUAL" real, fora de comentário HTML.
+  5. Valida Specs: accepted/implemented exige "## Definition of Done";
+     implemented exige implemented-by não-vazio e "## Verificação" preenchida
+     (sem o placeholder do template).
+  6. Higiene de árvore: ".orig", "conflicted copy" e ".DS_Store" sempre;
+     cópia numerada ("x 2.md", "x copy.md", "x (1).md") só quando o original
+     existe ao lado. Ignora .git, node_modules, .venv, dist, build e afins.
+  7. Índices frescos: compara os READMEs gerados (e docs/index.json, se
+     existir) com os commitados e FALHA se divergirem.
+     --emit-index regenera tudo.
+
+Exit: 1 se houver ERRO (default). --warn-only imprime tudo e sai 0 —
+só para a janela de adoção (STANDARD §10).
+
+Sem dependências externas.
+"""
+import argparse, json, os, re, sys
+from datetime import datetime
+from pathlib import Path
+
+LAYERS = {"adr": "ADR", "specs": "SPEC"}
+STATUS_VOCAB = {
+    "adr":   {"proposed", "accepted", "deprecated", "superseded"},
+    "specs": {"draft", "accepted", "implemented", "deprecated"},
+}
+REQUIRED = {"status", "date"}
+KNOWN_KEYS = {"status", "date", "builds-on", "superseded-by", "implemented-by", "deciders"}
+IGNORED_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build",
+                "vendor", "__pycache__", ".next", "target", ".tox",
+                ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+TRASH_ALWAYS = [r"\.orig$", r"conflicted copy", r"^\.DS_Store$"]
+DUP_RE = re.compile(r"^(?P<base>.+?)(?: \d+| copy(?: \d+)?| \(\d+\))(?P<ext>\.\w+)$")
+FILENAME_RE = re.compile(r"^(\d{4})-[a-z0-9][a-z0-9-]*\.md$")
+KEY_RE = re.compile(r"^([A-Za-z][\w-]*):\s*(.*)$")
+ITEM_RE = re.compile(r"^\s*-\s+(.*)$")
+VA_RE = re.compile(r"^\s*>\s*(?:⚠️\s*)?VERDADE ATUAL", re.M)
+ROUTER_LINE_CAP = 150
+PLACEHOLDER = "(preencher no fechamento)"
+
+
+def split_frontmatter(text):
+    """Retorna (frontmatter_cru, corpo) ou (None, texto) se não houver frontmatter."""
+    if not text.startswith("---"):
+        return None, text
+    end = text.find("\n---", 3)
+    if end == -1:
+        return None, text
+    nl = text.find("\n", end + 1)
+    return text[3:end], (text[nl + 1:] if nl != -1 else "")
+
+
+def _strip_comment(v):
+    v = v.strip()
+    if v.startswith("#"):
+        return ""
+    return re.split(r"\s+#", v, 1)[0].strip()
+
+
+def _clean(v):
+    return v.strip().strip("'\"")
+
+
+def parse_frontmatter(raw):
+    """Parser do subconjunto suportado: escalar, lista inline, lista em bloco.
+    Linha fora do subconjunto vira erro — nunca é ignorada em silêncio."""
+    fm, errs, pending = {}, [], None
+    for ln, line in enumerate(raw.splitlines(), start=2):  # linha 1 do arquivo é '---'
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        m = ITEM_RE.match(line)
+        if m:
+            if pending is None:
+                errs.append(f"frontmatter linha {ln}: item de lista sem chave correspondente")
+                continue
+            if fm[pending] is None:
+                fm[pending] = []
+            fm[pending].append(_clean(_strip_comment(m.group(1))))
+            continue
+        m = KEY_RE.match(line)
+        if not m:
+            errs.append(f"frontmatter linha {ln}: sintaxe não suportada: {stripped!r}")
+            pending = None
+            continue
+        key, val = m.group(1), _strip_comment(m.group(2))
+        pending = None
+        if val == "":
+            fm[key] = None          # vazio: null escalar, ou início de lista em bloco
+            pending = key
+        elif val.startswith("[") and val.endswith("]"):
+            inner = val[1:-1].strip()
+            fm[key] = [_clean(v) for v in inner.split(",")] if inner else []
+        elif val in ("null", "~"):
+            fm[key] = None
+        else:
+            fm[key] = _clean(val)
+    return fm, errs
+
+
+def first_h1(visible):
+    for line in visible.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return None
+
+
+def render_readme(label, rows):
+    lines = [f"# {label}", "", "<!-- GERADO por scripts/docs-check — não editar à mão -->", "",
+             "| id | título | status |", "|---|---|---|"]
+    lines += [f"| [{d['id']}]({Path(d['path']).name}) | {d['title']} | {d['status']} |"
+              for d in sorted(rows, key=lambda d: d["id"])]
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--root", default=".")
+    ap.add_argument("--emit-index", action="store_true")
+    ap.add_argument("--warn-only", action="store_true",
+                    help="imprime erros mas sai 0 (janela de adoção, STANDARD §10)")
+    args = ap.parse_args()
+    root = Path(args.root)
+    errors, warnings, docs = [], [], {}
+
+    # Coleta, derivação e validação por documento
+    for layer, prefix in LAYERS.items():
+        folder = root / "docs" / layer
+        if not folder.exists():
+            continue
+        for path in sorted(folder.glob("*.md")):
+            if path.name == "README.md" or path.name.endswith(".template.md"):
+                continue
+            m = FILENAME_RE.match(path.name)
+            if not m:
+                errors.append(f"{path}: filename fora do padrão NNNN-kebab.md (id é derivado dele)")
+                continue
+            did = f"{prefix}-{m.group(1)}"
+            text = path.read_text(encoding="utf-8")
+            raw_fm, body = split_frontmatter(text)
+            if raw_fm is None:
+                errors.append(f"{path}: sem frontmatter")
+                continue
+            fm, fm_errs = parse_frontmatter(raw_fm)
+            errors.extend(f"{did}: {e}" for e in fm_errs)
+            for k in fm:
+                if k not in KNOWN_KEYS:
+                    warnings.append(f"{did}: campo de frontmatter fora do vocabulário: '{k}' "
+                                    "— registre a extensão num ADR do repo ou remova (STANDARD §6)")
+            visible = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+            title = first_h1(visible)
+            if not title:
+                errors.append(f"{did}: sem H1 no corpo (title é derivado dele)")
+            missing = REQUIRED - {k for k, v in fm.items() if v is not None}
+            if missing:
+                errors.append(f"{did}: campos obrigatórios ausentes: {sorted(missing)}")
+            st = fm.get("status")
+            if st and st not in STATUS_VOCAB[layer]:
+                errors.append(f"{did}: status inválido '{st}' (válidos: {sorted(STATUS_VOCAB[layer])})")
+            dt = fm.get("date")
+            if dt:
+                try:
+                    datetime.strptime(str(dt), "%Y-%m-%d")
+                except ValueError:
+                    errors.append(f"{did}: date '{dt}' inválida (data de calendário AAAA-MM-DD)")
+            if did in docs:
+                errors.append(f"{path}: id derivado duplicado '{did}' (também em {docs[did]['path']})")
+                continue
+            ib = fm.get("implemented-by") or []
+            docs[did] = {"id": did, "path": str(path.relative_to(root)), "layer": layer,
+                         "title": title, "status": st,
+                         "builds-on": fm.get("builds-on") or [],
+                         "superseded-by": fm.get("superseded-by"),
+                         "implemented-by": ib if isinstance(ib, list) else [ib],
+                         "_visible": visible}
+
+    # Grafo e regras por camada
+    for d in docs.values():
+        bo = d["builds-on"]
+        if not isinstance(bo, list):
+            errors.append(f"{d['id']}: builds-on deve ser lista")
+            bo = [bo]
+        for ref in bo:
+            if ":" in ref:
+                warnings.append(f"{d['id']}: referência cross-repo '{ref}' (não verificada localmente)")
+            elif ref not in docs:
+                errors.append(f"{d['id']}: builds-on aponta para doc inexistente '{ref}'")
+        sb = d["superseded-by"]
+        if sb:
+            if d["layer"] != "adr":
+                errors.append(f"{d['id']}: superseded-by é campo de ADR (specs usam status 'deprecated')")
+            elif isinstance(sb, list):
+                errors.append(f"{d['id']}: superseded-by deve ser escalar, não lista")
+            elif ":" in sb:
+                warnings.append(f"{d['id']}: superseded-by cross-repo '{sb}' (não verificado localmente)")
+            elif sb == d["id"]:
+                errors.append(f"{d['id']}: superseded-by aponta para o próprio ADR")
+            elif sb not in docs:
+                errors.append(f"{d['id']}: superseded-by inexistente '{sb}'")
+            elif docs[sb]["layer"] != "adr":
+                errors.append(f"{d['id']}: superseded-by '{sb}' não é um ADR")
+            if d["layer"] == "adr" and d["status"] != "superseded":
+                errors.append(f"{d['id']}: tem superseded-by mas status != superseded")
+        if d["layer"] == "adr" and d["status"] == "superseded":
+            if not sb:
+                errors.append(f"{d['id']}: superseded sem superseded-by")
+            if not VA_RE.search(d["_visible"]):
+                errors.append(f"{d['id']}: ADR superado sem bloco '> VERDADE ATUAL' real "
+                              "(comentário do template não conta)")
+        if d["layer"] == "specs":
+            if d["status"] in ("accepted", "implemented") and \
+                    "## Definition of Done" not in d["_visible"]:
+                errors.append(f"{d['id']}: sem '## Definition of Done' — obrigatório para sair de draft")
+            if d["status"] == "implemented":
+                if not d["implemented-by"]:
+                    errors.append(f"{d['id']}: implemented sem implemented-by")
+                if "## Verificação" not in d["_visible"]:
+                    errors.append(f"{d['id']}: implemented sem seção '## Verificação'")
+                elif PLACEHOLDER in d["_visible"]:
+                    errors.append(f"{d['id']}: ## Verificação ainda com placeholder — "
+                                  "preencha a evidência do DoD")
+
+    # Router dentro do teto
+    router = root / "AGENTS.md"
+    if router.exists():
+        n = len(router.read_text(encoding="utf-8").splitlines())
+        if n > ROUTER_LINE_CAP:
+            warnings.append(f"AGENTS.md com {n} linhas (teto ~{ROUTER_LINE_CAP}) — "
+                            "mova conteúdo para docs/context/")
+
+    # Higiene de árvore (repo inteiro, diretórios de build/vendoring ignorados)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [x for x in dirnames if x not in IGNORED_DIRS]
+        for fn in filenames:
+            rel = os.path.relpath(os.path.join(dirpath, fn), root)
+            if any(re.search(pat, fn) for pat in TRASH_ALWAYS):
+                errors.append(f"higiene: arquivo proibido na árvore: {rel}")
+                continue
+            m = DUP_RE.match(fn)
+            if m and (Path(dirpath) / (m.group("base") + m.group("ext"))).exists():
+                errors.append(f"higiene: provável duplicado de sync: {rel} "
+                              f"(o original '{m.group('base')}{m.group('ext')}' existe ao lado)")
+
+    # Índices: gerar em memória; --emit-index escreve, senão compara (frescor)
+    index = [{k: v for k, v in d.items() if not k.startswith("_")} for d in docs.values()]
+    index.sort(key=lambda d: d["id"])
+    index_text = json.dumps(index, indent=2, ensure_ascii=False) + "\n"
+    readmes = {}
+    for layer, label in (("adr", "ADRs"), ("specs", "Specs")):
+        folder = root / "docs" / layer
+        if folder.exists():
+            readmes[folder / "README.md"] = render_readme(
+                label, [d for d in index if d["layer"] == layer])
+
+    if args.emit_index:
+        (root / "docs").mkdir(exist_ok=True)
+        (root / "docs" / "index.json").write_text(index_text, encoding="utf-8")
+        for p, content in readmes.items():
+            p.write_text(content, encoding="utf-8")
+        print(f"READMEs e index.json gerados ({len(index)} docs).")
+    else:
+        for p, content in readmes.items():
+            rel = p.relative_to(root)
+            has_rows = content.count("\n") > 6
+            if not p.exists():
+                if has_rows:
+                    errors.append(f"índices: {rel} ausente — rode scripts/docs-check --emit-index")
+            elif p.read_text(encoding="utf-8") != content:
+                errors.append(f"índices: {rel} divergente do gerado — rode scripts/docs-check --emit-index")
+        ij = root / "docs" / "index.json"
+        if ij.exists() and ij.read_text(encoding="utf-8") != index_text:
+            errors.append("índices: docs/index.json divergente — rode scripts/docs-check --emit-index")
+
+    for w in warnings:
+        print(f"AVISO: {w}")
+    for e in errors:
+        print(f"ERRO:  {e}")
+    print(f"\n{len(docs)} docs · {len(errors)} erro(s) · {len(warnings)} aviso(s)")
+    sys.exit(0 if (args.warn_only or not errors) else 1)
+
+
+if __name__ == "__main__":
+    main()

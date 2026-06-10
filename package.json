@@ -13,6 +13,7 @@
     "preview": "npm run build && vite preview",
     "test": "vitest run",
     "format": "biome format",
+    "format:md": "pnpm dlx prettier --write \"**/*.{md,mdx}\" --log-level=warn --no-error-on-unmatched-pattern  --cache",
     "lint": "biome lint",
     "check": "biome check",
     "typecheck": "tsc --noEmit",
@@ -24,7 +25,7 @@
     "db:reset": "wrangler d1 migrations apply study-app-db --local --reset",
     "db:reset:prod": "wrangler d1 migrations apply study-app-db --remote --reset",
     "postinstall": "npm run cf-typegen && npm run db:migrate",
-    "docs-check": "bash scripts/docks-check"
+    "docs-check": "python3 scripts/docs-check"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
