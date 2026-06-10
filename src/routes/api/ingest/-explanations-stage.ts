@@ -182,7 +182,7 @@ export async function runExplanationsStage(
 			id: index + 1,
 			question: question.question,
 			options: question.options,
-			answer: question.answer,
+			answers: question.answers,
 			topic: question.topic ?? "General",
 			explanation: question.explanation ?? "",
 		}));

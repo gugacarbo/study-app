@@ -10,7 +10,7 @@ describe("extractQuestionSourceSnippet", () => {
 		const snippet = extractQuestionSourceSnippet(sourceText, {
 			question: "O que e cache?",
 			options: ["Memoria rapida", "Disco"],
-			answer: "A",
+			answers: ["A"],
 		});
 
 		expect(snippet.length).toBeLessThan(5_000);
@@ -23,7 +23,7 @@ describe("extractQuestionSourceSnippet", () => {
 			extractQuestionSourceSnippet("Prova sem correspondencia", {
 				question: "Outra questao",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
 			}),
 		).toBe("");
 	});
@@ -38,7 +38,8 @@ describe("buildReviewerUserPrompt", () => {
 			{
 				question: "Derivada de x^2?",
 				options: ["2x", "x"],
-				answer: "2x",
+				answers: ["2x"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Calculo",
 			},
@@ -62,7 +63,8 @@ describe("buildReviewerUserPrompt", () => {
 			{
 				question: "Pergunta A?",
 				options: ["1", "2"],
-				answer: "1",
+				answers: ["1"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Topico A",
 			},
@@ -73,7 +75,8 @@ describe("buildReviewerUserPrompt", () => {
 			{
 				question: "Pergunta B totalmente diferente?",
 				options: ["x", "y"],
-				answer: "x",
+				answers: ["x"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Topico B",
 			},

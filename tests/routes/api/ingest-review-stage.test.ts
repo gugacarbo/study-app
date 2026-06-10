@@ -78,7 +78,8 @@ describe("runReviewStage", () => {
 					{
 						question: "Pergunta",
 						options: ["A", "B"],
-						answer: "A",
+						answers: ["A"],
+						scoringMode: "exact" as const,
 						explanation: "",
 						topic: "Geral",
 					},

@@ -125,7 +125,7 @@ describe("ingest extraction tools", () => {
 		});
 		expect(workspace.listQuestions()[0]).toMatchObject({
 			question: "Qual e a derivada de f(x) = x²?",
-			answer: "2x",
+			answers: ["2x"],
 			explanation: "",
 			topic: "General",
 		});
@@ -181,7 +181,7 @@ describe("ingest extraction tools", () => {
 				questionId: "q1",
 				question: null,
 				options: null,
-				answer: null,
+				answers: null,
 				topic: null,
 				explanation: null,
 			}).success,
@@ -191,7 +191,7 @@ describe("ingest extraction tools", () => {
 			questionId: "q1",
 			question: null,
 			options: null,
-			answer: null,
+			answers: null,
 			topic: null,
 			explanation: null,
 		})) as {
@@ -208,9 +208,35 @@ describe("ingest extraction tools", () => {
 		expect(workspace.listQuestions()[0]).toMatchObject({
 			question: "Pergunta inicial",
 			options: ["A", "B"],
-			answer: "A",
+			answers: ["A"],
 			topic: "Topico 1",
 		});
+	});
+
+	it("accepts answers array in add_extracted_question", async () => {
+		const workspace = createExtractionWorkspace();
+		const tools = createIngestExtractionTools(workspace);
+		const addQuestion = getTool(tools, "add_extracted_question");
+
+		expect(
+			addQuestion.inputSchema.safeParse({
+				question: "Somatória",
+				options: ["01. Verdadeiro", "02. Falso", "04. Verdadeiro"],
+				answers: ["01. Verdadeiro", "04. Verdadeiro"],
+			}).success,
+		).toBe(true);
+
+		const result = (await addQuestion.execute({
+			question: "Somatória",
+			options: ["01. Verdadeiro", "02. Falso", "04. Verdadeiro"],
+			answers: ["01. Verdadeiro", "04. Verdadeiro"],
+		})) as { ok: boolean; questionId: string };
+
+		expect(result.ok).toBe(true);
+		expect(workspace.listQuestions()[0]?.answers).toEqual([
+			"01. Verdadeiro",
+			"04. Verdadeiro",
+		]);
 	});
 
 	it("lists the current extraction workspace", async () => {

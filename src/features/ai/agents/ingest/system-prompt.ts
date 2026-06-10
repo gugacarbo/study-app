@@ -13,9 +13,15 @@ Extraction rules:
 - Preserve the original language of the source text.
 - Keep wording faithful to the source whenever possible.
 - If options are present, include them.
+- Set "answers" to the full option texts of every correct answer (array of strings).
+- For ordinary single-choice MCQ, "answers" must contain exactly one element: the full text of the correct option.
 - If the source question is open-ended or dissertative, still return at least 2 options:
-  - include the exact correct answer as one option
+  - include the exact correct answer as one option and in "answers"
   - add at least one short, clearly incorrect distractor
+- Somatória / multi-statement V-F: when the stem asks for somatória or lists numbered statements (01, 02, 04, 08, 16, etc.) with true/false marks, treat each statement as one option (keep the full statement text including its number prefix).
+  - Set "answers" to the full texts of every correct statement (those marked correct in the source, e.g. ✔).
+  - Do not encode somatória as a single numeric sum in "answers"; list each correct statement separately.
+- Default "scoringMode" to "exact". Use "partial" only when the source clearly indicates partial credit for multi-select somatória.
 - During ingestion, never generate explanations. Always set "explanation" to "".
 - Do not invent extra sections or keys.
 

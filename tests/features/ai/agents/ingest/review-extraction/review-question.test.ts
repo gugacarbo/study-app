@@ -72,7 +72,8 @@ describe("reviewSingleQuestion", () => {
 									questionId: "q1",
 									question: "O que e cache?",
 									options: ["A", "B"],
-									answer: "A",
+									answers: ["A"],
+									scoringMode: "exact",
 									topic: "Arquitetura",
 								},
 							],
@@ -81,7 +82,7 @@ describe("reviewSingleQuestion", () => {
 
 					await updateQuestion.execute({
 						questionId: "q1",
-						answer: "Memoria rapida",
+						answers: ["Memoria rapida"],
 						options: ["Memoria rapida", "Disco"],
 					});
 					yield {
@@ -90,13 +91,13 @@ describe("reviewSingleQuestion", () => {
 						toolCallName: "update_extracted_question",
 						input: {
 							questionId: "q1",
-							answer: "Memoria rapida",
+							answers: ["Memoria rapida"],
 							options: ["Memoria rapida", "Disco"],
 						},
 						result: {
 							ok: true,
 							questionId: "q1",
-							updatedFields: ["answer", "options"],
+							updatedFields: ["answers", "options"],
 						},
 					};
 
@@ -127,7 +128,8 @@ describe("reviewSingleQuestion", () => {
 			{
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},
@@ -145,7 +147,8 @@ describe("reviewSingleQuestion", () => {
 			question: {
 				question: "O que e cache?",
 				options: ["Memoria rapida", "Disco"],
-				answer: "Memoria rapida",
+				answers: ["Memoria rapida"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},
@@ -205,7 +208,8 @@ describe("reviewSingleQuestion", () => {
 							questionId: "q1",
 							question: "O que e cache?",
 							options: ["A", "B"],
-							answer: "A",
+							answers: ["A"],
+							scoringMode: "exact",
 							topic: "Arquitetura",
 						},
 					],
@@ -221,7 +225,7 @@ describe("reviewSingleQuestion", () => {
 				name: "update_extracted_question",
 				arguments: JSON.stringify({
 					questionId: "q1",
-					answer: "Memoria rapida",
+					answers: ["Memoria rapida"],
 					options: ["Memoria rapida", "Disco"],
 				}),
 				state: "input-complete",
@@ -235,7 +239,7 @@ describe("reviewSingleQuestion", () => {
 				content: {
 					ok: true,
 					questionId: "q1",
-					updatedFields: ["answer", "options"],
+					updatedFields: ["answers", "options"],
 				},
 				state: "complete",
 			}),
@@ -285,7 +289,7 @@ describe("reviewSingleQuestion", () => {
 
 					await updateQuestion.execute({
 						questionId: "q1",
-						answer: "Memoria rapida",
+						answers: ["Memoria rapida"],
 					});
 					yield {
 						type: "TOOL_CALL_END",
@@ -293,7 +297,7 @@ describe("reviewSingleQuestion", () => {
 						toolCallName: "update_extracted_question",
 						input: {
 							questionId: "q1",
-							answer: "Memoria rapida",
+							answers: ["Memoria rapida"],
 						},
 						result: {
 							ok: false,
@@ -306,12 +310,12 @@ describe("reviewSingleQuestion", () => {
 						toolCallName: "update_extracted_question",
 						input: {
 							questionId: "q1",
-							answer: "Memoria rapida",
+							answers: ["Memoria rapida"],
 						},
 						result: {
 							ok: true,
 							questionId: "q1",
-							updatedFields: ["answer"],
+							updatedFields: ["answers"],
 						},
 					};
 					yield {
@@ -335,7 +339,8 @@ describe("reviewSingleQuestion", () => {
 			{
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},
@@ -386,7 +391,8 @@ describe("reviewSingleQuestion", () => {
 								{
 									questionId: "q1",
 									question: "O que e cache?",
-									answer: "A",
+									answers: ["A"],
+									scoringMode: "exact",
 									topic: "Arquitetura",
 								},
 							],
@@ -397,7 +403,7 @@ describe("reviewSingleQuestion", () => {
 						questionId: "q1",
 						question: null,
 						options: null,
-						answer: null,
+						answers: null,
 						topic: null,
 						explanation: null,
 					});
@@ -409,7 +415,7 @@ describe("reviewSingleQuestion", () => {
 							questionId: "q1",
 							question: null,
 							options: null,
-							answer: null,
+							answers: null,
 							topic: null,
 							explanation: null,
 						},
@@ -441,7 +447,8 @@ describe("reviewSingleQuestion", () => {
 			{
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},
@@ -458,7 +465,8 @@ describe("reviewSingleQuestion", () => {
 			question: {
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},
@@ -488,7 +496,7 @@ describe("reviewSingleQuestion", () => {
 							questionId: "q1",
 							question: null,
 							options: null,
-							answer: null,
+							answers: null,
 						},
 						result:
 							'{"error":"Input validation failed for tool update_extracted_question: Validation failed: Invalid input: expected array, received null"}',
@@ -515,7 +523,8 @@ describe("reviewSingleQuestion", () => {
 			{
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},
@@ -532,7 +541,8 @@ describe("reviewSingleQuestion", () => {
 			question: {
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
+				scoringMode: "exact",
 				explanation: "",
 				topic: "Arquitetura",
 			},

@@ -38,7 +38,7 @@ describe("explanation tools", () => {
 				id: 10,
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
 				topic: "Memoria",
 			},
 		]);
@@ -77,7 +77,7 @@ describe("explanation tools", () => {
 				id: 10,
 				question: "O que e cache?",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
 			},
 		]);
 		const tools = createExplanationTools(workspace);
@@ -100,7 +100,7 @@ describe("explanation tools", () => {
 				id: 11,
 				question: "Pergunta",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
 			},
 		]);
 		const tools = createExplanationTools(workspace);
@@ -127,7 +127,7 @@ describe("explanation tools", () => {
 				id: 12,
 				question: "Pergunta",
 				options: ["A", "B"],
-				answer: "A",
+				answers: ["A"],
 			},
 		]);
 

@@ -77,9 +77,14 @@ function toQuestionExcerpt(question: string): string {
 function sanitizeQuestions(
 	items: QuestionListItem[],
 	includeAnswer: boolean,
-): Array<Omit<QuestionListItem, "answer"> & { answer?: string }> {
+): Array<Omit<QuestionListItem, "answers" | "scoringMode"> & {
+	answers?: string[];
+	scoringMode?: "exact" | "partial";
+}> {
 	if (includeAnswer) return items;
-	return items.map(({ answer: _answer, ...question }) => question);
+	return items.map(
+		({ answers: _answers, scoringMode: _scoringMode, ...question }) => question,
+	);
 }
 
 function mapAnswerKeys(items: AnswerKeyListItem[]) {
@@ -87,7 +92,7 @@ function mapAnswerKeys(items: AnswerKeyListItem[]) {
 		id: item.id,
 		exam_id: item.exam_id,
 		topic: item.topic,
-		answer: item.answer,
+		answers: item.answers,
 		questionExcerpt: toQuestionExcerpt(item.question),
 		created_at: item.created_at,
 	}));

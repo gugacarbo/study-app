@@ -22,7 +22,7 @@ export interface ExplanationBatchInput {
 	id: number;
 	question: string;
 	options: string[];
-	answer: string;
+	answers: string[];
 	topic?: string;
 	explanation?: string;
 }

@@ -34,6 +34,8 @@ Tool contract:
 
 Review rules:
 - Always keep "options" with at least 2 items. For open-ended questions, include the exact correct answer plus at least one short incorrect distractor.
+- Set "answers" to the full option texts of every correct answer. For single-choice MCQ, "answers" has exactly one element.
+- For somatória or multi-statement V-F (numbered statements 01/02/04/08/16), each statement is one option and "answers" lists every correct statement's full text.
 - When you update a question, set "explanation" to "".
 - Do not invent extra fields or speculative corrections.`;
 
@@ -64,7 +66,8 @@ function formatQuestionSnapshot(question: Question): string[] {
 		`Stem: ${question.question}`,
 		"Options:",
 		options,
-		`Answer: ${question.answer}`,
+		`Answers: ${question.answers.join("; ")}`,
+		`Scoring mode: ${question.scoringMode}`,
 		`Topic: ${question.topic?.trim() || "General"}`,
 	];
 }

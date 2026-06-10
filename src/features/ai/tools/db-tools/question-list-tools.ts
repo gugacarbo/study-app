@@ -14,7 +14,7 @@ import {
 const listQuestionsDef = toolDefinition({
 	name: "list_questions",
 	description:
-		"List questions with optional filters and pagination. Includes answer only when includeAnswer=true.",
+		"List questions with optional filters and pagination. Includes answers only when includeAnswer=true.",
 	inputSchema: z.object({
 		page: pageSchema,
 		pageSize: pageSizeSchema,
@@ -36,7 +36,7 @@ const listQuestionsDef = toolDefinition({
 				deepExplanation: z.string(),
 				topic: z.string(),
 				created_at: z.string().nullable(),
-				answer: z.string().optional(),
+				answers: z.array(z.string()).optional(),
 			}),
 		),
 		toolFailureSchema,

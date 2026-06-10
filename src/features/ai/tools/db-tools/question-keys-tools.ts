@@ -29,7 +29,7 @@ const listAnswerKeysDef = toolDefinition({
 				id: z.number(),
 				exam_id: z.number().nullable(),
 				topic: z.string().nullable(),
-				answer: z.string(),
+				answers: z.array(z.string()),
 				questionExcerpt: z.string(),
 				created_at: z.string().nullable(),
 			}),

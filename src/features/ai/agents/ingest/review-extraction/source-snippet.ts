@@ -9,7 +9,7 @@ function normalizeWhitespace(text: string): string {
 }
 
 function buildSearchNeedles(
-	question: Pick<Question, "question" | "options" | "answer">,
+	question: Pick<Question, "question" | "options" | "answers">,
 ): string[] {
 	const needles: string[] = [];
 	const stem = normalizeWhitespace(question.question);
@@ -25,9 +25,14 @@ function buildSearchNeedles(
 		}
 	}
 
-	const answer = normalizeWhitespace(question.answer);
-	if (answer.length >= 4 && !/^[A-E]$/i.test(answer)) {
-		needles.push(answer);
+	for (const answer of question.answers) {
+		const normalizedAnswer = normalizeWhitespace(answer);
+		if (
+			normalizedAnswer.length >= 4 &&
+			!/^[A-E]$/i.test(normalizedAnswer)
+		) {
+			needles.push(normalizedAnswer);
+		}
 	}
 
 	return [...new Set(needles)].sort(
@@ -99,7 +104,7 @@ function resolveSnippetBounds(
 
 export function extractQuestionSourceSnippet(
 	sourceText: string,
-	question: Pick<Question, "question" | "options" | "answer">,
+	question: Pick<Question, "question" | "options" | "answers">,
 	options?: { maxLength?: number },
 ): string {
 	const trimmedSource = sourceText.trim();

@@ -70,7 +70,7 @@ function omitUndefined<T extends Record<string, unknown>>(
 }
 
 function normalizeQuestion(
-	input: Partial<Question> & Pick<Question, "question" | "answer">,
+	input: Partial<Question> & Pick<Question, "question" | "answers">,
 ): Question {
 	const parsed = ingestQuestionSchema.safeParse({
 		...input,
@@ -101,7 +101,7 @@ export function createExtractionWorkspace(
 
 	return {
 		addQuestion(
-			input: Partial<Question> & Pick<Question, "question" | "answer">,
+			input: Partial<Question> & Pick<Question, "question" | "answers">,
 		) {
 			const question = normalizeQuestion(input);
 			const questionId = `q${state.nextQuestionNumber}` as ExtractionQuestionId;

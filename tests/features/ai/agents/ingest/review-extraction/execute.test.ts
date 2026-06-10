@@ -37,7 +37,8 @@ function makeQuestion(index: number) {
 	return {
 		question: `Question ${index + 1}`,
 		options: ["A", "B"],
-		answer: "A",
+		answers: ["A"],
+		scoringMode: "exact" as const,
 		explanation: "",
 		topic: "General",
 	};

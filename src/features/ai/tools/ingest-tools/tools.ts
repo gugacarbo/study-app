@@ -2,6 +2,8 @@ import { type ToolExecutionContext, toolDefinition } from "@tanstack/ai";
 import { z } from "zod";
 import type { Question } from "@/lib/validation";
 import {
+	type ExtractionQuestionFields,
+	type ExtractionQuestionPatch,
 	extractionQuestionFieldsSchema,
 	extractionQuestionIdSchema,
 	extractionQuestionPatchSchema,
@@ -15,7 +17,7 @@ import { ExtractionWorkspaceError } from "./workspace";
 
 interface ExtractionWorkspaceApi {
 	addQuestion: (
-		input: Partial<Question> & Pick<Question, "question" | "answer">,
+		input: Partial<Question> & Pick<Question, "question" | "answers">,
 	) => ExtractionWorkspaceQuestion;
 	updateQuestion: (
 		questionId: ExtractionQuestionId,
@@ -34,7 +36,14 @@ const updateExtractionQuestionSuccessSchema = z.object({
 	ok: z.literal(true),
 	questionId: extractionQuestionIdSchema,
 	updatedFields: z.array(
-		z.enum(["question", "options", "answer", "topic", "explanation"]),
+		z.enum([
+			"question",
+			"options",
+			"answers",
+			"scoringMode",
+			"topic",
+			"explanation",
+		]),
 	),
 });
 
@@ -46,7 +55,8 @@ const listExtractionQuestionsSuccessSchema = z.object({
 			questionId: extractionQuestionIdSchema,
 			question: z.string(),
 			options: z.array(z.string()),
-			answer: z.string(),
+			answers: z.array(z.string()),
+			scoringMode: z.enum(["exact", "partial"]),
 			topic: z.string(),
 		}),
 	),
@@ -85,17 +95,12 @@ const listExtractedQuestionsDef = toolDefinition({
 	]),
 });
 
-function hasMeaningfulQuestionPatch(input: {
-	question?: string | null;
-	options?: string[] | null;
-	answer?: string | null;
-	topic?: string | null;
-	explanation?: string | null;
-}) {
+function hasMeaningfulQuestionPatch(input: ExtractionQuestionPatch) {
 	return (
 		input.question != null ||
 		input.options != null ||
-		input.answer != null ||
+		input.answers != null ||
+		input.scoringMode != null ||
 		input.topic != null ||
 		input.explanation != null
 	);
@@ -160,6 +165,7 @@ export function createIngestExtractionTools(
 ) {
 	const addExtractedQuestion = addExtractedQuestionDef.server(
 		async (input, context) => {
+			const parsedInput = input as ExtractionQuestionFields;
 			let output:
 				| Awaited<ReturnType<typeof toToolFailure>>
 				| {
@@ -168,7 +174,7 @@ export function createIngestExtractionTools(
 						totalQuestions: number;
 				  };
 			try {
-				const question = workspace.addQuestion(input);
+				const question = workspace.addQuestion(parsedInput);
 				output = {
 					ok: true as const,
 					questionId: question.questionId,
@@ -180,7 +186,7 @@ export function createIngestExtractionTools(
 			await notifyToolExecuted(
 				options,
 				"add_extracted_question",
-				input,
+				parsedInput,
 				output,
 				context,
 			);
@@ -190,39 +196,54 @@ export function createIngestExtractionTools(
 
 	const updateExtractedQuestion = updateExtractedQuestionDef.server(
 		async (input, context) => {
+			const parsedInput = input as ExtractionQuestionPatch;
 			let output:
 				| Awaited<ReturnType<typeof toToolFailure>>
 				| {
 						ok: true;
 						questionId: string;
 						updatedFields: Array<
-							"question" | "options" | "answer" | "topic" | "explanation"
+							| "question"
+							| "options"
+							| "answers"
+							| "scoringMode"
+							| "topic"
+							| "explanation"
 						>;
 				  };
 			try {
-				if (!hasMeaningfulQuestionPatch(input)) {
+				if (!hasMeaningfulQuestionPatch(parsedInput)) {
 					output = {
 						ok: true as const,
-						questionId: input.questionId,
+						questionId: parsedInput.questionId,
 						updatedFields: [],
 					};
 				} else {
-					workspace.updateQuestion(input.questionId as ExtractionQuestionId, {
-						question: input.question ?? undefined,
-						options: input.options ?? undefined,
-						answer: input.answer ?? undefined,
-						topic: input.topic ?? undefined,
-						explanation: input.explanation ?? undefined,
-					});
+					workspace.updateQuestion(
+						parsedInput.questionId as ExtractionQuestionId,
+						{
+							question: parsedInput.question ?? undefined,
+							options: parsedInput.options ?? undefined,
+							answers: parsedInput.answers ?? undefined,
+							scoringMode: parsedInput.scoringMode ?? undefined,
+							topic: parsedInput.topic ?? undefined,
+							explanation: parsedInput.explanation ?? undefined,
+						},
+					);
 					output = {
 						ok: true as const,
-						questionId: input.questionId,
+						questionId: parsedInput.questionId,
 						updatedFields: [
-							...(input.question != null ? ["question" as const] : []),
-							...(input.options != null ? ["options" as const] : []),
-							...(input.answer != null ? ["answer" as const] : []),
-							...(input.topic != null ? ["topic" as const] : []),
-							...(input.explanation != null ? ["explanation" as const] : []),
+							...(parsedInput.question != null ? ["question" as const] : []),
+							...(parsedInput.options != null ? ["options" as const] : []),
+							...(parsedInput.answers != null ? ["answers" as const] : []),
+							...(parsedInput.scoringMode != null
+								? ["scoringMode" as const]
+								: []),
+							...(parsedInput.topic != null ? ["topic" as const] : []),
+							...(parsedInput.explanation != null
+								? ["explanation" as const]
+								: []),
 						],
 					};
 				}
@@ -232,7 +253,7 @@ export function createIngestExtractionTools(
 			await notifyToolExecuted(
 				options,
 				"update_extracted_question",
-				input,
+				parsedInput,
 				output,
 				context,
 			);
@@ -250,7 +271,8 @@ export function createIngestExtractionTools(
 					questionId: question.questionId,
 					question: question.question,
 					options: [...question.options],
-					answer: question.answer,
+					answers: [...question.answers],
+					scoringMode: question.scoringMode,
 					topic: question.topic ?? "General",
 				})),
 			};

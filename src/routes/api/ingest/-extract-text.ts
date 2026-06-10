@@ -15,7 +15,7 @@ export function extractTextFromBytes(bytes: Uint8Array): string {
 export function buildExtractionUserPrompt(text: string): string {
 	return [
 		"Extract all exam questions from the following text.",
-		"For each question you find, call add_extracted_question with the best available question text, options, answer, and topic.",
+		"For each question you find, call add_extracted_question with the best available question text, options, answers (array of full correct option texts), and topic.",
 		"If you need to correct an earlier question, call update_extracted_question using its questionId.",
 		"If the source text does not contain any valid question, finish without inventing one.",
 		"",

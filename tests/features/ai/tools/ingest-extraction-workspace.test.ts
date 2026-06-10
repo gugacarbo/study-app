@@ -11,13 +11,13 @@ describe("ingest extraction workspace", () => {
 		const first = workspace.addQuestion({
 			question: "O que e um processo?",
 			options: ["Programa em execucao", "Arquivo compactado"],
-			answer: "Programa em execucao",
+			answers: ["Programa em execucao"],
 			topic: "Sistemas Operacionais",
 		});
 		const second = workspace.addQuestion({
 			question: "Explique escalonamento preemptivo.",
 			options: [],
-			answer: "Permite interrupcao do processo em execucao.",
+			answers: ["Permite interrupcao do processo em execucao."],
 			topic: "Escalonamento",
 		});
 
@@ -35,7 +35,7 @@ describe("ingest extraction workspace", () => {
 		const added = workspace.addQuestion({
 			question: "Explique o modelo OSI.",
 			options: [],
-			answer: "O modelo OSI possui sete camadas.",
+			answers: ["O modelo OSI possui sete camadas."],
 			explanation: "deve ser removida",
 			topic: "Redes",
 		});
@@ -53,7 +53,7 @@ describe("ingest extraction workspace", () => {
 		const added = workspace.addQuestion({
 			question: "Questao original",
 			options: ["A", "B"],
-			answer: "A",
+			answers: ["A"],
 			topic: "Topico 1",
 		});
 
@@ -71,7 +71,8 @@ describe("ingest extraction workspace", () => {
 				{
 					question: "Questao corrigida",
 					options: ["A", "B"],
-					answer: "A",
+					answers: ["A"],
+					scoringMode: "exact",
 					deepExplanation: undefined,
 					explanation: "",
 					topic: "Topico 2",

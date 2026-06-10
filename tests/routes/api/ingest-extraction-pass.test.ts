@@ -119,7 +119,9 @@ describe("runExtractionPass", () => {
 				{
 					question: "O que e cache?",
 					options: ["Memoria rapida", "Disco rigido"],
-					answer: "Memoria rapida",
+					answers: ["Memoria rapida"],
+					scoringMode: "exact",
+					deepExplanation: undefined,
 					explanation: "",
 					topic: "Memoria",
 				},
@@ -227,7 +229,8 @@ describe("runExtractionPass", () => {
 				{
 					question: "Questao corrigida",
 					options: ["A", "B"],
-					answer: "A",
+					answers: ["A"],
+					scoringMode: "exact",
 					deepExplanation: undefined,
 					explanation: "",
 					topic: "Topico 2",

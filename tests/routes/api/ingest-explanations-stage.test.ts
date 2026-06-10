@@ -54,7 +54,8 @@ describe("runExplanationsStage", () => {
 					{
 						question: "Pergunta",
 						options: ["A", "B"],
-						answer: "A",
+						answers: ["A"],
+						scoringMode: "exact" as const,
 						explanation: "",
 						topic: "Geral",
 					},
@@ -110,7 +111,8 @@ describe("runExplanationsStage", () => {
 					{
 						question: "Pergunta",
 						options: ["A", "B"],
-						answer: "A",
+						answers: ["A"],
+						scoringMode: "exact" as const,
 						explanation: "",
 						topic: "Geral",
 					},
@@ -141,7 +143,8 @@ describe("runExplanationsStage", () => {
 				{
 					question: "Pergunta",
 					options: ["A", "B"],
-					answer: "A",
+					answers: ["A"],
+					scoringMode: "exact",
 					explanation: "Curta",
 					deepExplanation: "Longa",
 					topic: "Geral",

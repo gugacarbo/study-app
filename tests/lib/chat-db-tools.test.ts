@@ -90,7 +90,7 @@ describe("chat-db-tools", () => {
     expect(listExams.inputSchema.safeParse({ page: "2", pageSize: "20" }).success).toBe(true);
   });
 
-  it("hides answer for list_questions when includeAnswer=false", async () => {
+  it("hides answers for list_questions when includeAnswer=false", async () => {
     queries.listQuestionsPaged.mockResolvedValueOnce({
       items: [
         {
@@ -98,7 +98,8 @@ describe("chat-db-tools", () => {
           exam_id: 1,
           question: "Q",
           options: ["A", "B"],
-          answer: "A",
+          answers: ["A"],
+          scoringMode: "exact",
           explanation: "e",
           deepExplanation: "d",
           topic: "T",
@@ -122,10 +123,10 @@ describe("chat-db-tools", () => {
     };
 
     expect(result.ok).toBe(true);
-    expect(result.data.items[0]).not.toHaveProperty("answer");
+    expect(result.data.items[0]).not.toHaveProperty("answers");
   });
 
-  it("exposes answer for list_questions when includeAnswer=true", async () => {
+  it("exposes answers for list_questions when includeAnswer=true", async () => {
     queries.listQuestionsPaged.mockResolvedValueOnce({
       items: [
         {
@@ -133,7 +134,8 @@ describe("chat-db-tools", () => {
           exam_id: 1,
           question: "Q",
           options: ["A", "B"],
-          answer: "A",
+          answers: ["A"],
+          scoringMode: "exact",
           explanation: "e",
           deepExplanation: "d",
           topic: "T",
@@ -157,7 +159,10 @@ describe("chat-db-tools", () => {
     };
 
     expect(result.ok).toBe(true);
-    expect(result.data.items[0]).toHaveProperty("answer", "A");
+    expect(result.data.items[0]).toMatchObject({
+      answers: ["A"],
+      scoringMode: "exact",
+    });
   });
 
   it("truncates questionExcerpt for list_answer_keys", async () => {
