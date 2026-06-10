@@ -2,23 +2,24 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+	backgroundProcessStore,
+	getImproveQuestionsRun,
 	getRunPreviewQuestion,
-	improveOptionsStore,
-	type ImproveOptionsRunPhase,
-} from "@/features/exams/store/improve-options-store";
+	isImproveQuestionsProcess,
+	type ImproveQuestionsRunPhase,
+	parseExplanationGenerationProcessId,
+	parseImproveQuestionsProcessId,
+} from "@/features/background-processes";
 import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExplanationPipelineTab } from "./explanation-pipeline-tab";
-import { FileList } from "./file-list";
-import { ImproveOptionsDialog } from "./improve-options-dialog";
+import { ExamInfoPanel } from "./exam-info-panel";
+import { ImproveQuestionsDialog } from "./improve-questions-dialog";
 import { QuestionsCard } from "./questions-card";
 import type { QuestionData } from "./exam-utils";
-import { StatsCards } from "./stats-cards";
-import { TopicList } from "./topic-list";
-import { TopicStatsCard } from "./topic-stats-card";
 import { useExamDelete } from "./use-exam-delete";
 import { useQuestionEditing } from "./use-question-editing";
 
@@ -27,13 +28,17 @@ interface ExamDetailProps {
 }
 
 export function ExamDetail({ examId }: ExamDetailProps) {
+	const [activeTab, setActiveTab] = useState("details");
 	const [expandedQuestions, setExpandedQuestions] = useState(new Set<number>());
-	const [improveOptionsQuestion, setImproveOptionsQuestion] =
+	const [improveQuestionsQuestion, setImproveQuestionsQuestion] =
 		useState<QuestionData | null>(null);
-	const [improveOptionsOpen, setImproveOptionsOpen] = useState(false);
-	const improveOptionsRuns = useStore(
-		improveOptionsStore,
-		(state) => state.runs,
+	const [improveQuestionsOpen, setImproveQuestionsOpen] = useState(false);
+	const improveQuestionsProcesses = useStore(backgroundProcessStore, (state) =>
+		state.processes.filter(isImproveQuestionsProcess),
+	);
+	const focusedProcessId = useStore(
+		backgroundProcessStore,
+		(state) => state.focusedProcessId,
 	);
 
 	const { data: exam } = useSuspenseQuery({
@@ -56,11 +61,11 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 
 	const { stats } = exam;
 
-	const improveOptionsByQuestionId = useMemo(() => {
-		const statusById = new Map<number, ImproveOptionsRunPhase>();
+	const improveQuestionsByQuestionId = useMemo(() => {
+		const statusById = new Map<number, ImproveQuestionsRunPhase>();
 		const draftById = new Map<number, QuestionData>();
 
-		for (const run of Object.values(improveOptionsRuns)) {
+		for (const run of improveQuestionsProcesses) {
 			if (run.examId !== examId) continue;
 			statusById.set(run.questionId, run.phase);
 			const liveQuestion = exam.questions.find((q) => q.id === run.questionId);
@@ -73,7 +78,43 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		}
 
 		return { statusById, draftById };
-	}, [improveOptionsRuns, examId, exam.questions]);
+	}, [improveQuestionsProcesses, examId, exam.questions]);
+
+	useEffect(() => {
+		if (!focusedProcessId) return;
+
+		const clearFocus = () => {
+			backgroundProcessStore.setState((state) => ({
+				...state,
+				focusedProcessId: null,
+			}));
+		};
+
+		try {
+			const focusedExplanationExamId =
+				parseExplanationGenerationProcessId(focusedProcessId);
+			if (focusedExplanationExamId !== null) {
+				if (focusedExplanationExamId !== examId) return;
+
+				setActiveTab("explanations");
+				return;
+			}
+
+			const questionId = parseImproveQuestionsProcessId(focusedProcessId);
+			if (questionId === null) return;
+
+			const run = getImproveQuestionsRun(questionId);
+			if (!run || run.examId !== examId) return;
+
+			const question = exam.questions.find((q) => q.id === questionId);
+			if (!question) return;
+
+			setImproveQuestionsQuestion(question);
+			setImproveQuestionsOpen(true);
+		} finally {
+			clearFocus();
+		}
+	}, [focusedProcessId, examId, exam.questions]);
 
 	return (
 		<div>
@@ -94,7 +135,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				handleDelete={handleDelete}
 			/>
 
-			<Tabs defaultValue="details" className="mt-6">
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
 				<TabsList>
 					<TabsTrigger value="details">Detalhes</TabsTrigger>
 					<TabsTrigger value="explanations">Explicacoes</TabsTrigger>
@@ -102,22 +143,9 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 
 				<TabsContent value="details" className="mt-6">
 					<div className="flex flex-col gap-6 lg:flex-row">
-						<aside className="w-full shrink-0 lg:w-72">
-							<div className="space-y-4 lg:sticky lg:top-20">
-								<StatsCards exam={exam} stats={stats} />
-
-								{exam.files.length > 0 && <FileList files={exam.files} />}
-
-								{exam.topics.length > 0 && <TopicList topics={exam.topics} />}
-
-								{stats.topicStats.length > 0 && stats.totalAttempts > 0 && (
-									<TopicStatsCard
-										topicStats={stats.topicStats}
-										overallAccuracy={stats.overallAccuracy}
-										completedAttempts={stats.completedAttempts}
-										incompleteAttempts={stats.incompleteAttempts}
-									/>
-								)}
+						<aside className="w-full shrink-0 lg:w-64">
+							<div className="lg:sticky lg:top-20">
+								<ExamInfoPanel exam={exam} stats={stats} />
 							</div>
 						</aside>
 
@@ -129,14 +157,14 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 								editingQuestionId={editingQuestionId}
 								editForm={editForm}
 								onStartEdit={startEditing}
-								onImproveOptions={(q) => {
-									setImproveOptionsQuestion(q);
-									setImproveOptionsOpen(true);
+								onImproveQuestions={(q) => {
+									setImproveQuestionsQuestion(q);
+									setImproveQuestionsOpen(true);
 								}}
-								improveOptionsStatusByQuestionId={
-									improveOptionsByQuestionId.statusById
+								improveQuestionsStatusByQuestionId={
+									improveQuestionsByQuestionId.statusById
 								}
-								draftOverrideByQuestionId={improveOptionsByQuestionId.draftById}
+								draftOverrideByQuestionId={improveQuestionsByQuestionId.draftById}
 								onSave={handleSave}
 								onCancel={cancelEditing}
 								onFormChange={(updates) =>
@@ -153,13 +181,13 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				</TabsContent>
 			</Tabs>
 
-			{improveOptionsQuestion && (
-				<ImproveOptionsDialog
-					open={improveOptionsOpen}
-					onOpenChange={setImproveOptionsOpen}
-					questionId={improveOptionsQuestion.id}
+			{improveQuestionsQuestion && (
+				<ImproveQuestionsDialog
+					open={improveQuestionsOpen}
+					onOpenChange={setImproveQuestionsOpen}
+					questionId={improveQuestionsQuestion.id}
 					examId={examId}
-					question={improveOptionsQuestion}
+					question={improveQuestionsQuestion}
 				/>
 			)}
 		</div>

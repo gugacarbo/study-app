@@ -1,12 +1,25 @@
 import { useStore } from "@tanstack/react-store";
 import { useMemo, useState } from "react";
-import { enqueueIngest, ingestStore } from "@/features/ingest/store";
+import {
+	backgroundProcessStore,
+	isIngestProcess,
+	parseIngestProcessId,
+} from "@/features/background-processes";
+import { ingestProcessToJob } from "@/features/background-processes/store/types";
+import { enqueueIngest } from "@/features/background-processes/kinds/ingest";
 import { toIngestJobViewModel } from "./-job-view-model";
 
+function selectFocusedIngestJobId(focusedProcessId: string | null): string | null {
+	if (!focusedProcessId) return null;
+	return parseIngestProcessId(focusedProcessId);
+}
+
 export function useUpload() {
-	const { jobs, focusedJobId } = useStore(ingestStore, (state) => ({
-		jobs: state.jobs,
-		focusedJobId: state.focusedJobId,
+	const { jobs, focusedJobId } = useStore(backgroundProcessStore, (state) => ({
+		jobs: state.processes
+			.filter(isIngestProcess)
+			.map((process) => ingestProcessToJob(process)),
+		focusedJobId: selectFocusedIngestJobId(state.focusedProcessId),
 	}));
 
 	const [selectedStageId, setSelectedStageId] = useState<string | null>(null);

@@ -1,12 +1,12 @@
 import type { UIMessage } from "@tanstack/ai-client";
-import type { ImproveOptionsAgentEvent } from "@/features/ai/agents/improve-options/contracts";
-import type { ImproveOptionsAgentRunStatus } from "@/features/ai/agents/improve-options/contracts";
+import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
+import type { ImproveQuestionsAgentRunStatus } from "@/features/ai/agents/improve-questions/contracts";
 import { pickRicherToolResultContent } from "@/features/ai/core/agent-stream-handler";
 
 export interface AgentRunState {
 	agentRunId: string;
 	label: string;
-	status: ImproveOptionsAgentRunStatus;
+	status: ImproveQuestionsAgentRunStatus;
 	systemPrompt: string;
 	userPrompt: string;
 	outputText: string;
@@ -24,7 +24,7 @@ export interface AgentRunTextChunkEvent {
 }
 
 export type AgentRunReducerEvent =
-	| ImproveOptionsAgentEvent
+	| ImproveQuestionsAgentEvent
 	| AgentRunTextChunkEvent;
 
 type AgentRole = "system" | "user" | "assistant";
@@ -371,7 +371,7 @@ function readLatestToolCallId(state: AgentRunState): string | undefined {
 
 function createToolCallId(
 	state: AgentRunState,
-	event: ImproveOptionsAgentEvent,
+	event: ImproveQuestionsAgentEvent,
 ): string {
 	const meta = event.meta as Record<string, unknown> | undefined;
 	const candidate = meta?.toolCallId ?? meta?.id;
@@ -388,7 +388,7 @@ function createToolCallId(
 
 function createToolCallPart(
 	state: AgentRunState,
-	event: ImproveOptionsAgentEvent,
+	event: ImproveQuestionsAgentEvent,
 ): AssistantToolCallPart {
 	return {
 		type: "tool-call",
@@ -443,8 +443,8 @@ function mergeToolCallPart(
 	};
 }
 
-function readToolResultContent(event: ImproveOptionsAgentEvent): string {
-	const eventRecord = event as ImproveOptionsAgentEvent & { result?: unknown };
+function readToolResultContent(event: ImproveQuestionsAgentEvent): string {
+	const eventRecord = event as ImproveQuestionsAgentEvent & { result?: unknown };
 	return safeJsonString(
 		event.content ?? event.output ?? eventRecord.result ?? "",
 	);
@@ -481,7 +481,7 @@ function mergeToolResultPart(
 
 function createToolResultPart(
 	state: AgentRunState,
-	event: ImproveOptionsAgentEvent,
+	event: ImproveQuestionsAgentEvent,
 ): AssistantToolResultPart {
 	const meta = event.meta as Record<string, unknown> | undefined;
 	const candidate = meta?.toolCallId;
@@ -604,7 +604,7 @@ function appendAssistantPart(
 
 function normalizeAgentStatus(
 	status?: string,
-): ImproveOptionsAgentRunStatus {
+): ImproveQuestionsAgentRunStatus {
 	if (
 		status === "pending" ||
 		status === "running" ||
@@ -617,9 +617,9 @@ function normalizeAgentStatus(
 }
 
 function resolveNextAgentStatus(
-	existingStatus: ImproveOptionsAgentRunStatus,
+	existingStatus: ImproveQuestionsAgentRunStatus,
 	eventStatus: string | undefined,
-): ImproveOptionsAgentRunStatus {
+): ImproveQuestionsAgentRunStatus {
 	if (existingStatus === "error") {
 		return "error";
 	}
@@ -632,7 +632,7 @@ function resolveNextAgentStatus(
 
 function applyAgentMetadata(
 	state: AgentRunState,
-	event: ImproveOptionsAgentEvent,
+	event: ImproveQuestionsAgentEvent,
 ): AgentRunState {
 	const nextWarnings = event.warning
 		? [...state.warnings, event.warning]

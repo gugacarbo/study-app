@@ -1,6 +1,6 @@
 export { testConnectionWithStream } from "./connection-stream";
-export { improveOptionsStream } from "./improve-options-stream";
-export type { ImproveOptionsTextChunk } from "./improve-options-stream";
+export { improveQuestionsStream } from "./improve-questions-stream";
+export type { ImproveQuestionsTextChunk } from "./improve-questions-stream";
 export { ingestStream } from "./ingest-stream";
 export type {
 	ConnectionProgressEvent,

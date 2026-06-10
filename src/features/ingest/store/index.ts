@@ -4,7 +4,8 @@ export {
 	enqueueIngest,
 	focusJob,
 	removeJob,
-} from "./actions";
+	startQueuedIngest,
+} from "@/features/background-processes/kinds/ingest";
 export {
 	appendChunkToAgentRun,
 	appendReasoningToAgentRun,
@@ -15,14 +16,13 @@ export {
 	ensureAgentRunMessages,
 	syncJobTokenTotals,
 	upsertAgentRun,
-} from "./job-utils";
+} from "@/features/background-processes/kinds/ingest/job-utils";
 
 export {
-	clearCompletedJobsFromState,
-	hydrateIngestStateFromStorage,
-	serializeIngestStateForStorage,
-} from "./persistence";
-export { ingestStore } from "./store";
+	clearCompletedIngestProcessesFromState as clearCompletedJobsFromState,
+	hydrateBackgroundProcessStateFromStorage as hydrateIngestStateFromStorage,
+	serializeBackgroundProcessStateForStorage as serializeIngestStateForStorage,
+} from "@/features/background-processes/store/persistence";
 export type {
 	FlowStage,
 	IngestAgentRun,

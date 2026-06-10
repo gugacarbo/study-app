@@ -9,7 +9,7 @@ import {
 	clearSavedIngestJobs,
 	focusJob,
 	removeJob,
-} from "@/features/ingest/store";
+} from "@/features/background-processes/kinds/ingest";
 import { useUpload } from "./-use-upload";
 
 export { toIngestJobViewModel } from "./-job-view-model";

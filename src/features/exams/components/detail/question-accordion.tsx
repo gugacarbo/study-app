@@ -1,4 +1,4 @@
-import type { ImproveOptionsRunPhase } from "@/features/exams/store/improve-options-store";
+import type { ImproveQuestionsRunPhase } from "@/features/background-processes";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import {
 	Accordion,
@@ -16,14 +16,14 @@ import type { QuestionData } from "./exam-utils";
 interface QuestionAccordionProps {
 	question: QuestionData;
 	onStartEdit: (q: QuestionData) => void;
-	onImproveOptions: (q: QuestionData) => void;
-	improveOptionsStatus?: ImproveOptionsRunPhase | null;
+	onImproveQuestions: (q: QuestionData) => void;
+	improveQuestionsStatus?: ImproveQuestionsRunPhase | null;
 }
 
-function improveOptionsStatusLabel(
-	status: ImproveOptionsRunPhase,
+function improveQuestionsStatusLabel(
+	status: ImproveQuestionsRunPhase,
 ): string | null {
-	if (status === "running") return "Improving options…";
+	if (status === "running") return "Improving question…";
 	if (status === "done") return "Review improvements";
 	return null;
 }
@@ -31,13 +31,13 @@ function improveOptionsStatusLabel(
 export function QuestionAccordion({
 	question,
 	onStartEdit,
-	onImproveOptions,
-	improveOptionsStatus = null,
+	onImproveQuestions,
+	improveQuestionsStatus = null,
 }: QuestionAccordionProps) {
-	const statusLabel = improveOptionsStatus
-		? improveOptionsStatusLabel(improveOptionsStatus)
+	const statusLabel = improveQuestionsStatus
+		? improveQuestionsStatusLabel(improveQuestionsStatus)
 		: null;
-	const isRunning = improveOptionsStatus === "running";
+	const isRunning = improveQuestionsStatus === "running";
 
 	return (
 		<div className="pt-2">
@@ -54,10 +54,10 @@ export function QuestionAccordion({
 				<Button
 					variant="ghost"
 					size="sm"
-					onClick={() => onImproveOptions(question)}
+					onClick={() => onImproveQuestions(question)}
 				>
 					<Sparkles className="size-3.5" />
-					Improve Options
+					Improve Question
 				</Button>
 				<Button variant="ghost" size="sm" onClick={() => onStartEdit(question)}>
 					<Pencil className="size-3.5" />

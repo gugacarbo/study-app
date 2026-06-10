@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { ImproveOptionsAgentEvent } from "@/features/ai/agents/improve-options/contracts";
+import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
 import {
 	createAgentRunState,
 	reduceAgentEvent,
 } from "@/features/ai/utils/agent-run-messages";
 
 function agentEvent(
-	overrides?: Partial<ImproveOptionsAgentEvent>,
-): ImproveOptionsAgentEvent {
+	overrides?: Partial<ImproveQuestionsAgentEvent>,
+): ImproveQuestionsAgentEvent {
 	return {
 		eventType: "lifecycle",
-		stageId: "improve-options",
+		stageId: "improve-questions",
 		agentRunId: "run-1",
-		label: "Improve options",
+		label: "Improve question",
 		timestamp: 1,
 		status: "running",
 		...overrides,
@@ -23,7 +23,7 @@ describe("agent-run-messages", () => {
 	it("creates system, user, and assistant messages from initial prompts", () => {
 		const state = createAgentRunState({
 			agentRunId: "run-1",
-			label: "Improve options",
+			label: "Improve question",
 			systemPrompt: "system",
 			userPrompt: "user",
 		});
@@ -50,7 +50,7 @@ describe("agent-run-messages", () => {
 	it("appends text and reasoning chunks into assistant parts", () => {
 		let state = createAgentRunState({
 			agentRunId: "run-1",
-			label: "Improve options",
+			label: "Improve question",
 		});
 
 		state = reduceAgentEvent(state, {
@@ -86,7 +86,7 @@ describe("agent-run-messages", () => {
 	it("records tool-call and tool-result parts on agent events", () => {
 		let state = createAgentRunState({
 			agentRunId: "run-1",
-			label: "Improve options",
+			label: "Improve question",
 		});
 
 		state = reduceAgentEvent(
@@ -135,7 +135,7 @@ describe("agent-run-messages", () => {
 		const state = reduceAgentEvent(
 			createAgentRunState({
 				agentRunId: "run-1",
-				label: "Improve options",
+				label: "Improve question",
 			}),
 			agentEvent({
 				systemPrompt: "system prompt",

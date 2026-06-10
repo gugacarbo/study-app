@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BackgroundProcessProvider } from "@/features/background-processes/provider/background-process-provider";
 import { ThemeProvider } from "@/features/theme/components/theme-provider";
 
 export const queryClient = new QueryClient({
@@ -16,7 +17,7 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
 		<ThemeProvider defaultTheme="system" storageKey="theme">
 			<TooltipProvider>
 				<QueryClientProvider client={queryClient}>
-					{children}
+					<BackgroundProcessProvider>{children}</BackgroundProcessProvider>
 				</QueryClientProvider>
 			</TooltipProvider>
 		</ThemeProvider>

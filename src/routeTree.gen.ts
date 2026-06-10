@@ -23,7 +23,7 @@ import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connect
 import { Route as ExamsUploadIndexRouteImport } from './routes/exams.upload/index'
 import { Route as ExamsExplanationsIndexRouteImport } from './routes/exams.explanations/index'
 import { Route as ApiIngestIndexRouteImport } from './routes/api/ingest/index'
-import { Route as ApiImproveOptionsIndexRouteImport } from './routes/api/improve-options/index'
+import { Route as ApiImproveQuestionsIndexRouteImport } from './routes/api/improve-questions/index'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 
 const MemoryRoute = MemoryRouteImport.update({
@@ -96,11 +96,12 @@ const ApiIngestIndexRoute = ApiIngestIndexRouteImport.update({
   path: '/api/ingest/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiImproveOptionsIndexRoute = ApiImproveOptionsIndexRouteImport.update({
-  id: '/api/improve-options/',
-  path: '/api/improve-options/',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const ApiImproveQuestionsIndexRoute =
+  ApiImproveQuestionsIndexRouteImport.update({
+    id: '/api/improve-questions/',
+    path: '/api/improve-questions/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
   id: '/api/chat/',
   path: '/api/chat/',
@@ -120,7 +121,7 @@ export interface FileRoutesByFullPath {
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
-  '/api/improve-options/': typeof ApiImproveOptionsIndexRoute
+  '/api/improve-questions/': typeof ApiImproveQuestionsIndexRoute
   '/api/ingest/': typeof ApiIngestIndexRoute
   '/exams/explanations/': typeof ExamsExplanationsIndexRoute
   '/exams/upload/': typeof ExamsUploadIndexRoute
@@ -137,7 +138,7 @@ export interface FileRoutesByTo {
   '/quiz/$id': typeof QuizIdRoute
   '/exams': typeof ExamsIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
-  '/api/improve-options': typeof ApiImproveOptionsIndexRoute
+  '/api/improve-questions': typeof ApiImproveQuestionsIndexRoute
   '/api/ingest': typeof ApiIngestIndexRoute
   '/exams/explanations': typeof ExamsExplanationsIndexRoute
   '/exams/upload': typeof ExamsUploadIndexRoute
@@ -156,7 +157,7 @@ export interface FileRoutesById {
   '/quiz/$id': typeof QuizIdRoute
   '/exams/': typeof ExamsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
-  '/api/improve-options/': typeof ApiImproveOptionsIndexRoute
+  '/api/improve-questions/': typeof ApiImproveQuestionsIndexRoute
   '/api/ingest/': typeof ApiIngestIndexRoute
   '/exams/explanations/': typeof ExamsExplanationsIndexRoute
   '/exams/upload/': typeof ExamsUploadIndexRoute
@@ -176,7 +177,7 @@ export interface FileRouteTypes {
     | '/quiz/$id'
     | '/exams/'
     | '/api/chat/'
-    | '/api/improve-options/'
+    | '/api/improve-questions/'
     | '/api/ingest/'
     | '/exams/explanations/'
     | '/exams/upload/'
@@ -193,7 +194,7 @@ export interface FileRouteTypes {
     | '/quiz/$id'
     | '/exams'
     | '/api/chat'
-    | '/api/improve-options'
+    | '/api/improve-questions'
     | '/api/ingest'
     | '/exams/explanations'
     | '/exams/upload'
@@ -211,7 +212,7 @@ export interface FileRouteTypes {
     | '/quiz/$id'
     | '/exams/'
     | '/api/chat/'
-    | '/api/improve-options/'
+    | '/api/improve-questions/'
     | '/api/ingest/'
     | '/exams/explanations/'
     | '/exams/upload/'
@@ -227,7 +228,7 @@ export interface RootRouteChildren {
   ApiTestConnectionRoute: typeof ApiTestConnectionRoute
   QuizIdRoute: typeof QuizIdRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
-  ApiImproveOptionsIndexRoute: typeof ApiImproveOptionsIndexRoute
+  ApiImproveQuestionsIndexRoute: typeof ApiImproveQuestionsIndexRoute
   ApiIngestIndexRoute: typeof ApiIngestIndexRoute
 }
 
@@ -331,11 +332,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIngestIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/improve-options/': {
-      id: '/api/improve-options/'
-      path: '/api/improve-options'
-      fullPath: '/api/improve-options/'
-      preLoaderRoute: typeof ApiImproveOptionsIndexRouteImport
+    '/api/improve-questions/': {
+      id: '/api/improve-questions/'
+      path: '/api/improve-questions'
+      fullPath: '/api/improve-questions/'
+      preLoaderRoute: typeof ApiImproveQuestionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat/': {
@@ -376,7 +377,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTestConnectionRoute: ApiTestConnectionRoute,
   QuizIdRoute: QuizIdRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
-  ApiImproveOptionsIndexRoute: ApiImproveOptionsIndexRoute,
+  ApiImproveQuestionsIndexRoute: ApiImproveQuestionsIndexRoute,
   ApiIngestIndexRoute: ApiIngestIndexRoute,
 }
 export const routeTree = rootRouteImport

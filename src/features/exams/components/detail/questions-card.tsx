@@ -1,6 +1,6 @@
 import { Accordion } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ImproveOptionsRunPhase } from "@/features/exams/store/improve-options-store";
+import type { ImproveQuestionsRunPhase } from "@/features/background-processes";
 import type { EditFormData, QuestionData } from "./exam-utils";
 import { QuestionItem } from "./question-item";
 
@@ -11,8 +11,8 @@ interface QuestionsCardProps {
 	editingQuestionId: number | null;
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
-	onImproveOptions?: (q: QuestionData) => void;
-	improveOptionsStatusByQuestionId?: Map<number, ImproveOptionsRunPhase>;
+	onImproveQuestions?: (q: QuestionData) => void;
+	improveQuestionsStatusByQuestionId?: Map<number, ImproveQuestionsRunPhase>;
 	draftOverrideByQuestionId?: Map<number, QuestionData>;
 	onSave: (id: number) => void;
 	onCancel: () => void;
@@ -27,8 +27,8 @@ export function QuestionsCard({
 	editingQuestionId,
 	editForm,
 	onStartEdit,
-	onImproveOptions = () => {},
-	improveOptionsStatusByQuestionId = new Map(),
+	onImproveQuestions = () => {},
+	improveQuestionsStatusByQuestionId = new Map(),
 	draftOverrideByQuestionId = new Map(),
 	onSave,
 	onCancel,
@@ -41,21 +41,6 @@ export function QuestionsCard({
 				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
 					Questions ({questions.length})
 				</CardTitle>
-				<button
-					type="button"
-					onClick={() => {
-						if (expandedQuestions.size === questions.length) {
-							setExpandedQuestions(new Set());
-						} else {
-							setExpandedQuestions(new Set(questions.map((q) => q.id)));
-						}
-					}}
-					className="text-xs text-primary hover:underline"
-				>
-					{expandedQuestions.size === questions.length
-						? "Collapse all"
-						: "Expand all"}
-				</button>
 			</CardHeader>
 			<CardContent>
 				{questions.length === 0 ? (
@@ -73,8 +58,8 @@ export function QuestionsCard({
 							const isEditing = editingQuestionId === q.id && !!editForm;
 							const displayQuestion =
 								draftOverrideByQuestionId.get(q.id) ?? q;
-							const improveOptionsStatus =
-								improveOptionsStatusByQuestionId.get(q.id) ?? null;
+							const improveQuestionsStatus =
+								improveQuestionsStatusByQuestionId.get(q.id) ?? null;
 
 							return (
 								<QuestionItem
@@ -84,8 +69,8 @@ export function QuestionsCard({
 									isEditing={isEditing}
 									editForm={editForm}
 									onStartEdit={onStartEdit}
-									onImproveOptions={onImproveOptions}
-									improveOptionsStatus={improveOptionsStatus}
+									onImproveQuestions={onImproveQuestions}
+									improveQuestionsStatus={improveQuestionsStatus}
 									onSave={onSave}
 									onCancel={onCancel}
 									onFormChange={onFormChange}

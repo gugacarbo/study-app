@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+// Persistence, scheduler, and process lifecycle: tests/stores/backgroundProcessStore.test.ts
 import {
 	appendChunkToAgentRun,
 	appendReasoningToAgentRun,
@@ -6,18 +7,10 @@ import {
 	appendToolResultToAgentRun,
 	applyTokenEvent,
 	applyWarningEvent,
-	clearCompletedJobsFromState,
-	hydrateIngestStateFromStorage,
-	INGEST_STORAGE_KEY,
-	serializeIngestStateForStorage,
 	syncJobTokenTotals,
 	upsertAgentRun,
 } from "@/features/ingest/store";
-import type {
-	IngestAgentRun,
-	IngestJob,
-	IngestStoreState,
-} from "@/features/ingest/store";
+import type { IngestAgentRun, IngestJob } from "@/features/ingest/store";
 import type { IngestAgentEvent, IngestTokenEvent } from "@/lib/sse-stream";
 
 function createJob(overrides?: Partial<IngestJob>): IngestJob {
@@ -104,14 +97,6 @@ function makeAgentRun(
 		error: null,
 		warnings: [],
 		tokenTotals: { prompt: 0, completion: 0, total: 0 },
-		...overrides,
-	};
-}
-
-function createState(overrides?: Partial<IngestStoreState>): IngestStoreState {
-	return {
-		jobs: [],
-		focusedJobId: null,
 		...overrides,
 	};
 }
@@ -915,139 +900,5 @@ describe("syncJobTokenTotals", () => {
 			completion: 30,
 			total: 50,
 		});
-	});
-});
-
-describe("ingest storage persistence", () => {
-	it("serializes jobs without persisting raw file buffers", () => {
-		const state = createState({
-			jobs: [
-				createJob({
-					id: "job-persisted",
-					buffer: [1, 2, 3],
-					status: "success",
-				}),
-			],
-			focusedJobId: "job-persisted",
-		});
-
-		const serialized = serializeIngestStateForStorage(state);
-		const parsed = JSON.parse(serialized) as IngestStoreState;
-
-		expect(parsed.focusedJobId).toBe("job-persisted");
-		expect(parsed.jobs).toHaveLength(1);
-		expect(parsed.jobs[0]).not.toHaveProperty("buffer");
-	});
-
-	it("hydrates queued and running jobs as canceled after reload", () => {
-		const saved = JSON.stringify({
-			jobs: [
-				{
-					...createJob({
-						id: "job-running",
-						status: "running",
-						buffer: [9, 9, 9],
-						finishedAt: null,
-					}),
-				},
-				{
-					...createJob({
-						id: "job-done",
-						status: "success",
-						finishedAt: 20,
-					}),
-				},
-			],
-			focusedJobId: "job-running",
-		});
-
-		const hydrated = hydrateIngestStateFromStorage(saved);
-
-		expect(hydrated.jobs).toHaveLength(2);
-		expect(hydrated.jobs[0]).toMatchObject({
-			id: "job-running",
-			status: "canceled",
-			buffer: [],
-			error: "Ingest interrupted after page reload",
-			stepText: "Interrupted after reload",
-		});
-		expect(hydrated.jobs[0].finishedAt).toBeTypeOf("number");
-		expect(hydrated.jobs[1]).toMatchObject({
-			id: "job-done",
-			status: "success",
-			buffer: [],
-		});
-		expect(hydrated.focusedJobId).toBe("job-running");
-	});
-
-	it("hydrates legacy agent runs without messages using prompt/output fallback", () => {
-		const saved = JSON.stringify({
-			jobs: [
-				{
-					...createJob({
-						id: "job-legacy",
-						status: "success",
-						agentRuns: [
-							{
-								id: "agent-legacy",
-								stageId: "review",
-								label: "Legacy reviewer",
-								status: "done",
-								timestamp: 10,
-								systemPrompt: "legacy system",
-								userPrompt: "legacy user",
-								outputText: "legacy output",
-								rawOutput: null,
-								error: null,
-								warnings: [],
-								tokenTotals: { prompt: 1, completion: 2, total: 3 },
-							} as unknown as IngestAgentRun,
-						],
-					}),
-				},
-			],
-			focusedJobId: "job-legacy",
-		});
-
-		const hydrated = hydrateIngestStateFromStorage(saved);
-		const messages = hydrated.jobs[0]?.agentRuns[0]?.messages;
-
-		expect(messages).toEqual([
-			{
-				id: "agent-legacy:system",
-				role: "system",
-				parts: [{ type: "text", content: "legacy system" }],
-			},
-			{
-				id: "agent-legacy:user",
-				role: "user",
-				parts: [{ type: "text", content: "legacy user" }],
-			},
-			{
-				id: "agent-legacy:assistant",
-				role: "assistant",
-				parts: [{ type: "text", content: "legacy output" }],
-			},
-		]);
-	});
-
-	it("clears only completed jobs from state", () => {
-		const state = createState({
-			jobs: [
-				createJob({ id: "job-running", status: "running" }),
-				createJob({ id: "job-success", status: "success", finishedAt: 10 }),
-				createJob({ id: "job-error", status: "error", finishedAt: 11 }),
-			],
-			focusedJobId: "job-error",
-		});
-
-		const nextState = clearCompletedJobsFromState(state);
-
-		expect(nextState.jobs.map((job) => job.id)).toEqual(["job-running"]);
-		expect(nextState.focusedJobId).toBeNull();
-	});
-
-	it("uses the expected localStorage key", () => {
-		expect(INGEST_STORAGE_KEY).toBe("ingest-jobs");
 	});
 });
