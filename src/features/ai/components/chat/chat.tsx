@@ -1,7 +1,7 @@
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useSelector } from "@tanstack/react-store";
 import { useEffect, useMemo, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { createStudyChatComposer } from "@/features/ai/components/assistant-ui/study-chat-composer";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { WELCOME } from "@/features/ai/components/chat/chat-utils";
@@ -91,9 +91,9 @@ export function Chat() {
 						/>
 					</header>
 					<div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-						<AssistantRuntimeProvider runtime={runtime}>
+						<StudyAssistantRuntimeProvider runtime={runtime}>
 							<Thread components={threadComponents} />
-						</AssistantRuntimeProvider>
+						</StudyAssistantRuntimeProvider>
 					</div>
 					{error ? (
 						<div className="shrink-0 border-t border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

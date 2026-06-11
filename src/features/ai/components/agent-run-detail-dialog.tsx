@@ -1,10 +1,10 @@
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import type { UIMessage } from "@tanstack/ai-client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { safeJson } from "@/features/ai/adapters/tanstack-message-adapter";
+import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
 import { useLiveAgentMessages } from "@/features/ingest/hooks/use-live-agent-messages";
@@ -95,9 +95,9 @@ export function AgentRunDetailDialog({
 	}, [open, mode]);
 
 	const treatedContent = (
-		<AssistantRuntimeProvider runtime={runtime}>
-			<Thread showComposer={false} />
-		</AssistantRuntimeProvider>
+		<StudyAssistantRuntimeProvider runtime={runtime}>
+			<Thread showComposer={false} collapsiblePrompts />
+		</StudyAssistantRuntimeProvider>
 	);
 
 	return (

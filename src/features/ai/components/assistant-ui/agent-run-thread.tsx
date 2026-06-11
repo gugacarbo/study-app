@@ -1,6 +1,6 @@
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import type { UIMessage } from "@tanstack/ai-client";
 import { Badge } from "@/components/ui/badge";
+import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
 import { agentStateLabel } from "@/features/ingest/components/ingest-chat-view/stage-labels";
 import type { IngestAgentRunViewModel } from "@/features/ingest/components/types";
@@ -59,9 +59,9 @@ export function AgentRunThread({
 				) : null}
 			</div>
 			<div className="min-h-0 overflow-hidden rounded-md">
-				<AssistantRuntimeProvider runtime={runtime}>
-					<Thread showComposer={false} />
-				</AssistantRuntimeProvider>
+				<StudyAssistantRuntimeProvider runtime={runtime}>
+					<Thread showComposer={false} collapsiblePrompts />
+				</StudyAssistantRuntimeProvider>
 			</div>
 		</div>
 	);

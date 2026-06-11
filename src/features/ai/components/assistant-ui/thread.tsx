@@ -48,6 +48,7 @@ import {
 	ReasoningText,
 	ReasoningTrigger,
 } from "@/features/ai/components/assistant-ui/reasoning";
+import { CollapsiblePromptMessage } from "@/features/ai/components/assistant-ui/prompt-message";
 import { ToolFallback } from "@/features/ai/components/assistant-ui/tool-fallback";
 import {
 	ToolGroupContent,
@@ -83,12 +84,22 @@ export type ThreadComponents = {
 export type ThreadProps = {
 	components?: ThreadComponents | undefined;
 	showComposer?: boolean | undefined;
+	/** Collapse system/user prompts (agent-run read-only surfaces). */
+	collapsiblePrompts?: boolean | undefined;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
 
 const ThreadComponentsContext =
 	createContext<ThreadComponents>(EMPTY_COMPONENTS);
+
+type ThreadLayoutContextValue = {
+	collapsiblePrompts: boolean;
+};
+
+const ThreadLayoutContext = createContext<ThreadLayoutContextValue>({
+	collapsiblePrompts: false,
+});
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
@@ -99,13 +110,16 @@ const isNewChatView = (s: AssistantState) =>
 export const Thread: FC<ThreadProps> = ({
 	components = EMPTY_COMPONENTS,
 	showComposer = true,
+	collapsiblePrompts = false,
 }) => {
 	const isEmpty = useAuiState(isNewChatView);
 
 	return (
-		<ThreadComponentsContext.Provider value={components}>
-			<ThreadRoot isEmpty={isEmpty} showComposer={showComposer} />
-		</ThreadComponentsContext.Provider>
+		<ThreadLayoutContext.Provider value={{ collapsiblePrompts }}>
+			<ThreadComponentsContext.Provider value={components}>
+				<ThreadRoot isEmpty={isEmpty} showComposer={showComposer} />
+			</ThreadComponentsContext.Provider>
+		</ThreadLayoutContext.Provider>
 	);
 };
 
@@ -172,10 +186,17 @@ const ThreadRoot: FC<{ isEmpty: boolean; showComposer: boolean }> = ({
 const ThreadMessage: FC = () => {
 	const { AssistantMessage: AssistantMessageComponent = AssistantMessage } =
 		useContext(ThreadComponentsContext);
+	const { collapsiblePrompts } = useContext(ThreadLayoutContext);
 	const role = useAuiState((s) => s.message.role);
 	const isEditing = useAuiState((s) => s.message.composer.isEditing);
 
 	if (isEditing) return <EditComposer />;
+	if (role === "system") {
+		return <CollapsiblePromptMessage label="System prompt" />;
+	}
+	if (role === "user" && collapsiblePrompts) {
+		return <CollapsiblePromptMessage label="User prompt" />;
+	}
 	if (role === "user") return <UserMessage />;
 	return <AssistantMessageComponent />;
 };

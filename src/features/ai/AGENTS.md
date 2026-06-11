@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-08 -->
+<!-- Last updated: 2026-06-11 -->
 
 Domain-driven AI integration layer. 60+ files across 12 subdirectories.
 
@@ -64,7 +64,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 | Folder                                   | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |
-| `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools) |
+| `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools, `StudyAssistantRuntimeProvider` + DevTools in dev, collapsible prompts on agent-run surfaces) |
 | `components/chat/`                       | Chat shell wiring (`chat.tsx`)                             |
 | `components/config/`                     | Test connection dialog                                     |
 | `components/exam-detail/`                | Explanation generation hook                                |
