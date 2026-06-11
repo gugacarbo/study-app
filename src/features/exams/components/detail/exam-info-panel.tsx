@@ -42,7 +42,7 @@ function PanelSection({
 }) {
 	return (
 		<section className={className}>
-			<p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+			<p className="mb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
 				{label}
 			</p>
 			{children}
@@ -56,8 +56,8 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 
 	return (
 		<Card size="sm">
-			<CardContent className="space-y-2.5">
-				<dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-4">
+			<CardContent className="space-y-2">
+				<dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
 					<div>
 						<dt className="text-muted-foreground">Uploaded</dt>
 						<dd className="font-medium tabular-nums">
@@ -87,7 +87,7 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 				{exam.files.length > 0 && (
 					<PanelSection
 						label="Source files"
-						className="border-t border-border pt-2.5"
+						className="border-t border-border pt-2"
 					>
 						<ul className="space-y-0.5">
 							{exam.files.map((file) => (
@@ -108,7 +108,7 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 				{exam.topics.length > 0 && (
 					<PanelSection
 						label="Topics"
-						className="border-t border-border pt-2.5"
+						className="border-t border-border pt-2"
 					>
 						<div className="flex flex-wrap gap-1">
 							{exam.topics.map((topic) => (
@@ -123,7 +123,7 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 				{showPerformance && (
 					<PanelSection
 						label="Performance by topic"
-						className="border-t border-border pt-2.5"
+						className="border-t border-border pt-2"
 					>
 						<div className="space-y-2">
 							{stats.topicStats.map((topic) => (

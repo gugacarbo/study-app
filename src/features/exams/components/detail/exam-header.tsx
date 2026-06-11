@@ -41,7 +41,7 @@ export function ExamHeader({
 	} = useExamNameEditing({ examId: exam.id, initialName: exam.name });
 
 	return (
-		<div className="flex items-start justify-between gap-4 mb-6">
+		<div className="flex items-start justify-between gap-3 mb-2">
 			<div className="flex-1 min-w-0">
 				<div className="group flex min-w-0 items-center gap-1.5">
 					{isEditing ? (
@@ -82,7 +82,7 @@ export function ExamHeader({
 					)}
 				</div>
 				{exam.source && (
-					<p className="text-sm text-muted-foreground mt-1 truncate">
+					<p className="text-sm text-muted-foreground truncate">
 						{exam.source}
 					</p>
 				)}

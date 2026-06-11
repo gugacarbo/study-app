@@ -126,7 +126,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 			<Link
 				from="/exams/$id"
 				to="/exams"
-				className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+				className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
 			>
 				<ArrowLeft className="h-4 w-4" />
 				Back to exams
@@ -140,14 +140,14 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				handleDelete={handleDelete}
 			/>
 
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
 				<TabsList>
 					<TabsTrigger value="details">Detalhes</TabsTrigger>
 					<TabsTrigger value="explanations">Explicacoes</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value="details" className="mt-6">
-					<div className="flex flex-col gap-4">
+				<TabsContent value="details" className="mt-3">
+					<div className="flex flex-col gap-3">
 						<ExamInfoPanel exam={exam} stats={stats} />
 
 						<QuestionsCard
@@ -178,7 +178,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 					</div>
 				</TabsContent>
 
-				<TabsContent value="explanations" className="mt-6">
+				<TabsContent value="explanations" className="mt-3">
 					<ExplanationPipelineTab examId={examId} questions={exam.questions} />
 				</TabsContent>
 			</Tabs>
