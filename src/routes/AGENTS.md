@@ -1,6 +1,6 @@
 # Routes
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-06-11
 
 TanStack Router file-based. Árvore gerada em `src/routeTree.gen.ts` — não editar.
 
@@ -17,7 +17,12 @@ TanStack Router file-based. Árvore gerada em `src/routeTree.gen.ts` — não ed
 | `exams.explanations/index.tsx` | `/exams/explanations`  | Page         | pipeline de explicações                     |
 | `exams.upload/index.tsx`       | `/exams/upload`        | Page         | upload + job queue UI                       |
 | `quiz.$id.tsx`                 | `/quiz/$id`            | Page         | quiz player                                 |
-| `config.tsx`                   | `/config`              | Page         | provider config                             |
+| `admin.config.tsx`             | `/admin/config`        | Page         | AI provider config (admin)                  |
+| `config.tsx`                   | `/config`              | Redirect     | → `/admin/config`                           |
+| `admin.tsx`                    | `/admin`               | Layout       | `AdminLayout` + shadcn Sidebar + `<Outlet>` |
+| `admin.index.tsx`              | `/admin/`              | Redirect     | → `/admin/llm-logs`                         |
+| `admin.llm-logs.tsx`           | `/admin/llm-logs`      | Page         | LLM call logs (D1 via server functions)     |
+| `admin.process-logs.tsx`       | `/admin/process-logs`  | Page         | ingest background process logs (client)     |
 | `chat.tsx`                     | `/chat`                | Page         | chat multi-conversa                         |
 | `memory.tsx`                   | `/memory`              | Page         | memória R2+D1                               |
 | `about.tsx`                    | `/about`               | Page         | —                                           |

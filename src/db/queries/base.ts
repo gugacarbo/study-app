@@ -19,8 +19,11 @@ import type {
 	ListAnswerKeysFilters,
 	ListAttemptsFilters,
 	ListExamsFilters,
+	ListLLMLogsFilters,
 	ListQuestionsFilters,
+	LLMLogDetail,
 	LLMLogInsert,
+	LLMLogSummary,
 	PaginatedResult,
 	QuestionListItem,
 	TopicStats,
@@ -108,6 +111,10 @@ export interface DBQueries {
 	setConfig(key: string, value: string): Promise<void>;
 	getAllConfig(): Promise<Record<string, string>>;
 	insertLLMLog(log: LLMLogInsert): Promise<void>;
+	listLLMLogsPaged(
+		filters?: ListLLMLogsFilters,
+	): Promise<PaginatedResult<LLMLogSummary>>;
+	getLLMLogById(id: number): Promise<LLMLogDetail | null>;
 	listAiProviders(): Promise<AiProviderPublic[]>;
 	getAiProviderById(id: number): Promise<AiProviderRecord | null>;
 	insertAiProvider(data: {

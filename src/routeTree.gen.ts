@@ -13,14 +13,19 @@ import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as ExamsRouteImport } from './routes/exams'
 import { Route as ConfigRouteImport } from './routes/config'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExamsIndexRouteImport } from './routes/exams.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
 import { Route as ExamsStatsRouteImport } from './routes/exams.stats'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
 import { Route as ApiTestModelBenchmarkRouteImport } from './routes/api/test-model-benchmark'
 import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connection'
+import { Route as AdminProcessLogsRouteImport } from './routes/admin.process-logs'
+import { Route as AdminLlmLogsRouteImport } from './routes/admin.llm-logs'
+import { Route as AdminConfigRouteImport } from './routes/admin.config'
 import { Route as ExamsUploadIndexRouteImport } from './routes/exams.upload/index'
 import { Route as ExamsExplanationsIndexRouteImport } from './routes/exams.explanations/index'
 import { Route as ApiIngestIndexRouteImport } from './routes/api/ingest/index'
@@ -47,6 +52,11 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -61,6 +71,11 @@ const ExamsIndexRoute = ExamsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ExamsRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const QuizIdRoute = QuizIdRouteImport.update({
   id: '/quiz/$id',
@@ -86,6 +101,21 @@ const ApiTestConnectionRoute = ApiTestConnectionRouteImport.update({
   id: '/api/test-connection',
   path: '/api/test-connection',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminProcessLogsRoute = AdminProcessLogsRouteImport.update({
+  id: '/process-logs',
+  path: '/process-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLlmLogsRoute = AdminLlmLogsRouteImport.update({
+  id: '/llm-logs',
+  path: '/llm-logs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConfigRoute = AdminConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ExamsUploadIndexRoute = ExamsUploadIndexRouteImport.update({
   id: '/upload/',
@@ -117,15 +147,20 @@ const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
+  '/admin/config': typeof AdminConfigRoute
+  '/admin/llm-logs': typeof AdminLlmLogsRoute
+  '/admin/process-logs': typeof AdminProcessLogsRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/api/test-model-benchmark': typeof ApiTestModelBenchmarkRoute
   '/exams/$id': typeof ExamsIdRoute
   '/exams/stats': typeof ExamsStatsRoute
   '/quiz/$id': typeof QuizIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/exams/': typeof ExamsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/improve-questions/': typeof ApiImproveQuestionsIndexRoute
@@ -139,11 +174,15 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/memory': typeof MemoryRoute
+  '/admin/config': typeof AdminConfigRoute
+  '/admin/llm-logs': typeof AdminLlmLogsRoute
+  '/admin/process-logs': typeof AdminProcessLogsRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/api/test-model-benchmark': typeof ApiTestModelBenchmarkRoute
   '/exams/$id': typeof ExamsIdRoute
   '/exams/stats': typeof ExamsStatsRoute
   '/quiz/$id': typeof QuizIdRoute
+  '/admin': typeof AdminIndexRoute
   '/exams': typeof ExamsIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
   '/api/improve-questions': typeof ApiImproveQuestionsIndexRoute
@@ -155,15 +194,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/chat': typeof ChatRoute
   '/config': typeof ConfigRoute
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
+  '/admin/config': typeof AdminConfigRoute
+  '/admin/llm-logs': typeof AdminLlmLogsRoute
+  '/admin/process-logs': typeof AdminProcessLogsRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
   '/api/test-model-benchmark': typeof ApiTestModelBenchmarkRoute
   '/exams/$id': typeof ExamsIdRoute
   '/exams/stats': typeof ExamsStatsRoute
   '/quiz/$id': typeof QuizIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/exams/': typeof ExamsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
   '/api/improve-questions/': typeof ApiImproveQuestionsIndexRoute
@@ -176,15 +220,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/admin'
     | '/chat'
     | '/config'
     | '/exams'
     | '/memory'
+    | '/admin/config'
+    | '/admin/llm-logs'
+    | '/admin/process-logs'
     | '/api/test-connection'
     | '/api/test-model-benchmark'
     | '/exams/$id'
     | '/exams/stats'
     | '/quiz/$id'
+    | '/admin/'
     | '/exams/'
     | '/api/chat/'
     | '/api/improve-questions/'
@@ -198,11 +247,15 @@ export interface FileRouteTypes {
     | '/chat'
     | '/config'
     | '/memory'
+    | '/admin/config'
+    | '/admin/llm-logs'
+    | '/admin/process-logs'
     | '/api/test-connection'
     | '/api/test-model-benchmark'
     | '/exams/$id'
     | '/exams/stats'
     | '/quiz/$id'
+    | '/admin'
     | '/exams'
     | '/api/chat'
     | '/api/improve-questions'
@@ -213,15 +266,20 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/admin'
     | '/chat'
     | '/config'
     | '/exams'
     | '/memory'
+    | '/admin/config'
+    | '/admin/llm-logs'
+    | '/admin/process-logs'
     | '/api/test-connection'
     | '/api/test-model-benchmark'
     | '/exams/$id'
     | '/exams/stats'
     | '/quiz/$id'
+    | '/admin/'
     | '/exams/'
     | '/api/chat/'
     | '/api/improve-questions/'
@@ -233,6 +291,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRouteWithChildren
   ChatRoute: typeof ChatRoute
   ConfigRoute: typeof ConfigRoute
   ExamsRoute: typeof ExamsRouteWithChildren
@@ -275,6 +334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -295,6 +361,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/exams/'
       preLoaderRoute: typeof ExamsIndexRouteImport
       parentRoute: typeof ExamsRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/quiz/$id': {
       id: '/quiz/$id'
@@ -330,6 +403,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/test-connection'
       preLoaderRoute: typeof ApiTestConnectionRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/process-logs': {
+      id: '/admin/process-logs'
+      path: '/process-logs'
+      fullPath: '/admin/process-logs'
+      preLoaderRoute: typeof AdminProcessLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/llm-logs': {
+      id: '/admin/llm-logs'
+      path: '/llm-logs'
+      fullPath: '/admin/llm-logs'
+      preLoaderRoute: typeof AdminLlmLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/config': {
+      id: '/admin/config'
+      path: '/config'
+      fullPath: '/admin/config'
+      preLoaderRoute: typeof AdminConfigRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/exams/upload/': {
       id: '/exams/upload/'
@@ -369,6 +463,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminConfigRoute: typeof AdminConfigRoute
+  AdminLlmLogsRoute: typeof AdminLlmLogsRoute
+  AdminProcessLogsRoute: typeof AdminProcessLogsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminConfigRoute: AdminConfigRoute,
+  AdminLlmLogsRoute: AdminLlmLogsRoute,
+  AdminProcessLogsRoute: AdminProcessLogsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface ExamsRouteChildren {
   ExamsIdRoute: typeof ExamsIdRoute
   ExamsStatsRoute: typeof ExamsStatsRoute
@@ -390,6 +500,7 @@ const ExamsRouteWithChildren = ExamsRoute._addFileChildren(ExamsRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRouteWithChildren,
   ChatRoute: ChatRoute,
   ConfigRoute: ConfigRoute,
   ExamsRoute: ExamsRouteWithChildren,

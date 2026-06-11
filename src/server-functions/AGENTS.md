@@ -9,6 +9,7 @@ TanStack Start `createServerFn`. Toda mutação/query server-side passa por aqui
 | File / dir           | Exports                                                                   | Método                     |
 | -------------------- | ------------------------------------------------------------------------- | -------------------------- |
 | `config.ts`          | `getConfig`, `setConfig`                                                  | GET / POST                 |
+| `llm-logs.ts`        | `listLlmLogs`, `getLlmLog`                                                | GET / POST                 |
 | `stats.ts`           | `getStats`, `getExams`                                                    | GET                        |
 | `quiz.ts`            | `generateQuiz`, `submitAnswer`, `listQuizAttempts`, `abandonQuizAttempts` | POST                       |
 | `memory.ts`          | `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`        | GET / POST                 |

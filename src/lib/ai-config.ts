@@ -115,7 +115,7 @@ export async function requireModelConfig(
 	const config = await resolveModelConfig(queries, agent);
 	if (!config) {
 		throw new Error(
-			"AI not configured. Add providers and models in /config first.",
+			"AI not configured. Add providers and models in /admin/config first.",
 		);
 	}
 	return config;

@@ -135,6 +135,8 @@ export interface AiModelResolved extends AiModelPublic {
 	providerApiKey: string;
 }
 
+export type LLMLogStatus = "pending" | "success" | "failed" | "cancelled";
+
 export interface LLMLogInsert {
 	callId: string;
 	callType: string;
@@ -149,7 +151,38 @@ export interface LLMLogInsert {
 	finalChars?: number;
 	tokenMeta?: string;
 	errorMessage?: string;
-	status?: "pending" | "success" | "failed" | "cancelled";
+	status?: LLMLogStatus;
+}
+
+export interface LLMLogSummary {
+	id: number;
+	call_id: string;
+	call_type: string;
+	provider: string;
+	model: string;
+	base_url: string | null;
+	duration_ms: number | null;
+	chunks: number | null;
+	final_chars: number | null;
+	token_meta: string | null;
+	error_message: string | null;
+	status: LLMLogStatus;
+	created_at: string | null;
+}
+
+export interface LLMLogDetail extends LLMLogSummary {
+	system_prompt: string | null;
+	request_payload: string | null;
+	response_payload: string | null;
+}
+
+export interface ListLLMLogsFilters {
+	page?: number;
+	pageSize?: number;
+	status?: LLMLogStatus;
+	callType?: string;
+	provider?: string;
+	model?: string;
 }
 
 interface PaginationMeta {

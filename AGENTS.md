@@ -52,7 +52,7 @@ npm run db:migrate:prod    # aplicar migrations em D1 remoto
 npm run deploy             # build + wrangler deploy
 ```
 
-Não commitar secrets. Config de IA via UI `/config`: catálogo em `ai_providers` + `ai_models` (D1); seleção em `config` KV (`ai_default_model_id`, `agent.*.model_id`).
+Não commitar secrets. Config de IA via UI `/admin/config` (`/config` redireciona): catálogo em `ai_providers` + `ai_models` (D1); seleção em `config` KV (`ai_default_model_id`, `agent.*.model_id`).
 API key por provider, criptografada (`CONFIG_ENCRYPTION_KEY` no `.env` local); endpoints nunca devolvem a key.
 
 ## Git & PRs

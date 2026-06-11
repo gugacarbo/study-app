@@ -354,6 +354,26 @@ export const createAiModelSchema = z
 	})
 	.superRefine(refineThinkingEffortDefault);
 
+const llmLogStatusSchema = z.enum([
+	"pending",
+	"success",
+	"failed",
+	"cancelled",
+]);
+
+export const listLlmLogsSchema = z.object({
+	page: z.coerce.number().int().positive().optional(),
+	pageSize: z.coerce.number().int().positive().max(50).optional(),
+	status: llmLogStatusSchema.optional(),
+	callType: z.string().min(1).optional(),
+	provider: z.string().min(1).optional(),
+	model: z.string().min(1).optional(),
+});
+
+export const getLlmLogSchema = z.object({
+	id: z.number().int().positive(),
+});
+
 export const updateAiModelSchema = z
 	.object({
 		id: z.number().int().positive(),

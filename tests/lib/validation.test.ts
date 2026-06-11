@@ -11,6 +11,8 @@ import {
   resolveThinkingEffort,
   examIngestResponseSchema,
   normalizeExamIngestResponseWithDiagnostics,
+  listLlmLogsSchema,
+  getLlmLogSchema,
 } from '#/lib/validation';
 
 afterEach(() => {
@@ -308,6 +310,79 @@ describe('providerConfigSchema', () => {
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
+  });
+});
+
+describe('listLlmLogsSchema', () => {
+  it('accepts pagination and optional filters', () => {
+    const result = listLlmLogsSchema.safeParse({
+      page: 2,
+      pageSize: 10,
+      status: 'success',
+      callType: 'chat',
+      provider: 'OpenRouter',
+      model: 'test/model',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({
+        page: 2,
+        pageSize: 10,
+        status: 'success',
+        callType: 'chat',
+        provider: 'OpenRouter',
+        model: 'test/model',
+      });
+    }
+  });
+
+  it('coerces string page and pageSize', () => {
+    const result = listLlmLogsSchema.safeParse({
+      page: '3',
+      pageSize: '5',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.page).toBe(3);
+      expect(result.data.pageSize).toBe(5);
+    }
+  });
+
+  it('accepts empty input', () => {
+    expect(listLlmLogsSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('rejects invalid status', () => {
+    expect(
+      listLlmLogsSchema.safeParse({ status: 'unknown' }).success,
+    ).toBe(false);
+  });
+
+  it('rejects pageSize above max', () => {
+    expect(listLlmLogsSchema.safeParse({ pageSize: 51 }).success).toBe(false);
+  });
+
+  it('rejects empty filter strings', () => {
+    expect(listLlmLogsSchema.safeParse({ callType: '' }).success).toBe(false);
+    expect(listLlmLogsSchema.safeParse({ provider: '' }).success).toBe(false);
+    expect(listLlmLogsSchema.safeParse({ model: '' }).success).toBe(false);
+  });
+});
+
+describe('getLlmLogSchema', () => {
+  it('accepts positive integer id', () => {
+    const result = getLlmLogSchema.safeParse({ id: 42 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.id).toBe(42);
+    }
+  });
+
+  it('rejects missing or invalid id', () => {
+    expect(getLlmLogSchema.safeParse({}).success).toBe(false);
+    expect(getLlmLogSchema.safeParse({ id: 0 }).success).toBe(false);
+    expect(getLlmLogSchema.safeParse({ id: -1 }).success).toBe(false);
+    expect(getLlmLogSchema.safeParse({ id: 1.5 }).success).toBe(false);
   });
 });
 

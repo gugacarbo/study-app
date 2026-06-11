@@ -16,7 +16,7 @@ const navItems = [
 	{ to: "/exams", label: "Exams" },
 	{ to: "/memory", label: "Memory" },
 	{ to: "/chat", label: "Chat" },
-	{ to: "/config", label: "Config" },
+	{ to: "/admin", label: "Admin" },
 ] as const satisfies ReadonlyArray<{ to: keyof FileRoutesByTo; label: string }>;
 
 export function RootNav() {

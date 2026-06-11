@@ -62,7 +62,7 @@ export function BackgroundProcessProvider({
 			}
 
 			if (isConnectionTestProcess(process)) {
-				navigate({ to: "/config" });
+				navigate({ to: "/admin/config" });
 			}
 		},
 		[navigate],
