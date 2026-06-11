@@ -1,11 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { AgentRunThread } from "@/features/ai/components/assistant-ui/agent-run-thread";
 import { cn } from "@/lib/utils";
 import type {
 	IngestAgentRunViewModel,
 	IngestPipelineStageViewModel,
 } from "../types";
-import { BubbleMessage, stageStatusLabel } from "./log-panel";
+import { stageStatusLabel } from "./stage-labels";
 import { useIngestChat } from "./use-ingest-chat";
 
 interface IngestChatViewProps {
@@ -59,7 +60,15 @@ export function IngestChatView({
 				}
 
 				if (!item.bubble) return null;
-				return <BubbleMessage key={item.bubble.id} bubble={item.bubble} />;
+				return (
+					<AgentRunThread
+						key={item.bubble.id}
+						agentName={item.bubble.agentName}
+						agentState={item.bubble.agentState}
+						messages={[item.bubble.message]}
+						isStreaming={item.bubble.isStreaming}
+					/>
+				);
 			})}
 		</div>
 	);

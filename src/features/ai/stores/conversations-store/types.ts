@@ -1,6 +1,6 @@
 import type { UIMessage } from "@tanstack/ai-client";
 import { Store } from "@tanstack/store";
-import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message-utils";
+import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 
 export interface Conversation {
 	id: string;

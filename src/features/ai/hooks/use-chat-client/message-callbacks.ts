@@ -4,7 +4,7 @@ import {
 	getMessageText,
 	type PerfRuntime,
 } from "@/features/ai/components/chat/chat-utils";
-import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message";
+import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import { setMessages } from "@/features/ai/stores/chat-store";
 import { saveMessagesToConversation } from "@/features/ai/stores/conversations-store";
 

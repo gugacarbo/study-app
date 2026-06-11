@@ -4,7 +4,7 @@ import {
 	type PerfRuntime,
 	WELCOME,
 } from "@/features/ai/components/chat/chat-utils";
-import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message";
+import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import {
 	chatStore,
 	setError,

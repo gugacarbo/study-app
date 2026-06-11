@@ -1,12 +1,12 @@
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import type { UIMessage } from "@tanstack/ai-client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChatMessage } from "@/features/ai/components/chat/message/chat-message";
-import { safeJson } from "@/features/ai/components/chat/message/chat-message-utils";
-import { SystemMessage } from "@/features/ai/components/chat/message/system-message";
-import { UserMessage } from "@/features/ai/components/chat/message/user-message";
+import { safeJson } from "@/features/ai/adapters/tanstack-message-adapter";
+import { Thread } from "@/features/ai/components/assistant-ui/thread";
+import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
 import { useLiveAgentMessages } from "@/features/ingest/hooks/use-live-agent-messages";
 import {
 	normalizeTokenTotals,
@@ -66,6 +66,11 @@ export function AgentRunDetailDialog({
 	);
 	const hasRawTab = rawData != null;
 	const rawTranscript = buildRawTranscript(visibleMessages, response);
+	const runtime = useReadOnlyAssistantRuntime({
+		messages: visibleMessages,
+		isRunning,
+	});
+
 	useEffect(() => {
 		if (open) {
 			setMode("treated");
@@ -88,6 +93,12 @@ export function AgentRunDetailDialog({
 			behavior: "smooth",
 		});
 	}, [open, mode]);
+
+	const treatedContent = (
+		<AssistantRuntimeProvider runtime={runtime}>
+			<Thread showComposer={false} />
+		</AssistantRuntimeProvider>
+	);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -138,21 +149,7 @@ export function AgentRunDetailDialog({
 							ref={treatedScrollRef}
 							className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3 data-[state=active]:flex data-[state=active]:flex-col"
 						>
-							<div className="flex flex-col gap-3 pr-1">
-								{visibleMessages.map((message) =>
-									message.role === "system" ? (
-										<SystemMessage key={message.id} message={message} />
-									) : message.role === "user" ? (
-										<UserMessage key={message.id} message={message} />
-									) : (
-										<ChatMessage
-											key={message.id}
-											message={message}
-											isPending={isRunning}
-										/>
-									),
-								)}
-							</div>
+							{treatedContent}
 						</TabsContent>
 						<TabsContent
 							value="raw"
@@ -174,21 +171,7 @@ export function AgentRunDetailDialog({
 							</div>
 						) : null}
 						<div className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3">
-							<div className="flex flex-col gap-3 pr-1">
-								{visibleMessages.map((message) =>
-									message.role === "system" ? (
-										<SystemMessage key={message.id} message={message} />
-									) : message.role === "user" ? (
-										<UserMessage key={message.id} message={message} />
-									) : (
-										<ChatMessage
-											key={message.id}
-											message={message}
-											isPending={isRunning}
-										/>
-									),
-								)}
-							</div>
+							{treatedContent}
 						</div>
 					</div>
 				)}

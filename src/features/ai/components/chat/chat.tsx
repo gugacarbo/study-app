@@ -1,25 +1,25 @@
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useSelector } from "@tanstack/react-store";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { createStudyChatComposer } from "@/features/ai/components/assistant-ui/study-chat-composer";
+import { Thread } from "@/features/ai/components/assistant-ui/thread";
+import { WELCOME } from "@/features/ai/components/chat/chat-utils";
+import { useAssistantChatRuntime } from "@/features/ai/hooks/use-assistant-chat-runtime";
 import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
 import { useChatClient } from "@/features/ai/hooks/use-chat-client";
-import { chatStore, setInput } from "@/features/ai/stores/chat-store";
+import { chatStore } from "@/features/ai/stores/chat-store";
 import {
 	conversationsStore,
 	hydrateConversationsFromStorage,
 	updateConversationTitle,
 } from "@/features/ai/stores/conversations-store";
-import { ChatError } from "./chat-error";
 import { ChatHeader } from "./chat-header";
-import { ChatInput } from "./chat-input";
 import { ChatSidebar } from "./chat-sidebar";
-import { VirtualizedChatMessages } from "./virtualized-chat-messages";
 
 export function Chat() {
 	const messages = useSelector(chatStore, (s) => s.messages);
-	const isLoading = useSelector(chatStore, (s) => s.isLoading);
 	const error = useSelector(chatStore, (s) => s.error);
-	const input = useSelector(chatStore, (s) => s.input);
 	const activeId = useSelector(conversationsStore, (s) => s.activeId);
 	const conversations = useSelector(conversationsStore, (s) => s.conversations);
 
@@ -32,20 +32,33 @@ export function Chat() {
 	}, []);
 
 	useAutoTitle(activeId, messages, conversations);
-	const {
-		chatClient,
-		assistantMetrics,
-		pendingSendStartedAtRef,
-		chatTokenTotals,
-	} = useChatClient(activeId);
+	const { chatClient, pendingSendStartedAtRef, chatTokenTotals } =
+		useChatClient(activeId);
 
-	async function handleSend() {
-		const text = input.trim();
-		if (!text || isLoading || !chatClient) return;
-		pendingSendStartedAtRef.current = Date.now();
-		setInput("");
-		await chatClient.sendMessage(text, { reviewMode });
-	}
+	const runtime = useAssistantChatRuntime({
+		chatClient,
+		reviewMode,
+		pendingSendStartedAtRef,
+	});
+
+	const threadComponents = useMemo(
+		() => ({
+			Composer: createStudyChatComposer({
+				reviewMode,
+				onReviewModeChange: setReviewMode,
+				inputTokens: chatTokenTotals.inputTokens,
+				outputTokens: chatTokenTotals.outputTokens,
+				contextTokens: chatTokenTotals.contextTokens,
+			}),
+			Welcome: StudyWelcome,
+		}),
+		[
+			reviewMode,
+			chatTokenTotals.inputTokens,
+			chatTokenTotals.outputTokens,
+			chatTokenTotals.contextTokens,
+		],
+	);
 
 	function handleStartEdit() {
 		const c = conversations.find((c2) => c2.id === activeId);
@@ -77,25 +90,30 @@ export function Chat() {
 							onTitleDraftChange={setTitleDraft}
 						/>
 					</header>
-					<VirtualizedChatMessages
-						messages={messages}
-						metrics={assistantMetrics}
-						isLoading={isLoading}
-					/>
-					{error && <ChatError error={error} />}
-					<ChatInput
-						input={input}
-						onInputChange={setInput}
-						onSend={handleSend}
-						isLoading={isLoading}
-						reviewMode={reviewMode}
-						onReviewModeChange={setReviewMode}
-						inputTokens={chatTokenTotals.inputTokens}
-						outputTokens={chatTokenTotals.outputTokens}
-						contextTokens={chatTokenTotals.contextTokens}
-					/>
+					<div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+						<AssistantRuntimeProvider runtime={runtime}>
+							<Thread components={threadComponents} />
+						</AssistantRuntimeProvider>
+					</div>
+					{error ? (
+						<div className="shrink-0 border-t border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+							{error.message}
+						</div>
+					) : null}
 				</main>
 			</SidebarProvider>
+		</div>
+	);
+}
+
+function StudyWelcome() {
+	return (
+		<div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
+			<h1 className="aui-thread-welcome-message-inner text-2xl font-semibold">
+				{WELCOME.parts[0]?.type === "text"
+					? WELCOME.parts[0].content
+					: "How can I help you today?"}
+			</h1>
 		</div>
 	);
 }

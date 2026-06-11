@@ -3,7 +3,7 @@ import {
 	getMessageText,
 	type PerfRuntime,
 } from "@/features/ai/components/chat/chat-utils";
-import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message";
+import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import { chatStore } from "@/features/ai/stores/chat-store";
 import type { ChatUsage } from "./types";
 

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { UIMessage } from "@tanstack/ai-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IngestChatView } from "@/features/ingest/components/ingest-chat-view";
@@ -10,7 +10,7 @@ import type {
 const requestAnimationFrameSpy = vi
 	.spyOn(window, "requestAnimationFrame")
 	.mockImplementation((callback: FrameRequestCallback) => {
-		callback(0);
+		setTimeout(() => callback(performance.now()), 0);
 		return 1;
 	});
 
@@ -100,8 +100,6 @@ describe("IngestChatView", () => {
 		expect(screen.getByText("Extraction")).toBeTruthy();
 		expect(screen.getAllByText("Done").length).toBeGreaterThan(0);
 		expect(screen.getAllByText("Extraction Agent").length).toBe(3);
-		expect(screen.getByText("System Prompt")).toBeTruthy();
-		expect(screen.getByText("User Prompt")).toBeTruthy();
 		expect(
 			screen.getByText("Follow the extraction constraints."),
 		).toBeTruthy();
@@ -131,7 +129,7 @@ describe("IngestChatView", () => {
 		expect(screen.getByText("Legacy assistant response")).toBeTruthy();
 	});
 
-	it("shows a thinking placeholder while the assistant message is still empty", () => {
+	it("shows a streaming indicator while the assistant message is still empty", () => {
 		render(
 			<IngestChatView
 				selectedStageId={null}
@@ -148,7 +146,7 @@ describe("IngestChatView", () => {
 			/>,
 		);
 
-		expect(screen.getByText("Thinking...")).toBeTruthy();
+		expect(document.querySelector(".animate-pulse")).toBeTruthy();
 	});
 
 	it("renders tool-call and tool-result parts from agent.messages", () => {
@@ -188,13 +186,11 @@ describe("IngestChatView", () => {
 			/>,
 		);
 
-		expect(document.body.textContent).toContain("Tool call: update_extracted_question");
+		expect(document.body.textContent).toContain("tool call");
 		expect(document.body.textContent).not.toContain("Agent Work");
-		expect(document.body.textContent).not.toContain("(input complete)");
-		expect(document.body.textContent).not.toContain("Tool result");
 	});
 
-	it("auto-scrolls when text is appended to the same assistant message", () => {
+	it("auto-scrolls when text is appended to the same assistant message", async () => {
 		const scrollToSpy = vi.fn();
 		HTMLElement.prototype.scrollTo = scrollToSpy;
 
@@ -235,14 +231,16 @@ describe("IngestChatView", () => {
 			/>,
 		);
 
-		expect(requestAnimationFrameSpy).toHaveBeenCalled();
-		expect(scrollToSpy).toHaveBeenCalledWith({
-			top: expect.any(Number),
-			behavior: "smooth",
+		await waitFor(() => {
+			expect(requestAnimationFrameSpy).toHaveBeenCalled();
+			expect(scrollToSpy).toHaveBeenCalledWith({
+				top: expect.any(Number),
+				behavior: "smooth",
+			});
 		});
 	});
 
-	it("auto-scrolls when a tool-call is appended to the same assistant message", () => {
+	it("auto-scrolls when a tool-call is appended to the same assistant message", async () => {
 		const scrollToSpy = vi.fn();
 		HTMLElement.prototype.scrollTo = scrollToSpy;
 
@@ -291,16 +289,18 @@ describe("IngestChatView", () => {
 			/>,
 		);
 
-		expect(requestAnimationFrameSpy).toHaveBeenCalled();
-		expect(scrollToSpy).toHaveBeenCalledWith({
-			top: expect.any(Number),
-			behavior: "smooth",
+		await waitFor(() => {
+			expect(requestAnimationFrameSpy).toHaveBeenCalled();
+			expect(scrollToSpy).toHaveBeenCalledWith({
+				top: expect.any(Number),
+				behavior: "smooth",
+			});
 		});
-		expect(document.body.textContent).toContain("Tool call: list_extracted_questions");
+		expect(document.body.textContent).toContain("tool call");
 		expect(document.body.textContent).not.toContain("Agent Work");
 	});
 
-	it("auto-scrolls when a tool-result is appended to the same assistant message", () => {
+	it("auto-scrolls when a tool-result is appended to the same assistant message", async () => {
 		const scrollToSpy = vi.fn();
 		HTMLElement.prototype.scrollTo = scrollToSpy;
 
@@ -355,12 +355,12 @@ describe("IngestChatView", () => {
 			/>,
 		);
 
-		expect(requestAnimationFrameSpy).toHaveBeenCalled();
-		expect(scrollToSpy).toHaveBeenCalledWith({
-			top: expect.any(Number),
-			behavior: "smooth",
+		await waitFor(() => {
+			expect(requestAnimationFrameSpy).toHaveBeenCalled();
+			expect(scrollToSpy).toHaveBeenCalledWith({
+				top: expect.any(Number),
+				behavior: "smooth",
+			});
 		});
-		expect(document.body.textContent).not.toContain("Tool result");
-		expect(document.body.textContent).not.toContain("(input complete)");
 	});
 });

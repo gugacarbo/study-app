@@ -1,5 +1,5 @@
 import type { UIMessage } from "@tanstack/ai-client";
-import type { AssistantPerfMetrics } from "@/features/ai/components/chat/message/chat-message-utils";
+import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import { createConversation } from "./actions";
 import type { ChatTokenTotals } from "./types";
 import { conversationsStore, ensureWelcomeMessage } from "./types";

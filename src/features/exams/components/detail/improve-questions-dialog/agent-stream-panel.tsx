@@ -1,8 +1,8 @@
 import type { UIMessage } from "@tanstack/ai-client";
-import { useEffect, useRef } from "react";
-import { BubbleMessage } from "@/features/ingest/components/ingest-chat-view/log-panel";
-import type { ChatBubble } from "@/features/ingest/components/ingest-chat-view/chat-bubbles";
+import { useEffect, useMemo, useRef } from "react";
 import { IMPROVE_QUESTIONS_STAGE_ID } from "@/features/ai/agents/improve-questions/contracts";
+import { AgentRunThread } from "@/features/ai/components/assistant-ui/agent-run-thread";
+import type { ChatBubble } from "@/features/ingest/components/ingest-chat-view/chat-bubbles";
 import type { ImproveQuestionsAgentStatus } from "./types";
 
 interface AgentStreamPanelProps {
@@ -31,7 +31,9 @@ function toChatBubbles(
 	isStreaming: boolean,
 	agentStatus: ImproveQuestionsAgentStatus,
 ): ChatBubble[] {
-	const visibleMessages = messages.filter((message) => message.parts.length > 0);
+	const visibleMessages = messages.filter(
+		(message) => message.parts.length > 0,
+	);
 	const agentState = mapAgentState(agentStatus);
 	const lastAssistantId = [...visibleMessages]
 		.reverse()
@@ -57,14 +59,18 @@ export function AgentStreamPanel({
 	agentStatus,
 }: AgentStreamPanelProps) {
 	const scrollRef = useRef<HTMLDivElement | null>(null);
-	const bubbles = toChatBubbles(messages, isStreaming, agentStatus);
+	const bubbles = useMemo(
+		() => toChatBubbles(messages, isStreaming, agentStatus),
+		[messages, isStreaming, agentStatus],
+	);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when stream bubbles update
 	useEffect(() => {
 		scrollRef.current?.scrollTo({
 			top: scrollRef.current.scrollHeight,
 			behavior: "smooth",
 		});
-	}, [bubbles.length, isStreaming]);
+	}, [bubbles]);
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
@@ -77,13 +83,17 @@ export function AgentStreamPanel({
 			>
 				{bubbles.length === 0 ? (
 					<p className="text-sm text-muted-foreground">
-						{agentStatus === "idle"
-							? "Waiting to start…"
-							: "No messages yet."}
+						{agentStatus === "idle" ? "Waiting to start…" : "No messages yet."}
 					</p>
 				) : (
 					bubbles.map((bubble) => (
-						<BubbleMessage key={bubble.id} bubble={bubble} />
+						<AgentRunThread
+							key={bubble.id}
+							agentName={bubble.agentName}
+							agentState={bubble.agentState}
+							messages={[bubble.message]}
+							isStreaming={bubble.isStreaming}
+						/>
 					))
 				)}
 			</div>

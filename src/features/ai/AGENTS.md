@@ -64,7 +64,8 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 | Folder                                   | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |
-| `components/chat/`                       | Chat UI: sidebar, messages, input, virtualized list        |
+| `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools) |
+| `components/chat/`                       | Chat shell wiring (`chat.tsx`)                             |
 | `components/config/`                     | Test connection dialog                                     |
 | `components/exam-detail/`                | Explanation generation hook                                |
 | `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
