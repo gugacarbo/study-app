@@ -14,8 +14,7 @@ function toMessageRepository<TMessage>(
 	getId: (message: TMessage) => string,
 ): MessageFormatItem<TMessage>[] {
 	return messages.map((message, index) => ({
-		parentId:
-			index === 0 ? null : getId(messages[index - 1] as TMessage),
+		parentId: index === 0 ? null : getId(messages[index - 1] as TMessage),
 		message,
 	}));
 }
@@ -60,7 +59,9 @@ export function createConversationHistoryAdapter(
 						conversationsStore.state.messagesMap[conversationId] ?? []
 					).filter((message) => message.id !== "welcome");
 
-					const index = existing.findIndex((message) => message.id === messageId);
+					const index = existing.findIndex(
+						(message) => message.id === messageId,
+					);
 					const updated =
 						index >= 0
 							? existing.map((message, i) =>
@@ -68,10 +69,7 @@ export function createConversationHistoryAdapter(
 										? (item.message as unknown as UIMessage)
 										: message,
 								)
-							: [
-									...existing,
-									item.message as unknown as UIMessage,
-								];
+							: [...existing, item.message as unknown as UIMessage];
 
 					saveMessagesToConversation(conversationId, updated);
 				},

@@ -1,33 +1,28 @@
 import type { UIMessage } from "ai";
-import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import { createConversation } from "./actions";
-import type { ChatTokenTotals } from "./types";
+import { loadConversationMessages } from "./sync";
 import { conversationsStore } from "./types";
 
 export function getConversationMessages(id: string): UIMessage[] {
 	return conversationsStore.state.messagesMap[id] ?? [];
 }
 
-export function getTokenTotals(id: string): ChatTokenTotals {
-	return (
-		conversationsStore.state.tokenTotalsMap[id] ?? {
-			inputTokens: 0,
-			outputTokens: 0,
-			contextTokens: 0,
-		}
-	);
-}
-
-export function getAssistantMetrics(
-	id: string,
-): Record<string, AssistantPerfMetrics> {
-	return conversationsStore.state.metricsMap[id] ?? {};
-}
-
-export function ensureActiveConversation(): string {
+export async function ensureActiveConversation(): Promise<string> {
 	const { activeId, conversations } = conversationsStore.state;
-	if (activeId && conversations.some((c) => c.id === activeId)) {
+
+	if (
+		activeId &&
+		conversations.some((conversation) => conversation.id === activeId)
+	) {
 		return activeId;
 	}
-	return createConversation();
+
+	if (conversations.length > 0) {
+		const id = conversations[0].id;
+		conversationsStore.setState((state) => ({ ...state, activeId: id }));
+		await loadConversationMessages(id);
+		return id;
+	}
+
+	return await createConversation();
 }

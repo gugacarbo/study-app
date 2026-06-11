@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-11 -->
+<!-- Last updated: 2026-06-11 (chat server persistence) -->
 
 Domain-driven AI integration layer. 60+ files across 12 subdirectories.
 
@@ -80,4 +80,4 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **Tool resolution:** `resolveToolsForAgent()` determines which tools each agent gets
 - **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, test-connection) use AI SDK v6 streams with typed `data-*` parts
 - **Provider abstraction:** `getAiModel()` + `buildProviderOptions()` — swap providers without changing agents
-- **Store:** `conversations-store/` for multi-conversation chat history (`chat-conversations-v2`)
+- **Store:** `conversations-store/` for multi-conversation chat; persisted server-side via `server-functions/chat-conversations` (D1 index + R2 `chats/{id}.json` in `MEMORY_BUCKET`); runtime loads last `CHAT_RUNTIME_MESSAGE_LIMIT` messages

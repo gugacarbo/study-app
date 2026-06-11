@@ -159,6 +159,25 @@ export interface DBQueries {
 		},
 	): Promise<void>;
 	deleteAiModel(id: number): Promise<void>;
+	listChatConversations(): Promise<
+		import("@/lib/chat-conversations/types").ChatConversationRecord[]
+	>;
+	getChatConversationById(
+		id: string,
+	): Promise<
+		import("@/lib/chat-conversations/types").ChatConversationRecord | null
+	>;
+	insertChatConversation(data: {
+		id: string;
+		title: string;
+		r2Key: string;
+		messageCount?: number;
+	}): Promise<void>;
+	updateChatConversation(
+		id: string,
+		data: { title?: string; messageCount?: number },
+	): Promise<void>;
+	deleteChatConversation(id: string): Promise<void>;
 }
 
 // biome-ignore lint/suspicious/noUnsafeDeclarationMerging: methods added via Object.assign in index.ts

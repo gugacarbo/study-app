@@ -15,9 +15,11 @@ import {
 	conversationsStore,
 	createConversationHistoryAdapter,
 	ensureActiveConversation,
-	hydrateConversationsFromStorage,
+	flushConversationSave,
+	hydrateConversationsFromServer,
 	updateConversationTitle,
 } from "@/features/ai/stores/conversations-store";
+import { CHAT_RUNTIME_MESSAGE_LIMIT } from "@/lib/chat-conversations/constants";
 import { ChatHeader } from "./chat-header";
 import { ChatSidebar } from "./chat-sidebar";
 
@@ -27,6 +29,14 @@ export function Chat() {
 	const messages = useSelector(conversationsStore, (s) =>
 		activeId ? (s.messagesMap[activeId] ?? []) : [],
 	);
+	const isHydrating = useSelector(conversationsStore, (s) => s.isHydrating);
+	const loadingConversationId = useSelector(
+		conversationsStore,
+		(s) => s.loadingConversationId,
+	);
+	const activeConversation = conversations.find((c) => c.id === activeId);
+	const isTruncated =
+		(activeConversation?.messageCount ?? 0) > CHAT_RUNTIME_MESSAGE_LIMIT;
 
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [titleDraft, setTitleDraft] = useState("");
@@ -34,8 +44,10 @@ export function Chat() {
 	const [chatError, setChatError] = useState<Error | undefined>();
 
 	useEffect(() => {
-		hydrateConversationsFromStorage();
-		ensureActiveConversation();
+		void (async () => {
+			await hydrateConversationsFromServer();
+			await ensureActiveConversation();
+		})();
 	}, []);
 
 	useAutoTitle(activeId, messages, conversations);
@@ -51,6 +63,8 @@ export function Chat() {
 			updateConversationTitle(activeId, titleDraft.trim());
 		setEditingTitle(false);
 	}
+
+	const isLoading = isHydrating || loadingConversationId === activeId;
 
 	return (
 		<div data-fullwidth className="flex h-full overflow-hidden">
@@ -70,8 +84,17 @@ export function Chat() {
 							onTitleDraftChange={setTitleDraft}
 						/>
 					</header>
+					{isTruncated ? (
+						<div className="shrink-0 border-b bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+							Showing last {CHAT_RUNTIME_MESSAGE_LIMIT} messages
+						</div>
+					) : null}
 					<div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-						{activeId ? (
+						{isLoading ? (
+							<div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+								Loading conversation…
+							</div>
+						) : activeId ? (
 							<ChatConversation
 								key={activeId}
 								conversationId={activeId}
@@ -120,6 +143,7 @@ function ChatConversation({
 						...(options.body as Record<string, unknown>),
 						messages: options.messages,
 						reviewMode: reviewModeRef.current,
+						conversationId: conversationIdRef.current,
 					},
 				}),
 			}),
@@ -127,10 +151,7 @@ function ChatConversation({
 	);
 
 	const historyAdapter = useMemo(
-		() =>
-			createConversationHistoryAdapter(
-				() => conversationIdRef.current,
-			),
+		() => createConversationHistoryAdapter(() => conversationIdRef.current),
 		[],
 	);
 
@@ -138,6 +159,9 @@ function ChatConversation({
 		transport,
 		adapters: { history: historyAdapter },
 		onError: (error) => onError(error),
+		onFinish: () => {
+			void flushConversationSave(conversationIdRef.current);
+		},
 	});
 
 	return (

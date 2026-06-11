@@ -1,5 +1,6 @@
 import { useSelector } from "@tanstack/react-store";
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "#/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import {
@@ -15,12 +16,21 @@ import {
 } from "@/features/ai/stores/conversations-store";
 import { cn } from "@/lib/utils";
 
-function NewChatButton({ collapsed }: { collapsed: boolean }) {
+function NewChatButton({
+	collapsed,
+	disabled,
+	onCreate,
+}: {
+	collapsed: boolean;
+	disabled: boolean;
+	onCreate: () => void;
+}) {
 	const btn = (
 		<Button
 			variant="outline"
 			type="button"
-			onClick={() => createConversation()}
+			onClick={onCreate}
+			disabled={disabled}
 			className={cn(collapsed ? "" : "justify-start")}
 			title="New Chat"
 		>
@@ -44,18 +54,41 @@ function NewChatButton({ collapsed }: { collapsed: boolean }) {
 export function ChatSidebar() {
 	const { state } = useSidebar();
 	const collapsed = state === "collapsed";
+	const [pending, setPending] = useState(false);
 
 	const { conversations, activeId } = useSelector(conversationsStore, (s) => ({
 		conversations: s.conversations,
 		activeId: s.activeId,
 	}));
 
-	function handleSelect(id: string) {
-		setActiveConversation(id);
+	async function handleCreate() {
+		if (pending) return;
+		setPending(true);
+		try {
+			await createConversation();
+		} finally {
+			setPending(false);
+		}
 	}
 
-	function handleDelete(id: string) {
-		deleteConversation(id);
+	async function handleSelect(id: string) {
+		if (pending) return;
+		setPending(true);
+		try {
+			await setActiveConversation(id);
+		} finally {
+			setPending(false);
+		}
+	}
+
+	async function handleDelete(id: string) {
+		if (pending) return;
+		setPending(true);
+		try {
+			await deleteConversation(id);
+		} finally {
+			setPending(false);
+		}
 	}
 
 	return (
@@ -69,7 +102,11 @@ export function ChatSidebar() {
 			)}
 		>
 			<div className="border-b border-border px-3 py-3">
-				<NewChatButton collapsed={collapsed} />
+				<NewChatButton
+					collapsed={collapsed}
+					disabled={pending}
+					onCreate={() => void handleCreate()}
+				/>
 			</div>
 
 			<div className="min-h-0 flex-1 overflow-y-auto">
@@ -85,7 +122,8 @@ export function ChatSidebar() {
 								<button
 									key={conv.id}
 									type="button"
-									onClick={() => handleSelect(conv.id)}
+									onClick={() => void handleSelect(conv.id)}
+									disabled={pending}
 									className={cn(
 										"group/item flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
 										isActive
@@ -117,7 +155,8 @@ export function ChatSidebar() {
 									{!collapsed && (
 										<button
 											type="button"
-											onClick={() => handleDelete(conv.id)}
+											onClick={() => void handleDelete(conv.id)}
+											disabled={pending}
 											className="absolute right-2 top-1/2 -translate-y-1/2 shrink-0 opacity-0 transition-opacity group-hover/item:opacity-100 hover:text-destructive"
 											title="Delete conversation"
 										>

@@ -1,79 +1,46 @@
 import type { UIMessage } from "ai";
-import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
-import type { ChatTokenTotals } from "./types";
-import { conversationsStore, generateId } from "./types";
+import {
+	createConversationOnServer,
+	deleteConversationOnServer,
+	loadConversationMessages,
+	scheduleConversationSave,
+} from "./sync";
+import { conversationsStore } from "./types";
 
-export function createConversation(): string {
-	const id = generateId();
-	const now = Date.now();
-	const conversation = {
-		id,
-		title: "New Chat",
-		createdAt: now,
-		updatedAt: now,
-	};
-	conversationsStore.setState((s) => ({
-		...s,
-		conversations: [conversation, ...s.conversations],
-		activeId: id,
-		messagesMap: { ...s.messagesMap, [id]: [] },
-	}));
-	return id;
+export async function createConversation(): Promise<string> {
+	return await createConversationOnServer();
 }
 
-export function deleteConversation(id: string) {
-	conversationsStore.setState((s) => {
-		const conversations = s.conversations.filter((c) => c.id !== id);
-		const { [id]: _removed, ...messagesMap } = s.messagesMap;
-		const { [id]: _removedTotals, ...tokenTotalsMap } = s.tokenTotalsMap;
-		const { [id]: _removedMetrics, ...metricsMap } = s.metricsMap;
-		return {
-			...s,
-			conversations,
-			activeId: s.activeId === id ? (conversations[0]?.id ?? null) : s.activeId,
-			messagesMap,
-			tokenTotalsMap,
-			metricsMap,
-		};
-	});
+export async function deleteConversation(id: string): Promise<void> {
+	await deleteConversationOnServer(id);
 }
 
-export function setActiveConversation(id: string) {
-	conversationsStore.setState((s) => ({ ...s, activeId: id }));
+export async function setActiveConversation(id: string): Promise<void> {
+	conversationsStore.setState((state) => ({ ...state, activeId: id }));
+	await loadConversationMessages(id);
 }
 
 export function updateConversationTitle(id: string, title: string) {
-	conversationsStore.setState((s) => ({
-		...s,
-		conversations: s.conversations.map((c) =>
-			c.id === id ? { ...c, title, updatedAt: Date.now() } : c,
+	conversationsStore.setState((state) => ({
+		...state,
+		conversations: state.conversations.map((conversation) =>
+			conversation.id === id
+				? { ...conversation, title, updatedAt: Date.now() }
+				: conversation,
 		),
 	}));
+	scheduleConversationSave(id);
 }
 
 export function saveMessagesToConversation(id: string, messages: UIMessage[]) {
-	conversationsStore.setState((s) => ({
-		...s,
-		messagesMap: { ...s.messagesMap, [id]: messages },
-		conversations: s.conversations.map((c) =>
-			c.id === id ? { ...c, updatedAt: Date.now() } : c,
+	conversationsStore.setState((state) => ({
+		...state,
+		messagesMap: { ...state.messagesMap, [id]: messages },
+		conversations: state.conversations.map((conversation) =>
+			conversation.id === id
+				? { ...conversation, updatedAt: Date.now() }
+				: conversation,
 		),
 	}));
-}
-
-export function saveTokenTotals(id: string, totals: ChatTokenTotals) {
-	conversationsStore.setState((s) => ({
-		...s,
-		tokenTotalsMap: { ...s.tokenTotalsMap, [id]: totals },
-	}));
-}
-
-export function saveAssistantMetrics(
-	id: string,
-	metrics: Record<string, AssistantPerfMetrics>,
-) {
-	conversationsStore.setState((s) => ({
-		...s,
-		metricsMap: { ...s.metricsMap, [id]: metrics },
-	}));
+	scheduleConversationSave(id);
 }

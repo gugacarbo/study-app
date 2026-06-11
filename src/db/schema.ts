@@ -235,3 +235,19 @@ export const memoryDocuments = sqliteTable(
 		uniqueIndex("uq_memory_documents_r2_key").on(table.r2_key),
 	],
 );
+
+export const chatConversations = sqliteTable(
+	"chat_conversations",
+	{
+		id: text("id").primaryKey(),
+		title: text("title").notNull(),
+		r2_key: text("r2_key").notNull(),
+		message_count: integer("message_count").notNull().default(0),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_chat_conversations_updated_at").on(table.updated_at),
+		uniqueIndex("uq_chat_conversations_r2_key").on(table.r2_key),
+	],
+);
