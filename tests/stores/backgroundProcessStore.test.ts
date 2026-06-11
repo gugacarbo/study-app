@@ -95,6 +95,7 @@ function createState(
 	return {
 		processes: [],
 		focusedProcessId: null,
+		improveQuestionsBatchByExam: {},
 		...overrides,
 	};
 }
@@ -461,10 +462,7 @@ describe("background process lifecycle", () => {
 describe("background process scheduler", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		backgroundProcessStore.setState(() => ({
-			processes: [],
-			focusedProcessId: null,
-		}));
+		backgroundProcessStore.setState(() => createState());
 	});
 
 	it("blocks queued ingest while another ingest is running", () => {
@@ -489,15 +487,46 @@ describe("background process scheduler", () => {
 			createdAt: 200,
 		});
 
-		backgroundProcessStore.setState(() => ({
-			processes: [queuedNew, queuedOld],
-			focusedProcessId: null,
-		}));
+		backgroundProcessStore.setState(() =>
+			createState({ processes: [queuedNew, queuedOld] }),
+		);
 
 		runNextQueued();
 
 		expect(startQueuedIngest).toHaveBeenCalledTimes(1);
 		expect(startQueuedIngest).toHaveBeenCalledWith(ingestProcessId("old"));
+	});
+
+	it("limits improve-questions concurrency per exam when batch config is set", () => {
+		const queuedA = createImproveQuestionsProcess({
+			id: improveQuestionsProcessId(1),
+			questionId: 1,
+			examId: 10,
+			status: "queued",
+		});
+		const queuedB = createImproveQuestionsProcess({
+			id: improveQuestionsProcessId(2),
+			questionId: 2,
+			examId: 10,
+			status: "queued",
+		});
+		const queuedC = createImproveQuestionsProcess({
+			id: improveQuestionsProcessId(3),
+			questionId: 3,
+			examId: 10,
+			status: "queued",
+		});
+
+		backgroundProcessStore.setState(() =>
+			createState({
+				processes: [queuedA, queuedB, queuedC],
+				improveQuestionsBatchByExam: { 10: { batchSize: 2 } },
+			}),
+		);
+
+		runNextQueued();
+
+		expect(startQueuedImproveQuestions).toHaveBeenCalledTimes(2);
 	});
 
 	it("starts improve-questions runs in parallel per question", () => {
@@ -512,10 +541,9 @@ describe("background process scheduler", () => {
 			status: "queued",
 		});
 
-		backgroundProcessStore.setState(() => ({
-			processes: [queuedA, queuedB],
-			focusedProcessId: null,
-		}));
+		backgroundProcessStore.setState(() =>
+			createState({ processes: [queuedA, queuedB] }),
+		);
 
 		runNextQueued();
 
@@ -570,10 +598,7 @@ describe("background process scheduler", () => {
 	it("starts queued explanation-generation when slot is available", () => {
 		const queued = createExplanationProcess({ examId: 3, status: "queued" });
 
-		backgroundProcessStore.setState(() => ({
-			processes: [queued],
-			focusedProcessId: null,
-		}));
+		backgroundProcessStore.setState(() => createState({ processes: [queued] }));
 
 		runNextQueued();
 

@@ -3,7 +3,28 @@ import { startQueuedIngest } from "../kinds/ingest/actions";
 import { startQueuedImproveQuestions } from "../kinds/improve-questions/actions";
 import { backgroundProcessStore } from "./store";
 import type { BackgroundProcess } from "./types";
-import { isExplanationGenerationProcess, isImproveQuestionsProcess, isIngestProcess } from "./types";
+import {
+	isExplanationGenerationProcess,
+	isImproveQuestionsProcess,
+	isIngestProcess,
+} from "./types";
+
+function getImproveQuestionsBatchSize(examId: number): number | null {
+	return (
+		backgroundProcessStore.state.improveQuestionsBatchByExam[examId]
+			?.batchSize ?? null
+	);
+}
+
+function countRunningImproveQuestionsForExam(
+	examId: number,
+	runningProcesses: BackgroundProcess[],
+): number {
+	return runningProcesses.filter(
+		(candidate) =>
+			isImproveQuestionsProcess(candidate) && candidate.examId === examId,
+	).length;
+}
 
 export function canStart(
 	process: BackgroundProcess,
@@ -19,12 +40,24 @@ export function canStart(
 	}
 
 	if (isImproveQuestionsProcess(process)) {
-		return !runningProcesses.some(
+		const sameQuestionRunning = runningProcesses.some(
 			(candidate) =>
 				isImproveQuestionsProcess(candidate) &&
 				candidate.status === "running" &&
 				candidate.questionId === process.questionId,
 		);
+		if (sameQuestionRunning) return false;
+
+		const batchSize = getImproveQuestionsBatchSize(process.examId);
+		if (batchSize !== null) {
+			const runningForExam = countRunningImproveQuestionsForExam(
+				process.examId,
+				runningProcesses,
+			);
+			if (runningForExam >= batchSize) return false;
+		}
+
+		return true;
 	}
 
 	if (isExplanationGenerationProcess(process)) {
@@ -58,6 +91,7 @@ export function runNextQueued(): void {
 	for (const process of queued.filter(isImproveQuestionsProcess)) {
 		if (canStart(process, running)) {
 			startQueuedImproveQuestions(process.id);
+			running.push({ ...process, status: "running" });
 		}
 	}
 

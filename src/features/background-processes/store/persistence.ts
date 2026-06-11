@@ -75,7 +75,11 @@ export function clearCompletedIngestProcessesFromState(
 			? state.focusedProcessId
 			: null;
 
-	return { processes, focusedProcessId };
+	return {
+		processes,
+		focusedProcessId,
+		improveQuestionsBatchByExam: state.improveQuestionsBatchByExam,
+	};
 }
 
 function isPersistedIngestProcess(
@@ -181,6 +185,7 @@ function migrateLegacyIngestState(
 			trimmedProcesses.some((process) => process.id === focusedProcessId)
 				? focusedProcessId
 				: null,
+		improveQuestionsBatchByExam: {},
 	};
 }
 
@@ -190,6 +195,7 @@ export function hydrateBackgroundProcessStateFromStorage(
 	const initialState: BackgroundProcessStoreState = {
 		processes: [],
 		focusedProcessId: null,
+		improveQuestionsBatchByExam: {},
 	};
 	if (!raw) return initialState;
 
@@ -212,6 +218,7 @@ export function hydrateBackgroundProcessStateFromStorage(
 		return {
 			processes: trimmedProcesses,
 			focusedProcessId,
+			improveQuestionsBatchByExam: {},
 		};
 	} catch {
 		return initialState;
@@ -220,7 +227,11 @@ export function hydrateBackgroundProcessStateFromStorage(
 
 function migrateLegacyStorageIfNeeded(): BackgroundProcessStoreState {
 	if (typeof window === "undefined") {
-		return { processes: [], focusedProcessId: null };
+		return {
+			processes: [],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+		};
 	}
 
 	const currentRaw = localStorage.getItem(BACKGROUND_PROCESS_STORAGE_KEY);
@@ -250,7 +261,11 @@ function migrateLegacyStorageIfNeeded(): BackgroundProcessStoreState {
 
 export function loadInitialState(): BackgroundProcessStoreState {
 	if (typeof window === "undefined") {
-		return { processes: [], focusedProcessId: null };
+		return {
+			processes: [],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+		};
 	}
 	return migrateLegacyStorageIfNeeded();
 }

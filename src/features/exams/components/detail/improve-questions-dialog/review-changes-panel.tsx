@@ -12,6 +12,8 @@ interface ReviewChangesPanelProps {
 	onDecision: (id: string, decision: ChangeDecision) => void;
 	onKeepAll: () => void;
 	onRevertAll: () => void;
+	/** Use full tab height instead of compact list. */
+	expanded?: boolean;
 }
 
 function decisionBadgeClass(decision: ChangeDecision): string {
@@ -41,6 +43,7 @@ export function ReviewChangesPanel({
 	onDecision,
 	onKeepAll,
 	onRevertAll,
+	expanded = false,
 }: ReviewChangesPanelProps) {
 	if (changes.length === 0) {
 		return (
@@ -51,7 +54,12 @@ export function ReviewChangesPanel({
 	}
 
 	return (
-		<div className="flex flex-col gap-3">
+		<div
+			className={cn(
+				"flex flex-col gap-3",
+				expanded && "min-h-0 flex-1 overflow-hidden",
+			)}
+		>
 			<div className="flex items-center justify-between gap-2">
 				<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 					Review changes
@@ -71,7 +79,12 @@ export function ReviewChangesPanel({
 				</div>
 			</div>
 
-			<ul className="flex max-h-48 flex-col gap-2 overflow-y-auto">
+			<ul
+				className={cn(
+					"flex flex-col gap-2 overflow-y-auto",
+					expanded ? "min-h-0 flex-1" : "max-h-48",
+				)}
+			>
 				{changes.map((change) => (
 					<li
 						key={change.id}

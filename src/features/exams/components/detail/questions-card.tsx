@@ -1,4 +1,6 @@
+import { Sparkles } from "lucide-react";
 import { Accordion } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ImproveQuestionsRunPhase } from "@/features/background-processes";
 import type { EditFormData, QuestionData } from "./exam-utils";
@@ -11,6 +13,7 @@ interface QuestionsCardProps {
 	editingQuestionId: number | null;
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
+	onOpenImproveQuestionsBatch?: () => void;
 	onImproveQuestions?: (q: QuestionData) => void;
 	improveQuestionsStatusByQuestionId?: Map<number, ImproveQuestionsRunPhase>;
 	draftOverrideByQuestionId?: Map<number, QuestionData>;
@@ -27,6 +30,7 @@ export function QuestionsCard({
 	editingQuestionId,
 	editForm,
 	onStartEdit,
+	onOpenImproveQuestionsBatch,
 	onImproveQuestions = () => {},
 	improveQuestionsStatusByQuestionId = new Map(),
 	draftOverrideByQuestionId = new Map(),
@@ -37,10 +41,21 @@ export function QuestionsCard({
 }: QuestionsCardProps) {
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
 				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
 					Questions ({questions.length})
 				</CardTitle>
+				{onOpenImproveQuestionsBatch && questions.length > 0 && (
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={onOpenImproveQuestionsBatch}
+					>
+						<Sparkles data-icon="inline-start" />
+						Melhorar questões
+					</Button>
+				)}
 			</CardHeader>
 			<CardContent>
 				{questions.length === 0 ? (

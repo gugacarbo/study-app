@@ -24,6 +24,7 @@ import {
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
+import { isActiveProcess } from "../../store/types";
 import {
 	backgroundProcessStore,
 	getProcessById,
@@ -235,6 +236,50 @@ export function hasRunningImproveQuestionsRun(): boolean {
 	);
 }
 
+export function setImproveQuestionsBatchConfig(
+	examId: number,
+	batchSize: number,
+): void {
+	backgroundProcessStore.setState((state) => ({
+		...state,
+		improveQuestionsBatchByExam: {
+			...state.improveQuestionsBatchByExam,
+			[examId]: { batchSize },
+		},
+	}));
+}
+
+export function maybeClearImproveQuestionsBatchConfig(examId: number): void {
+	const hasActive = backgroundProcessStore.state.processes.some(
+		(process) =>
+			isImproveQuestionsProcess(process) &&
+			process.examId === examId &&
+			isActiveProcess(process),
+	);
+	if (hasActive) return;
+
+	backgroundProcessStore.setState((state) => {
+		if (!(examId in state.improveQuestionsBatchByExam)) return state;
+		const { [examId]: _removed, ...rest } = state.improveQuestionsBatchByExam;
+		return { ...state, improveQuestionsBatchByExam: rest };
+	});
+}
+
+export function startImproveQuestionsBatch(
+	examId: number,
+	questions: QuestionData[],
+	batchSize: number,
+): void {
+	const clampedBatchSize = Math.max(1, Math.min(20, batchSize));
+	setImproveQuestionsBatchConfig(examId, clampedBatchSize);
+
+	for (const question of questions) {
+		startImproveQuestionsRun(question.id, examId, question);
+	}
+
+	runNextQueued();
+}
+
 export function startImproveQuestionsRun(
 	questionId: number,
 	examId: number,
@@ -340,6 +385,11 @@ export function startQueuedImproveQuestions(processId: string): void {
 								phase: "done",
 							});
 						});
+						const finishedRun = getImproveQuestionsProcess(questionId);
+						if (finishedRun) {
+							maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
+						}
+						runNextQueued();
 					},
 				},
 			);
@@ -362,6 +412,11 @@ export function startQueuedImproveQuestions(processId: string): void {
 						: run.agentRunState,
 				}),
 			);
+			const erroredRun = getImproveQuestionsProcess(questionId);
+			if (erroredRun) {
+				maybeClearImproveQuestionsBatchConfig(erroredRun.examId);
+			}
+			runNextQueued();
 		} finally {
 			unregisterAbort(processId);
 			const current = getImproveQuestionsProcess(questionId);
@@ -372,6 +427,7 @@ export function startQueuedImproveQuestions(processId: string): void {
 						phase: run.phase === "running" ? "done" : run.phase,
 					}),
 				);
+				runNextQueued();
 			}
 		}
 	})();
@@ -391,6 +447,8 @@ export function cancelImproveQuestionsRun(questionId: number): void {
 		return;
 	}
 
+	const { examId } = process;
+
 	updateImproveQuestionsProcess(questionId, (run) =>
 		patchImproveQuestionsProcess(run, {
 			isStreaming: false,
@@ -399,6 +457,8 @@ export function cancelImproveQuestionsRun(questionId: number): void {
 		}),
 	);
 	removeProcess(processId);
+	maybeClearImproveQuestionsBatchConfig(examId);
+	runNextQueued();
 }
 
 export function setImproveQuestionsDecision(
@@ -471,7 +531,10 @@ export async function applyImproveQuestionsRun(
 		await queryClient.invalidateQueries({
 			queryKey: ["exam-detail", run.examId],
 		});
+		const appliedExamId = run.examId;
 		removeProcess(improveQuestionsProcessId(questionId));
+		maybeClearImproveQuestionsBatchConfig(appliedExamId);
+		runNextQueued();
 		return { ok: true };
 	} catch (error) {
 		const message = getErrorMessage(error);

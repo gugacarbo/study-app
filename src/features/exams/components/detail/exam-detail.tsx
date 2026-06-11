@@ -17,6 +17,7 @@ import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExplanationPipelineTab } from "./explanation-pipeline-tab";
 import { ExamInfoPanel } from "./exam-info-panel";
+import { ImproveQuestionsBatchDialog } from "./improve-questions-batch-dialog";
 import { ImproveQuestionsDialog } from "./improve-questions-dialog";
 import { QuestionsCard } from "./questions-card";
 import type { QuestionData } from "./exam-utils";
@@ -33,6 +34,8 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	const [improveQuestionsQuestion, setImproveQuestionsQuestion] =
 		useState<QuestionData | null>(null);
 	const [improveQuestionsOpen, setImproveQuestionsOpen] = useState(false);
+	const [improveQuestionsBatchOpen, setImproveQuestionsBatchOpen] =
+		useState(false);
 	const improveQuestionsProcesses = useStore(backgroundProcessStore, (state) =>
 		state.processes.filter(isImproveQuestionsProcess),
 	);
@@ -142,37 +145,34 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				</TabsList>
 
 				<TabsContent value="details" className="mt-6">
-					<div className="flex flex-col gap-6 lg:flex-row">
-						<aside className="w-full shrink-0 lg:w-64">
-							<div className="lg:sticky lg:top-20">
-								<ExamInfoPanel exam={exam} stats={stats} />
-							</div>
-						</aside>
+					<div className="flex flex-col gap-4">
+						<ExamInfoPanel exam={exam} stats={stats} />
 
-						<div className="min-w-0 flex-1">
-							<QuestionsCard
-								questions={exam.questions}
-								expandedQuestions={expandedQuestions}
-								setExpandedQuestions={setExpandedQuestions}
-								editingQuestionId={editingQuestionId}
-								editForm={editForm}
-								onStartEdit={startEditing}
-								onImproveQuestions={(q) => {
-									setImproveQuestionsQuestion(q);
-									setImproveQuestionsOpen(true);
-								}}
-								improveQuestionsStatusByQuestionId={
-									improveQuestionsByQuestionId.statusById
-								}
-								draftOverrideByQuestionId={improveQuestionsByQuestionId.draftById}
-								onSave={handleSave}
-								onCancel={cancelEditing}
-								onFormChange={(updates) =>
-									setEditForm((prev) => (prev ? { ...prev, ...updates } : prev))
-								}
-								saving={saving}
-							/>
-						</div>
+						<QuestionsCard
+							questions={exam.questions}
+							expandedQuestions={expandedQuestions}
+							setExpandedQuestions={setExpandedQuestions}
+							editingQuestionId={editingQuestionId}
+							editForm={editForm}
+							onStartEdit={startEditing}
+							onOpenImproveQuestionsBatch={() =>
+								setImproveQuestionsBatchOpen(true)
+							}
+							onImproveQuestions={(q) => {
+								setImproveQuestionsQuestion(q);
+								setImproveQuestionsOpen(true);
+							}}
+							improveQuestionsStatusByQuestionId={
+								improveQuestionsByQuestionId.statusById
+							}
+							draftOverrideByQuestionId={improveQuestionsByQuestionId.draftById}
+							onSave={handleSave}
+							onCancel={cancelEditing}
+							onFormChange={(updates) =>
+								setEditForm((prev) => (prev ? { ...prev, ...updates } : prev))
+							}
+							saving={saving}
+						/>
 					</div>
 				</TabsContent>
 
@@ -180,6 +180,17 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 					<ExplanationPipelineTab examId={examId} questions={exam.questions} />
 				</TabsContent>
 			</Tabs>
+
+			<ImproveQuestionsBatchDialog
+				open={improveQuestionsBatchOpen}
+				onOpenChange={setImproveQuestionsBatchOpen}
+				examId={examId}
+				questions={exam.questions}
+				onOpenQuestion={(question) => {
+					setImproveQuestionsQuestion(question);
+					setImproveQuestionsOpen(true);
+				}}
+			/>
 
 			{improveQuestionsQuestion && (
 				<ImproveQuestionsDialog

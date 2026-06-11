@@ -7,6 +7,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -42,14 +43,18 @@ export function ImproveQuestionsDialog({
 	applying,
 }: ImproveQuestionsDialogProps) {
 	const [panelLayout, setPanelLayout] = useState<PanelLayout>("balanced");
+	const [activeTab, setActiveTab] = useState<"preview" | "review">("preview");
 	const showReview = agentStatus === "done";
+	const hasDiff = changes.length > 0;
 	const applyCount = countApplicableChanges(changes);
 	const canApply = showReview && applyCount > 0 && !applying;
+	const canRevert = showReview && hasDiff && !applying;
 	const isRunning = agentStatus === "running" || isStreaming;
 
 	useEffect(() => {
 		if (!open) {
 			setPanelLayout("balanced");
+			setActiveTab("preview");
 		}
 	}, [open]);
 
@@ -70,6 +75,49 @@ export function ImproveQuestionsDialog({
 
 	const paneShellClass =
 		"flex min-h-0 min-w-0 flex-col overflow-hidden";
+
+	const previewContent =
+		showReview && hasDiff ? (
+			<Tabs
+				value={activeTab}
+				onValueChange={(value) =>
+					setActiveTab(value as "preview" | "review")
+				}
+				className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+			>
+				<TabsList className="h-8 shrink-0 bg-muted">
+					<TabsTrigger value="preview" className="px-3 text-[0.7rem]">
+						Preview
+					</TabsTrigger>
+					<TabsTrigger value="review" className="px-3 text-[0.7rem]">
+						Review changes
+						{applyCount > 0 ? ` (${applyCount})` : ""}
+					</TabsTrigger>
+				</TabsList>
+
+				<TabsContent
+					value="preview"
+					className="min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+				>
+					<QuestionPreviewPanel question={draftQuestion} />
+				</TabsContent>
+
+				<TabsContent
+					value="review"
+					className="min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+				>
+					<ReviewChangesPanel
+						changes={changes}
+						onDecision={onDecision}
+						onKeepAll={onKeepAll}
+						onRevertAll={onRevertAll}
+						expanded
+					/>
+				</TabsContent>
+			</Tabs>
+		) : (
+			<QuestionPreviewPanel question={draftQuestion} />
+		);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,7 +140,7 @@ export function ImproveQuestionsDialog({
 						)}
 						aria-hidden={!previewActive}
 					>
-						<QuestionPreviewPanel question={draftQuestion} />
+						{previewContent}
 					</div>
 
 					<div className="[grid-area:gutter]">
@@ -120,15 +168,6 @@ export function ImproveQuestionsDialog({
 					</div>
 				</div>
 
-				{showReview && (
-					<ReviewChangesPanel
-						changes={changes}
-						onDecision={onDecision}
-						onKeepAll={onKeepAll}
-						onRevertAll={onRevertAll}
-					/>
-				)}
-
 				<DialogFooter className="gap-2 sm:justify-between">
 					<Button
 						type="button"
@@ -138,20 +177,32 @@ export function ImproveQuestionsDialog({
 					>
 						Cancel
 					</Button>
-					<Button
-						type="button"
-						onClick={onApply}
-						disabled={!canApply || isRunning}
-					>
-						{applying ? (
-							<>
-								<Loader2 className="size-4 animate-spin" />
-								Applying…
-							</>
-						) : (
-							`Apply ${applyCount} change${applyCount === 1 ? "" : "s"}`
+					<div className="flex gap-2">
+						{showReview && hasDiff && (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onRevertAll}
+								disabled={!canRevert || isRunning}
+							>
+								Revert
+							</Button>
 						)}
-					</Button>
+						<Button
+							type="button"
+							onClick={onApply}
+							disabled={!canApply || isRunning}
+						>
+							{applying ? (
+								<>
+									<Loader2 className="size-4 animate-spin" />
+									Applying…
+								</>
+							) : (
+								`Apply ${applyCount} change${applyCount === 1 ? "" : "s"}`
+							)}
+						</Button>
+					</div>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

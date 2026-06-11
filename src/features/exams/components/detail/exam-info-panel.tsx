@@ -57,7 +57,7 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 	return (
 		<Card size="sm">
 			<CardContent className="space-y-2.5">
-				<dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+				<dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-4">
 					<div>
 						<dt className="text-muted-foreground">Uploaded</dt>
 						<dd className="font-medium tabular-nums">

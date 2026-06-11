@@ -106,9 +106,14 @@ export type BackgroundProcess =
 	| ImproveQuestionsBackgroundProcess
 	| ExplanationGenerationBackgroundProcess;
 
+export interface ImproveQuestionsBatchConfig {
+	batchSize: number;
+}
+
 export interface BackgroundProcessStoreState {
 	processes: BackgroundProcess[];
 	focusedProcessId: string | null;
+	improveQuestionsBatchByExam: Record<number, ImproveQuestionsBatchConfig>;
 }
 
 export interface PersistedIngestProcess

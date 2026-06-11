@@ -4,8 +4,11 @@ export {
 	getImproveQuestionsRun,
 	hasRunningImproveQuestionsRun,
 	keepAllImproveQuestionsChanges,
+	maybeClearImproveQuestionsBatchConfig,
 	revertAllImproveQuestionsChanges,
+	setImproveQuestionsBatchConfig,
 	setImproveQuestionsDecision,
+	startImproveQuestionsBatch,
 	startImproveQuestionsRun,
 	startQueuedImproveQuestions,
 } from "./actions";
