@@ -70,7 +70,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | ---------------------------------------- | ---------------------------------------------------------- |
 | `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools, `StudyAssistantRuntimeProvider` + DevTools in dev, collapsible prompts on agent-run surfaces) |
 | `components/chat/`                       | Chat shell wiring (`chat.tsx` + `useChatRuntime`)          |
-| `components/config/`                     | Test connection dialog                                     |
+| `components/config/`                     | Connection test + benchmark dialogs (per-phase metrics)      |
 | `components/exam-detail/`                | Explanation generation hook                                |
 | `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
 
