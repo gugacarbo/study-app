@@ -13,36 +13,36 @@ Skill version: 1.0
 
 ## Types
 
-| Type       | Description                          | Emoji |
-| ---------- | ------------------------------------ | ----- |
-| `feat`     | New feature                          | ✨    |
-| `fix`      | Bug fix                              | 🐛    |
-| `refactor` | Code restructuring                   | ♻️    |
-| `docs`     | Documentation                        | 📝    |
-| `style`    | Formatting/styling                   | 💄    |
-| `test`     | Tests                                | ✅    |
-| `chore`    | Maintenance                          | 🔧    |
-| `perf`     | Performance                          | ⚡    |
-| `build`    | Build/CI                             | 🏗️    |
-| `revert`   | Revert                               | ⏪    |
+| Type       | Description        | Emoji |
+| ---------- | ------------------ | ----- |
+| `feat`     | New feature        | ✨     |
+| `fix`      | Bug fix            | 🐛     |
+| `refactor` | Code restructuring | ♻️     |
+| `docs`     | Documentation      | 📝     |
+| `style`    | Formatting/styling | 💄     |
+| `test`     | Tests              | ✅     |
+| `chore`    | Maintenance        | 🔧     |
+| `perf`     | Performance        | ⚡     |
+| `build`    | Build/CI           | 🏗️     |
+| `revert`   | Revert             | ⏪     |
 
 ## Scope Presets (Auto-Inferred)
 
-| Path Pattern                    | Scope        |
-| ------------------------------- | ------------ |
-| `src/modules/<name>/*`          | `<name>`     |
-| `src/features/<name>/*`         | `<name>`     |
-| `src/components/<name>/*`       | `<name>`/`ui`|
-| `src/hooks/*`                   | `hooks`      |
-| `src/lib/*`                     | `lib`        |
-| `src/api/*`                     | `api`        |
-| `src/routes/*`                  | `routes`     |
-| `src/repositories/*`            | `repos`      |
-| `tests/<name>/*`                | `<name>`     |
-| `*.md`, `docs/*`                | `docs`       |
-| `package.json`, `pnpm-lock.yaml`| `deps`       |
-| `.github/workflows/*`           | `ci`         |
-| `wrangler.jsonc`, `turbo.json`  | `config`     |
+| Path Pattern                     | Scope         |
+| -------------------------------- | ------------- |
+| `src/modules/<name>/*`           | `<name>`      |
+| `src/features/<name>/*`          | `<name>`      |
+| `src/components/<name>/*`        | `<name>`/`ui` |
+| `src/hooks/*`                    | `hooks`       |
+| `src/lib/*`                      | `lib`         |
+| `src/api/*`                      | `api`         |
+| `src/routes/*`                   | `routes`      |
+| `src/repositories/*`             | `repos`       |
+| `tests/<name>/*`                 | `<name>`      |
+| `*.md`, `docs/*`                 | `docs`        |
+| `package.json`, `pnpm-lock.yaml` | `deps`        |
+| `.github/workflows/*`            | `ci`          |
+| `wrangler.jsonc`, `turbo.json`   | `config`      |
 
 ## Description Rules
 
