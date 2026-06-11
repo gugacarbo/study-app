@@ -5,7 +5,7 @@ import { streamChatMessages } from "@/features/ai/core/chat-stream";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
-import { requireProviderConfigFromDb } from "../../../lib/ai-config";
+import { requireModelConfig } from "../../../lib/ai-config";
 import { MemoryManager } from "../../../lib/memory";
 import { safeSSEResponse, withCleanup } from "./-streaming";
 import { summarizeSearchResultSnippets, toBoolean } from "./-tools";
@@ -29,16 +29,16 @@ export async function handleChatPost(request: Request): Promise<Response> {
 
 	const queries = new DBQueries(db);
 	const config = await queries.getAllConfig();
-	let providerConfig: Awaited<ReturnType<typeof requireProviderConfigFromDb>>;
+	let providerConfig: Awaited<ReturnType<typeof requireModelConfig>>;
 	try {
-		providerConfig = await requireProviderConfigFromDb(queries);
+		providerConfig = await requireModelConfig(queries, "chat");
 	} catch {
 		return new Response("AI provider not configured", { status: 400 });
 	}
 	const reviewMode = toBoolean(params.forwardedProps?.reviewMode);
 
 	console.log(
-		`[api.chat] POST model="${providerConfig.model}" provider="${providerConfig.provider}" baseUrl="${providerConfig.baseUrl}" messages=${params.messages.length} reviewMode=${reviewMode}`,
+		`[api.chat] POST model="${providerConfig.model}" baseUrl="${providerConfig.baseUrl}" messages=${params.messages.length} reviewMode=${reviewMode}`,
 	);
 
 	const abortController = new AbortController();

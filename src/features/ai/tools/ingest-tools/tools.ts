@@ -1,4 +1,4 @@
-import { type ToolExecutionContext, toolDefinition } from "@tanstack/ai";
+import { tool, zodSchema, type ToolExecutionOptions, type ToolSet } from "ai";
 import { z } from "zod";
 import type { Question } from "@/lib/validation";
 import {
@@ -7,7 +7,6 @@ import {
 	extractionQuestionFieldsSchema,
 	extractionQuestionIdSchema,
 	extractionQuestionPatchSchema,
-	extractionToolFailureSchema,
 } from "./shared";
 import type {
 	ExtractionQuestionId,
@@ -25,75 +24,6 @@ interface ExtractionWorkspaceApi {
 	) => ExtractionWorkspaceQuestion;
 	listQuestions: () => ExtractionWorkspaceQuestion[];
 }
-
-const extractionToolSuccessSchema = z.object({
-	ok: z.literal(true),
-	questionId: extractionQuestionIdSchema,
-	totalQuestions: z.number().int().min(0),
-});
-
-const updateExtractionQuestionSuccessSchema = z.object({
-	ok: z.literal(true),
-	questionId: extractionQuestionIdSchema,
-	updatedFields: z.array(
-		z.enum([
-			"question",
-			"options",
-			"answers",
-			"scoringMode",
-			"topic",
-			"explanation",
-		]),
-	),
-});
-
-const listExtractionQuestionsSuccessSchema = z.object({
-	ok: z.literal(true),
-	totalQuestions: z.number().int().min(0),
-	data: z.array(
-		z.object({
-			questionId: extractionQuestionIdSchema,
-			question: z.string(),
-			options: z.array(z.string()),
-			answers: z.array(z.string()),
-			scoringMode: z.enum(["exact", "partial"]),
-			topic: z.string(),
-		}),
-	),
-});
-
-const addExtractedQuestionDef = toolDefinition({
-	name: "add_extracted_question",
-	description:
-		"Add one extracted exam question to the current ingest workspace.",
-	inputSchema: extractionQuestionFieldsSchema,
-	outputSchema: z.union([
-		extractionToolSuccessSchema,
-		extractionToolFailureSchema,
-	]),
-});
-
-const updateExtractedQuestionDef = toolDefinition({
-	name: "update_extracted_question",
-	description:
-		"Update a previously added extracted exam question by its workspace questionId. Pass only fields that need correction; omit unchanged fields. A call with only questionId and no field changes is a no-op.",
-	inputSchema: extractionQuestionPatchSchema,
-	outputSchema: z.union([
-		updateExtractionQuestionSuccessSchema,
-		extractionToolFailureSchema,
-	]),
-});
-
-const listExtractedQuestionsDef = toolDefinition({
-	name: "list_extracted_questions",
-	description:
-		"List the extracted questions currently stored in the ingest workspace.",
-	inputSchema: z.object({}),
-	outputSchema: z.union([
-		listExtractionQuestionsSuccessSchema,
-		extractionToolFailureSchema,
-	]),
-});
 
 function hasMeaningfulQuestionPatch(input: ExtractionQuestionPatch) {
 	return (
@@ -145,7 +75,7 @@ async function notifyToolExecuted(
 	toolName: string,
 	input: unknown,
 	output: unknown,
-	context?: ToolExecutionContext,
+	context?: ToolExecutionOptions,
 ) {
 	const toolCallId = context?.toolCallId;
 	if (!toolCallId) return;
@@ -157,139 +87,151 @@ async function notifyToolExecuted(
 	});
 }
 
+const listExtractedQuestionsInputSchema = z.object({});
+
 export function createIngestExtractionTools(
 	workspace: ExtractionWorkspaceApi,
 	options?: {
 		onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void>;
 	},
-) {
-	const addExtractedQuestion = addExtractedQuestionDef.server(
-		async (input, context) => {
-			const parsedInput = input as ExtractionQuestionFields;
-			let output:
-				| Awaited<ReturnType<typeof toToolFailure>>
-				| {
-						ok: true;
-						questionId: string;
-						totalQuestions: number;
-				  };
-			try {
-				const question = workspace.addQuestion(parsedInput);
-				output = {
-					ok: true as const,
-					questionId: question.questionId,
-					totalQuestions: workspace.listQuestions().length,
-				};
-			} catch (error) {
-				output = toToolFailure(error);
-			}
-			await notifyToolExecuted(
-				options,
-				"add_extracted_question",
-				parsedInput,
-				output,
-				context,
-			);
-			return output;
-		},
-	);
-
-	const updateExtractedQuestion = updateExtractedQuestionDef.server(
-		async (input, context) => {
-			const parsedInput = input as ExtractionQuestionPatch;
-			let output:
-				| Awaited<ReturnType<typeof toToolFailure>>
-				| {
-						ok: true;
-						questionId: string;
-						updatedFields: Array<
-							| "question"
-							| "options"
-							| "answers"
-							| "scoringMode"
-							| "topic"
-							| "explanation"
-						>;
-				  };
-			try {
-				if (!hasMeaningfulQuestionPatch(parsedInput)) {
+): ToolSet {
+	return {
+		add_extracted_question: tool({
+			description:
+				"Add one extracted exam question to the current ingest workspace.",
+			inputSchema: zodSchema(extractionQuestionFieldsSchema),
+			execute: async (input, context) => {
+				const parsedInput = input as ExtractionQuestionFields;
+				let output:
+					| Awaited<ReturnType<typeof toToolFailure>>
+					| {
+							ok: true;
+							questionId: string;
+							totalQuestions: number;
+					  };
+				try {
+					const question = workspace.addQuestion(parsedInput);
 					output = {
 						ok: true as const,
-						questionId: parsedInput.questionId,
-						updatedFields: [],
+						questionId: question.questionId,
+						totalQuestions: workspace.listQuestions().length,
 					};
-				} else {
-					workspace.updateQuestion(
-						parsedInput.questionId as ExtractionQuestionId,
-						{
-							question: parsedInput.question ?? undefined,
-							options: parsedInput.options ?? undefined,
-							answers: parsedInput.answers ?? undefined,
-							scoringMode: parsedInput.scoringMode ?? undefined,
-							topic: parsedInput.topic ?? undefined,
-							explanation: parsedInput.explanation ?? undefined,
-						},
-					);
-					output = {
-						ok: true as const,
-						questionId: parsedInput.questionId,
-						updatedFields: [
-							...(parsedInput.question != null ? ["question" as const] : []),
-							...(parsedInput.options != null ? ["options" as const] : []),
-							...(parsedInput.answers != null ? ["answers" as const] : []),
-							...(parsedInput.scoringMode != null
-								? ["scoringMode" as const]
-								: []),
-							...(parsedInput.topic != null ? ["topic" as const] : []),
-							...(parsedInput.explanation != null
-								? ["explanation" as const]
-								: []),
-						],
-					};
+				} catch (error) {
+					output = toToolFailure(error);
 				}
-			} catch (error) {
-				output = toToolFailure(error);
-			}
-			await notifyToolExecuted(
-				options,
-				"update_extracted_question",
-				parsedInput,
-				output,
-				context,
-			);
-			return output;
-		},
-	);
-
-	const listExtractedQuestions = listExtractedQuestionsDef.server(
-		async (_input, context) => {
-			const questions = workspace.listQuestions();
-			const output = {
-				ok: true as const,
-				totalQuestions: questions.length,
-				data: questions.map((question) => ({
-					questionId: question.questionId,
-					question: question.question,
-					options: [...question.options],
-					answers: [...question.answers],
-					scoringMode: question.scoringMode,
-					topic: question.topic ?? "General",
-				})),
-			};
-			await notifyToolExecuted(
-				options,
-				"list_extracted_questions",
-				{},
-				output,
-				context,
-			);
-			return output;
-		},
-	);
-
-	return [
-		addExtractedQuestion,
-		updateExtractedQuestion,
-		listExtractedQuestions,
-	] as const;
+				await notifyToolExecuted(
+					options,
+					"add_extracted_question",
+					parsedInput,
+					output,
+					context,
+				);
+				return output;
+			},
+		}),
+		update_extracted_question: tool({
+			description:
+				"Update a previously added extracted exam question by its workspace questionId. Pass only fields that need correction; omit unchanged fields. A call with only questionId and no field changes is a no-op.",
+			inputSchema: zodSchema(extractionQuestionPatchSchema),
+			execute: async (input, context) => {
+				const parsedInput = input as ExtractionQuestionPatch;
+				let output:
+					| Awaited<ReturnType<typeof toToolFailure>>
+					| {
+							ok: true;
+							questionId: string;
+							updatedFields: Array<
+								| "question"
+								| "options"
+								| "answers"
+								| "scoringMode"
+								| "topic"
+								| "explanation"
+							>;
+					  };
+				try {
+					if (!hasMeaningfulQuestionPatch(parsedInput)) {
+						output = {
+							ok: true as const,
+							questionId: parsedInput.questionId,
+							updatedFields: [],
+						};
+					} else {
+						workspace.updateQuestion(
+							parsedInput.questionId as ExtractionQuestionId,
+							{
+								question: parsedInput.question ?? undefined,
+								options: parsedInput.options ?? undefined,
+								answers: parsedInput.answers ?? undefined,
+								scoringMode: parsedInput.scoringMode ?? undefined,
+								topic: parsedInput.topic ?? undefined,
+								explanation: parsedInput.explanation ?? undefined,
+							},
+						);
+						output = {
+							ok: true as const,
+							questionId: parsedInput.questionId,
+							updatedFields: [
+								...(parsedInput.question != null ? ["question" as const] : []),
+								...(parsedInput.options != null ? ["options" as const] : []),
+								...(parsedInput.answers != null ? ["answers" as const] : []),
+								...(parsedInput.scoringMode != null
+									? ["scoringMode" as const]
+									: []),
+								...(parsedInput.topic != null ? ["topic" as const] : []),
+								...(parsedInput.explanation != null
+									? ["explanation" as const]
+									: []),
+							],
+						};
+					}
+				} catch (error) {
+					output = toToolFailure(error);
+				}
+				await notifyToolExecuted(
+					options,
+					"update_extracted_question",
+					parsedInput,
+					output,
+					context,
+				);
+				return output;
+			},
+		}),
+		list_extracted_questions: tool({
+			description:
+				"List the extracted questions currently stored in the ingest workspace.",
+			inputSchema: zodSchema(listExtractedQuestionsInputSchema),
+			execute: async (_input, context) => {
+				const questions = workspace.listQuestions();
+				const output = {
+					ok: true as const,
+					totalQuestions: questions.length,
+					data: questions.map((question) => ({
+						questionId: question.questionId,
+						question: question.question,
+						options: [...question.options],
+						answers: [...question.answers],
+						scoringMode: question.scoringMode,
+						topic: question.topic ?? "General",
+					})),
+				};
+				await notifyToolExecuted(
+					options,
+					"list_extracted_questions",
+					{},
+					output,
+					context,
+				);
+				return output;
+			},
+		}),
+	};
 }
+
+export {
+	extractionQuestionFieldsSchema,
+	extractionQuestionIdSchema,
+	extractionQuestionPatchSchema,
+	listExtractedQuestionsInputSchema,
+};

@@ -1,5 +1,9 @@
-import type { StreamChunk, StructuredOutputCompleteEvent } from "@tanstack/ai";
-import { generateJson, generateJsonStream } from "@/features/ai/core/generate";
+import {
+	generateJson,
+	generateJsonStream,
+	type GenerateJsonStreamChunk,
+	type StructuredOutputCompleteEvent,
+} from "@/features/ai/core/generate";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import { examIngestResponseSchema } from "@/lib/validation";
 import { buildSystemPrompt } from "./system-prompt";
@@ -10,7 +14,9 @@ export async function extractQuestionsFromText(
 	_memoryContext?: string,
 	options?: {
 		onChunk?: (
-			chunk: StreamChunk | StructuredOutputCompleteEvent<ExamIngestResponse>,
+			chunk:
+				| GenerateJsonStreamChunk<ExamIngestResponse>
+				| StructuredOutputCompleteEvent<ExamIngestResponse>,
 		) => void;
 		tools?: NonNullable<Parameters<typeof generateJson>[3]>["tools"];
 		criticalTopics?: string[];

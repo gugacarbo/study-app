@@ -109,6 +109,43 @@ export const config = sqliteTable("config", {
 	value: text("value").notNull(),
 });
 
+export const aiProviders = sqliteTable("ai_providers", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	name: text("name").notNull(),
+	base_url: text("base_url").notNull(),
+	api_key: text("api_key").notNull(),
+	enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+	created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const aiModels = sqliteTable(
+	"ai_models",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		provider_id: integer("provider_id")
+			.notNull()
+			.references(() => aiProviders.id, { onDelete: "cascade" }),
+		model_id: text("model_id").notNull(),
+		display_name: text("display_name").notNull(),
+		context_window: integer("context_window"),
+		max_output_tokens: integer("max_output_tokens"),
+		input_cost_per_million: real("input_cost_per_million"),
+		output_cost_per_million: real("output_cost_per_million"),
+		enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+		metadata: text("metadata"),
+		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_ai_models_provider_id").on(table.provider_id),
+		uniqueIndex("uq_ai_models_provider_model").on(
+			table.provider_id,
+			table.model_id,
+		),
+	],
+);
+
 export const llmLogs = sqliteTable(
 	"llm_logs",
 	{

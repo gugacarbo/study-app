@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DBQueries } from "@/db/queries";
-import { resolveProviderConfigForTest } from "@/lib/ai-config";
+import { resolveModelConfigById } from "@/lib/ai-config";
 import {
 	type ConnectionProgressEvent,
 	runConnectionTestWithProgress,
 } from "@/lib/connection-test";
-import { configFormInputSchema } from "@/lib/validation";
+import { testConnectionInputSchema, toProviderConfig } from "@/lib/validation";
 
 function formatSSE(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/api/test-connection")({
 		handlers: {
 			POST: async ({ request }: { request: Request }) => {
 				const payload = await request.json().catch(() => null);
-				const parsed = configFormInputSchema.safeParse(payload);
+				const parsed = testConnectionInputSchema.safeParse(payload);
 				if (!parsed.success) {
-					return new Response("Invalid provider configuration", { status: 400 });
+					return new Response("Invalid model selection", { status: 400 });
 				}
 
 				const { getDB } = await import("../../server-functions/db");
@@ -28,17 +28,15 @@ export const Route = createFileRoute("/api/test-connection")({
 				}
 
 				const queries = new DBQueries(db);
-				let providerConfig: Awaited<
-					ReturnType<typeof resolveProviderConfigForTest>
-				>;
+				let modelConfig: Awaited<ReturnType<typeof resolveModelConfigById>>;
 				try {
-					providerConfig = await resolveProviderConfigForTest(
+					modelConfig = await resolveModelConfigById(
 						queries,
-						parsed.data,
+						parsed.data.modelId,
 					);
 				} catch (error) {
 					return new Response(
-						error instanceof Error ? error.message : "AI provider not configured",
+						error instanceof Error ? error.message : "AI model not configured",
 						{ status: 400 },
 					);
 				}
@@ -64,7 +62,7 @@ export const Route = createFileRoute("/api/test-connection")({
 						void (async () => {
 							try {
 								const result = await runConnectionTestWithProgress(
-									providerConfig,
+									toProviderConfig(modelConfig),
 									sendProgress,
 									(prompt) => send("prompt", { prompt }),
 									(chunk) => send("chunk", { chunk }),

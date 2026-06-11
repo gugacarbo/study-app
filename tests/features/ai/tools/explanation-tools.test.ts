@@ -1,30 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
-}));
-
+import type { ToolSet } from "ai";
 import {
 	createExplanationTools,
 	createExplanationWorkspace,
 } from "@/features/ai/tools/explanation-tools";
+import { explanationPatchSchema } from "@/features/ai/tools/explanation-tools/tools";
 
-type Tool = {
-	name: string;
-	inputSchema: { safeParse: (input: unknown) => { success: boolean } };
+type ExecutableTool = {
 	execute: (input: Record<string, unknown>) => Promise<unknown>;
 };
 
-function getTool(tools: readonly unknown[], name: string): Tool {
-	const tool = tools.find((candidate) => (candidate as Tool).name === name);
-	if (!tool) throw new Error(`Tool ${name} not found`);
-	return tool as Tool;
+function getTool(tools: ToolSet, name: string): ExecutableTool {
+	const tool = tools[name];
+	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
+	return tool as unknown as ExecutableTool;
 }
 
 describe("explanation tools", () => {
@@ -72,22 +61,11 @@ describe("explanation tools", () => {
 	});
 
 	it("rejects update_question_explanation when required text fields are missing", () => {
-		const workspace = createExplanationWorkspace([
-			{
-				id: 10,
-				question: "O que e cache?",
-				options: ["A", "B"],
-				answers: ["A"],
-			},
-		]);
-		const tools = createExplanationTools(workspace);
-		const updateExplanation = getTool(tools, "update_question_explanation");
-
 		expect(
-			updateExplanation.inputSchema.safeParse({ questionId: 10 }).success,
+			explanationPatchSchema.safeParse({ questionId: 10 }).success,
 		).toBe(false);
 		expect(
-			updateExplanation.inputSchema.safeParse({
+			explanationPatchSchema.safeParse({
 				questionId: 10,
 				explanation: "Curta",
 			}).success,

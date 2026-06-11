@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ConfigForm } from "@/features/config/components/config-form";
+import { ConfigPage as AiConfigPage } from "@/features/config/components/config-page";
 
 export const Route = createFileRoute("/config")({
-	component: ConfigPage,
+	component: ConfigRoutePage,
 });
 
-function ConfigPage() {
+function ConfigRoutePage() {
 	return (
 		<div>
-			<h1 className="text-2xl font-bold mb-6">Configuration</h1>
-			<ConfigForm />
+			<h1 className="text-2xl font-bold mb-6">AI Configuration</h1>
+			<AiConfigPage />
 		</div>
 	);
 }

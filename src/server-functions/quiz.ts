@@ -3,7 +3,7 @@ import { z } from "zod";
 import { generateQuizQuestions } from "@/features/ai/agents/quiz";
 import { scoreAnswer } from "@/lib/answer-scoring";
 import { DBQueries } from "../db/queries";
-import { requireProviderConfigFromDb } from "../lib/ai-config";
+import { requireModelConfig } from "../lib/ai-config";
 import { getDB } from "./db";
 import { getMemoryContext } from "./memory";
 
@@ -58,7 +58,7 @@ export const generateQuiz = createServerFn({ method: "POST" })
 		}
 
 		const topic = data.topic || "General";
-		const providerConfig = await requireProviderConfigFromDb(queries);
+		const providerConfig = await requireModelConfig(queries, "quiz");
 
 		const memoryResult = await getMemoryContext({
 			data: { topics: [topic] },

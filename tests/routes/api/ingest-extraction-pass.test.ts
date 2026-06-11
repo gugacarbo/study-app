@@ -102,8 +102,8 @@ describe("runExtractionPass", () => {
 		const result = await runExtractionPass({
 			text: "Texto da prova",
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			criticalTopics: [],
@@ -212,8 +212,8 @@ describe("runExtractionPass", () => {
 		const result = await runExtractionPass({
 			text: "Texto da prova",
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			criticalTopics: [],
@@ -296,8 +296,8 @@ describe("runExtractionPass", () => {
 		await runExtractionPass({
 			text: "Texto da prova",
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			criticalTopics: [],
@@ -333,8 +333,8 @@ describe("runExtractionPass", () => {
 			runExtractionPass({
 				text: "Sem questoes",
 				config: {
-					provider: "openrouter",
 					model: "openai/gpt-4o-mini",
+					baseUrl: "https://openrouter.ai/api/v1",
 					apiKey: "test-key",
 				},
 				criticalTopics: [],
@@ -410,8 +410,8 @@ describe("runExtractionPass", () => {
 		await runExtractionPass({
 			text: "Texto da prova",
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			criticalTopics: [],

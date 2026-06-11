@@ -1,8 +1,5 @@
-import type {
-	SchemaInput,
-	StreamChunk,
-	StructuredOutputCompleteEvent,
-} from "@tanstack/ai";
+import type { FlexibleSchema, ToolSet } from "ai";
+import type { z } from "zod";
 
 type SafeParseResult<T> =
 	| { success: true; data: T }
@@ -12,8 +9,59 @@ type SafeParseCapableSchema<T> = {
 	safeParse: (input: unknown) => SafeParseResult<T>;
 };
 
+export type OutputSchema<T = unknown> = z.ZodType<T> | FlexibleSchema<T>;
+
+export type StructuredOutputCompleteEvent<T> = {
+	type: "CUSTOM";
+	name: "structured-output.complete";
+	value: { object: T };
+};
+
+export type GenerateJsonTextChunk = {
+	type: "TEXT_MESSAGE_CONTENT";
+	delta: string;
+	content?: string;
+};
+
+export type GenerateJsonReasoningChunk = {
+	type: "REASONING_MESSAGE_CONTENT";
+	delta: string;
+};
+
+export type GenerateJsonRunErrorChunk = {
+	type: "RUN_ERROR";
+	message: string;
+	code?: string;
+	runId?: string;
+	error?: { message: string; code?: string };
+};
+
+export type GenerateJsonStreamChunk<T> =
+	| GenerateJsonTextChunk
+	| GenerateJsonReasoningChunk
+	| GenerateJsonRunErrorChunk
+	| StructuredOutputCompleteEvent<T>
+	| { type: string; [key: string]: unknown };
+
+export interface GenerateJsonOptions {
+	system?: string;
+	tools?: ToolSet;
+}
+
+export interface GenerateJsonStreamOptions<T> extends GenerateJsonOptions {
+	onChunk?: (chunk: GenerateJsonStreamChunk<T>) => void;
+	onError?: (info: GenerateJsonStreamOnErrorInfo) => void;
+}
+
+export interface GenerateJsonStreamOnErrorInfo {
+	error: Error | unknown;
+	baseUrl?: string;
+	model?: string;
+	rawOutput?: string;
+}
+
 function isSafeParseCapableSchema<T>(
-	schema: SchemaInput,
+	schema: unknown,
 ): schema is SafeParseCapableSchema<T> {
 	return (
 		typeof schema === "object" &&
@@ -23,9 +71,7 @@ function isSafeParseCapableSchema<T>(
 	);
 }
 
-function isTextMessageChunk(
-	chunk: unknown,
-): chunk is { type: "TEXT_MESSAGE_CONTENT"; delta: string } {
+function isTextMessageChunk(chunk: unknown): chunk is GenerateJsonTextChunk {
 	return (
 		typeof chunk === "object" &&
 		chunk !== null &&
@@ -37,17 +83,12 @@ function isTextMessageChunk(
 }
 
 function isStructuredOutputCompleteEvent<T>(
-	chunk: StreamChunk | StructuredOutputCompleteEvent<T>,
+	chunk: GenerateJsonStreamChunk<T>,
 ): chunk is StructuredOutputCompleteEvent<T> {
 	return chunk.type === "CUSTOM" && chunk.name === "structured-output.complete";
 }
 
-function isRunErrorChunk(chunk: unknown): chunk is {
-	type: "RUN_ERROR";
-	message: string;
-	code?: string;
-	error?: { message: string; code?: string };
-} {
+function isRunErrorChunk(chunk: unknown): chunk is GenerateJsonRunErrorChunk {
 	return (
 		typeof chunk === "object" &&
 		chunk !== null &&
@@ -58,7 +99,7 @@ function isRunErrorChunk(chunk: unknown): chunk is {
 
 function isReasoningChunk(
 	chunk: unknown,
-): chunk is { type: "REASONING_MESSAGE_CONTENT"; delta: string } {
+): chunk is GenerateJsonReasoningChunk {
 	return (
 		typeof chunk === "object" &&
 		chunk !== null &&
@@ -79,13 +120,6 @@ const RECOVERABLE_STRUCTURED_OUTPUT_CODES = new Set<string>([
 function isRecoverableStructuredOutputError(code: string | undefined): boolean {
 	if (!code) return false;
 	return RECOVERABLE_STRUCTURED_OUTPUT_CODES.has(code);
-}
-
-export interface GenerateJsonStreamOnErrorInfo {
-	error: Error | unknown;
-	provider?: string;
-	model?: string;
-	rawOutput?: string;
 }
 
 export type { SafeParseCapableSchema };

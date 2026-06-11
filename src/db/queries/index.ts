@@ -5,6 +5,8 @@ export { DBQueries } from "./base";
 
 export * from "./types";
 
+import * as aiModelsModule from "./ai-models";
+import * as aiProvidersModule from "./ai-providers";
 import * as attemptsModule from "./attempts";
 import * as attemptsStatsModule from "./attempts-stats";
 import * as configModule from "./config";
@@ -15,6 +17,8 @@ import * as questionsModule from "./questions";
 import * as questionsListModule from "./questions-list";
 
 Object.assign(DBQueries.prototype, configModule);
+Object.assign(DBQueries.prototype, aiProvidersModule);
+Object.assign(DBQueries.prototype, aiModelsModule);
 Object.assign(DBQueries.prototype, filesModule);
 Object.assign(DBQueries.prototype, examsModule);
 Object.assign(DBQueries.prototype, questionsModule);

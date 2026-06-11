@@ -1,4 +1,3 @@
-import type { StreamChunk } from "@tanstack/ai";
 import {
 	createAgentStreamState,
 	createToolResultEmitter,
@@ -39,10 +38,10 @@ export async function reviewSingleQuestion(
 		createReviewWorkspaceState(question),
 	);
 	const workspaceTools = createIngestExtractionTools(workspace);
-	const combinedTools = [
+	const combinedTools = {
 		...workspaceTools,
-		...(options.tools ?? []),
-	] as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
+		...(options.tools ?? {}),
+	} as unknown as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
 	const streamState = createAgentStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
@@ -157,7 +156,7 @@ export async function reviewSingleQuestion(
 			}
 
 			processAgentStreamChunk(
-				chunk as StreamChunk,
+				chunk as Parameters<typeof processAgentStreamChunk>[0],
 				{
 					onUsage: (usage) => {
 						emitAgentEvent(options, {

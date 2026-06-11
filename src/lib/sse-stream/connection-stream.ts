@@ -1,8 +1,8 @@
-import type { ConfigFormInput } from "../validation";
+import type { TestConnectionInput } from "../validation";
 import type { ConnectionProgressEvent, ConnectionResultEvent } from "./types";
 
 export async function testConnectionWithStream(
-	payload: ConfigFormInput,
+	payload: TestConnectionInput,
 	callbacks: {
 		onProgress: (event: ConnectionProgressEvent) => void;
 		onPrompt: (prompt: string) => void;

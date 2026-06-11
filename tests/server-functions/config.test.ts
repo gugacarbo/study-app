@@ -4,8 +4,8 @@ import { providerConfigSchema } from '#/lib/validation';
 
 function createMockDB() {
   const configStore = new Map([
-    ['ai_provider', 'openrouter'],
     ['ai_model', 'openai/gpt-4o-mini'],
+    ['ai_base_url', 'https://openrouter.ai/api/v1'],
   ]);
 
   return {
@@ -59,8 +59,8 @@ describe('DBQueries config operations', () => {
   describe('getAllConfig', () => {
     it('returns all config key-value pairs', async () => {
       const config = await queries.getAllConfig();
-      expect(config.ai_provider).toBe('openrouter');
       expect(config.ai_model).toBe('openai/gpt-4o-mini');
+      expect(config.ai_base_url).toBe('https://openrouter.ai/api/v1');
     });
   });
 
@@ -73,7 +73,7 @@ describe('DBQueries config operations', () => {
 
   describe('setConfig', () => {
     it('calls prepare with correct SQL', async () => {
-      await queries.setConfig('ai_provider', 'openai');
+      await queries.setConfig('ai_base_url', 'https://api.openai.com/v1');
       expect(mockDB.prepare).toHaveBeenCalledWith(
         expect.stringContaining('into "config"')
       );
@@ -84,8 +84,8 @@ describe('DBQueries config operations', () => {
 describe('providerConfigSchema', () => {
   it('validates correct config', () => {
     const config = {
-      provider: 'openrouter' as const,
       model: 'openai/gpt-4o-mini',
+      baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'sk-test',
     };
     const result = providerConfigSchema.safeParse(config);
@@ -94,16 +94,15 @@ describe('providerConfigSchema', () => {
 
   it('rejects missing apiKey', () => {
     const config = {
-      provider: 'openrouter' as const,
       model: 'openai/gpt-4o-mini',
+      baseUrl: 'https://openrouter.ai/api/v1',
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 
-  it('rejects invalid provider', () => {
+  it('rejects missing baseUrl', () => {
     const config = {
-      provider: 'invalid',
       model: 'gpt-4o',
       apiKey: 'sk-test',
     };

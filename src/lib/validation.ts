@@ -254,60 +254,107 @@ export const questionSchema = z.preprocess(
 
 export type Question = z.infer<typeof questionSchema>;
 
-export const aiProviderSchema = z.enum([
-	"openrouter",
-	"openai",
-	"groq",
-	"ollama",
-	"custom",
-]);
+export const AI_AGENT_TASKS = [
+	"chat",
+	"ingest",
+	"reviewer",
+	"improve_questions",
+	"quiz",
+	"explanations",
+] as const;
+
+export type AiAgentTask = (typeof AI_AGENT_TASKS)[number];
 
 export const providerConfigSchema = z.object({
-	provider: aiProviderSchema,
 	model: z.string().min(1, "Model is required"),
-	baseUrl: z.string().url().optional(),
+	baseUrl: z.string().url("Base URL must be a valid URL"),
 	apiKey: z.string(),
 });
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
-export type AiProvider = z.infer<typeof aiProviderSchema>;
 
-export const configFormInputSchema = z.object({
-	model: z.string().min(1, "Model is required"),
-	baseUrl: z.string().url().optional(),
-	apiKey: z.string().optional(),
+export const resolvedModelConfigSchema = providerConfigSchema.extend({
+	modelId: z.number().int().positive(),
+	providerName: z.string(),
+	contextWindow: z.number().int().positive().nullable().optional(),
+	inputCostPerMillion: z.number().nonnegative().nullable().optional(),
+	outputCostPerMillion: z.number().nonnegative().nullable().optional(),
 });
 
-export type ConfigFormInput = z.infer<typeof configFormInputSchema>;
+export type ResolvedModelConfig = z.infer<typeof resolvedModelConfigSchema>;
 
-export function inferAiProvider(baseUrl?: string): AiProvider {
-	if (!baseUrl) return "openrouter";
-	const lower = baseUrl.toLowerCase();
-	if (lower.includes("openai.com")) return "openai";
-	if (lower.includes("groq.com")) return "groq";
-	if (
-		lower.includes("localhost") ||
-		lower.includes("127.0.0.1") ||
-		lower.includes(":11434") ||
-		lower.includes("ollama")
-	) {
-		return "ollama";
-	}
-	return "custom";
+export const createAiProviderSchema = z.object({
+	name: z.string().min(1, "Name is required"),
+	baseUrl: z.string().url("Base URL must be a valid URL"),
+	apiKey: z.string().min(1, "API key is required"),
+	enabled: z.boolean().optional(),
+});
+
+export const updateAiProviderSchema = z.object({
+	id: z.number().int().positive(),
+	name: z.string().min(1).optional(),
+	baseUrl: z.string().url().optional(),
+	apiKey: z.string().optional(),
+	enabled: z.boolean().optional(),
+});
+
+export const createAiModelSchema = z.object({
+	providerId: z.number().int().positive(),
+	modelId: z.string().min(1, "Model ID is required"),
+	displayName: z.string().min(1, "Display name is required"),
+	contextWindow: z.number().int().positive().nullable().optional(),
+	maxOutputTokens: z.number().int().positive().nullable().optional(),
+	inputCostPerMillion: z.number().nonnegative().nullable().optional(),
+	outputCostPerMillion: z.number().nonnegative().nullable().optional(),
+	enabled: z.boolean().optional(),
+	metadata: z.string().nullable().optional(),
+});
+
+export const updateAiModelSchema = z.object({
+	id: z.number().int().positive(),
+	modelId: z.string().min(1).optional(),
+	displayName: z.string().min(1).optional(),
+	contextWindow: z.number().int().positive().nullable().optional(),
+	maxOutputTokens: z.number().int().positive().nullable().optional(),
+	inputCostPerMillion: z.number().nonnegative().nullable().optional(),
+	outputCostPerMillion: z.number().nonnegative().nullable().optional(),
+	enabled: z.boolean().optional(),
+	metadata: z.string().nullable().optional(),
+});
+
+export const aiSettingsSchema = z.object({
+	defaultModelId: z.number().int().positive().nullable(),
+	agentModels: z.record(z.string(), z.number().int().positive().nullable()),
+});
+
+export type AiSettings = z.infer<typeof aiSettingsSchema>;
+
+export const setDefaultModelSchema = z.object({
+	modelId: z.number().int().positive(),
+});
+
+export const setAgentModelSchema = z.object({
+	agent: z.enum(AI_AGENT_TASKS),
+	modelId: z.number().int().positive().nullable(),
+});
+
+export const testConnectionInputSchema = z.object({
+	modelId: z.number().int().positive(),
+});
+
+export type TestConnectionInput = z.infer<typeof testConnectionInputSchema>;
+
+export function agentModelConfigKey(agent: AiAgentTask): string {
+	return `agent.${agent}.model_id`;
 }
 
 export function toProviderConfig(
-	input: ConfigFormInput & { apiKey: string },
-	existingProvider?: AiProvider,
+	config: ResolvedModelConfig | ProviderConfig,
 ): ProviderConfig {
-	const provider = input.baseUrl
-		? inferAiProvider(input.baseUrl)
-		: (existingProvider ?? "openrouter");
 	return {
-		provider,
-		model: input.model,
-		baseUrl: input.baseUrl,
-		apiKey: input.apiKey,
+		model: config.model,
+		baseUrl: config.baseUrl,
+		apiKey: config.apiKey,
 	};
 }
 

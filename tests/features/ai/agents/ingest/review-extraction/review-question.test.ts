@@ -1,14 +1,5 @@
+import type { ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
-}));
 
 const { streamChatMessagesMock } = vi.hoisted(() => ({
 	streamChatMessagesMock: vi.fn(),
@@ -20,15 +11,14 @@ vi.mock("@/features/ai/core/chat-stream", () => ({
 
 import { reviewSingleQuestion } from "@/features/ai/agents/ingest/review-extraction/review-question";
 
-type Tool = {
-	name: string;
+type ExecutableTool = {
 	execute: (input: Record<string, unknown>) => Promise<unknown>;
 };
 
-function getTool(tools: readonly unknown[] | undefined, name: string): Tool {
-	const tool = tools?.find((candidate) => (candidate as Tool).name === name);
-	if (!tool) throw new Error(`Tool ${name} not found`);
-	return tool as Tool;
+function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
+	const tool = tools?.[name] as ExecutableTool | undefined;
+	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
+	return tool;
 }
 
 describe("reviewSingleQuestion", () => {
@@ -41,7 +31,7 @@ describe("reviewSingleQuestion", () => {
 			(
 				_config: unknown,
 				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
+				options?: { tools?: ToolSet },
 			) =>
 				(async function* () {
 					yield {
@@ -116,12 +106,17 @@ describe("reviewSingleQuestion", () => {
 		);
 
 		const onAgentEvent = vi.fn();
-		const webTools = [{ name: "web_search", execute: vi.fn() }] as unknown[];
+		const webTools = {
+			web_search: {
+				description: "Search the web",
+				execute: vi.fn(),
+			},
+		} as unknown as ToolSet;
 
 		const result = await reviewSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			"Texto original da prova",
@@ -137,7 +132,7 @@ describe("reviewSingleQuestion", () => {
 			1,
 			{
 				reviewTopics: ["Arquitetura"],
-				tools: webTools as never,
+				tools: webTools,
 				onAgentEvent,
 				createAgentRunId: () => "review-q1",
 			},
@@ -158,11 +153,17 @@ describe("reviewSingleQuestion", () => {
 			expect.anything(),
 			[{ role: "user", content: expect.stringContaining("Review extracted question #1.") }],
 			expect.objectContaining({
-				tools: expect.arrayContaining([
-					expect.objectContaining({ name: "list_extracted_questions" }),
-					expect.objectContaining({ name: "update_extracted_question" }),
-					expect.objectContaining({ name: "web_search" }),
-				]),
+				tools: expect.objectContaining({
+					list_extracted_questions: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+					update_extracted_question: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+					web_search: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+				}),
 				system: expect.stringContaining(
 					"You are a reviewer for a single extracted exam question.",
 				),
@@ -279,7 +280,7 @@ describe("reviewSingleQuestion", () => {
 			(
 				_config: unknown,
 				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
+				options?: { tools?: ToolSet },
 			) =>
 				(async function* () {
 					const updateQuestion = getTool(
@@ -331,8 +332,8 @@ describe("reviewSingleQuestion", () => {
 
 		await reviewSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			"Texto original da prova",
@@ -367,7 +368,7 @@ describe("reviewSingleQuestion", () => {
 			(
 				_config: unknown,
 				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
+				options?: { tools?: ToolSet },
 			) =>
 				(async function* () {
 					const listQuestions = getTool(
@@ -439,8 +440,8 @@ describe("reviewSingleQuestion", () => {
 
 		const result = await reviewSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			"Texto original da prova",
@@ -479,7 +480,7 @@ describe("reviewSingleQuestion", () => {
 			(
 				_config: unknown,
 				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
+				options?: { tools?: ToolSet },
 			) =>
 				(async function* () {
 					const listQuestions = getTool(
@@ -515,8 +516,8 @@ describe("reviewSingleQuestion", () => {
 
 		const result = await reviewSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			"Texto original da prova",

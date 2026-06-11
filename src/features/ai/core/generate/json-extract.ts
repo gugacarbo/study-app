@@ -1,4 +1,4 @@
-import type { SchemaInput } from "@tanstack/ai";
+import type { OutputSchema } from "./types";
 import type { SafeParseCapableSchema } from "./types";
 import { isSafeParseCapableSchema } from "./types";
 
@@ -79,7 +79,7 @@ function repairJson(text: string): string {
 
 function tryParseAccumulatedAsJson<T>(
 	text: string,
-	outputSchema: SchemaInput,
+	outputSchema: OutputSchema<T>,
 ): T | null {
 	if (!text) return null;
 	const stripped = stripThinkBlocks(text);
@@ -118,7 +118,7 @@ function tryParseAccumulatedAsJson<T>(
 
 function tryParseFallbackCandidates<T>(
 	candidates: string[],
-	outputSchema: SchemaInput,
+	outputSchema: OutputSchema<T>,
 ): T | null {
 	for (const candidate of candidates) {
 		const parsed = tryParseAccumulatedAsJson<T>(candidate, outputSchema);

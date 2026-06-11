@@ -1,22 +1,15 @@
 import type { DBQueries } from "@/db/queries/base";
 import { env } from "@/env";
+import { encryptSecret, decryptSecret } from "@/lib/config-encryption";
 import {
-	decryptSecret,
-	encryptSecret,
-} from "@/lib/config-encryption";
-import {
-	type AiProvider,
-	type ConfigFormInput,
-	inferAiProvider,
-	type ProviderConfig,
+	AI_AGENT_TASKS,
+	type AiAgentTask,
+	agentModelConfigKey,
+	type AiSettings,
+	type ResolvedModelConfig,
 } from "@/lib/validation";
 
-export type PublicAiConfig = {
-	provider: AiProvider;
-	model: string;
-	baseUrl?: string;
-	hasApiKey: boolean;
-};
+export type { ResolvedModelConfig };
 
 export async function encryptApiKeyForStorage(apiKey: string): Promise<string> {
 	return encryptSecret(apiKey);
@@ -29,80 +22,156 @@ export async function decryptStoredApiKey(
 	return decryptSecret(stored);
 }
 
-export async function loadPublicAiConfig(
+function parseModelId(value: string | undefined): number | null {
+	if (!value?.trim()) return null;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function resolveModelIdForAgent(
 	queries: DBQueries,
-): Promise<PublicAiConfig> {
+	agent?: AiAgentTask,
+): Promise<number | null> {
 	const config = await queries.getAllConfig();
-	const provider =
-		(config.ai_provider as AiProvider | undefined) ||
-		inferAiProvider(config.ai_base_url);
+	if (agent) {
+		const override = parseModelId(config[agentModelConfigKey(agent)]);
+		if (override) return override;
+	}
+	return parseModelId(config.ai_default_model_id);
+}
+
+async function resolvedFromModelRow(
+	queries: DBQueries,
+	modelId: number,
+): Promise<ResolvedModelConfig | null> {
+	const row = await queries.getResolvedAiModelById(modelId);
+	if (!row) return null;
+
+	const apiKey = await decryptStoredApiKey(row.providerApiKey);
+	if (!apiKey) return null;
 
 	return {
-		provider,
-		model: config.ai_model || env.AI_MODEL,
-		baseUrl: config.ai_base_url || undefined,
-		hasApiKey: Boolean(config.ai_api_key?.trim()),
+		modelId: row.id,
+		model: row.modelId,
+		baseUrl: row.providerBaseUrl,
+		apiKey,
+		providerName: row.providerName,
+		contextWindow: row.contextWindow,
+		inputCostPerMillion: row.inputCostPerMillion,
+		outputCostPerMillion: row.outputCostPerMillion,
 	};
 }
 
-export async function loadProviderConfigFromDb(
+async function legacyProviderConfig(
 	queries: DBQueries,
-): Promise<ProviderConfig | null> {
+): Promise<ResolvedModelConfig | null> {
 	const config = await queries.getAllConfig();
 	const apiKey =
 		(await decryptStoredApiKey(config.ai_api_key)) ||
 		env.OPENROUTER_API_KEY ||
 		undefined;
-
-	if (!apiKey) return null;
-
-	const provider =
-		(config.ai_provider as AiProvider | undefined) ||
-		inferAiProvider(config.ai_base_url);
+	const baseUrl = config.ai_base_url?.trim();
+	if (!apiKey || !baseUrl) return null;
 
 	return {
-		provider,
+		modelId: 0,
 		model: config.ai_model || env.AI_MODEL,
-		baseUrl: config.ai_base_url || undefined,
+		baseUrl,
 		apiKey,
+		providerName: "legacy",
 	};
 }
 
-export async function requireProviderConfigFromDb(
+export async function resolveModelConfig(
 	queries: DBQueries,
-): Promise<ProviderConfig> {
-	const providerConfig = await loadProviderConfigFromDb(queries);
-	if (!providerConfig) {
+	agent?: AiAgentTask,
+): Promise<ResolvedModelConfig | null> {
+	const modelId = await resolveModelIdForAgent(queries, agent);
+	if (modelId) {
+		const resolved = await resolvedFromModelRow(queries, modelId);
+		if (resolved) return resolved;
+	}
+
+	const providers = await queries.listAiProviders();
+	if (providers.length > 0) {
+		const enabled = await queries.listEnabledAiModels();
+		const first = enabled[0];
+		if (first) {
+			return resolvedFromModelRow(queries, first.id);
+		}
+	}
+
+	return legacyProviderConfig(queries);
+}
+
+export async function requireModelConfig(
+	queries: DBQueries,
+	agent?: AiAgentTask,
+): Promise<ResolvedModelConfig> {
+	const config = await resolveModelConfig(queries, agent);
+	if (!config) {
 		throw new Error(
-			"AI API key not configured. Please configure it in /config first.",
+			"AI not configured. Add providers and models in /config first.",
 		);
 	}
-	return providerConfig;
+	return config;
 }
 
-export async function resolveProviderConfigForTest(
+export async function resolveModelConfigById(
 	queries: DBQueries,
-	input: ConfigFormInput,
-): Promise<ProviderConfig> {
-	const stored = await queries.getAllConfig();
-	const apiKey =
-		input.apiKey?.trim() ||
-		(await decryptStoredApiKey(stored.ai_api_key)) ||
-		env.OPENROUTER_API_KEY ||
-		undefined;
-
-	if (!apiKey) {
-		throw new Error("AI API key not configured");
+	modelId: number,
+): Promise<ResolvedModelConfig> {
+	const resolved = await resolvedFromModelRow(queries, modelId);
+	if (!resolved) {
+		throw new Error("Selected model is not available");
 	}
+	return resolved;
+}
 
-	const provider = input.baseUrl
-		? inferAiProvider(input.baseUrl)
-		: ((stored.ai_provider as AiProvider | undefined) ?? "openrouter");
+export async function loadAiSettings(queries: DBQueries): Promise<AiSettings> {
+	const config = await queries.getAllConfig();
+	const agentModels = Object.fromEntries(
+		AI_AGENT_TASKS.map((agent) => [
+			agent,
+			parseModelId(config[agentModelConfigKey(agent)]),
+		]),
+	);
 
 	return {
-		provider,
-		model: input.model,
-		baseUrl: input.baseUrl,
-		apiKey,
+		defaultModelId: parseModelId(config.ai_default_model_id),
+		agentModels,
 	};
+}
+
+export async function isModelReferencedInSettings(
+	queries: DBQueries,
+	modelId: number,
+): Promise<boolean> {
+	const settings = await loadAiSettings(queries);
+	if (settings.defaultModelId === modelId) return true;
+	return Object.values(settings.agentModels).some((id) => id === modelId);
+}
+
+/** @deprecated Use requireModelConfig */
+export async function requireProviderConfigFromDb(
+	queries: DBQueries,
+	agent?: AiAgentTask,
+): Promise<ResolvedModelConfig> {
+	return requireModelConfig(queries, agent);
+}
+
+/** @deprecated Use resolveModelConfig */
+export async function loadProviderConfigFromDb(
+	queries: DBQueries,
+	agent?: AiAgentTask,
+): Promise<ResolvedModelConfig | null> {
+	return resolveModelConfig(queries, agent);
+}
+
+/** @deprecated Use resolveModelConfigById */
+export async function resolveProviderConfigForTest(
+	queries: DBQueries,
+	modelId: number,
+): Promise<ResolvedModelConfig> {
+	return resolveModelConfigById(queries, modelId);
 }

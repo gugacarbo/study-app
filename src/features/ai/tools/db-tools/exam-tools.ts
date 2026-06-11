@@ -1,4 +1,4 @@
-import { toolDefinition } from "@tanstack/ai";
+import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
 import type {
 	DBQueries,
@@ -9,33 +9,16 @@ import {
 	optionalTrimmedString,
 	pageSchema,
 	pageSizeSchema,
-	paginatedSuccessSchema,
 	safeToolResult,
-	toolFailureSchema,
 } from "./shared";
 
-const listExamsDef = toolDefinition({
-	name: "list_exams",
-	description: "List exams with optional filters and pagination.",
-	inputSchema: z.object({
-		page: pageSchema,
-		pageSize: pageSizeSchema,
-		nameContains: optionalTrimmedString,
-		source: optionalTrimmedString,
-		createdFrom: optionalTrimmedString,
-		createdTo: optionalTrimmedString,
-	}),
-	outputSchema: z.union([
-		paginatedSuccessSchema(
-			z.object({
-				id: z.number(),
-				name: z.string(),
-				source: z.string().nullable(),
-				created_at: z.string().nullable(),
-			}),
-		),
-		toolFailureSchema,
-	]),
+const listExamsInputSchema = z.object({
+	page: pageSchema,
+	pageSize: pageSizeSchema,
+	nameContains: optionalTrimmedString,
+	source: optionalTrimmedString,
+	createdFrom: optionalTrimmedString,
+	createdTo: optionalTrimmedString,
 });
 
 function normalizeExamsFilters(input: {
@@ -56,12 +39,17 @@ function normalizeExamsFilters(input: {
 	};
 }
 
-export function createExamTools(queries: DBQueries) {
-	const listExams = listExamsDef.server(async (input) =>
-		safeToolResult<ExamRecord>(() =>
-			queries.listExamsPaged(normalizeExamsFilters(input)),
-		),
-	);
-
-	return [listExams] as const;
+export function createExamTools(queries: DBQueries): ToolSet {
+	return {
+		list_exams: tool({
+			description: "List exams with optional filters and pagination.",
+			inputSchema: zodSchema(listExamsInputSchema),
+			execute: async (input) =>
+				safeToolResult<ExamRecord>(() =>
+					queries.listExamsPaged(normalizeExamsFilters(input)),
+				),
+		}),
+	};
 }
+
+export { listExamsInputSchema };

@@ -2,9 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   questionSchema,
   attemptSchema,
-  configFormInputSchema,
-  inferAiProvider,
+  createAiModelSchema,
+  createAiProviderSchema,
   providerConfigSchema,
+  testConnectionInputSchema,
   toProviderConfig,
   examIngestResponseSchema,
   normalizeExamIngestResponseWithDiagnostics,
@@ -155,43 +156,17 @@ describe('attemptSchema', () => {
   });
 });
 
-describe('inferAiProvider', () => {
-  it('defaults to openrouter without baseUrl', () => {
-    expect(inferAiProvider()).toBe('openrouter');
-    expect(inferAiProvider('')).toBe('openrouter');
-  });
-
-  it('detects known providers from baseUrl', () => {
-    expect(inferAiProvider('https://api.openai.com/v1')).toBe('openai');
-    expect(inferAiProvider('https://api.groq.com/openai/v1')).toBe('groq');
-    expect(inferAiProvider('http://localhost:11434/v1')).toBe('ollama');
-    expect(inferAiProvider('https://my-proxy.example/v1')).toBe('custom');
-  });
-});
-
 describe('toProviderConfig', () => {
-  it('preserves existing provider when baseUrl is omitted', () => {
-    expect(
-      toProviderConfig(
-        { model: 'gpt-4o-mini', apiKey: 'sk-test' },
-        'openai',
-      ),
-    ).toEqual({
-      provider: 'openai',
-      model: 'gpt-4o-mini',
-      apiKey: 'sk-test',
-    });
-  });
-
-  it('infers provider from baseUrl when provided', () => {
+  it('maps resolved model config to adapter config', () => {
     expect(
       toProviderConfig({
+        modelId: 1,
+        providerName: 'OpenRouter',
         model: 'llama3',
         apiKey: 'ollama',
         baseUrl: 'http://localhost:11434/v1',
       }),
     ).toEqual({
-      provider: 'ollama',
       model: 'llama3',
       apiKey: 'ollama',
       baseUrl: 'http://localhost:11434/v1',
@@ -199,30 +174,55 @@ describe('toProviderConfig', () => {
   });
 });
 
-describe('configFormInputSchema', () => {
-  it('validates form input without provider', () => {
-    const result = configFormInputSchema.safeParse({
-      model: 'openai/gpt-4o-mini',
-      apiKey: 'sk-test',
-    });
-    expect(result.success).toBe(true);
+describe('createAiProviderSchema', () => {
+  it('requires baseUrl and apiKey', () => {
+    expect(
+      createAiProviderSchema.safeParse({
+        name: 'OpenRouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        apiKey: 'sk-test',
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('createAiModelSchema', () => {
+  it('validates model catalog fields', () => {
+    expect(
+      createAiModelSchema.safeParse({
+        providerId: 1,
+        modelId: 'openai/gpt-4o-mini',
+        displayName: 'GPT-4o Mini',
+        contextWindow: 128000,
+        inputCostPerMillion: 0.15,
+        outputCostPerMillion: 0.6,
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('testConnectionInputSchema', () => {
+  it('requires modelId', () => {
+    expect(testConnectionInputSchema.safeParse({ modelId: 1 }).success).toBe(
+      true,
+    );
+    expect(testConnectionInputSchema.safeParse({}).success).toBe(false);
   });
 });
 
 describe('providerConfigSchema', () => {
   it('validates OpenRouter config', () => {
     const config = {
-      provider: 'openrouter',
       model: 'openai/gpt-4o-mini',
+      baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: 'sk-or-v1-xxx',
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(true);
   });
 
-  it('validates custom provider with baseUrl', () => {
+  it('validates custom endpoint with baseUrl', () => {
     const config = {
-      provider: 'custom',
       model: 'llama3',
       baseUrl: 'http://localhost:11434/v1',
       apiKey: 'ollama',
@@ -233,8 +233,17 @@ describe('providerConfigSchema', () => {
 
   it('rejects missing apiKey', () => {
     const config = {
-      provider: 'openrouter',
       model: 'openai/gpt-4o-mini',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    };
+    const result = providerConfigSchema.safeParse(config);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing baseUrl', () => {
+    const config = {
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'sk-or-v1-xxx',
     };
     const result = providerConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
@@ -242,7 +251,6 @@ describe('providerConfigSchema', () => {
 
   it('rejects invalid baseUrl', () => {
     const config = {
-      provider: 'custom',
       model: 'llama3',
       baseUrl: 'not-a-url',
       apiKey: 'test',

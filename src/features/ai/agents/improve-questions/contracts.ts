@@ -1,5 +1,9 @@
+import type { ToolSet } from "ai";
+import type {
+	AgentRunDataPart,
+	WorkspaceUpdateDataPart,
+} from "@/features/ai/types/ui-message-data-parts";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
-import type { AgentRunEvent } from "@/routes/api/ingest/-sse-emitter";
 
 export const IMPROVE_QUESTIONS_STAGE_ID = "improve-questions" as const;
 
@@ -34,8 +38,8 @@ export interface ImproveQuestionsAgentRunSummary {
 	meta?: Record<string, unknown>;
 }
 
-/** Agent lifecycle/tool events streamed as SSE `agent` payloads. */
-export type ImproveQuestionsAgentEvent = Omit<AgentRunEvent, "stageId"> & {
+/** Agent lifecycle/tool events written as `data-agent-run` parts. */
+export type ImproveQuestionsAgentEvent = AgentRunDataPart & {
 	stageId: typeof IMPROVE_QUESTIONS_STAGE_ID;
 };
 
@@ -44,20 +48,63 @@ export interface WorkspaceUpdateEvent {
 	updatedFields: string[];
 }
 
-export interface ImproveQuestionsDoneEvent {
+export interface ImproveQuestionsJobResult {
 	finalQuestion: DraftQuestion;
 	agentRun: ImproveQuestionsAgentRunSummary;
 }
+
+/** @deprecated Use ImproveQuestionsJobResult */
+export type ImproveQuestionsDoneEvent = ImproveQuestionsJobResult;
 
 export interface ImproveQuestionsErrorEvent {
 	message: string;
 }
 
+/** @deprecated Legacy SSE shape — client migrates to UI Message Stream in Wave 4C. */
 export type ImproveQuestionsSSEEvent =
 	| { event: "agent"; data: ImproveQuestionsAgentEvent }
 	| { event: "workspace-update"; data: WorkspaceUpdateEvent }
-	| { event: "done"; data: ImproveQuestionsDoneEvent }
+	| { event: "done"; data: ImproveQuestionsJobResult }
 	| { event: "error"; data: ImproveQuestionsErrorEvent };
+
+export interface ImproveSingleQuestionOptions {
+	tools?: ToolSet;
+	onAgentEvent?: (event: ImproveQuestionsAgentEvent) => void;
+	onWorkspaceUpdate?: (event: WorkspaceUpdateEvent) => void;
+	createAgentRunId?: (label: string) => string;
+}
+
+export function emitAgentEvent(
+	options: Pick<ImproveSingleQuestionOptions, "onAgentEvent">,
+	event: Omit<ImproveQuestionsAgentEvent, "timestamp">,
+): void {
+	options.onAgentEvent?.({
+		...event,
+		timestamp: Date.now(),
+	});
+}
+
+export function toWorkspaceUpdateDataPart(
+	event: WorkspaceUpdateEvent,
+): WorkspaceUpdateDataPart {
+	return {
+		question: {
+			id: String(event.question.id),
+			question: event.question.question,
+			options: [...event.question.options],
+			answers: [...event.question.answers],
+			scoringMode: event.question.scoringMode,
+			explanation: event.question.explanation,
+			deepExplanation: event.question.deepExplanation,
+			topic: event.question.topic,
+			exam_id:
+				event.question.exam_id != null
+					? String(event.question.exam_id)
+					: undefined,
+		},
+		updatedFields: event.updatedFields,
+	};
+}
 
 export type ChangeField = "question" | "options" | "answer" | "explanation";
 

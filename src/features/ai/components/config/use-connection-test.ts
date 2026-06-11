@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { testConnectionWithStream } from "@/lib/sse-stream";
-import type { ConfigFormInput } from "@/lib/validation";
+import type { TestConnectionInput } from "@/lib/validation";
 
 export type TestStatus = "idle" | "testing" | "success" | "error";
 
@@ -13,7 +13,7 @@ export function useConnectionTest() {
 	const [testResponse, setTestResponse] = useState("");
 	const [testError, setTestError] = useState("");
 
-	const handleTest = useCallback(async (values: ConfigFormInput) => {
+	const handleTest = useCallback(async (values: TestConnectionInput) => {
 		setDialogOpen(true);
 		setTestStatus("testing");
 		setTestProgress(5);

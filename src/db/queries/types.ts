@@ -69,6 +69,66 @@ export interface ExamDetail {
 	files: FileInfo[];
 }
 
+export interface AiProviderRecord {
+	id: number;
+	name: string;
+	base_url: string;
+	api_key: string;
+	enabled: boolean;
+	created_at: string | null;
+	updated_at: string | null;
+}
+
+export interface AiProviderPublic {
+	id: number;
+	name: string;
+	baseUrl: string;
+	hasApiKey: boolean;
+	enabled: boolean;
+	createdAt: string | null;
+	updatedAt: string | null;
+}
+
+export interface AiModelRecord {
+	id: number;
+	provider_id: number;
+	model_id: string;
+	display_name: string;
+	context_window: number | null;
+	max_output_tokens: number | null;
+	input_cost_per_million: number | null;
+	output_cost_per_million: number | null;
+	enabled: boolean;
+	metadata: string | null;
+	created_at: string | null;
+	updated_at: string | null;
+}
+
+export interface AiModelWithProvider extends AiModelRecord {
+	provider_name: string;
+	provider_base_url: string;
+	provider_enabled: boolean;
+}
+
+export interface AiModelPublic {
+	id: number;
+	providerId: number;
+	providerName: string;
+	modelId: string;
+	displayName: string;
+	contextWindow: number | null;
+	maxOutputTokens: number | null;
+	inputCostPerMillion: number | null;
+	outputCostPerMillion: number | null;
+	enabled: boolean;
+	metadata: string | null;
+}
+
+export interface AiModelResolved extends AiModelPublic {
+	providerBaseUrl: string;
+	providerApiKey: string;
+}
+
 export interface LLMLogInsert {
 	callId: string;
 	callType: string;

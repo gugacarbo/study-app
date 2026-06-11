@@ -1,109 +1,299 @@
-import type {
-	SchemaInput,
-	StreamChunk,
-	StructuredOutputCompleteEvent,
-} from "@tanstack/ai";
-import { chat } from "@tanstack/ai";
-import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
+import { Output, streamObject, streamText } from "ai";
+import { getAiModel } from "@/features/ai/adapters/provider-model";
 import type { ProviderConfig } from "@/lib/validation";
-import { tryParseFallbackCandidates } from "./json-extract";
-import type { GenerateJsonStreamOnErrorInfo } from "./types";
 import {
-	isReasoningChunk,
-	isRecoverableStructuredOutputError,
-	isRunErrorChunk,
-	isStructuredOutputCompleteEvent,
-	isTextMessageChunk,
-} from "./types";
+	extractStructuredOutputErrorCode,
+	isRecoverableGenerationError,
+} from "./error-utils";
+import { tryParseFallbackCandidates } from "./json-extract";
+import { resolveObjectGenerationOptions, toFlexibleSchema } from "./schema-utils";
+import type { GenerateJsonStreamOptions, OutputSchema } from "./types";
+import { isRecoverableStructuredOutputError } from "./types";
+
+type StreamFailure = { message: string; code?: string };
 
 export async function generateJsonStream<T>(
 	config: ProviderConfig,
 	prompt: string,
-	outputSchema: SchemaInput,
-	options?: {
-		system?: string;
-		tools?: Parameters<typeof chat>[0]["tools"];
-		onChunk?: (chunk: StreamChunk | StructuredOutputCompleteEvent<T>) => void;
-		onError?: (info: GenerateJsonStreamOnErrorInfo) => void;
-	},
+	outputSchema: OutputSchema<T>,
+	options?: GenerateJsonStreamOptions<T>,
 ): Promise<T> {
-	const adapter = getAiAdapter(config);
+	const model = getAiModel(config);
+	const { schema, output } = resolveObjectGenerationOptions(outputSchema);
+	const flexibleSchema = toFlexibleSchema(outputSchema);
 
-	const stream = chat({
-		adapter,
-		messages: [{ role: "user", content: prompt }],
-		systemPrompts: options?.system ? [options.system] : undefined,
-		stream: true,
-		tools: options?.tools,
-		outputSchema,
+	if (options?.tools) {
+		return generateJsonStreamWithTools(
+			config,
+			model,
+			prompt,
+			outputSchema,
+			flexibleSchema,
+			options,
+		);
+	}
+
+	const result = streamObject({
+		model,
+		prompt,
+		system: options?.system,
+		schema,
+		output,
+		onError: (event) => {
+			options?.onError?.({
+				error: event.error,
+				baseUrl: config.baseUrl,
+				model: config.model,
+			});
+		},
+	});
+
+	return consumeStructuredObjectStream(result, config, outputSchema, options);
+}
+
+async function generateJsonStreamWithTools<T>(
+	config: ProviderConfig,
+	model: ReturnType<typeof getAiModel>,
+	prompt: string,
+	outputSchema: OutputSchema<T>,
+	flexibleSchema: ReturnType<typeof toFlexibleSchema<T>>,
+	options: GenerateJsonStreamOptions<T>,
+): Promise<T> {
+	const result = streamText({
+		model,
+		prompt,
+		system: options.system,
+		tools: options.tools,
+		output: Output.object({ schema: flexibleSchema }),
+		onError: (event) => {
+			options.onError?.({
+				error: event.error,
+				baseUrl: config.baseUrl,
+				model: config.model,
+			});
+		},
 	});
 
 	let accumulatedText = "";
 	let accumulatedThinking = "";
 	const chunkTypes = new Set<string>();
-	let runError: { message: string; code?: string } | null = null;
+	let streamFailure: StreamFailure | null = null;
 
-	for await (const chunk of stream) {
-		const chunkType =
-			"type" in chunk && typeof chunk.type === "string"
-				? chunk.type
-				: "unknown";
-		chunkTypes.add(chunkType);
+	for await (const chunk of result.fullStream) {
+		chunkTypes.add(chunk.type);
 
-		if (isStructuredOutputCompleteEvent(chunk)) {
-			options?.onChunk?.(chunk);
-			return chunk.value.object;
+		if (chunk.type === "text-delta") {
+			accumulatedText += chunk.text;
+			options.onChunk?.({
+				type: "TEXT_MESSAGE_CONTENT",
+				delta: chunk.text,
+				content: accumulatedText,
+			});
+			continue;
 		}
 
-		if (isRunErrorChunk(chunk)) {
-			const errorMsg = chunk.error?.message ?? chunk.message ?? String(chunk);
-			const errorCode = chunk.error?.code ?? chunk.code;
-			runError = { message: errorMsg, code: errorCode };
-			options?.onError?.({
-				error: new Error(`AI provider error: ${errorMsg}`),
-				provider: config.provider,
+		if (chunk.type === "reasoning-delta") {
+			accumulatedThinking += chunk.text;
+			options.onChunk?.({
+				type: "REASONING_MESSAGE_CONTENT",
+				delta: chunk.text,
+			});
+			continue;
+		}
+
+		if (chunk.type === "error") {
+			const errorMsg =
+				chunk.error instanceof Error
+					? chunk.error.message
+					: String(chunk.error);
+			const errorCode = extractStructuredOutputErrorCode(chunk.error);
+			streamFailure = { message: errorMsg, code: errorCode };
+			options.onError?.({
+				error:
+					chunk.error instanceof Error
+						? chunk.error
+						: new Error(`AI provider error: ${errorMsg}`),
+				baseUrl: config.baseUrl,
 				model: config.model,
 				rawOutput:
 					accumulatedText || accumulatedThinking
 						? `${accumulatedThinking}${accumulatedText}`
 						: undefined,
 			});
-			break;
+			options.onChunk?.({
+				type: "RUN_ERROR",
+				message: errorMsg,
+				code: errorCode,
+			});
+			if (!isRecoverableGenerationError(chunk.error)) {
+				break;
+			}
 		}
-
-		if (isTextMessageChunk(chunk)) {
-			accumulatedText += chunk.delta;
-		}
-
-		if (isReasoningChunk(chunk)) {
-			accumulatedThinking += chunk.delta;
-		}
-
-		options?.onChunk?.(chunk);
 	}
 
-	if (runError) {
-		if (!isRecoverableStructuredOutputError(runError.code)) {
-			throw new Error(
-				`AI provider returned error: ${runError.message}${runError.code ? ` (code: ${runError.code})` : ""}. ` +
-					`Chunk types seen: ${[...chunkTypes].join(", ")}. ` +
-					`Accumulated text length: ${accumulatedText.length}, thinking length: ${accumulatedThinking.length}.`,
-			);
+	throwIfFatalStreamFailure(
+		streamFailure,
+		chunkTypes,
+		accumulatedText.length,
+		accumulatedThinking.length,
+	);
+
+	try {
+		const object = await result.output;
+		if (object !== undefined) {
+			options.onChunk?.({
+				type: "CUSTOM",
+				name: "structured-output.complete",
+				value: { object: object as T },
+			});
+			return object as T;
 		}
-		console.warn(
-			`Recovering from structured-output error (code: ${runError.code}). Attempting fallback JSON extraction on ${accumulatedText.length} chars of accumulated text.`,
+	} catch {
+		// Fall through to JSON extraction.
+	}
+
+	return resolveStructuredOutputFallback(
+		config,
+		outputSchema,
+		[accumulatedText, `${accumulatedThinking}${accumulatedText}`, accumulatedThinking],
+		chunkTypes,
+		accumulatedText.length,
+		accumulatedThinking.length,
+	);
+}
+
+async function consumeStructuredObjectStream<T>(
+	result: ReturnType<typeof streamObject>,
+	config: ProviderConfig,
+	outputSchema: OutputSchema<T>,
+	options?: GenerateJsonStreamOptions<T>,
+): Promise<T> {
+	let accumulatedText = "";
+	let accumulatedThinking = "";
+	const chunkTypes = new Set<string>();
+	let streamFailure: StreamFailure | null = null;
+	let latestObject: T | undefined;
+
+	for await (const chunk of result.fullStream) {
+		chunkTypes.add(chunk.type);
+
+		if (chunk.type === "text-delta") {
+			accumulatedText += chunk.textDelta;
+			options?.onChunk?.({
+				type: "TEXT_MESSAGE_CONTENT",
+				delta: chunk.textDelta,
+			});
+			continue;
+		}
+
+		if (chunk.type === "object") {
+			latestObject = chunk.object as T;
+			options?.onChunk?.({
+				type: "CUSTOM",
+				name: "structured-output.complete",
+				value: { object: chunk.object as T },
+			});
+			continue;
+		}
+
+		if (chunk.type === "error") {
+			const errorMsg =
+				chunk.error instanceof Error
+					? chunk.error.message
+					: String(chunk.error);
+			const errorCode = extractStructuredOutputErrorCode(chunk.error);
+			streamFailure = { message: errorMsg, code: errorCode };
+			options?.onError?.({
+				error:
+					chunk.error instanceof Error
+						? chunk.error
+						: new Error(`AI provider error: ${errorMsg}`),
+				baseUrl: config.baseUrl,
+				model: config.model,
+				rawOutput:
+					accumulatedText || accumulatedThinking
+						? `${accumulatedThinking}${accumulatedText}`
+						: undefined,
+			});
+			options?.onChunk?.({
+				type: "RUN_ERROR",
+				message: errorMsg,
+				code: errorCode,
+			});
+		}
+	}
+
+	throwIfFatalStreamFailure(
+		streamFailure,
+		chunkTypes,
+		accumulatedText.length,
+		accumulatedThinking.length,
+	);
+
+	if (latestObject !== undefined) {
+		return latestObject;
+	}
+
+	try {
+		const object = await result.object;
+		if (object !== undefined) {
+			options?.onChunk?.({
+				type: "CUSTOM",
+				name: "structured-output.complete",
+				value: { object: object as T },
+			});
+			return object as T;
+		}
+	} catch {
+		// Fall through to JSON extraction.
+	}
+
+	return resolveStructuredOutputFallback(
+		config,
+		outputSchema,
+		[accumulatedText, `${accumulatedThinking}${accumulatedText}`, accumulatedThinking],
+		chunkTypes,
+		accumulatedText.length,
+		accumulatedThinking.length,
+	);
+}
+
+function throwIfFatalStreamFailure(
+	streamFailure: StreamFailure | null,
+	chunkTypes: Set<string>,
+	accumulatedTextLength: number,
+	accumulatedThinkingLength: number,
+): void {
+	if (streamFailure && !isRecoverableStructuredOutputError(streamFailure.code)) {
+		throw new Error(
+			`AI provider returned error: ${streamFailure.message}${streamFailure.code ? ` (code: ${streamFailure.code})` : ""}. ` +
+				`Chunk types seen: ${[...chunkTypes].join(", ")}. ` +
+				`Accumulated text length: ${accumulatedTextLength}, thinking length: ${accumulatedThinkingLength}.`,
 		);
 	}
 
-	const fallbackCandidates = [
-		accumulatedText,
-		`${accumulatedThinking}${accumulatedText}`,
-		accumulatedThinking,
-	].filter((candidate) => candidate.length > 0);
+	if (streamFailure) {
+		console.warn(
+			`Recovering from structured-output error (code: ${streamFailure.code ?? "unknown"}). Attempting fallback JSON extraction on ${accumulatedTextLength} chars of accumulated text.`,
+		);
+	}
+}
 
-	if (fallbackCandidates.length > 0) {
+function resolveStructuredOutputFallback<T>(
+	config: ProviderConfig,
+	outputSchema: OutputSchema<T>,
+	fallbackCandidates: string[],
+	chunkTypes: Set<string>,
+	accumulatedTextLength: number,
+	accumulatedThinkingLength: number,
+): T {
+	const filteredCandidates = fallbackCandidates.filter(
+		(candidate) => candidate.length > 0,
+	);
+
+	if (filteredCandidates.length > 0) {
 		const rescued = tryParseFallbackCandidates<T>(
-			fallbackCandidates,
+			filteredCandidates,
 			outputSchema,
 		);
 		if (rescued !== null) {
@@ -113,9 +303,9 @@ export async function generateJsonStream<T>(
 
 	const diagnosticInfo = [
 		`Chunk types seen: ${[...chunkTypes].join(", ") || "none"}`,
-		`Accumulated text length: ${accumulatedText.length}`,
-		`Accumulated thinking length: ${accumulatedThinking.length}`,
-		`Provider: ${config.provider}`,
+		`Accumulated text length: ${accumulatedTextLength}`,
+		`Accumulated thinking length: ${accumulatedThinkingLength}`,
+		`Base URL: ${config.baseUrl}`,
 		`Model: ${config.model}`,
 	].join(". ");
 

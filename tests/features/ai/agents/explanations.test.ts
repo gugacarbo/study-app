@@ -1,14 +1,5 @@
+import type { ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
-}));
 
 const { streamChatMessagesMock } = vi.hoisted(() => ({
 	streamChatMessagesMock: vi.fn(),
@@ -23,15 +14,14 @@ import {
 	runQuestionExplanations,
 } from "@/features/ai/agents/explanations";
 
-type Tool = {
-	name: string;
+type ExecutableTool = {
 	execute: (input: Record<string, unknown>) => Promise<unknown>;
 };
 
-function getTool(tools: readonly unknown[] | undefined, name: string): Tool {
-	const tool = tools?.find((candidate) => (candidate as Tool).name === name);
-	if (!tool) throw new Error(`Tool ${name} not found`);
-	return tool as Tool;
+function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
+	const tool = tools?.[name] as ExecutableTool | undefined;
+	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
+	return tool;
 }
 
 function mockSuccessfulExplanationRun(questionId: number) {
@@ -39,7 +29,7 @@ function mockSuccessfulExplanationRun(questionId: number) {
 		(
 			_config: unknown,
 			_messages: unknown,
-			options?: { tools?: readonly unknown[] },
+			options?: { tools?: ToolSet },
 		) =>
 			(async function* () {
 				const updateExplanation = getTool(
@@ -73,8 +63,8 @@ describe("explainSingleQuestion", () => {
 
 		const result = await explainSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			{
@@ -127,8 +117,8 @@ describe("explainSingleQuestion", () => {
 
 		await explainSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			{
@@ -156,10 +146,14 @@ describe("explainSingleQuestion", () => {
 				system: expect.stringContaining(
 					"Use this student memory context to adapt teaching style and emphasis.",
 				),
-				tools: expect.arrayContaining([
-					expect.objectContaining({ name: "update_question_explanation" }),
-					expect.objectContaining({ name: "list_explanation_questions" }),
-				]),
+				tools: expect.objectContaining({
+					update_question_explanation: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+					list_explanation_questions: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+				}),
 			}),
 		);
 	});
@@ -169,8 +163,8 @@ describe("explainSingleQuestion", () => {
 
 		await explainSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			{
@@ -220,7 +214,7 @@ describe("runQuestionExplanations", () => {
 			(
 				_config: unknown,
 				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
+				options?: { tools?: ToolSet },
 			) =>
 				(async function* () {
 					callCount += 1;
@@ -245,8 +239,8 @@ describe("runQuestionExplanations", () => {
 
 		const result = await runQuestionExplanations(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			[

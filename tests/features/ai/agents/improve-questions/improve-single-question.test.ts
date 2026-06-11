@@ -139,8 +139,8 @@ describe("improveSingleQuestion", () => {
 
 		const result = await improveSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			baseQuestion,
@@ -359,8 +359,8 @@ describe("improveSingleQuestion", () => {
 
 		const result = await improveSingleQuestion(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			baseQuestion,

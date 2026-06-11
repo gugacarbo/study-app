@@ -1,9 +1,8 @@
-import { toolDefinition } from "@tanstack/ai";
+import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
 import {
 	explanationPatchSchema,
 	explanationQuestionIdSchema,
-	explanationToolFailureSchema,
 } from "./shared";
 import type { ExplanationWorkspaceQuestion } from "./workspace";
 import { ExplanationWorkspaceError } from "./workspace";
@@ -16,50 +15,7 @@ interface ExplanationWorkspaceApi {
 	listQuestions: () => ExplanationWorkspaceQuestion[];
 }
 
-const updateQuestionExplanationSuccessSchema = z.object({
-	ok: z.literal(true),
-	questionId: explanationQuestionIdSchema,
-	updatedFields: z.array(z.enum(["explanation", "deepExplanation"])),
-});
-
-const listExplanationQuestionsSuccessSchema = z.object({
-	ok: z.literal(true),
-	data: z.array(
-		z.object({
-			id: explanationQuestionIdSchema,
-			question: z.string(),
-			options: z.array(z.string()),
-			answers: z.array(z.string()),
-			scoringMode: z.enum(["exact", "partial"]),
-			topic: z.string(),
-			explanation: z.string(),
-			hasExplanation: z.boolean(),
-			hasDeepExplanation: z.boolean(),
-		}),
-	),
-});
-
-const updateQuestionExplanationDef = toolDefinition({
-	name: "update_question_explanation",
-	description:
-		"Write explanation and deepExplanation for one question. questionId, explanation, and deepExplanation are all required.",
-	inputSchema: explanationPatchSchema,
-	outputSchema: z.union([
-		updateQuestionExplanationSuccessSchema,
-		explanationToolFailureSchema,
-	]),
-});
-
-const listExplanationQuestionsDef = toolDefinition({
-	name: "list_explanation_questions",
-	description:
-		"List the questions currently stored in the explanation workspace.",
-	inputSchema: z.object({}),
-	outputSchema: z.union([
-		listExplanationQuestionsSuccessSchema,
-		explanationToolFailureSchema,
-	]),
-});
+const listExplanationQuestionsInputSchema = z.object({});
 
 function toToolFailure(error: unknown) {
 	if (error instanceof ExplanationWorkspaceError) {
@@ -82,42 +38,53 @@ function toToolFailure(error: unknown) {
 	};
 }
 
-export function createExplanationTools(workspace: ExplanationWorkspaceApi) {
-	const updateQuestionExplanation = updateQuestionExplanationDef.server(
-		async (input) => {
-			try {
-				workspace.updateQuestionExplanation(input.questionId, {
-					explanation: input.explanation,
-					deepExplanation: input.deepExplanation,
-				});
+export function createExplanationTools(workspace: ExplanationWorkspaceApi): ToolSet {
+	return {
+		update_question_explanation: tool({
+			description:
+				"Write explanation and deepExplanation for one question. questionId, explanation, and deepExplanation are all required.",
+			inputSchema: zodSchema(explanationPatchSchema),
+			execute: async (input) => {
+				try {
+					workspace.updateQuestionExplanation(input.questionId, {
+						explanation: input.explanation,
+						deepExplanation: input.deepExplanation,
+					});
 
-				return {
-					ok: true as const,
-					questionId: input.questionId,
-					updatedFields: ["explanation", "deepExplanation"] as const,
-				};
-			} catch (error) {
-				return toToolFailure(error);
-			}
-		},
-	);
-
-	const listExplanationQuestions = listExplanationQuestionsDef.server(
-		async () => ({
-			ok: true as const,
-			data: workspace.listQuestions().map((question) => ({
-				id: question.id,
-				question: question.question,
-				options: [...question.options],
-				answers: [...question.answers],
-				scoringMode: question.scoringMode ?? "exact",
-				topic: question.topic ?? "General",
-				explanation: question.explanation ?? "",
-				hasExplanation: Boolean(question.explanation?.trim()),
-				hasDeepExplanation: Boolean(question.deepExplanation?.trim()),
-			})),
+					return {
+						ok: true as const,
+						questionId: input.questionId,
+						updatedFields: ["explanation", "deepExplanation"] as const,
+					};
+				} catch (error) {
+					return toToolFailure(error);
+				}
+			},
 		}),
-	);
-
-	return [updateQuestionExplanation, listExplanationQuestions] as const;
+		list_explanation_questions: tool({
+			description:
+				"List the questions currently stored in the explanation workspace.",
+			inputSchema: zodSchema(listExplanationQuestionsInputSchema),
+			execute: async () => ({
+				ok: true as const,
+				data: workspace.listQuestions().map((question) => ({
+					id: question.id,
+					question: question.question,
+					options: [...question.options],
+					answers: [...question.answers],
+					scoringMode: question.scoringMode ?? "exact",
+					topic: question.topic ?? "General",
+					explanation: question.explanation ?? "",
+					hasExplanation: Boolean(question.explanation?.trim()),
+					hasDeepExplanation: Boolean(question.deepExplanation?.trim()),
+				})),
+			}),
+		}),
+	};
 }
+
+export {
+	explanationPatchSchema,
+	explanationQuestionIdSchema,
+	listExplanationQuestionsInputSchema,
+};

@@ -1,16 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { DBQueries } from "../db/queries";
-import {
-	encryptApiKeyForStorage,
-	loadPublicAiConfig,
-} from "../lib/ai-config";
-import {
-	type AiProvider,
-	configFormInputSchema,
-	inferAiProvider,
-} from "../lib/validation";
+import { loadAiSettings } from "../lib/ai-config";
 import { getDB } from "./db";
 
+/** @deprecated Use getAiSettings, listProviders, and listModels */
 export const getConfig = createServerFn({ method: "GET" }).handler(
 	async (ctx) => {
 		const db = await getDB(ctx);
@@ -19,42 +12,25 @@ export const getConfig = createServerFn({ method: "GET" }).handler(
 		}
 
 		const queries = new DBQueries(db);
-		return loadPublicAiConfig(queries);
+		const [settings, models, providers] = await Promise.all([
+			loadAiSettings(queries),
+			queries.listEnabledAiModels(),
+			queries.listAiProviders(),
+		]);
+
+		const defaultModel =
+			models.find((model) => model.id === settings.defaultModelId) ??
+			models[0] ??
+			null;
+		const defaultProvider = defaultModel
+			? (providers.find((provider) => provider.id === defaultModel.providerId) ??
+				null)
+			: (providers[0] ?? null);
+
+		return {
+			model: defaultModel?.modelId ?? "",
+			baseUrl: defaultProvider?.baseUrl,
+			hasApiKey: defaultProvider?.hasApiKey ?? false,
+		};
 	},
 );
-
-export const setConfig = createServerFn({ method: "POST" })
-	.inputValidator(configFormInputSchema)
-	.handler(async (ctx) => {
-		const { data } = ctx;
-		const db = await getDB(ctx);
-		if (!db) {
-			throw new Error("D1 database not available");
-		}
-
-		const queries = new DBQueries(db);
-		const existing = await queries.getAllConfig();
-		const nextApiKey = data.apiKey?.trim();
-
-		if (!nextApiKey && !existing.ai_api_key?.trim()) {
-			throw new Error("API key is required");
-		}
-
-		const provider = data.baseUrl
-			? inferAiProvider(data.baseUrl)
-			: ((existing.ai_provider as AiProvider | undefined) ?? "openrouter");
-
-		await queries.setConfig("ai_provider", provider);
-		await queries.setConfig("ai_model", data.model);
-		if (data.baseUrl) {
-			await queries.setConfig("ai_base_url", data.baseUrl);
-		}
-		if (nextApiKey) {
-			await queries.setConfig(
-				"ai_api_key",
-				await encryptApiKeyForStorage(nextApiKey),
-			);
-		}
-
-		return { success: true };
-	});

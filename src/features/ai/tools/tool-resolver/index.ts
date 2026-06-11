@@ -30,14 +30,15 @@ export interface ResolvedAgentTools extends ResolvedBaseTools {
 	enabledAll: AgentToolName[];
 }
 
-function dedupeTools(tools: AgentToolSet): AgentToolSet {
-	const seen = new Set<string>();
-	const deduped = tools.filter((tool) => {
-		if (seen.has(tool.name)) return false;
-		seen.add(tool.name);
-		return true;
-	});
-	return deduped as AgentToolSet;
+function mergeToolSets(...sets: AgentToolSet[]): AgentToolSet {
+	const merged: AgentToolSet = {};
+	for (const set of sets) {
+		for (const [name, definition] of Object.entries(set)) {
+			if (merged[name]) continue;
+			merged[name] = definition;
+		}
+	}
+	return merged;
 }
 
 function resolveBaseTools(
@@ -57,7 +58,7 @@ function resolveBaseTools(
 				? DEFAULT_AGENT_BASE_TOOLS[agent]
 				: [];
 	const warnings: string[] = [];
-	const toolSet: AgentToolSet = [] as unknown as AgentToolSet;
+	const toolSets: AgentToolSet[] = [];
 
 	for (const baseName of baseToolNames) {
 		const factory = BASE_TOOL_REGISTRY[baseName];
@@ -66,10 +67,7 @@ function resolveBaseTools(
 			continue;
 		}
 		try {
-			const tools = factory(context);
-			for (const tool of tools) {
-				(toolSet as unknown as Array<(typeof tools)[number]>).push(tool);
-			}
+			toolSets.push(factory(context));
 		} catch (error) {
 			const reason = error instanceof Error ? error.message : "Unknown error";
 			warnings.push(`Failed to resolve ${baseName}: ${reason}`);
@@ -77,7 +75,7 @@ function resolveBaseTools(
 	}
 
 	return {
-		tools: dedupeTools(toolSet),
+		tools: mergeToolSets(...toolSets),
 		enabled: baseToolNames,
 		warnings,
 	};
@@ -101,7 +99,7 @@ export function resolveToolsForAgent(
 
 	const enabledAll: AgentToolName[] = Array.from(new Set(configuredNames));
 	const warnings = [...resolvedBase.warnings];
-	const tools = [...resolvedBase.tools] as AgentToolSet;
+	let tools = { ...resolvedBase.tools };
 
 	const parallelReviewEnabled = configuredNames.includes("parallel_review");
 	if (options.agent === "chat" && parallelReviewEnabled && options.reviewMode) {
@@ -119,12 +117,15 @@ export function resolveToolsForAgent(
 		);
 		warnings.push(...reviewerBase.warnings);
 
-		tools.push(
-			createParallelReviewTool(options.context.providerConfig, {
-				reviewerTools: reviewerBase.tools,
-				onWarning: options.context.onWarning,
-			}),
-		);
+		tools = mergeToolSets(tools, {
+			parallel_review: createParallelReviewTool(
+				options.context.providerConfig,
+				{
+					reviewerTools: reviewerBase.tools,
+					onWarning: options.context.onWarning,
+				},
+			),
+		});
 	}
 
 	for (const warning of warnings) {
@@ -132,7 +133,7 @@ export function resolveToolsForAgent(
 	}
 
 	return {
-		tools: dedupeTools(tools),
+		tools,
 		enabled: resolvedBase.enabled,
 		enabledAll,
 		warnings,

@@ -1,4 +1,3 @@
-import type { StreamChunk } from "@tanstack/ai";
 import {
 	createAgentStreamState,
 	isAgentStreamRunErrorChunk,
@@ -38,10 +37,10 @@ export async function explainSingleQuestion(
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
 	const explanationTools = createExplanationTools(workspace);
-	const combinedTools = [
+	const combinedTools = {
 		...explanationTools,
-		...((options.tools as unknown[]) ?? []),
-	] as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
+		...((options.tools as Record<string, unknown> | undefined) ?? {}),
+	} as unknown as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
 	const streamState = createAgentStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
@@ -154,7 +153,7 @@ export async function explainSingleQuestion(
 			}
 
 			processAgentStreamChunk(
-				chunk as StreamChunk,
+				chunk as Parameters<typeof processAgentStreamChunk>[0],
 				{
 					onUsage: (usage) => {
 						emitAgentEvent(options, {

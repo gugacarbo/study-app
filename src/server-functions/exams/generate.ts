@@ -5,7 +5,7 @@ import {
 	runQuestionExplanations,
 } from "@/features/ai/agents/explanations";
 import { DBQueries } from "../../db/queries";
-import { requireProviderConfigFromDb } from "../../lib/ai-config";
+import { requireModelConfig } from "../../lib/ai-config";
 import { MemoryManager } from "../../lib/memory";
 import { buildTopicMemoryResolver } from "../../lib/memory/topic-context";
 import { getDB } from "../db";
@@ -29,7 +29,7 @@ export const generateExamQuestionExplanations = createServerFn({
 		const exam = await queries.getExamFull(ctx.data.examId);
 		if (!exam) throw new Error("Exam not found");
 
-		const providerConfig = await requireProviderConfigFromDb(queries);
+		const providerConfig = await requireModelConfig(queries, "explanations");
 
 		const requestedIds = ctx.data.questionIds
 			? new Set(ctx.data.questionIds)

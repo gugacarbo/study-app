@@ -1,48 +1,105 @@
+import type { ObjectStreamPart, StreamObjectResult } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { examIngestResponseSchema } from "@/lib/validation";
 
-const { chatMock } = vi.hoisted(() => ({
-	chatMock: vi.fn(),
+const { streamObjectMock } = vi.hoisted(() => ({
+	streamObjectMock: vi.fn(),
 }));
 
-vi.mock("@tanstack/ai", () => ({
-	chat: chatMock,
-}));
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		streamObject: streamObjectMock,
+	};
+});
 
-vi.mock("@/features/ai/adapters/provider-adapter", () => ({
-	getAiAdapter: vi.fn(() => "mock-adapter"),
+vi.mock("@/features/ai/adapters/provider-model", () => ({
+	getAiModel: vi.fn(() => "mock-model"),
 }));
 
 import { generateJsonStream } from "@/features/ai/core/generate";
 
+function createRecoverableError(message: string, code: string) {
+	return Object.assign(new Error(message), { code });
+}
+
+function mockStreamObjectResult<T>(
+	parts: ObjectStreamPart<unknown>[],
+	objectResult: Promise<T | undefined> | T | undefined = undefined,
+) {
+	const object =
+		objectResult instanceof Promise
+			? objectResult
+			: Promise.resolve(objectResult);
+
+	streamObjectMock.mockReturnValue({
+		fullStream: (async function* () {
+			for (const part of parts) {
+				yield part;
+			}
+		})(),
+		textStream: (async function* () {
+			for (const part of parts) {
+				if (part.type === "text-delta") {
+					yield part.textDelta;
+				}
+			}
+		})(),
+		partialObjectStream: (async function* () {
+			for (const part of parts) {
+				if (part.type === "object") {
+					yield part.object;
+				}
+			}
+		})(),
+		object,
+		usage: Promise.resolve({
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+			inputTokenDetails: {
+				noCacheTokens: 0,
+				cacheReadTokens: 0,
+				cacheWriteTokens: 0,
+			},
+			outputTokenDetails: {
+				textTokens: 0,
+				reasoningTokens: 0,
+			},
+		}),
+		warnings: Promise.resolve(undefined),
+		providerMetadata: Promise.resolve(undefined),
+		request: Promise.resolve({}),
+		response: Promise.resolve({
+			id: "mock-response",
+			timestamp: new Date(),
+			modelId: "mock-model",
+		}),
+		finishReason: Promise.resolve("stop" as const),
+		elementStream: undefined,
+		pipeTextStreamToResponse: vi.fn(),
+		toTextStreamResponse: vi.fn(() => new Response()),
+	} as unknown as StreamObjectResult<unknown, T, never>);
+}
+
 describe("generateJsonStream", () => {
 	beforeEach(() => {
-		chatMock.mockReset();
+		streamObjectMock.mockReset();
 	});
 
 	it("builds fallback JSON from delta chunks instead of accumulated content", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: '{"name":"Jo',
-					content: '{"name":"Jo',
-				};
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: 'hn"}',
-					content: '{"name":"John"}',
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{ type: "text-delta", textDelta: '{"name":"Jo' },
+			{ type: "text-delta", textDelta: 'hn"}' },
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
-				baseUrl: "",
 			},
 			"Return JSON",
 			z.object({
@@ -54,27 +111,23 @@ describe("generateJsonStream", () => {
 	});
 
 	it("strips unclosed think tags and extracts JSON", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: '<think>Let me reason about this...\nThe answer is:',
-					content: '<think>Let me reason about this...\nThe answer is:',
-				};
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: '\n{"name":"Alice"}',
-					content: '\n{"name":"Alice"}',
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta:
+					'<think>Let me reason about this...\nThe answer is:',
+			},
+			{
+				type: "text-delta",
+				textDelta: '\n{"name":"Alice"}',
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
-				baseUrl: "",
 			},
 			"Return JSON",
 			z.object({ name: z.string() }),
@@ -84,22 +137,18 @@ describe("generateJsonStream", () => {
 	});
 
 	it("extracts JSON from code fences in fallback", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: 'Here is the JSON:\n```json\n{"name":"Bob"}\n```\nDone.',
-					content: 'Here is the JSON:\n```json\n{"name":"Bob"}\n```\nDone.',
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: 'Here is the JSON:\n```json\n{"name":"Bob"}\n```\nDone.',
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
-				baseUrl: "",
 			},
 			"Return JSON",
 			z.object({ name: z.string() }),
@@ -109,22 +158,18 @@ describe("generateJsonStream", () => {
 	});
 
 	it("repairs trailing commas in JSON before parsing", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: '{"items":["a","b",],"name":"test",}',
-					content: '{"items":["a","b",],"name":"test",}',
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: '{"items":["a","b",],"name":"test",}',
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
-				baseUrl: "",
 			},
 			"Return JSON",
 			z.object({ items: z.array(z.string()), name: z.string() }),
@@ -134,22 +179,18 @@ describe("generateJsonStream", () => {
 	});
 
 	it("repairs single-quoted JSON keys in fallback", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: "{'name':'Charlie'}",
-					content: "{'name':'Charlie'}",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: "{'name':'Charlie'}",
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
-				baseUrl: "",
 			},
 			"Return JSON",
 			z.object({ name: z.string() }),
@@ -159,23 +200,19 @@ describe("generateJsonStream", () => {
 	});
 
 	it("includes detailed validation errors in thrown error message", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: '{"wrong_key":"value"}',
-					content: '{"wrong_key":"value"}',
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: '{"wrong_key":"value"}',
+			},
+		]);
 
 		await expect(
 			generateJsonStream(
 				{
-					provider: "openrouter",
 					model: "openai/gpt-4o-mini",
+					baseUrl: "https://openrouter.ai/api/v1",
 					apiKey: "test-key",
-					baseUrl: "",
 				},
 				"Return JSON",
 				z.object({ name: z.string() }),
@@ -184,51 +221,30 @@ describe("generateJsonStream", () => {
 	});
 
 	it("recovers from structured-output-parse-failed RUN_ERROR by extracting JSON from think-block content", async () => {
-		// Reasoning models (DeepSeek R1, Qwen QwQ) emit `<think>...</think>`
-		// inline with the final JSON. The TanStack AI library surfaces this
-		// as a synthetic RUN_ERROR with code 'structured-output-parse-failed'
-		// because JSON.parse() can't handle the leading think block. Our
-		// code should treat that error as recoverable and try the fallback
-		// JSON extractor on the accumulated text.
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "TEXT_MESSAGE_START",
-					messageId: "m1",
-				};
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: "<think>Let me analyze the questions carefully.\n",
-					content: "<think>Let me analyze the questions carefully.\n",
-				};
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: 'I need to extract them as JSON.\n</think>\n{"name":"Recovered"}',
-					content: 'I need to extract them as JSON.\n</think>\n{"name":"Recovered"}',
-				};
-				yield { type: "TEXT_MESSAGE_END", messageId: "m1" };
-				yield {
-					type: "CUSTOM",
-					name: "structured-output.start",
-					value: { messageId: "m1" },
-				};
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message:
-						'Failed to parse structured output as JSON. Content: <think>Let me analyze...',
-					code: "structured-output-parse-failed",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: "<think>Let me analyze the questions carefully.\n",
+			},
+			{
+				type: "text-delta",
+				textDelta:
+					'I need to extract them as JSON.\n</think>\n{"name":"Recovered"}',
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					"Failed to parse structured output as JSON. Content: <think>Let me analyze...",
+					"structured-output-parse-failed",
+				),
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "deepseek/deepseek-r1",
 				apiKey: "test-key",
-				baseUrl: "",
+				baseUrl: "https://openrouter.ai/api/v1",
 			},
 			"Return JSON",
 			z.object({ name: z.string() }),
@@ -238,33 +254,30 @@ describe("generateJsonStream", () => {
 	});
 
 	it("recovers from structured-output-parse-failed RUN_ERROR when think-wrapped JSON arrives as reasoning chunks", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "REASONING_MESSAGE_CONTENT",
-					delta: "<think>Let me analyze this carefully.\n",
-				};
-				yield {
-					type: "REASONING_MESSAGE_CONTENT",
-					delta: 'I will now return the object.\n</think>\n{"name":"Reasoned"}',
-				};
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message:
-						"Failed to parse structured output as JSON from reasoning content.",
-					code: "structured-output-parse-failed",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: "<think>Let me analyze this carefully.\n",
+			},
+			{
+				type: "text-delta",
+				textDelta:
+					'I will now return the object.\n</think>\n{"name":"Reasoned"}',
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					"Failed to parse structured output as JSON from reasoning content.",
+					"structured-output-parse-failed",
+				),
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "deepseek/deepseek-r1",
 				apiKey: "test-key",
-				baseUrl: "",
+				baseUrl: "https://openrouter.ai/api/v1",
 			},
 			"Return JSON",
 			z.object({ name: z.string() }),
@@ -274,42 +287,26 @@ describe("generateJsonStream", () => {
 	});
 
 	it("recovers from parse-error RUN_ERROR when valid JSON text was already streamed", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "CUSTOM",
-					name: "structured-output.start",
-					value: { messageId: "m1" },
-				};
-				yield {
-					type: "TEXT_MESSAGE_START",
-					messageId: "m1",
-				};
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta:
-						'{\n  "questions": [\n    {\n      "question": "Qual é a derivada de f(x) = x²?",\n      "options": ["1", "2x", "x²", "2"],\n      "answer": "2x",\n      "explanation": "A derivada de x² é 2x.",\n      "topic": "Derivadas"\n    }\n  ],\n  "topics": ["Derivadas"]\n}',
-					content:
-						'{\n  "questions": [\n    {\n      "question": "Qual é a derivada de f(x) = x²?",\n      "options": ["1", "2x", "x²", "2"],\n      "answer": "2x",\n      "explanation": "A derivada de x² é 2x.",\n      "topic": "Derivadas"\n    }\n  ],\n  "topics": ["Derivadas"]\n}',
-				};
-				yield { type: "TEXT_MESSAGE_END", messageId: "m1" };
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message:
-						'Failed to parse structured output as JSON. Content: { "questions": [...] }',
-					code: "parse-error",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta:
+					'{\n  "questions": [\n    {\n      "question": "Qual é a derivada de f(x) = x²?",\n      "options": ["1", "2x", "x²", "2"],\n      "answer": "2x",\n      "explanation": "A derivada de x² é 2x.",\n      "topic": "Derivadas"\n    }\n  ],\n  "topics": ["Derivadas"]\n}',
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					'Failed to parse structured output as JSON. Content: { "questions": [...] }',
+					"parse-error",
+				),
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "some-provider/some-model",
 				apiKey: "test-key",
-				baseUrl: "",
+				baseUrl: "https://openrouter.ai/api/v1",
 			},
 			"Return JSON",
 			z.object({
@@ -341,29 +338,23 @@ describe("generateJsonStream", () => {
 	});
 
 	it("repairs streamed object bodies that are missing the opening brace", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta:
-						'"questions": [\n  {\n    "question": "Sobre os diferentes tipos de memória apresentados no conteúdo, assinale a alternativa correta.",\n    "options": [\n      "A memória RAM é classificada como armazenamento não volátil, destinado principalmente à persistência permanente de arquivos.",\n      "A cache L1 apresenta maior capacidade e menor velocidade que a memória RAM, pois fica mais distante da CPU.",\n      "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n      "Na hierarquia de memórias, quanto mais próximo da base da pirâmide estiver um dispositivo, maior tende a ser sua velocidade e seu custo por byte.",\n      "Apenas registradores, caches e RAM podem ser considerados memórias; discos e unidades externas não entram nessa classificação."\n    ],\n    "answer": "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n    "explanation": "",\n    "topic": "Hierarquia e função da memória"\n  }\n],\n"topics": [\n  "Hierarquia e função da memória"\n]\n}',
-					content:
-						'"questions": [\n  {\n    "question": "Sobre os diferentes tipos de memória apresentados no conteúdo, assinale a alternativa correta.",\n    "options": [\n      "A memória RAM é classificada como armazenamento não volátil, destinado principalmente à persistência permanente de arquivos.",\n      "A cache L1 apresenta maior capacidade e menor velocidade que a memória RAM, pois fica mais distante da CPU.",\n      "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n      "Na hierarquia de memórias, quanto mais próximo da base da pirâmide estiver um dispositivo, maior tende a ser sua velocidade e seu custo por byte.",\n      "Apenas registradores, caches e RAM podem ser considerados memórias; discos e unidades externas não entram nessa classificação."\n    ],\n    "answer": "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n    "explanation": "",\n    "topic": "Hierarquia e função da memória"\n  }\n],\n"topics": [\n  "Hierarquia e função da memória"\n]\n}',
-				};
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message:
-						'Failed to parse structured output as JSON. Content: "questions": [...]',
-					code: "parse-error",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta:
+					'"questions": [\n  {\n    "question": "Sobre os diferentes tipos de memória apresentados no conteúdo, assinale a alternativa correta.",\n    "options": [\n      "A memória RAM é classificada como armazenamento não volátil, destinado principalmente à persistência permanente de arquivos.",\n      "A cache L1 apresenta maior capacidade e menor velocidade que a memória RAM, pois fica mais distante da CPU.",\n      "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n      "Na hierarquia de memórias, quanto mais próximo da base da pirâmide estiver um dispositivo, maior tende a ser sua velocidade e seu custo por byte.",\n      "Apenas registradores, caches e RAM podem ser considerados memórias; discos e unidades externas não entram nessa classificação."\n    ],\n    "answer": "A memória principal funciona como espaço de trabalho do sistema, mantendo processos em execução, estruturas do núcleo e bibliotecas utilizadas durante a execução.",\n    "explanation": "",\n    "topic": "Hierarquia e função da memória"\n  }\n],\n"topics": [\n  "Hierarquia e função da memória"\n]\n}',
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					'Failed to parse structured output as JSON. Content: "questions": [...]',
+					"parse-error",
+				),
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "custom",
 				model: "glm-5.1:ollama",
 				apiKey: "test-key",
 				baseUrl: "http://localhost:11434",
@@ -406,39 +397,23 @@ describe("generateJsonStream", () => {
 	});
 
 	it("recovers when an unclosed think block precedes an object body missing the opening brace", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "CUSTOM",
-					name: "structured-output.start",
-					value: { messageId: "m1" },
-				};
-				yield {
-					type: "TEXT_MESSAGE_START",
-					messageId: "m1",
-				};
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta:
-						'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
-					content:
-						'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
-				};
-				yield { type: "TEXT_MESSAGE_END", messageId: "m1" };
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message:
-						'Failed to parse structured output as JSON. Content: <think>..."questions": [...]',
-					code: "parse-error",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta:
+					'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					'Failed to parse structured output as JSON. Content: <think>..."questions": [...]',
+					"parse-error",
+				),
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "custom",
 				model: "MiniMax-M2.7-highspeed",
 				apiKey: "test-key",
 				baseUrl: "https://example.com/v1",
@@ -471,29 +446,23 @@ describe("generateJsonStream", () => {
 	});
 
 	it("normalizes open-ended ingest questions after think-block fallback parsing", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta:
-						'<think>Analisando a prova dissertativa.</think>{"questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
-					content:
-						'<think>Analisando a prova dissertativa.</think>{"questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
-				};
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message:
-						"Failed to parse structured output as JSON. Content: <think>...",
-					code: "parse-error",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta:
+					'<think>Analisando a prova dissertativa.</think>{"questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					"Failed to parse structured output as JSON. Content: <think>...",
+					"parse-error",
+				),
+			},
+		]);
 
 		const result = await generateJsonStream(
 			{
-				provider: "custom",
 				model: "MiniMax-M2.7-highspeed",
 				apiKey: "test-key",
 				baseUrl: "https://example.com/v1",
@@ -522,30 +491,26 @@ describe("generateJsonStream", () => {
 	});
 
 	it("throws when structured-output-parse-failed RUN_ERROR has no recoverable JSON", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield { type: "RUN_STARTED", runId: "r1" };
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: "<think>I refuse to answer as JSON</think>",
-					content: "<think>I refuse to answer as JSON</think>",
-				};
-				yield {
-					type: "RUN_ERROR",
-					runId: "r1",
-					message: "Failed to parse structured output as JSON.",
-					code: "structured-output-parse-failed",
-				};
-			})(),
-		);
+		mockStreamObjectResult([
+			{
+				type: "text-delta",
+				textDelta: "<think>I refuse to answer as JSON</think>",
+			},
+			{
+				type: "error",
+				error: createRecoverableError(
+					"Failed to parse structured output as JSON.",
+					"structured-output-parse-failed",
+				),
+			},
+		]);
 
 		await expect(
 			generateJsonStream(
 				{
-					provider: "openrouter",
 					model: "deepseek/deepseek-r1",
 					apiKey: "test-key",
-					baseUrl: "",
+					baseUrl: "https://openrouter.ai/api/v1",
 				},
 				"Return JSON",
 				z.object({ name: z.string() }),
@@ -554,27 +519,19 @@ describe("generateJsonStream", () => {
 	});
 
 	it("returns structured output when complete event is received", async () => {
-		chatMock.mockReturnValue(
-			(async function* () {
-				yield {
-					type: "TEXT_MESSAGE_CONTENT",
-					delta: "some text",
-					content: "some text",
-				};
-				yield {
-					type: "CUSTOM",
-					name: "structured-output.complete",
-					value: { object: { name: "DirectResult" } },
-				};
-			})(),
+		mockStreamObjectResult(
+			[
+				{ type: "text-delta", textDelta: "some text" },
+				{ type: "object", object: { name: "DirectResult" } },
+			],
+			{ name: "DirectResult" },
 		);
 
 		const result = await generateJsonStream(
 			{
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
-				baseUrl: "",
 			},
 			"Return JSON",
 			z.object({ name: z.string() }),

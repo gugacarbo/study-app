@@ -68,8 +68,8 @@ describe("runReviewStage", () => {
 			enableReview: true,
 			agentConcurrency: 10,
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			text: "Texto original",

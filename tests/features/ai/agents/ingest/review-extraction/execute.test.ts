@@ -28,8 +28,8 @@ import {
 } from "@/features/ai/agents/ingest/review-extraction/execute";
 
 const config = {
-	provider: "openrouter" as const,
 	model: "openai/gpt-4o-mini",
+	baseUrl: "https://openrouter.ai/api/v1",
 	apiKey: "test-key",
 };
 

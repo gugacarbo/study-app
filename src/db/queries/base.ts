@@ -3,6 +3,11 @@ import { type DrizzleD1Database, drizzle } from "drizzle-orm/d1";
 import type { Question } from "../../lib/validation";
 import * as schema from "../schema";
 import type {
+	AiModelPublic,
+	AiModelRecord,
+	AiModelResolved,
+	AiProviderPublic,
+	AiProviderRecord,
 	AnswerKeyListItem,
 	AttemptListItem,
 	AttemptStatsSummary,
@@ -103,6 +108,53 @@ export interface DBQueries {
 	setConfig(key: string, value: string): Promise<void>;
 	getAllConfig(): Promise<Record<string, string>>;
 	insertLLMLog(log: LLMLogInsert): Promise<void>;
+	listAiProviders(): Promise<AiProviderPublic[]>;
+	getAiProviderById(id: number): Promise<AiProviderRecord | null>;
+	insertAiProvider(data: {
+		name: string;
+		baseUrl: string;
+		apiKey: string;
+		enabled?: boolean;
+	}): Promise<number>;
+	updateAiProvider(
+		id: number,
+		data: {
+			name?: string;
+			baseUrl?: string;
+			apiKey?: string;
+			enabled?: boolean;
+		},
+	): Promise<void>;
+	deleteAiProvider(id: number): Promise<void>;
+	listAiModels(providerId?: number): Promise<AiModelPublic[]>;
+	listEnabledAiModels(): Promise<AiModelPublic[]>;
+	getAiModelById(id: number): Promise<AiModelRecord | null>;
+	getResolvedAiModelById(id: number): Promise<AiModelResolved | null>;
+	insertAiModel(data: {
+		providerId: number;
+		modelId: string;
+		displayName: string;
+		contextWindow?: number | null;
+		maxOutputTokens?: number | null;
+		inputCostPerMillion?: number | null;
+		outputCostPerMillion?: number | null;
+		enabled?: boolean;
+		metadata?: string | null;
+	}): Promise<number>;
+	updateAiModel(
+		id: number,
+		data: {
+			modelId?: string;
+			displayName?: string;
+			contextWindow?: number | null;
+			maxOutputTokens?: number | null;
+			inputCostPerMillion?: number | null;
+			outputCostPerMillion?: number | null;
+			enabled?: boolean;
+			metadata?: string | null;
+		},
+	): Promise<void>;
+	deleteAiModel(id: number): Promise<void>;
 }
 
 // biome-ignore lint/suspicious/noUnsafeDeclarationMerging: methods added via Object.assign in index.ts

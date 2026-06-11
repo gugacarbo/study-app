@@ -1,38 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (
-			handler: (
-				input: unknown,
-				context?: { toolCallId?: string },
-			) => Promise<unknown>,
-		) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
-}));
-
+import type { ToolSet } from "ai";
 import {
 	createExtractionWorkspace,
 	createIngestExtractionTools,
 } from "@/features/ai/tools/ingest-tools";
+import {
+	extractionQuestionFieldsSchema,
+	extractionQuestionPatchSchema,
+} from "@/features/ai/tools/ingest-tools/tools";
 
-type Tool = {
-	name: string;
-	inputSchema: { safeParse: (input: unknown) => { success: boolean } };
+type ExecutableTool = {
 	execute: (
 		input: Record<string, unknown>,
 		context?: { toolCallId?: string },
 	) => Promise<unknown>;
 };
 
-function getTool(tools: readonly unknown[], name: string): Tool {
-	const tool = tools.find((candidate) => (candidate as Tool).name === name);
-	if (!tool) throw new Error(`Tool ${name} not found`);
-	return tool as Tool;
+function getTool(tools: ToolSet, name: string): ExecutableTool {
+	const tool = tools[name];
+	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
+	return tool as unknown as ExecutableTool;
 }
 
 describe("ingest extraction tools", () => {
@@ -74,7 +61,7 @@ describe("ingest extraction tools", () => {
 		const addQuestion = getTool(tools, "add_extracted_question");
 
 		expect(
-			addQuestion.inputSchema.safeParse({
+			extractionQuestionFieldsSchema.safeParse({
 				question: "Q1",
 				options: ["A", "B"],
 				answer: "A",
@@ -101,7 +88,7 @@ describe("ingest extraction tools", () => {
 		const addQuestion = getTool(tools, "add_extracted_question");
 
 		expect(
-			addQuestion.inputSchema.safeParse({
+			extractionQuestionFieldsSchema.safeParse({
 				question: "Qual e a derivada de f(x) = x²?",
 				options: ["1", "2x", "x²", "2"],
 				answer: "2x",
@@ -177,7 +164,7 @@ describe("ingest extraction tools", () => {
 		});
 
 		expect(
-			updateQuestion.inputSchema.safeParse({
+			extractionQuestionPatchSchema.safeParse({
 				questionId: "q1",
 				question: null,
 				options: null,
@@ -219,7 +206,7 @@ describe("ingest extraction tools", () => {
 		const addQuestion = getTool(tools, "add_extracted_question");
 
 		expect(
-			addQuestion.inputSchema.safeParse({
+			extractionQuestionFieldsSchema.safeParse({
 				question: "Somatória",
 				options: ["01. Verdadeiro", "02. Falso", "04. Verdadeiro"],
 				answers: ["01. Verdadeiro", "04. Verdadeiro"],

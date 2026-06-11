@@ -23,6 +23,8 @@ Drizzle ORM + D1 (SQLite), 10 tables. `DBQueries` class assembled via `Object.as
 | `attempts-stats.ts` | Stats aggregation (exam-level + global)                                                         |
 | `files.ts`          | File metadata CRUD                                                                              |
 | `config.ts`         | Key-value config store (upsert)                                                                 |
+| `ai-providers.ts`   | AI provider CRUD (base URL + encrypted API key)                                                 |
+| `ai-models.ts`      | AI model catalog CRUD (cost, context, provider FK)                                              |
 | `llm-logs.ts`       | LLM call logging (upsert with `ON CONFLICT`)                                                    |
 | `memory.ts`         | **Stub** — `getMemoryStats` returns zeros                                                       |
 

@@ -1,4 +1,4 @@
-import { toolDefinition } from "@tanstack/ai";
+import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
 import type {
 	AttemptListItem,
@@ -9,40 +9,16 @@ import {
 	optionalTrimmedString,
 	pageSchema,
 	pageSizeSchema,
-	paginatedSuccessSchema,
 	safeToolResult,
-	toolFailureSchema,
 } from "./shared";
 
-const listAttemptsDef = toolDefinition({
-	name: "list_attempts",
-	description: "List attempts with optional filters and pagination.",
-	inputSchema: z.object({
-		page: pageSchema,
-		pageSize: pageSizeSchema,
-		examId: z.coerce.number().int().positive().optional(),
-		status: z.enum(["in_progress", "completed", "abandoned"]).optional(),
-		startedFrom: optionalTrimmedString,
-		startedTo: optionalTrimmedString,
-	}),
-	outputSchema: z.union([
-		paginatedSuccessSchema(
-			z.object({
-				id: z.number(),
-				exam_id: z.number().nullable(),
-				topic: z.string().nullable(),
-				total_questions: z.number(),
-				answered_questions: z.number(),
-				correct_answers: z.number(),
-				status: z.enum(["in_progress", "completed", "abandoned"]),
-				started_at: z.string().nullable(),
-				completed_at: z.string().nullable(),
-				updated_at: z.string().nullable(),
-				accuracy: z.number(),
-			}),
-		),
-		toolFailureSchema,
-	]),
+const listAttemptsInputSchema = z.object({
+	page: pageSchema,
+	pageSize: pageSizeSchema,
+	examId: z.coerce.number().int().positive().optional(),
+	status: z.enum(["in_progress", "completed", "abandoned"]).optional(),
+	startedFrom: optionalTrimmedString,
+	startedTo: optionalTrimmedString,
 });
 
 function normalizeAttemptsFilters(input: {
@@ -63,12 +39,17 @@ function normalizeAttemptsFilters(input: {
 	};
 }
 
-export function createAttemptTools(queries: DBQueries) {
-	const listAttempts = listAttemptsDef.server(async (input) =>
-		safeToolResult<AttemptListItem>(() =>
-			queries.listAttemptsPaged(normalizeAttemptsFilters(input)),
-		),
-	);
-
-	return [listAttempts] as const;
+export function createAttemptTools(queries: DBQueries): ToolSet {
+	return {
+		list_attempts: tool({
+			description: "List attempts with optional filters and pagination.",
+			inputSchema: zodSchema(listAttemptsInputSchema),
+			execute: async (input) =>
+				safeToolResult<AttemptListItem>(() =>
+					queries.listAttemptsPaged(normalizeAttemptsFilters(input)),
+				),
+		}),
+	};
 }
+
+export { listAttemptsInputSchema };

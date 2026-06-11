@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireProviderConfigFromDb } from "@/lib/ai-config";
+import { requireModelConfig } from "@/lib/ai-config";
 import type { ExamIngestResponse } from "@/lib/validation";
 import { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
@@ -41,12 +41,12 @@ export async function runIngestWithProgress(
 	if (!db) throw new Error("D1 database not available");
 	const queries = new DBQueries(db);
 	const log = createIngestLogger("ingest-pipeline", db);
-	const providerConfig = await requireProviderConfigFromDb(queries);
+	const ingestConfig = await requireModelConfig(queries, "ingest");
 
 	const { memory, criticalTopics, webTools } = await setupMemory({
 		db,
 		queries,
-		providerConfig,
+		providerConfig: ingestConfig,
 		send,
 	});
 
@@ -81,7 +81,7 @@ export async function runIngestWithProgress(
 	try {
 		extracted = await runExtractionPass({
 			text,
-			config: providerConfig,
+			config: ingestConfig,
 			criticalTopics,
 			agentRuns,
 			send,
@@ -111,10 +111,11 @@ export async function runIngestWithProgress(
 
 	let finalExtracted: ExamIngestResponse = extracted;
 
+	const reviewConfig = await requireModelConfig(queries, "reviewer");
 	const reviewResult = await runReviewStage({
 		enableReview: payload.enableReview,
 		agentConcurrency: payload.agentConcurrency,
-		config: providerConfig,
+		config: reviewConfig,
 		text,
 		extracted: finalExtracted,
 		criticalTopics,
@@ -127,10 +128,11 @@ export async function runIngestWithProgress(
 
 	if (reviewResult) finalExtracted = reviewResult.extracted;
 
+	const explanationsConfig = await requireModelConfig(queries, "explanations");
 	const explanationsResult = await runExplanationsStage({
 		enableExplanations: payload.enableExplanations,
 		agentConcurrency: payload.agentConcurrency,
-		config: providerConfig,
+		config: explanationsConfig,
 		extracted: finalExtracted,
 		memory,
 		agentRuns,

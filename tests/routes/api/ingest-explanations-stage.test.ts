@@ -45,8 +45,8 @@ describe("runExplanationsStage", () => {
 			enableExplanations: false,
 			agentConcurrency: 10,
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			extracted: {
@@ -102,8 +102,8 @@ describe("runExplanationsStage", () => {
 			enableExplanations: true,
 			agentConcurrency: 10,
 			config: {
-				provider: "openrouter",
 				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
 			extracted: {

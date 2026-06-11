@@ -14,7 +14,7 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 | `FILES_BUCKET`  | R2 `study-app-files`  | PDFs e arquivos de prova                     |
 | `MEMORY_BUCKET` | R2 `study-app-memory` | Conteúdo markdown da camada de memória       |
 
-Vars default: `AI_PROVIDER=openrouter`, `AI_MODEL=openai/gpt-4o-mini`. Secrets de API via config UI (`/config` → D1).
+Vars default: `AI_MODEL=openai/gpt-4o-mini` (fallback legado). Providers/models/API keys via `/config` → tabelas `ai_providers` + `ai_models`; seleção em `config` KV.
 
 ## Banco (D1 + Drizzle)
 

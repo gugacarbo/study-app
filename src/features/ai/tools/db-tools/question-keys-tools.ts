@@ -1,4 +1,4 @@
-import { toolDefinition } from "@tanstack/ai";
+import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
 import type { DBQueries, ListAnswerKeysFilters } from "../../../../db/queries";
 import {
@@ -6,36 +6,16 @@ import {
 	optionalTrimmedString,
 	pageSchema,
 	pageSizeSchema,
-	paginatedSuccessSchema,
 	safeToolResult,
-	toolFailureSchema,
 } from "./shared";
 
-const listAnswerKeysDef = toolDefinition({
-	name: "list_answer_keys",
-	description:
-		"List answer keys with short question excerpts and optional filters.",
-	inputSchema: z.object({
-		page: pageSchema,
-		pageSize: pageSizeSchema,
-		examId: z.coerce.number().int().positive().optional(),
-		questionId: z.coerce.number().int().positive().optional(),
-		topic: optionalTrimmedString,
-		textContains: optionalTrimmedString,
-	}),
-	outputSchema: z.union([
-		paginatedSuccessSchema(
-			z.object({
-				id: z.number(),
-				exam_id: z.number().nullable(),
-				topic: z.string().nullable(),
-				answers: z.array(z.string()),
-				questionExcerpt: z.string(),
-				created_at: z.string().nullable(),
-			}),
-		),
-		toolFailureSchema,
-	]),
+const listAnswerKeysInputSchema = z.object({
+	page: pageSchema,
+	pageSize: pageSizeSchema,
+	examId: z.coerce.number().int().positive().optional(),
+	questionId: z.coerce.number().int().positive().optional(),
+	topic: optionalTrimmedString,
+	textContains: optionalTrimmedString,
 });
 
 function normalizeAnswerKeysFilters(input: {
@@ -57,17 +37,23 @@ function normalizeAnswerKeysFilters(input: {
 	};
 }
 
-export function createQuestionKeysTools(queries: DBQueries) {
-	const listAnswerKeys = listAnswerKeysDef.server(async (input) => {
-		return safeToolResult(() =>
-			queries
-				.listAnswerKeysPaged(normalizeAnswerKeysFilters(input))
-				.then((result) => ({
-					...result,
-					items: mapAnswerKeys(result.items),
-				})),
-		);
-	});
-
-	return [listAnswerKeys] as const;
+export function createQuestionKeysTools(queries: DBQueries): ToolSet {
+	return {
+		list_answer_keys: tool({
+			description:
+				"List answer keys with short question excerpts and optional filters.",
+			inputSchema: zodSchema(listAnswerKeysInputSchema),
+			execute: async (input) =>
+				safeToolResult(() =>
+					queries
+						.listAnswerKeysPaged(normalizeAnswerKeysFilters(input))
+						.then((result) => ({
+							...result,
+							items: mapAnswerKeys(result.items),
+						})),
+				),
+		}),
+	};
 }
+
+export { listAnswerKeysInputSchema };

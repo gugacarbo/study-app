@@ -5,10 +5,23 @@ import {
 	improveSingleQuestion,
 	IMPROVE_QUESTIONS_STAGE_ID,
 } from "@/features/ai/agents/improve-questions";
-import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
+import type {
+	DraftQuestion,
+	ImproveQuestionsAgentEvent,
+} from "@/features/ai/agents/improve-questions/contracts";
+import { toWorkspaceUpdateDataPart } from "@/features/ai/agents/improve-questions/contracts";
+import {
+	createAgentRunWriter,
+	createJobUIMessageStream,
+	createJobUIMessageStreamResponse,
+	writeJobError,
+	writeJobResult,
+	writeWorkspaceUpdate,
+	type AgentRunDescriptor,
+	type JobUIMessageStreamWriter,
+} from "@/features/ai/core/ui-message-job-stream";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { env } from "@/env";
-import { createAgentRunHelpers, formatSSE } from "../ingest/-sse-emitter";
 
 const improveQuestionsRequestSchema = z.object({
 	questionId: z.number().int().positive(),
@@ -38,9 +51,58 @@ function toDraftQuestion(question: {
 	};
 }
 
+function emitImproveAgentEvent(
+	agentRuns: ReturnType<typeof createAgentRunWriter>,
+	run: AgentRunDescriptor,
+	event: ImproveQuestionsAgentEvent,
+): void {
+	switch (event.eventType) {
+		case "lifecycle":
+			agentRuns.lifecycle(run, event.status ?? "running", {
+				systemPrompt: event.systemPrompt,
+				userPrompt: event.userPrompt,
+				error: event.error,
+				meta: event.meta,
+			});
+			return;
+		case "result":
+			agentRuns.result(run, event.finalObject, event.rawText, event.meta);
+			return;
+		case "warning":
+			agentRuns.warning(run, event.warning ?? "Warning", event.meta);
+			return;
+		case "token":
+			agentRuns.token(run, event.tokens, event.meta);
+			return;
+		case "tool-call":
+			agentRuns.toolCall(
+				run,
+				{
+					name: event.name,
+					arguments: event.arguments,
+					input: event.input,
+					output: event.output,
+					state: event.state,
+				},
+				event.meta,
+			);
+			return;
+		case "tool-result":
+			agentRuns.toolResult(
+				run,
+				{
+					content: event.content,
+					error: event.error,
+					state: event.state,
+				},
+				event.meta,
+			);
+	}
+}
+
 async function runImproveQuestions(
 	questionId: number,
-	send: (event: string, data: unknown) => void,
+	writer: JobUIMessageStreamWriter,
 ): Promise<void> {
 	const { getDB } = await import("@/server-functions/db");
 	const db = await getDB();
@@ -55,11 +117,11 @@ async function runImproveQuestions(
 	}
 
 	const config = await queries.getAllConfig();
-	const { requireProviderConfigFromDb } = await import("@/lib/ai-config");
-	const providerConfig = await requireProviderConfigFromDb(queries);
+	const { requireModelConfig } = await import("@/lib/ai-config");
+	const providerConfig = await requireModelConfig(queries, "improve_questions");
 
 	const draftQuestion = toDraftQuestion(questionRow);
-	const agentRuns = createAgentRunHelpers(send);
+	const agentRuns = createAgentRunWriter(writer);
 	const run = agentRuns.createRun(IMPROVE_QUESTIONS_STAGE_ID, "Improve Question");
 
 	const resolvedTools = resolveToolsForAgent({
@@ -77,19 +139,21 @@ async function runImproveQuestions(
 
 	const result = await improveSingleQuestion(providerConfig, draftQuestion, {
 		tools: resolvedTools.tools,
+		createAgentRunId: () => run.agentRunId,
 		onAgentEvent: (event) => {
-			send("agent", { ...event, timestamp: event.timestamp ?? Date.now() });
+			emitImproveAgentEvent(agentRuns, run, event);
 		},
 		onWorkspaceUpdate: (update) => {
-			send("workspace-update", update);
+			writeWorkspaceUpdate(writer, toWorkspaceUpdateDataPart(update));
 		},
 	});
 
 	if (!result.success) {
-		throw new Error(result.reason);
+		writeJobError(writer, { message: result.reason, agentRunId: run.agentRunId });
+		return;
 	}
 
-	send("done", {
+	writeJobResult(writer, {
 		finalQuestion: result.question,
 		agentRun: result.agentRun,
 	});
@@ -114,42 +178,27 @@ export const Route = createFileRoute("/api/improve-questions/")({
 					);
 				}
 
-				const encoder = new TextEncoder();
-				const stream = new ReadableStream<Uint8Array>({
-					start(controller) {
-						const send = (event: string, data: unknown) => {
-							controller.enqueue(encoder.encode(formatSSE(event, data)));
-						};
-
-						void (async () => {
-							try {
-								await runImproveQuestions(parsed.data.questionId, send);
-							} catch (error) {
-								console.error(
-									`[${new Date().toISOString()} ERROR improve-questions-handler] Improve question failed:`,
-									error,
-									`questionId=${parsed.data.questionId}`,
-								);
-								send("error", {
-									message:
-										error instanceof Error
-											? error.message
-											: "Unknown improve-questions error",
-								});
-							} finally {
-								controller.close();
-							}
-						})();
+				const stream = createJobUIMessageStream({
+					execute: async ({ writer }) => {
+						try {
+							await runImproveQuestions(parsed.data.questionId, writer);
+						} catch (error) {
+							console.error(
+								`[${new Date().toISOString()} ERROR improve-questions-handler] Improve question failed:`,
+								error,
+								`questionId=${parsed.data.questionId}`,
+							);
+							writeJobError(writer, {
+								message:
+									error instanceof Error
+										? error.message
+										: "Unknown improve-questions error",
+							});
+						}
 					},
 				});
 
-				return new Response(stream, {
-					headers: {
-						"Content-Type": "text/event-stream",
-						"Cache-Control": "no-cache, no-transform",
-						Connection: "keep-alive",
-					},
-				});
+				return createJobUIMessageStreamResponse(stream);
 			},
 		},
 	},

@@ -1,42 +1,58 @@
-import type { SchemaInput } from "@tanstack/ai";
-import { chat } from "@tanstack/ai";
-import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
+import { generateObject, generateText, Output } from "ai";
+import { getAiModel } from "@/features/ai/adapters/provider-model";
 import type { ProviderConfig } from "@/lib/validation";
+import {
+	extractStructuredOutputErrorCode,
+	isRecoverableGenerationError,
+} from "./error-utils";
 import { extractLikelyJson, stripThinkBlocks } from "./json-extract";
+import { resolveObjectGenerationOptions, toFlexibleSchema } from "./schema-utils";
+import type { GenerateJsonOptions, OutputSchema } from "./types";
 import { isSafeParseCapableSchema } from "./types";
 
 export async function generateJson<T>(
 	config: ProviderConfig,
 	prompt: string,
-	outputSchema: SchemaInput,
-	options?: {
-		system?: string;
-		tools?: Parameters<typeof chat>[0]["tools"];
-	},
+	outputSchema: OutputSchema<T>,
+	options?: GenerateJsonOptions,
 ): Promise<T> {
-	const adapter = getAiAdapter(config);
+	const model = getAiModel(config);
+	const { schema, output } = resolveObjectGenerationOptions(outputSchema);
+	const flexibleSchema = toFlexibleSchema(outputSchema);
+
+	if (options?.tools) {
+		const result = await generateText({
+			model,
+			prompt,
+			system: options.system,
+			tools: options.tools,
+			output: Output.object({ schema: flexibleSchema }),
+		});
+		return result.output as T;
+	}
 
 	try {
-		const result = await chat({
-			adapter,
-			messages: [{ role: "user", content: prompt }],
-			systemPrompts: options?.system ? [options.system] : undefined,
-			stream: false,
-			tools: options?.tools,
-			outputSchema,
+		const result = await generateObject({
+			model,
+			prompt,
+			system: options?.system,
+			schema,
+			output,
 		});
 
-		return result as T;
+		return result.object as T;
 	} catch (structuredError) {
-		const fallback = await chat({
-			adapter,
-			messages: [{ role: "user", content: prompt }],
-			systemPrompts: options?.system ? [options.system] : undefined,
-			stream: false,
-			tools: options?.tools,
+		if (!isRecoverableGenerationError(structuredError)) {
+			throw structuredError;
+		}
+
+		const fallback = await generateText({
+			model,
+			prompt,
+			system: options?.system,
 		});
 
-		const cleaned = extractLikelyJson(stripThinkBlocks(String(fallback ?? "")));
+		const cleaned = extractLikelyJson(stripThinkBlocks(fallback.text));
 		try {
 			const parsed = JSON.parse(cleaned) as unknown;
 			if (isSafeParseCapableSchema<T>(outputSchema)) {
@@ -51,6 +67,8 @@ export async function generateJson<T>(
 			console.error(
 				"Fallback JSON parsing failed, throwing original structured error:",
 				structuredError,
+				"error code:",
+				extractStructuredOutputErrorCode(structuredError),
 			);
 			throw structuredError;
 		}
