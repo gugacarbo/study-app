@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Calendar, ListChecks, Tag, Trash2 } from "lucide-react";
+import { Calendar, File, ListChecks, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,9 +35,8 @@ export function ExamCard({
 		exam.topics.length - visibleTopics.length,
 		0,
 	);
-	const filesLabel = exam.files.length === 1 ? "file" : "files";
-	const topicsLabel = exam.topics.length === 1 ? "topic" : "topics";
 	const questionsLabel = exam.questionCount === 1 ? "question" : "questions";
+	const primaryFileSize = exam.files[0]?.size;
 
 	return (
 		<Card
@@ -90,45 +89,6 @@ export function ExamCard({
 			</CardHeader>
 
 			<CardContent className="pointer-events-none relative z-10 flex flex-1 flex-col gap-2.5 pt-0">
-				<div
-					data-testid={`exam-meta-${exam.id}`}
-					className="flex flex-wrap items-center gap-2 text-[0.6875rem] text-muted-foreground"
-				>
-					<Badge variant="outline">
-						{exam.source?.trim() ? exam.source : "Uploaded file"}
-					</Badge>
-					<span className="inline-flex items-center gap-1">
-						<Calendar className="size-3" />
-						{formatDate(exam.created_at)}
-					</span>
-				</div>
-
-				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
-						<ListChecks className="size-3.5" />
-						<span className="font-semibold text-foreground">
-							{exam.questionCount} {questionsLabel}
-						</span>
-					</div>
-					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
-						<span className="font-semibold text-foreground">
-							{exam.files.length} {filesLabel}
-						</span>
-						{exam.files[0]?.size !== null &&
-							exam.files[0]?.size !== undefined && (
-								<span className="text-[0.6875rem] text-muted-foreground">
-									{formatFileSize(exam.files[0].size)}
-								</span>
-							)}
-					</div>
-					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
-						<Tag className="size-3.5" />
-						<span className="font-semibold text-foreground">
-							{exam.topics.length} {topicsLabel}
-						</span>
-					</div>
-				</div>
-
 				{exam.topics.length > 0 && (
 					<div
 						data-testid={`exam-topics-${exam.id}`}
@@ -150,6 +110,41 @@ export function ExamCard({
 						)}
 					</div>
 				)}
+
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
+						<ListChecks className="size-3.5" />
+						<span className="font-semibold text-foreground">
+							{exam.questionCount} {questionsLabel}
+						</span>
+					</div>
+					<div className="inline-flex items-center gap-1.5 text-muted-foreground">
+						<span className="font-semibold text-foreground">
+							{exam.files.length}
+						</span>
+						<File className="size-3.5" aria-hidden />
+						{primaryFileSize !== null && primaryFileSize !== undefined && (
+							<>
+								<span className="text-muted-foreground/70" aria-hidden>
+									·
+								</span>
+								<span className="text-[0.6875rem] text-muted-foreground">
+									{formatFileSize(primaryFileSize)}
+								</span>
+							</>
+						)}
+					</div>
+				</div>
+
+				<div
+					data-testid={`exam-meta-${exam.id}`}
+					className="flex flex-wrap items-center text-[0.6875rem] text-muted-foreground"
+				>
+					<span className="inline-flex items-center gap-1">
+						<Calendar className="size-3" />
+						{formatDate(exam.created_at)}
+					</span>
+				</div>
 			</CardContent>
 		</Card>
 	);

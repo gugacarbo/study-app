@@ -39,25 +39,32 @@ export function ExamsView() {
 			className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto"
 		>
 			<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 pb-5 pt-3 lg:px-6">
-				<div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-					<div className="space-y-1">
-						<div className="flex flex-wrap items-center gap-2">
-							<h1 className="text-2xl font-bold tracking-tight">Exams</h1>
-							<span className="rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-[0.6875rem] font-medium text-muted-foreground">
+				<div className="space-y-1">
+					<div className="flex items-center justify-between gap-3">
+						<div className="flex min-w-0 flex-1 items-center gap-2">
+							<h1 className="truncate text-2xl font-bold tracking-tight">
+								Exams
+							</h1>
+							<span className="shrink-0 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-[0.6875rem] font-medium text-muted-foreground">
 								{exams.length} {exams.length === 1 ? "exam" : "exams"}
 							</span>
 						</div>
-						<p className="max-w-3xl text-sm text-muted-foreground">
-							Compact summaries with quick actions for quiz, details, or
-							cleanup.
-						</p>
+						<Button
+							size="sm"
+							className="h-auto shrink-0 flex-col gap-0.5 px-2 py-1.5 md:h-6 md:flex-row md:gap-1 md:py-0"
+							asChild
+						>
+							<Link from="/exams" to="/exams/upload">
+								<Upload className="h-5 w-5 md:mr-1.5 md:h-3 md:w-3" />
+								<span className="text-[0.625rem] leading-none md:text-xs md:leading-normal">
+									Upload
+								</span>
+							</Link>
+						</Button>
 					</div>
-					<Button size="sm" asChild>
-						<Link from="/exams" to="/exams/upload">
-							<Upload className="mr-1.5 h-4 w-4" />
-							Upload
-						</Link>
-					</Button>
+					<p className="max-w-3xl text-sm text-muted-foreground">
+						Compact summaries with quick actions for quiz, details, or cleanup.
+					</p>
 				</div>
 
 				{exams.length === 0 ? (

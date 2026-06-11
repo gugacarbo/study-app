@@ -68,12 +68,11 @@ describe("ExamsView", () => {
 		);
 		expect(screen.getByTestId("exams-grid").className).toContain("md:grid-cols-2");
 		expect(screen.getByTestId("exams-grid").className).toContain("xl:grid-cols-3");
-		expect(screen.getByText("3 topics")).toBeTruthy();
-		expect(screen.getByText("2 files")).toBeTruthy();
+		expect(screen.getByText("500.0 KB")).toBeTruthy();
 		expect(screen.getByText("12 questions")).toBeTruthy();
 		expect(screen.queryByText("usp-2025.pdf")).toBeNull();
 		expect(screen.getByTestId("exam-title-1").textContent).toBe("USP 2025");
-		expect(screen.getByTestId("exam-meta-1").textContent).toContain("Fuvest");
+		expect(screen.getByTestId("exam-meta-1").textContent).toContain("03/06/2026");
 		expect(screen.getByTestId("exam-topics-1").className).toContain("flex-nowrap");
 		expect(screen.getByText("+2 more")).toBeTruthy();
 		expect(screen.queryByText("Quiz")).toBeNull();
