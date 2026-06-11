@@ -163,6 +163,24 @@ export function getExamFull(
 	});
 }
 
+export function updateExam(
+	this: DBQueries,
+	id: number,
+	data: { name?: string },
+): Promise<void> {
+	const updates: Record<string, unknown> = {};
+	if (data.name !== undefined) updates.name = data.name;
+
+	if (Object.keys(updates).length === 0) return Promise.resolve();
+
+	return this.db
+		.update(schema.exams)
+		.set(updates)
+		.where(eq(schema.exams.id, id))
+		.run()
+		.then(() => undefined);
+}
+
 export function deleteExam(this: DBQueries, id: number): Promise<void> {
 	return this.db
 		.delete(schema.exams)

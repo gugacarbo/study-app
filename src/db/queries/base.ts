@@ -52,6 +52,7 @@ export interface DBQueries {
 		topicStats: TopicStats[];
 	}>;
 	getExamFull(examId: number): Promise<ExamFull | null>;
+	updateExam(id: number, data: { name?: string }): Promise<void>;
 	deleteExam(id: number): Promise<void>;
 	insertQuestions(examId: number, questions: Question[]): Promise<void>;
 	updateQuestion(

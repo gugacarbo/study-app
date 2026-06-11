@@ -1,6 +1,6 @@
 # Server Functions
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-06-11
 
 TanStack Start `createServerFn`. Toda mutação/query server-side passa por aqui.
 
@@ -14,6 +14,7 @@ TanStack Start `createServerFn`. Toda mutação/query server-side passa por aqui
 | `memory.ts`          | `saveQuizSessionToMemory`, `getMemoryContext`, `getMemoryOverview`        | GET / POST                 |
 | `exams/detail.ts`    | `getExamDetail`, `getExamsDetailed`                                       | GET                        |
 | `exams/delete.ts`    | `deleteExam`                                                              | POST                       |
+| `exams/update.ts`    | `updateExam`                                                              | POST                       |
 | `exams/questions.ts` | `updateQuestion`                                                          | POST                       |
 | `exams/generate.ts`  | `generateExamQuestionExplanations`                                        | POST                       |
 | `exams/index.ts`     | re-exports do subdir                                                      | —                          |
