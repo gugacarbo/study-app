@@ -7,49 +7,16 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import type { FormFieldsValues } from "./config-form-schema";
 
 type ConfigFormFieldsProps = {
 	control: Control<FormFieldsValues>;
+	hasApiKey: boolean;
 };
 
-export function ConfigFormFields({ control }: ConfigFormFieldsProps) {
+export function ConfigFormFields({ control, hasApiKey }: ConfigFormFieldsProps) {
 	return (
 		<>
-			<FormField
-				control={control}
-				name="provider"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Provider</FormLabel>
-						<Select
-							value={field.value || "openrouter"}
-							onValueChange={field.onChange}
-						>
-							<FormControl>
-								<SelectTrigger>
-									<SelectValue placeholder="Select provider" />
-								</SelectTrigger>
-							</FormControl>
-							<SelectContent>
-								<SelectItem value="openrouter">OpenRouter</SelectItem>
-								<SelectItem value="openai">OpenAI</SelectItem>
-								<SelectItem value="groq">Groq</SelectItem>
-								<SelectItem value="ollama">Ollama</SelectItem>
-								<SelectItem value="custom">Custom</SelectItem>
-							</SelectContent>
-						</Select>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
 			<FormField
 				control={control}
 				name="model"
@@ -83,7 +50,16 @@ export function ConfigFormFields({ control }: ConfigFormFieldsProps) {
 					<FormItem>
 						<FormLabel>API Key</FormLabel>
 						<FormControl>
-							<Input {...field} type="password" placeholder="sk-..." />
+							<Input
+								{...field}
+								type="password"
+								autoComplete="off"
+								placeholder={
+									hasApiKey
+										? "Saved — leave blank to keep current key"
+										: "sk-..."
+								}
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>

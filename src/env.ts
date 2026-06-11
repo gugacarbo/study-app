@@ -3,6 +3,7 @@ import { z } from "zod";
 
 export const env = createEnv({
 	server: {
+		CONFIG_ENCRYPTION_KEY: z.string().min(1).optional(),
 		OPENROUTER_API_KEY: z.string().min(1).optional().default(""),
 		TAVILY_API_KEY: z.string().min(1).optional().default(""),
 		AI_PROVIDER: z.string().default("openrouter"),

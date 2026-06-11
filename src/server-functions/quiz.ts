@@ -3,14 +3,13 @@ import { z } from "zod";
 import { generateQuizQuestions } from "@/features/ai/agents/quiz";
 import { scoreAnswer } from "@/lib/answer-scoring";
 import { DBQueries } from "../db/queries";
-import { providerConfigSchema } from "../lib/validation";
+import { requireProviderConfigFromDb } from "../lib/ai-config";
 import { getDB } from "./db";
 import { getMemoryContext } from "./memory";
 
 const generateQuizSchema = z.object({
 	topic: z.string().optional(),
 	count: z.number().optional(),
-	config: providerConfigSchema,
 	examId: z.number().optional(),
 });
 
@@ -59,12 +58,13 @@ export const generateQuiz = createServerFn({ method: "POST" })
 		}
 
 		const topic = data.topic || "General";
+		const providerConfig = await requireProviderConfigFromDb(queries);
 
 		const memoryResult = await getMemoryContext({
 			data: { topics: [topic] },
 		}).catch(() => ({ context: "" }));
 		return await generateQuizQuestions(
-			data.config,
+			providerConfig,
 			topic,
 			count,
 			memoryResult.context || undefined,

@@ -1,3 +1,6 @@
+process.env.CONFIG_ENCRYPTION_KEY ??=
+	"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
 class ResizeObserverMock {
 	observe() {}
 	unobserve() {}

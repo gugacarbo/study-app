@@ -5,10 +5,9 @@ import {
 	runQuestionExplanations,
 } from "@/features/ai/agents/explanations";
 import { DBQueries } from "../../db/queries";
-import { env } from "../../env";
+import { requireProviderConfigFromDb } from "../../lib/ai-config";
 import { MemoryManager } from "../../lib/memory";
 import { buildTopicMemoryResolver } from "../../lib/memory/topic-context";
-import type { ProviderConfig } from "../../lib/validation";
 import { getDB } from "../db";
 
 export const generateExamQuestionExplanations = createServerFn({
@@ -30,21 +29,7 @@ export const generateExamQuestionExplanations = createServerFn({
 		const exam = await queries.getExamFull(ctx.data.examId);
 		if (!exam) throw new Error("Exam not found");
 
-		const config = await queries.getAllConfig();
-		const apiKey = config.ai_api_key || env.OPENROUTER_API_KEY;
-		if (!apiKey) {
-			throw new Error(
-				"AI API key not configured. Please configure it in /config first.",
-			);
-		}
-
-		const providerConfig: ProviderConfig = {
-			provider: (config.ai_provider ||
-				env.AI_PROVIDER) as ProviderConfig["provider"],
-			model: config.ai_model || env.AI_MODEL,
-			baseUrl: config.ai_base_url || undefined,
-			apiKey,
-		};
+		const providerConfig = await requireProviderConfigFromDb(queries);
 
 		const requestedIds = ctx.data.questionIds
 			? new Set(ctx.data.questionIds)

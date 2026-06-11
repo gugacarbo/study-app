@@ -8,8 +8,6 @@ import {
 	startQuiz,
 	toggleAnswer,
 } from "@/features/quiz/store/quiz-store";
-import type { ProviderConfig } from "@/lib/validation";
-import { getConfig } from "@/server-functions/config";
 import {
 	abandonQuizAttempts,
 	generateQuiz,
@@ -29,7 +27,6 @@ function formatUserAnswer(userAnswers: string[]): string {
 
 export function useQuizState({ examId, topic }: UseQuizStateProps) {
 	const qc = useQueryClient();
-	const [config, setConfig] = useState<ProviderConfig | null>(null);
 	const [longExp, setLongExp] = useState("");
 	const [attemptId, setAttemptId] = useState<number | null>(null);
 	const ans = useRef<QA[]>([]);
@@ -37,11 +34,7 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 
 	const { data: questions } = useQuery({
 		queryKey: ["quiz", examId, topic],
-		queryFn: () => {
-			if (!config) throw new Error("Config not loaded");
-			return generateQuiz({ data: { examId, topic, count: 10, config } });
-		},
-		enabled: !!config,
+		queryFn: () => generateQuiz({ data: { examId, topic, count: 10 } }),
 	});
 
 	const { data: attempts } = useQuery({
@@ -102,15 +95,10 @@ export function useQuizState({ examId, topic }: UseQuizStateProps) {
 	});
 
 	useEffect(() => {
-		getConfig().then(setConfig);
-	}, []);
-
-	useEffect(() => {
 		attemptIdRef.current = attemptId;
 	});
 
 	return {
-		config,
 		questions,
 		attempts: attempts || [],
 		restartAttempt: restartAttempt.mutateAsync,

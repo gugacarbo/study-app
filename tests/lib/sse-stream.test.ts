@@ -110,12 +110,6 @@ describe("ingestStream", () => {
 			{
 				buffer: [1, 2, 3],
 				fileName: "exam.txt",
-				config: {
-					provider: "openrouter",
-					model: "openai/gpt-4o-mini",
-					apiKey: "key",
-					baseUrl: "",
-				},
 			},
 			{
 				onStep: (step) => {
@@ -246,12 +240,6 @@ describe("ingestStream", () => {
 			{
 				buffer: [1],
 				fileName: "exam.txt",
-				config: {
-					provider: "openrouter",
-					model: "openai/gpt-4o-mini",
-					apiKey: "key",
-					baseUrl: "",
-				},
 			},
 			{
 				onStep: () => {},
@@ -341,12 +329,6 @@ describe("ingestStream", () => {
 			{
 				buffer: [1],
 				fileName: "exam.txt",
-				config: {
-					provider: "openrouter",
-					model: "openai/gpt-4o-mini",
-					apiKey: "key",
-					baseUrl: "",
-				},
 			},
 			{
 				onStep: () => {},
@@ -430,12 +412,6 @@ describe("ingestStream", () => {
 			{
 				buffer: [1],
 				fileName: "exam.txt",
-				config: {
-					provider: "openrouter",
-					model: "openai/gpt-4o-mini",
-					apiKey: "key",
-					baseUrl: "",
-				},
 			},
 			{
 				onStep: () => {},

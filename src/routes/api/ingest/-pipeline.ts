@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { requireProviderConfigFromDb } from "@/lib/ai-config";
 import type { ExamIngestResponse } from "@/lib/validation";
-import { providerConfigSchema } from "@/lib/validation";
 import { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
 import { createIngestLogger } from "../../../lib/logger";
@@ -15,7 +15,6 @@ import { createAgentRunHelpers, sendStage } from "./-sse-emitter";
 export const ingestRequestSchema = z.object({
 	buffer: z.array(z.number()),
 	fileName: z.string(),
-	config: providerConfigSchema,
 	enableReview: z.boolean().optional().default(true),
 	enableExplanations: z.boolean().optional().default(true),
 	agentConcurrency: z.number().int().min(1).max(20).optional().default(10),
@@ -42,11 +41,12 @@ export async function runIngestWithProgress(
 	if (!db) throw new Error("D1 database not available");
 	const queries = new DBQueries(db);
 	const log = createIngestLogger("ingest-pipeline", db);
+	const providerConfig = await requireProviderConfigFromDb(queries);
 
 	const { memory, criticalTopics, webTools } = await setupMemory({
 		db,
 		queries,
-		providerConfig: payload.config,
+		providerConfig,
 		send,
 	});
 
@@ -81,7 +81,7 @@ export async function runIngestWithProgress(
 	try {
 		extracted = await runExtractionPass({
 			text,
-			config: payload.config,
+			config: providerConfig,
 			criticalTopics,
 			agentRuns,
 			send,
@@ -114,7 +114,7 @@ export async function runIngestWithProgress(
 	const reviewResult = await runReviewStage({
 		enableReview: payload.enableReview,
 		agentConcurrency: payload.agentConcurrency,
-		config: payload.config,
+		config: providerConfig,
 		text,
 		extracted: finalExtracted,
 		criticalTopics,
@@ -130,7 +130,7 @@ export async function runIngestWithProgress(
 	const explanationsResult = await runExplanationsStage({
 		enableExplanations: payload.enableExplanations,
 		agentConcurrency: payload.agentConcurrency,
-		config: payload.config,
+		config: providerConfig,
 		extracted: finalExtracted,
 		memory,
 		agentRuns,

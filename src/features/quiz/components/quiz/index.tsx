@@ -19,7 +19,6 @@ import {
 
 export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 	const {
-		config,
 		questions,
 		attempts,
 		restartAttempt,
@@ -59,7 +58,7 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 		topic,
 	});
 
-	if (!config || !init || !questions) return <QuizLoading withButton />;
+	if (!init || !questions) return <QuizLoading withButton />;
 
 	if (st.isComplete)
 		return (

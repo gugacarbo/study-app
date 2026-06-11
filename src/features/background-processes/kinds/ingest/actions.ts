@@ -2,7 +2,6 @@ import { flushSync } from "react-dom";
 import type { IngestAgentEvent, IngestStageEvent } from "@/lib/sse-stream";
 import { ingestStream } from "@/lib/sse-stream";
 import { queryClient } from "@/routes/__root";
-import { getConfig } from "@/server-functions/config";
 import type { IngestJob } from "@/features/ingest/store/types";
 import {
 	clearCompletedIngestProcessesFromState,
@@ -88,11 +87,6 @@ async function runJob(processId: string): Promise<void> {
 	);
 
 	try {
-		const config = await getConfig();
-		updateIngestProcess(processId, (currentJob) =>
-			appendLogEntry(currentJob, "AI config loaded"),
-		);
-
 		const currentProcess = getIngestProcess(processId);
 		if (currentProcess?.status !== "running") return;
 
@@ -115,7 +109,6 @@ async function runJob(processId: string): Promise<void> {
 			{
 				buffer: currentJob.buffer,
 				fileName: currentJob.fileName,
-				config,
 				enableReview: currentJob.enableReview,
 				enableExplanations: currentJob.enableExplanations,
 				agentConcurrency: currentJob.agentConcurrency,

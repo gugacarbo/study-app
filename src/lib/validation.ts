@@ -254,14 +254,62 @@ export const questionSchema = z.preprocess(
 
 export type Question = z.infer<typeof questionSchema>;
 
+export const aiProviderSchema = z.enum([
+	"openrouter",
+	"openai",
+	"groq",
+	"ollama",
+	"custom",
+]);
+
 export const providerConfigSchema = z.object({
-	provider: z.enum(["openrouter", "openai", "groq", "ollama", "custom"]),
+	provider: aiProviderSchema,
 	model: z.string().min(1, "Model is required"),
 	baseUrl: z.string().url().optional(),
 	apiKey: z.string(),
 });
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
+export type AiProvider = z.infer<typeof aiProviderSchema>;
+
+export const configFormInputSchema = z.object({
+	model: z.string().min(1, "Model is required"),
+	baseUrl: z.string().url().optional(),
+	apiKey: z.string().optional(),
+});
+
+export type ConfigFormInput = z.infer<typeof configFormInputSchema>;
+
+export function inferAiProvider(baseUrl?: string): AiProvider {
+	if (!baseUrl) return "openrouter";
+	const lower = baseUrl.toLowerCase();
+	if (lower.includes("openai.com")) return "openai";
+	if (lower.includes("groq.com")) return "groq";
+	if (
+		lower.includes("localhost") ||
+		lower.includes("127.0.0.1") ||
+		lower.includes(":11434") ||
+		lower.includes("ollama")
+	) {
+		return "ollama";
+	}
+	return "custom";
+}
+
+export function toProviderConfig(
+	input: ConfigFormInput & { apiKey: string },
+	existingProvider?: AiProvider,
+): ProviderConfig {
+	const provider = input.baseUrl
+		? inferAiProvider(input.baseUrl)
+		: (existingProvider ?? "openrouter");
+	return {
+		provider,
+		model: input.model,
+		baseUrl: input.baseUrl,
+		apiKey: input.apiKey,
+	};
+}
 
 export const ingestQuestionSchema = z.preprocess((input) => {
 	const normalized = preprocessLegacyQuestionInput(input);

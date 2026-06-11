@@ -1,80 +1,14 @@
-import { chat, type StreamChunk } from "@tanstack/ai";
 import { createFileRoute } from "@tanstack/react-router";
-import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
-import { providerConfigSchema } from "../../lib/validation";
-
-type ConnectionProgressEvent = {
-	progress: number;
-	step: string;
-};
-
-type ConnectionResultEvent = {
-	response: string;
-};
+import { DBQueries } from "@/db/queries";
+import { resolveProviderConfigForTest } from "@/lib/ai-config";
+import {
+	type ConnectionProgressEvent,
+	runConnectionTestWithProgress,
+} from "@/lib/connection-test";
+import { configFormInputSchema } from "@/lib/validation";
 
 function formatSSE(event: string, data: unknown): string {
 	return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
-
-function isTextChunk(
-	chunk: StreamChunk,
-): chunk is StreamChunk & { delta: string } {
-	return (
-		chunk.type === "TEXT_MESSAGE_CONTENT" && typeof chunk.delta === "string"
-	);
-}
-
-async function runConnectionTestWithProgress(
-	config: unknown,
-	onProgress: (event: ConnectionProgressEvent) => void,
-	onPrompt: (prompt: string) => void,
-	onChunk: (chunk: string) => void,
-	abortSignal: AbortSignal,
-): Promise<ConnectionResultEvent> {
-	const assertNotAborted = () => {
-		if (abortSignal.aborted) {
-			throw new Error("Connection test canceled");
-		}
-	};
-
-	onProgress({ progress: 10, step: "Validating configuration..." });
-	const parsed = providerConfigSchema.safeParse(config);
-	if (!parsed.success) {
-		throw new Error("Invalid provider configuration");
-	}
-	assertNotAborted();
-
-	onProgress({ progress: 25, step: "Preparing AI adapter..." });
-	const adapter = getAiAdapter(parsed.data);
-	assertNotAborted();
-
-	const system = "You are a connection test assistant. Respond concisely.";
-	const userMsg =
-		'Say: "Connection successful using model: <model-name>" and include only one short line.';
-	onPrompt(`[System]\n${system}\n\n[User]\n${userMsg}`);
-
-	onProgress({ progress: 40, step: "Connecting to provider..." });
-
-	const stream = chat({
-		adapter,
-		messages: [{ role: "user", content: userMsg }],
-		systemPrompts: [system],
-		stream: true,
-	});
-
-	let response = "";
-	onProgress({ progress: 55, step: "Streaming model response..." });
-
-	for await (const chunk of stream) {
-		assertNotAborted();
-		if (isTextChunk(chunk) && chunk.delta) {
-			response += chunk.delta;
-			onChunk(chunk.delta);
-		}
-	}
-
-	onProgress({ progress: 100, step: "Completed" });
-	return { response: response.trim() };
 }
 
 export const Route = createFileRoute("/api/test-connection")({
@@ -82,6 +16,32 @@ export const Route = createFileRoute("/api/test-connection")({
 		handlers: {
 			POST: async ({ request }: { request: Request }) => {
 				const payload = await request.json().catch(() => null);
+				const parsed = configFormInputSchema.safeParse(payload);
+				if (!parsed.success) {
+					return new Response("Invalid provider configuration", { status: 400 });
+				}
+
+				const { getDB } = await import("../../server-functions/db");
+				const db = await getDB();
+				if (!db) {
+					return new Response("D1 database not available", { status: 500 });
+				}
+
+				const queries = new DBQueries(db);
+				let providerConfig: Awaited<
+					ReturnType<typeof resolveProviderConfigForTest>
+				>;
+				try {
+					providerConfig = await resolveProviderConfigForTest(
+						queries,
+						parsed.data,
+					);
+				} catch (error) {
+					return new Response(
+						error instanceof Error ? error.message : "AI provider not configured",
+						{ status: 400 },
+					);
+				}
 
 				const encoder = new TextEncoder();
 				let lastProgress = 0;
@@ -104,7 +64,7 @@ export const Route = createFileRoute("/api/test-connection")({
 						void (async () => {
 							try {
 								const result = await runConnectionTestWithProgress(
-									payload,
+									providerConfig,
 									sendProgress,
 									(prompt) => send("prompt", { prompt }),
 									(chunk) => send("chunk", { chunk }),

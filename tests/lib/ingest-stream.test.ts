@@ -38,11 +38,6 @@ describe("ingestStream", () => {
 			{
 				buffer: [1, 2, 3],
 				fileName: "exam.pdf",
-				config: {
-					provider: "openrouter",
-					model: "openai/gpt-4o-mini",
-					apiKey: "test",
-				},
 			},
 			{
 				onStep: vi.fn(),

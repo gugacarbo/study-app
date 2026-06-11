@@ -12,7 +12,7 @@ casa-standard-ref: 546fda2
 > ⚠️ NÃO usar @import para colar capítulos: @import expande tudo no launch.
 > Regras de um pacote específico → <subdir>/AGENTS.md (lazy nativo, nearest-wins).
 
-**Generated:** 2026-06-10 · **Commit:** a3c7fc0
+**Generated:** 2026-06-11 · **Commit:** pending
 
 ## Contexto em 5 linhas
 
@@ -53,6 +53,7 @@ npm run deploy             # build + wrangler deploy
 ```
 
 Não commitar secrets. Config de IA via UI `/config` (D1 key-value), não `.env` em prod.
+API key criptografada em D1 (`CONFIG_ENCRYPTION_KEY` no `.env` local); `getConfig` nunca devolve a key.
 
 ## Git & PRs
 

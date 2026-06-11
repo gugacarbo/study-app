@@ -1,4 +1,3 @@
-import type { ProviderConfig } from "../validation";
 import { parseEventBlock, readTokenValue } from "./parser";
 import type {
 	IngestAgentEvent,
@@ -169,7 +168,6 @@ export async function ingestStream(
 	payload: {
 		buffer: number[];
 		fileName: string;
-		config: ProviderConfig;
 		enableReview?: boolean;
 		enableExplanations?: boolean;
 		agentConcurrency?: number;
@@ -183,7 +181,6 @@ export async function ingestStream(
 		body: JSON.stringify({
 			buffer: payload.buffer,
 			fileName: payload.fileName,
-			config: payload.config,
 			enableReview: payload.enableReview ?? true,
 			enableExplanations: payload.enableExplanations ?? true,
 			agentConcurrency: payload.agentConcurrency ?? 10,

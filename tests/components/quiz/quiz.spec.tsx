@@ -96,7 +96,6 @@ afterEach(() => {
 
 beforeEach(() => {
 	mockUseQuizState.mockReturnValue({
-		config: { provider: "openrouter", model: "test-model" },
 		questions: [
 			{
 				id: 1,
@@ -215,7 +214,6 @@ describe("Quiz", () => {
 
 	it("shows a list of previous attempts on the start screen", () => {
 		mockUseQuizState.mockReturnValue({
-			config: { provider: "openrouter", model: "test-model" },
 			questions: [
 				{
 					id: 1,
@@ -266,7 +264,6 @@ describe("Quiz", () => {
 
 	it("shows restart when there is an unfinished attempt in the attempts list", () => {
 		mockUseQuizState.mockReturnValue({
-			config: { provider: "openrouter", model: "test-model" },
 			questions: [
 				{
 					id: 1,

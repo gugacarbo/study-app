@@ -5,8 +5,8 @@ import { streamChatMessages } from "@/features/ai/core/chat-stream";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
+import { requireProviderConfigFromDb } from "../../../lib/ai-config";
 import { MemoryManager } from "../../../lib/memory";
-import type { ProviderConfig } from "../../../lib/validation";
 import { safeSSEResponse, withCleanup } from "./-streaming";
 import { summarizeSearchResultSnippets, toBoolean } from "./-tools";
 
@@ -29,18 +29,16 @@ export async function handleChatPost(request: Request): Promise<Response> {
 
 	const queries = new DBQueries(db);
 	const config = await queries.getAllConfig();
-	const model = config.ai_model || "openai/gpt-4o-mini";
-	const apiKey = config.ai_api_key;
-	const provider = config.ai_provider || "openrouter";
-	const baseUrl = config.ai_base_url || undefined;
-
-	if (!apiKey) {
+	let providerConfig: Awaited<ReturnType<typeof requireProviderConfigFromDb>>;
+	try {
+		providerConfig = await requireProviderConfigFromDb(queries);
+	} catch {
 		return new Response("AI provider not configured", { status: 400 });
 	}
 	const reviewMode = toBoolean(params.forwardedProps?.reviewMode);
 
 	console.log(
-		`[api.chat] POST model="${model}" provider="${provider}" baseUrl="${baseUrl}" messages=${params.messages.length} reviewMode=${reviewMode}`,
+		`[api.chat] POST model="${providerConfig.model}" provider="${providerConfig.provider}" baseUrl="${providerConfig.baseUrl}" messages=${params.messages.length} reviewMode=${reviewMode}`,
 	);
 
 	const abortController = new AbortController();
@@ -49,13 +47,6 @@ export async function handleChatPost(request: Request): Promise<Response> {
 			new Error(`AI request timed out after ${AI_TIMEOUT_MS / 1000}s`),
 		);
 	}, AI_TIMEOUT_MS);
-
-	const providerConfig: ProviderConfig = {
-		provider: provider as ProviderConfig["provider"],
-		model,
-		baseUrl,
-		apiKey,
-	};
 
 	const memory = new MemoryManager(db);
 	void memory.ensureStructure().catch((error) => {

@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   questionSchema,
   attemptSchema,
+  configFormInputSchema,
+  inferAiProvider,
   providerConfigSchema,
+  toProviderConfig,
   examIngestResponseSchema,
   normalizeExamIngestResponseWithDiagnostics,
 } from '#/lib/validation';
@@ -149,6 +152,60 @@ describe('attemptSchema', () => {
     };
     const result = attemptSchema.safeParse(invalid);
     expect(result.success).toBe(false);
+  });
+});
+
+describe('inferAiProvider', () => {
+  it('defaults to openrouter without baseUrl', () => {
+    expect(inferAiProvider()).toBe('openrouter');
+    expect(inferAiProvider('')).toBe('openrouter');
+  });
+
+  it('detects known providers from baseUrl', () => {
+    expect(inferAiProvider('https://api.openai.com/v1')).toBe('openai');
+    expect(inferAiProvider('https://api.groq.com/openai/v1')).toBe('groq');
+    expect(inferAiProvider('http://localhost:11434/v1')).toBe('ollama');
+    expect(inferAiProvider('https://my-proxy.example/v1')).toBe('custom');
+  });
+});
+
+describe('toProviderConfig', () => {
+  it('preserves existing provider when baseUrl is omitted', () => {
+    expect(
+      toProviderConfig(
+        { model: 'gpt-4o-mini', apiKey: 'sk-test' },
+        'openai',
+      ),
+    ).toEqual({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      apiKey: 'sk-test',
+    });
+  });
+
+  it('infers provider from baseUrl when provided', () => {
+    expect(
+      toProviderConfig({
+        model: 'llama3',
+        apiKey: 'ollama',
+        baseUrl: 'http://localhost:11434/v1',
+      }),
+    ).toEqual({
+      provider: 'ollama',
+      model: 'llama3',
+      apiKey: 'ollama',
+      baseUrl: 'http://localhost:11434/v1',
+    });
+  });
+});
+
+describe('configFormInputSchema', () => {
+  it('validates form input without provider', () => {
+    const result = configFormInputSchema.safeParse({
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'sk-test',
+    });
+    expect(result.success).toBe(true);
   });
 });
 

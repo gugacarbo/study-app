@@ -8,7 +8,6 @@ import {
 import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { env } from "@/env";
-import type { ProviderConfig } from "@/lib/validation";
 import { createAgentRunHelpers, formatSSE } from "../ingest/-sse-emitter";
 
 const improveQuestionsRequestSchema = z.object({
@@ -56,17 +55,8 @@ async function runImproveQuestions(
 	}
 
 	const config = await queries.getAllConfig();
-	const apiKey = config.ai_api_key;
-	if (!apiKey) {
-		throw new Error("AI provider not configured");
-	}
-
-	const providerConfig: ProviderConfig = {
-		provider: (config.ai_provider || "openrouter") as ProviderConfig["provider"],
-		model: config.ai_model || "openai/gpt-4o-mini",
-		baseUrl: config.ai_base_url || undefined,
-		apiKey,
-	};
+	const { requireProviderConfigFromDb } = await import("@/lib/ai-config");
+	const providerConfig = await requireProviderConfigFromDb(queries);
 
 	const draftQuestion = toDraftQuestion(questionRow);
 	const agentRuns = createAgentRunHelpers(send);

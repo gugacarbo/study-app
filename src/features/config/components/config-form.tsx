@@ -8,17 +8,9 @@ import { Form } from "@/components/ui/form";
 import { TestConnectionDialog } from "@/features/ai/components/config/test-connection-dialog";
 import { useConnectionTest } from "@/features/ai/components/config/use-connection-test";
 import { cn } from "@/lib/utils";
-import type { ProviderConfig } from "@/lib/validation";
 import { getConfig, setConfig } from "@/server-functions/config";
 import { ConfigFormFields } from "./config-form-fields";
-import { formFieldsSchema } from "./config-form-schema";
-
-type FormValues = {
-	provider: "openrouter" | "openai" | "groq" | "ollama" | "custom";
-	model: string;
-	baseUrl?: string;
-	apiKey: string;
-};
+import { formFieldsSchema, type FormFieldsValues } from "./config-form-schema";
 
 export function ConfigForm() {
 	const queryClient = useQueryClient();
@@ -32,12 +24,11 @@ export function ConfigForm() {
 		queryFn: () => getConfig(),
 	});
 
-	const initialValues = useMemo<FormValues>(
+	const initialValues = useMemo<FormFieldsValues>(
 		() => ({
-			provider: currentConfig.provider || "openrouter",
 			model: currentConfig.model || "openai/gpt-4o-mini",
 			baseUrl: currentConfig.baseUrl ?? "",
-			apiKey: currentConfig.apiKey || "",
+			apiKey: "",
 		}),
 		[currentConfig],
 	);
@@ -63,17 +54,26 @@ export function ConfigForm() {
 		closeDialog,
 	} = useConnectionTest();
 
-	async function onSubmit(values: FormValues) {
+	function buildPayload(values: FormFieldsValues) {
+		return {
+			model: values.model,
+			baseUrl: values.baseUrl || undefined,
+			apiKey: values.apiKey?.trim() || undefined,
+		};
+	}
+
+	async function onSubmit(values: FormFieldsValues) {
+		if (!currentConfig.hasApiKey && !values.apiKey?.trim()) {
+			form.setError("apiKey", { message: "API key is required" });
+			return;
+		}
+
 		setStatus("saving");
 		try {
-			await setConfig({
-				data: {
-					...values,
-					baseUrl: values.baseUrl || undefined,
-				} as ProviderConfig,
-			});
+			await setConfig({ data: buildPayload(values) });
 			setStatus("success");
 			setMessage("Config saved successfully");
+			form.setValue("apiKey", "");
 			queryClient.invalidateQueries({ queryKey: ["config"] });
 		} catch (err) {
 			setStatus("error");
@@ -81,7 +81,9 @@ export function ConfigForm() {
 		}
 	}
 
-	const isTestDisabled = testStatus === "testing" || !form.formState.isValid;
+	const canTest =
+		form.formState.isValid &&
+		(currentConfig.hasApiKey || Boolean(form.watch("apiKey")?.trim()));
 
 	return (
 		<Card>
@@ -94,7 +96,10 @@ export function ConfigForm() {
 						onSubmit={form.handleSubmit(onSubmit)}
 						className="flex flex-col gap-4"
 					>
-						<ConfigFormFields control={form.control} />
+						<ConfigFormFields
+							control={form.control}
+							hasApiKey={currentConfig.hasApiKey}
+						/>
 						<div className="flex gap-3">
 							<Button type="submit" disabled={status === "saving"}>
 								{status === "saving" ? "Saving..." : "Save Configuration"}
@@ -102,13 +107,9 @@ export function ConfigForm() {
 							<Button
 								type="button"
 								variant="outline"
-								disabled={isTestDisabled}
+								disabled={testStatus === "testing" || !canTest}
 								onClick={() => {
-									const values = form.getValues();
-									handleTest({
-										...values,
-										baseUrl: values.baseUrl || undefined,
-									} as ProviderConfig);
+									handleTest(buildPayload(form.getValues()));
 								}}
 							>
 								{testStatus === "testing" ? "Testing..." : "Test Connection"}
