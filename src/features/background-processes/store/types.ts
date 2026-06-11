@@ -1,5 +1,10 @@
 import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
-import type { StreamPerfMetrics } from "@/features/ai/lib/stream-perf-metrics";
+import type {
+	BenchmarkPerfMetrics,
+	BenchmarkPhaseMetrics,
+	StreamPerfMetrics,
+} from "@/features/ai/lib/stream-perf-metrics";
+import type { UIMessage } from "ai";
 import type { QuestionChange } from "@/features/ai/agents/improve-questions/contracts";
 import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
@@ -18,7 +23,8 @@ export type BackgroundProcessKind =
 	| "ingest"
 	| "improve-questions"
 	| "explanation-generation"
-	| "connection-test";
+	| "connection-test"
+	| "model-benchmark";
 
 export type BackgroundProcessStatus =
 	| "queued"
@@ -122,11 +128,34 @@ export interface ConnectionTestBackgroundProcess {
 	streamMetrics: StreamPerfMetrics;
 }
 
+export interface ModelBenchmarkBackgroundProcess {
+	kind: "model-benchmark";
+	id: string;
+	modelId: number;
+	modelDisplayName: string;
+	providerName: string | null;
+	testMode: "benchmark";
+	status: BackgroundProcessStatus;
+	createdAt: number;
+	startedAt: number | null;
+	finishedAt: number | null;
+	progress: number;
+	step: string;
+	error: string | null;
+	tokenTotals: TokenTotals | null;
+	streamMetrics: StreamPerfMetrics;
+	benchmarkMetrics: BenchmarkPerfMetrics;
+	phases: BenchmarkPhaseMetrics[];
+	allPhasesPassed: boolean | null;
+	messages: UIMessage[];
+}
+
 export type BackgroundProcess =
 	| IngestBackgroundProcess
 	| ImproveQuestionsBackgroundProcess
 	| ExplanationGenerationBackgroundProcess
-	| ConnectionTestBackgroundProcess;
+	| ConnectionTestBackgroundProcess
+	| ModelBenchmarkBackgroundProcess;
 
 export interface ImproveQuestionsBatchConfig {
 	maxWorkers: number;
@@ -181,6 +210,10 @@ export function connectionTestProcessId(modelId: number): string {
 	return `connection-test:${modelId}`;
 }
 
+export function modelBenchmarkProcessId(modelId: number): string {
+	return `model-benchmark:${modelId}`;
+}
+
 export function parseIngestProcessId(id: string): string | null {
 	return id.startsWith("ingest:") ? id.slice("ingest:".length) : null;
 }
@@ -200,6 +233,12 @@ export function parseExplanationGenerationProcessId(id: string): number | null {
 export function parseConnectionTestProcessId(id: string): number | null {
 	if (!id.startsWith("connection-test:")) return null;
 	const modelId = Number(id.slice("connection-test:".length));
+	return Number.isFinite(modelId) ? modelId : null;
+}
+
+export function parseModelBenchmarkProcessId(id: string): number | null {
+	if (!id.startsWith("model-benchmark:")) return null;
+	const modelId = Number(id.slice("model-benchmark:".length));
 	return Number.isFinite(modelId) ? modelId : null;
 }
 
@@ -225,6 +264,12 @@ export function isConnectionTestProcess(
 	process: BackgroundProcess,
 ): process is ConnectionTestBackgroundProcess {
 	return process.kind === "connection-test";
+}
+
+export function isModelBenchmarkProcess(
+	process: BackgroundProcess,
+): process is ModelBenchmarkBackgroundProcess {
+	return process.kind === "model-benchmark";
 }
 
 export function isActiveProcess(process: BackgroundProcess): boolean {
@@ -257,7 +302,8 @@ function getProcessFinishedAt(process: BackgroundProcess): number {
 	if (
 		process.kind === "ingest" ||
 		process.kind === "explanation-generation" ||
-		process.kind === "connection-test"
+		process.kind === "connection-test" ||
+		process.kind === "model-benchmark"
 	) {
 		return process.finishedAt ?? process.createdAt;
 	}

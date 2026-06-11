@@ -1,4 +1,5 @@
 import { cancelConnectionTest } from "../kinds/connection-test/actions";
+import { cancelModelBenchmark } from "../kinds/model-benchmark/actions";
 import { cancelExplanationGeneration } from "../kinds/explanation-generation/actions";
 import { cancelJob } from "../kinds/ingest/actions";
 import { cancelImproveQuestionsRun } from "../kinds/improve-questions/actions";
@@ -8,8 +9,10 @@ import {
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
+	isModelBenchmarkProcess,
 	parseConnectionTestProcessId,
 	parseIngestProcessId,
+	parseModelBenchmarkProcessId,
 } from "./types";
 
 const abortControllers = new Map<string, AbortController>();
@@ -59,5 +62,11 @@ export function cancelProcess(id: string): void {
 	if (isConnectionTestProcess(process)) {
 		const modelId = parseConnectionTestProcessId(process.id) ?? process.modelId;
 		cancelConnectionTest(modelId);
+		return;
+	}
+
+	if (isModelBenchmarkProcess(process)) {
+		const modelId = parseModelBenchmarkProcessId(process.id) ?? process.modelId;
+		cancelModelBenchmark(modelId);
 	}
 }

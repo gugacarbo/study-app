@@ -41,6 +41,7 @@ export type {
 	BackgroundProcessStatus,
 	BackgroundProcessStoreState,
 	ConnectionTestBackgroundProcess,
+	ModelBenchmarkBackgroundProcess,
 	ExplanationGenerationBackgroundProcess,
 	ExplanationQuestionSnapshot,
 	ImproveQuestionsBackgroundProcess,
@@ -53,6 +54,7 @@ export type {
 export {
 	BACKGROUND_PROCESS_STORAGE_KEY,
 	connectionTestProcessId,
+	modelBenchmarkProcessId,
 	explanationGenerationProcessId,
 	getActiveProcesses,
 	getRecentProcesses,
@@ -62,18 +64,21 @@ export {
 	isActiveProcess,
 	isCompletedProcess,
 	isConnectionTestProcess,
+	isModelBenchmarkProcess,
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 	improveQuestionsProcessId,
 	MAX_RECENT_COMPLETED_PROCESSES,
 	parseConnectionTestProcessId,
+	parseModelBenchmarkProcessId,
 	parseExplanationGenerationProcessId,
 	parseImproveQuestionsProcessId,
 	parseIngestProcessId,
 } from "./store/types";
 
 export * from "./kinds/connection-test";
+export * from "./kinds/model-benchmark";
 export * from "./kinds/ingest";
 export * from "./kinds/improve-questions";
 export * from "./kinds/explanation-generation";

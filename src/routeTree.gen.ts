@@ -19,6 +19,7 @@ import { Route as ExamsIndexRouteImport } from './routes/exams.index'
 import { Route as QuizIdRouteImport } from './routes/quiz.$id'
 import { Route as ExamsStatsRouteImport } from './routes/exams.stats'
 import { Route as ExamsIdRouteImport } from './routes/exams.$id'
+import { Route as ApiTestModelBenchmarkRouteImport } from './routes/api/test-model-benchmark'
 import { Route as ApiTestConnectionRouteImport } from './routes/api/test-connection'
 import { Route as ExamsUploadIndexRouteImport } from './routes/exams.upload/index'
 import { Route as ExamsExplanationsIndexRouteImport } from './routes/exams.explanations/index'
@@ -76,6 +77,11 @@ const ExamsIdRoute = ExamsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ExamsRoute,
 } as any)
+const ApiTestModelBenchmarkRoute = ApiTestModelBenchmarkRouteImport.update({
+  id: '/api/test-model-benchmark',
+  path: '/api/test-model-benchmark',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTestConnectionRoute = ApiTestConnectionRouteImport.update({
   id: '/api/test-connection',
   path: '/api/test-connection',
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
+  '/api/test-model-benchmark': typeof ApiTestModelBenchmarkRoute
   '/exams/$id': typeof ExamsIdRoute
   '/exams/stats': typeof ExamsStatsRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/config': typeof ConfigRoute
   '/memory': typeof MemoryRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
+  '/api/test-model-benchmark': typeof ApiTestModelBenchmarkRoute
   '/exams/$id': typeof ExamsIdRoute
   '/exams/stats': typeof ExamsStatsRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/exams': typeof ExamsRouteWithChildren
   '/memory': typeof MemoryRoute
   '/api/test-connection': typeof ApiTestConnectionRoute
+  '/api/test-model-benchmark': typeof ApiTestModelBenchmarkRoute
   '/exams/$id': typeof ExamsIdRoute
   '/exams/stats': typeof ExamsStatsRoute
   '/quiz/$id': typeof QuizIdRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/memory'
     | '/api/test-connection'
+    | '/api/test-model-benchmark'
     | '/exams/$id'
     | '/exams/stats'
     | '/quiz/$id'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/config'
     | '/memory'
     | '/api/test-connection'
+    | '/api/test-model-benchmark'
     | '/exams/$id'
     | '/exams/stats'
     | '/quiz/$id'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/memory'
     | '/api/test-connection'
+    | '/api/test-model-benchmark'
     | '/exams/$id'
     | '/exams/stats'
     | '/quiz/$id'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   ExamsRoute: typeof ExamsRouteWithChildren
   MemoryRoute: typeof MemoryRoute
   ApiTestConnectionRoute: typeof ApiTestConnectionRoute
+  ApiTestModelBenchmarkRoute: typeof ApiTestModelBenchmarkRoute
   QuizIdRoute: typeof QuizIdRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
   ApiImproveQuestionsIndexRoute: typeof ApiImproveQuestionsIndexRoute
@@ -304,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamsIdRouteImport
       parentRoute: typeof ExamsRoute
     }
+    '/api/test-model-benchmark': {
+      id: '/api/test-model-benchmark'
+      path: '/api/test-model-benchmark'
+      fullPath: '/api/test-model-benchmark'
+      preLoaderRoute: typeof ApiTestModelBenchmarkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/test-connection': {
       id: '/api/test-connection'
       path: '/api/test-connection'
@@ -375,6 +395,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExamsRoute: ExamsRouteWithChildren,
   MemoryRoute: MemoryRoute,
   ApiTestConnectionRoute: ApiTestConnectionRoute,
+  ApiTestModelBenchmarkRoute: ApiTestModelBenchmarkRoute,
   QuizIdRoute: QuizIdRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
   ApiImproveQuestionsIndexRoute: ApiImproveQuestionsIndexRoute,

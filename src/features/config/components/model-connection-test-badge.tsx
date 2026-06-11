@@ -12,10 +12,10 @@ import {
 } from "@/features/ai/lib/stream-perf-metrics";
 import {
 	backgroundProcessStore,
-	connectionTestProcessId,
-	getProcessById,
 	isConnectionTestProcess,
+	isModelBenchmarkProcess,
 } from "@/features/background-processes";
+import { getModelTestProcessForModel } from "@/features/config/lib/model-test-process";
 import { cn } from "@/lib/utils";
 
 export type ModelConnectionTestBadgeStatus =
@@ -42,21 +42,25 @@ const BADGE_CLASS: Record<ModelConnectionTestBadgeStatus, string> = {
 };
 
 function resolveBadgeStatus(
-	process: ReturnType<typeof getProcessById>,
+	process: ReturnType<typeof getModelTestProcessForModel>,
 ): ModelConnectionTestBadgeStatus {
-	if (!process || !isConnectionTestProcess(process)) {
-		return "untested";
-	}
+	if (!process) return "untested";
 
-	if (process.status === "queued" || process.status === "running") {
+	if (
+		process.process.status === "queued" ||
+		process.process.status === "running"
+	) {
 		return "testing";
 	}
 
-	if (process.status === "success") {
+	if (process.process.status === "success") {
 		return "success";
 	}
 
-	if (process.status === "error" || process.status === "canceled") {
+	if (
+		process.process.status === "error" ||
+		process.process.status === "canceled"
+	) {
 		return "failed";
 	}
 
@@ -64,23 +68,51 @@ function resolveBadgeStatus(
 }
 
 function buildTooltip(
-	process: ReturnType<typeof getProcessById>,
+	selection: ReturnType<typeof getModelTestProcessForModel>,
 	status: ModelConnectionTestBadgeStatus,
 ): string | null {
-	if (!process || !isConnectionTestProcess(process)) return null;
+	if (!selection) return null;
+
+	const { process, mode } = selection;
+	if (!isConnectionTestProcess(process) && !isModelBenchmarkProcess(process)) {
+		return null;
+	}
+
+	const isBenchmark = mode === "benchmark";
 
 	if (status === "testing") {
-		return `${process.step || "Running connection test..."}\nClick to view progress.`;
+		return `${process.step || (isBenchmark ? "Running benchmark..." : "Running connection test...")}\nClick to view progress.`;
 	}
 
 	if (status === "success") {
-		const parts = [process.response.trim() || "Connection successful."];
+		const parts: string[] = [];
+
+		if (isBenchmark && isModelBenchmarkProcess(process)) {
+			const passedCount = process.phases.filter(
+				(phase) => phase.passed === true,
+			).length;
+			parts.push(
+				`Benchmark: ${passedCount}/${process.phases.length} phases passed.`,
+			);
+			for (const phase of process.phases) {
+				const statusLabel = phase.passed ? "pass" : "fail";
+				parts.push(`• ${phase.label}: ${statusLabel}`);
+			}
+		} else if (isConnectionTestProcess(process)) {
+			parts.push(process.response.trim() || "Connection successful.");
+		}
+
 		if (process.streamMetrics?.ttftMs != null) {
 			parts.push(`TTFT: ${formatTtft(process.streamMetrics.ttftMs)}`);
 		}
 		if (process.streamMetrics?.tokensPerSecond != null) {
 			parts.push(
 				`Throughput: ${formatTokensPerSecond(process.streamMetrics.tokensPerSecond)}`,
+			);
+		}
+		if (process.streamMetrics?.totalRequestMs != null) {
+			parts.push(
+				`Total: ${formatTtft(process.streamMetrics.totalRequestMs)}`,
 			);
 		}
 		if (process.tokenTotals) {
@@ -93,7 +125,7 @@ function buildTooltip(
 	}
 
 	if (status === "failed") {
-		return `${process.error || "Connection test failed."}\nClick to view details.`;
+		return `${process.error || (isBenchmark ? "Benchmark failed." : "Connection test failed.")}\nClick to view details.`;
 	}
 
 	return null;
@@ -107,12 +139,13 @@ export function ModelConnectionTestBadge({
 	onViewTest?: () => void;
 }) {
 	const { processes } = useStore(backgroundProcessStore);
-	const process =
-		processes.find((candidate) => candidate.id === connectionTestProcessId(modelId)) ??
-		getProcessById(connectionTestProcessId(modelId));
-	const status = resolveBadgeStatus(process);
-	const tooltip = buildTooltip(process, status);
-	const label = BADGE_LABEL[status];
+	const selection = getModelTestProcessForModel(modelId, processes);
+	const status = resolveBadgeStatus(selection);
+	const tooltip = buildTooltip(selection, status);
+	const label =
+		selection?.mode === "benchmark" && status === "testing"
+			? "Benchmarking"
+			: BADGE_LABEL[status];
 	const isClickable = status !== "untested" && onViewTest != null;
 
 	const badge = (

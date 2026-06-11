@@ -13,17 +13,25 @@ import type { TestStatus } from "@/features/ai/components/config/use-connection-
 import { buildConnectionTestMessages } from "@/features/ai/lib/connection-test-stream";
 import {
 	backgroundProcessStore,
-	connectionTestProcessId,
 	isConnectionTestProcess,
+	isModelBenchmarkProcess,
 	parseConnectionTestProcessId,
+	parseModelBenchmarkProcessId,
 	startConnectionTest,
+	startModelBenchmark,
 	type ConnectionTestBackgroundProcess,
+	type ModelBenchmarkBackgroundProcess,
 	type StartConnectionTestOptions,
+	type StartModelBenchmarkOptions,
 } from "@/features/background-processes";
+import {
+	getModelTestProcessForModel,
+	type ModelTestMode,
+} from "@/features/config/lib/model-test-process";
 import { listModels } from "@/server-functions/ai-models";
 
 function processToTestStatus(
-	process: ConnectionTestBackgroundProcess | null,
+	process: ConnectionTestBackgroundProcess | ModelBenchmarkBackgroundProcess | null,
 ): TestStatus {
 	if (!process) return "idle";
 	if (process.status === "queued" || process.status === "running") {
@@ -39,6 +47,7 @@ function processToTestStatus(
 type ConnectionTestDialogContextValue = {
 	openDialog: (modelId: number) => void;
 	startTest: (modelId: number, options: StartConnectionTestOptions) => void;
+	startBenchmark: (modelId: number, options: StartModelBenchmarkOptions) => void;
 };
 
 const ConnectionTestDialogContext =
@@ -54,16 +63,33 @@ export function useConnectionTestDialog() {
 	return context;
 }
 
-function selectConnectionTestProcess(
+function selectModelTestState(
 	state: typeof backgroundProcessStore.state,
 	modelId: number | null,
-): ConnectionTestBackgroundProcess | null {
-	if (modelId == null) return null;
-	const process = state.processes.find(
-		(candidate) => candidate.id === connectionTestProcessId(modelId),
-	);
-	if (!process || !isConnectionTestProcess(process)) return null;
-	return process;
+): {
+	process: ConnectionTestBackgroundProcess | ModelBenchmarkBackgroundProcess | null;
+	mode: ModelTestMode;
+} {
+	if (modelId == null) {
+		return { process: null, mode: "quick" };
+	}
+
+	const selection = getModelTestProcessForModel(modelId, state.processes);
+	if (!selection) {
+		return { process: null, mode: "quick" };
+	}
+
+	if (
+		isConnectionTestProcess(selection.process) ||
+		isModelBenchmarkProcess(selection.process)
+	) {
+		return {
+			process: selection.process,
+			mode: selection.mode,
+		};
+	}
+
+	return { process: null, mode: "quick" };
 }
 
 export function ConnectionTestDialogProvider({
@@ -74,12 +100,13 @@ export function ConnectionTestDialogProvider({
 	onOpen?: (modelId: number) => void;
 }) {
 	const [openModelId, setOpenModelId] = useState<number | null>(null);
+	const [preferredMode, setPreferredMode] = useState<ModelTestMode>("quick");
 	const focusedProcessId = useStore(
 		backgroundProcessStore,
 		(state) => state.focusedProcessId,
 	);
-	const process = useStore(backgroundProcessStore, (state) =>
-		selectConnectionTestProcess(state, openModelId),
+	const { process, mode } = useStore(backgroundProcessStore, (state) =>
+		selectModelTestState(state, openModelId),
 	);
 
 	const { data: models = [] } = useQuery({
@@ -89,6 +116,7 @@ export function ConnectionTestDialogProvider({
 	});
 
 	const selectedModel = models.find((model) => model.id === openModelId);
+	const testMode = process ? mode : preferredMode;
 
 	const openDialog = useCallback(
 		(modelId: number) => {
@@ -100,7 +128,18 @@ export function ConnectionTestDialogProvider({
 
 	const startTest = useCallback(
 		(modelId: number, options: StartConnectionTestOptions) => {
+			setPreferredMode("quick");
 			startConnectionTest(modelId, options);
+			setOpenModelId(modelId);
+			onOpen?.(modelId);
+		},
+		[onOpen],
+	);
+
+	const startBenchmark = useCallback(
+		(modelId: number, options: StartModelBenchmarkOptions) => {
+			setPreferredMode("benchmark");
+			startModelBenchmark(modelId, options);
 			setOpenModelId(modelId);
 			onOpen?.(modelId);
 		},
@@ -110,8 +149,16 @@ export function ConnectionTestDialogProvider({
 	useEffect(() => {
 		if (!focusedProcessId) return;
 
-		const modelId = parseConnectionTestProcessId(focusedProcessId);
+		const connectionModelId = parseConnectionTestProcessId(focusedProcessId);
+		const benchmarkModelId = parseModelBenchmarkProcessId(focusedProcessId);
+		const modelId = connectionModelId ?? benchmarkModelId;
 		if (modelId == null) return;
+
+		if (benchmarkModelId != null) {
+			setPreferredMode("benchmark");
+		} else {
+			setPreferredMode("quick");
+		}
 
 		setOpenModelId(modelId);
 		onOpen?.(modelId);
@@ -129,17 +176,37 @@ export function ConnectionTestDialogProvider({
 		const providerName =
 			selectedModel?.providerName ?? process?.providerName ?? undefined;
 
+		if (testMode === "benchmark") {
+			startModelBenchmark(openModelId, {
+				modelDisplayName: displayName,
+				providerName,
+			});
+			return;
+		}
+
 		startConnectionTest(openModelId, {
 			modelDisplayName: displayName,
 			providerName,
 		});
-	}, [openModelId, process, selectedModel]);
+	}, [openModelId, process, selectedModel, testMode]);
 
 	const testStatus = processToTestStatus(process);
 	const testMessages = useMemo(() => {
-		if (!process?.prompt.trim()) return [];
-		return buildConnectionTestMessages(process.prompt, process.response);
-	}, [process?.prompt, process?.response]);
+		if (process && isModelBenchmarkProcess(process)) {
+			return process.messages;
+		}
+		if (process && isConnectionTestProcess(process) && process.prompt.trim()) {
+			return buildConnectionTestMessages(process.prompt, process.response);
+		}
+		return [];
+	}, [process]);
+
+	const phaseMetrics = useMemo(() => {
+		if (process && isModelBenchmarkProcess(process)) {
+			return process.phases;
+		}
+		return [];
+	}, [process]);
 
 	const modelLabel = selectedModel
 		? `${selectedModel.displayName} (${selectedModel.providerName})`
@@ -150,8 +217,8 @@ export function ConnectionTestDialogProvider({
 			: undefined;
 
 	const contextValue = useMemo(
-		() => ({ openDialog, startTest }),
-		[openDialog, startTest],
+		() => ({ openDialog, startTest, startBenchmark }),
+		[openDialog, startTest, startBenchmark],
 	);
 
 	return (
@@ -162,12 +229,14 @@ export function ConnectionTestDialogProvider({
 				onOpenChange={(open) => {
 					if (!open) setOpenModelId(null);
 				}}
+				testMode={testMode}
 				testStatus={testStatus}
 				testProgress={process?.progress ?? 0}
 				testStep={process?.step ?? ""}
 				testMessages={testMessages}
 				tokenTotals={process?.tokenTotals ?? null}
 				streamMetrics={process?.streamMetrics ?? null}
+				phaseMetrics={phaseMetrics}
 				testError={process?.error ?? ""}
 				modelLabel={modelLabel}
 				inputCostPerMillion={selectedModel?.inputCostPerMillion}

@@ -6,6 +6,7 @@ import {
   createAiProviderSchema,
   providerConfigSchema,
   testConnectionInputSchema,
+  testModelBenchmarkInputSchema,
   toProviderConfig,
   resolveThinkingEffort,
   examIngestResponseSchema,
@@ -248,6 +249,15 @@ describe('testConnectionInputSchema', () => {
       true,
     );
     expect(testConnectionInputSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('testModelBenchmarkInputSchema', () => {
+  it('requires modelId', () => {
+    expect(testModelBenchmarkInputSchema.safeParse({ modelId: 1 }).success).toBe(
+      true,
+    );
+    expect(testModelBenchmarkInputSchema.safeParse({}).success).toBe(false);
   });
 });
 

@@ -1,4 +1,5 @@
 import { startQueuedConnectionTest } from "../kinds/connection-test/actions";
+import { startQueuedModelBenchmark } from "../kinds/model-benchmark/actions";
 import { startQueuedExplanationGeneration } from "../kinds/explanation-generation/actions";
 import { startQueuedIngest } from "../kinds/ingest/actions";
 import { startQueuedImproveQuestions } from "../kinds/improve-questions/actions";
@@ -9,6 +10,7 @@ import {
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
+	isModelBenchmarkProcess,
 } from "./types";
 
 function getImproveQuestionsMaxWorkers(examId: number): number | null {
@@ -80,6 +82,15 @@ export function canStart(
 		);
 	}
 
+	if (isModelBenchmarkProcess(process)) {
+		return !runningProcesses.some(
+			(candidate) =>
+				isModelBenchmarkProcess(candidate) &&
+				candidate.status === "running" &&
+				candidate.modelId === process.modelId,
+		);
+	}
+
 	return false;
 }
 
@@ -115,6 +126,13 @@ export function runNextQueued(): void {
 	for (const process of queued.filter(isConnectionTestProcess)) {
 		if (canStart(process, running)) {
 			startQueuedConnectionTest(process.id);
+			running.push({ ...process, status: "running" });
+		}
+	}
+
+	for (const process of queued.filter(isModelBenchmarkProcess)) {
+		if (canStart(process, running)) {
+			startQueuedModelBenchmark(process.id);
 			running.push({ ...process, status: "running" });
 		}
 	}

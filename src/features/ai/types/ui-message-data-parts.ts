@@ -89,6 +89,7 @@ export interface JobProgressDataPart {
 	percent?: number;
 	stageId?: string;
 	agentRunId?: string;
+	meta?: Record<string, unknown>;
 }
 
 /** `data-job-result` — terminal success payload (persistent). */

@@ -392,6 +392,14 @@ export const testConnectionInputSchema = z.object({
 
 export type TestConnectionInput = z.infer<typeof testConnectionInputSchema>;
 
+export const testModelBenchmarkInputSchema = z.object({
+	modelId: z.number().int().positive(),
+});
+
+export type TestModelBenchmarkInput = z.infer<
+	typeof testModelBenchmarkInputSchema
+>;
+
 export function agentModelConfigKey(agent: AiAgentTask): string {
 	return `agent.${agent}.model_id`;
 }

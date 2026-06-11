@@ -1,9 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { useStore } from "@tanstack/react-store";
+import { ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getConnectionTestProcessForModel } from "@/features/background-processes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
 	Dialog,
 	DialogContent,
@@ -17,6 +23,7 @@ import {
 	Select,
 	SelectContent,
 	SelectItem,
+	SelectSeparator,
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
@@ -32,8 +39,11 @@ import {
 	THINKING_EFFORT_LEVELS,
 	type ThinkingEffortLevel,
 } from "@/lib/validation";
+import { backgroundProcessStore } from "@/features/background-processes";
+import { getModelTestProcessForModel } from "@/features/config/lib/model-test-process";
 import { ModelConnectionTestBadge } from "./model-connection-test-badge";
 import { useConnectionTestDialog } from "./connection-test-dialog-provider";
+import { ProviderDialog } from "./provider-dialog";
 
 type ModelFormState = {
 	id?: number;
@@ -104,8 +114,11 @@ function parseOptionalFloat(value: string): number | null {
 
 export function ModelsPanel() {
 	const queryClient = useQueryClient();
-	const { openDialog, startTest } = useConnectionTestDialog();
+	const { openDialog, startTest, startBenchmark } = useConnectionTestDialog();
+	const { processes } = useStore(backgroundProcessStore);
 	const [filterProviderId, setFilterProviderId] = useState<string>("all");
+	const [providerFilterOpen, setProviderFilterOpen] = useState(false);
+	const [providerDialogOpen, setProviderDialogOpen] = useState(false);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [form, setForm] = useState<ModelFormState>(emptyForm());
 	const [message, setMessage] = useState("");
@@ -213,7 +226,12 @@ export function ModelsPanel() {
 				<CardHeader className="flex flex-row items-center justify-between gap-3">
 					<CardTitle>Models</CardTitle>
 					<div className="flex items-center gap-2">
-						<Select value={filterProviderId} onValueChange={setFilterProviderId}>
+						<Select
+							value={filterProviderId}
+							open={providerFilterOpen}
+							onOpenChange={setProviderFilterOpen}
+							onValueChange={setFilterProviderId}
+						>
 							<SelectTrigger className="w-[180px]">
 								<SelectValue placeholder="All providers" />
 							</SelectTrigger>
@@ -224,6 +242,23 @@ export function ModelsPanel() {
 										{provider.name}
 									</SelectItem>
 								))}
+								<SelectSeparator />
+								<div className="p-1">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-7 w-full justify-start px-2 text-xs"
+										onPointerDown={(event) => {
+											event.preventDefault();
+											setProviderFilterOpen(false);
+											setProviderDialogOpen(true);
+										}}
+									>
+										<Plus className="size-3.5" />
+										Add provider
+									</Button>
+								</div>
 							</SelectContent>
 						</Select>
 						<Button type="button" size="sm" onClick={openCreateDialog}>
@@ -240,7 +275,11 @@ export function ModelsPanel() {
 						<p className="text-sm text-muted-foreground">No models yet.</p>
 					) : (
 						models.map((model) => {
-							const process = getConnectionTestProcessForModel(model.id);
+							const testSelection = getModelTestProcessForModel(
+								model.id,
+								processes,
+							);
+							const process = testSelection?.process ?? null;
 							const testActive =
 								process != null &&
 								(process.status === "queued" || process.status === "running");
@@ -276,28 +315,47 @@ export function ModelsPanel() {
 										</p>
 									</div>
 									<div className="flex shrink-0 gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											onClick={() => {
-												if (hasCompletedProcess || testActive) {
-													openDialog(model.id);
-													return;
-												}
-
-												startTest(model.id, {
-													modelDisplayName: model.displayName,
-													providerName: model.providerName,
-												});
-											}}
-										>
-											{testActive
-												? "Testing..."
-												: hasCompletedProcess
-													? "View test"
-													: "Test"}
-										</Button>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button type="button" variant="outline" size="sm">
+													{testActive
+														? "Testing..."
+														: hasCompletedProcess
+															? "View test"
+															: "Test"}
+													<ChevronDown className="size-3.5 opacity-60" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												{hasCompletedProcess || testActive ? (
+													<DropdownMenuItem
+														onClick={() => openDialog(model.id)}
+													>
+														View progress
+													</DropdownMenuItem>
+												) : null}
+												<DropdownMenuItem
+													onClick={() =>
+														startTest(model.id, {
+															modelDisplayName: model.displayName,
+															providerName: model.providerName,
+														})
+													}
+												>
+													Quick test
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() =>
+														startBenchmark(model.id, {
+															modelDisplayName: model.displayName,
+															providerName: model.providerName,
+														})
+													}
+												>
+													Benchmark
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
 										<Button
 											type="button"
 											variant="outline"
@@ -545,6 +603,11 @@ export function ModelsPanel() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			<ProviderDialog
+				open={providerDialogOpen}
+				onOpenChange={setProviderDialogOpen}
+			/>
 		</>
 	);
 }

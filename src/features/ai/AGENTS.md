@@ -78,6 +78,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 - **Agent isolation:** Each agent has its own system prompt + domain logic — don't mix
 - **Tool resolution:** `resolveToolsForAgent()` determines which tools each agent gets
-- **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, test-connection) use AI SDK v6 streams with typed `data-*` parts
+- **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, test-connection, test-model-benchmark) use AI SDK v6 streams with typed `data-*` parts
+- **Benchmark tools:** `tools/benchmark-tools.ts` — synthetic tools for `/api/test-model-benchmark` (add_numbers, echo, delay_ms)
 - **Provider abstraction:** `getAiModel()` + `buildProviderOptions()` — swap providers without changing agents
 - **Store:** `conversations-store/` for multi-conversation chat; persisted server-side via `server-functions/chat-conversations` (D1 index + R2 `chats/{id}.json` in `MEMORY_BUCKET`); runtime loads last `CHAT_RUNTIME_MESSAGE_LIMIT` messages

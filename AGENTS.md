@@ -66,7 +66,7 @@ CI roda `docs-check` em push/PR; testes e typecheck são locais (ainda sem workf
 - `pdf-parse` não roda em Workers — extração de PDF usa fallback próprio
 - `getDB()` e buckets R2: `dynamic import("cloudflare:workers")` com `/* @vite-ignore */`
 - `src/db/queries/memory.ts` é stub — stats reais em `src/lib/memory/`
-- `src/stores/` deprecado — stores em `src/features/{domain}/store/`; jobs longos (ingest, improve-questions, explicações) em `src/features/background-processes/`
+- `src/stores/` deprecado — stores em `src/features/{domain}/store/`; jobs longos (ingest, improve-questions, explicações, connection-test, model-benchmark) em `src/features/background-processes/`
 - Component tests: usar `*.spec.tsx` (vitest exclui `*.test.tsx`)
 - `package.json` `docs-check`: rodar `python3 scripts/docs-check` diretamente se o script npm falhar
 

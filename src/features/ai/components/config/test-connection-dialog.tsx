@@ -22,6 +22,7 @@ import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-as
 import {
 	formatTokensPerSecond,
 	formatTtft,
+	type BenchmarkPhaseMetrics,
 	type StreamPerfMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
 import {
@@ -30,16 +31,19 @@ import {
 } from "@/features/ai/lib/token-usage";
 import { cn } from "@/lib/utils";
 import type { TestStatus } from "./use-connection-test";
+import type { ModelTestMode } from "@/features/config/lib/model-test-process";
 
 type TestConnectionDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	testMode?: ModelTestMode;
 	testStatus: TestStatus;
 	testProgress: number;
 	testStep: string;
 	testMessages: UIMessage[];
 	tokenTotals: TokenTotals | null;
 	streamMetrics?: StreamPerfMetrics | null;
+	phaseMetrics?: BenchmarkPhaseMetrics[];
 	testError: string;
 	modelLabel?: string;
 	inputCostPerMillion?: number | null;
@@ -109,11 +113,12 @@ function StreamPerfBadges({
 }) {
 	if (!streamMetrics) return null;
 
-	const { ttftMs, tokensPerSecond } = streamMetrics;
+	const { ttftMs, tokensPerSecond, totalRequestMs } = streamMetrics;
 	const showTtft = ttftMs != null;
 	const showThroughput = tokensPerSecond != null;
+	const showTotal = totalRequestMs != null;
 
-	if (!showTtft && !showThroughput) {
+	if (!showTtft && !showThroughput && !showTotal) {
 		return null;
 	}
 
@@ -122,6 +127,11 @@ function StreamPerfBadges({
 			{showTtft ? (
 				<Badge variant="outline" className="text-[0.625rem] font-normal">
 					TTFT: {formatTtft(ttftMs)}
+				</Badge>
+			) : null}
+			{showTotal ? (
+				<Badge variant="outline" className="text-[0.625rem] font-normal">
+					Total: {formatTtft(totalRequestMs)}
 				</Badge>
 			) : null}
 			{showThroughput ? (
@@ -137,6 +147,65 @@ function StreamPerfBadges({
 				</Badge>
 			) : null}
 		</>
+	);
+}
+
+function formatMetricValue(value: number | null): string {
+	if (value == null) return "—";
+	if (value < 1000) return `${Math.round(value)}ms`;
+	return `${(value / 1000).toFixed(1)}s`;
+}
+
+function PhaseMetricsTable({
+	phases,
+}: {
+	phases: BenchmarkPhaseMetrics[];
+}) {
+	if (phases.length === 0) return null;
+
+	return (
+		<div className="overflow-x-auto rounded-md border border-border">
+			<table className="w-full min-w-[36rem] text-left text-xs">
+				<thead className="border-b border-border bg-muted/40 text-muted-foreground">
+					<tr>
+						<th className="px-3 py-2 font-medium">Phase</th>
+						<th className="px-3 py-2 font-medium">Status</th>
+						<th className="px-3 py-2 font-medium">TTFT</th>
+						<th className="px-3 py-2 font-medium">TTFT tool</th>
+						<th className="px-3 py-2 font-medium">Tool RT</th>
+						<th className="px-3 py-2 font-medium">Tok/s</th>
+					</tr>
+				</thead>
+				<tbody>
+					{phases.map((phase) => (
+						<tr key={phase.phaseId} className="border-b border-border/60">
+							<td className="px-3 py-2 font-medium">{phase.label}</td>
+							<td className="px-3 py-2">
+								{phase.passed == null
+									? "…"
+									: phase.passed
+										? "✓"
+										: "✗"}
+							</td>
+							<td className="px-3 py-2 tabular-nums">
+								{formatMetricValue(phase.ttftMs)}
+							</td>
+							<td className="px-3 py-2 tabular-nums">
+								{formatMetricValue(phase.ttftToolMs)}
+							</td>
+							<td className="px-3 py-2 tabular-nums">
+								{formatMetricValue(phase.toolRoundTripMs)}
+							</td>
+							<td className="px-3 py-2 tabular-nums">
+								{phase.tokensPerSecond != null
+									? formatTokensPerSecond(phase.tokensPerSecond)
+									: "—"}
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
 	);
 }
 
@@ -170,12 +239,14 @@ function CostBreakdown({
 export function TestConnectionDialog({
 	open,
 	onOpenChange,
+	testMode = "quick",
 	testStatus,
 	testProgress,
 	testStep,
 	testMessages,
 	tokenTotals,
 	streamMetrics,
+	phaseMetrics = [],
 	testError,
 	modelLabel,
 	inputCostPerMillion,
@@ -183,9 +254,12 @@ export function TestConnectionDialog({
 	onRetest,
 	showRetest = false,
 }: TestConnectionDialogProps) {
+	const isBenchmark = testMode === "benchmark";
 	const isStreaming = testStatus === "testing";
 	const hasStreamMetrics =
-		streamMetrics?.ttftMs != null || streamMetrics?.tokensPerSecond != null;
+		streamMetrics?.ttftMs != null ||
+		streamMetrics?.tokensPerSecond != null ||
+		streamMetrics?.totalRequestMs != null;
 	const statusIcon =
 		testStatus === "success" ? (
 			<CheckCircle2Icon className="size-4 text-emerald-500" />
@@ -204,13 +278,21 @@ export function TestConnectionDialog({
 							<DialogTitle className="flex items-center gap-2">
 								{statusIcon}
 								{testStatus === "error"
-									? "Connection failed"
-									: "Test connection"}
+									? isBenchmark
+										? "Benchmark failed"
+										: "Connection failed"
+									: isBenchmark
+										? "Model benchmark"
+										: "Test connection"}
 							</DialogTitle>
 							<DialogDescription>
-								{modelLabel
-									? `Streaming a short prompt through ${modelLabel}.`
-									: "Streams a short prompt to verify provider connectivity."}
+								{isBenchmark
+									? modelLabel
+										? `Multi-phase benchmark with tool calls through ${modelLabel}.`
+										: "Runs text and tool phases to measure latency and throughput."
+									: modelLabel
+										? `Streaming a short prompt through ${modelLabel}.`
+										: "Streams a short prompt to verify provider connectivity."}
 							</DialogDescription>
 						</div>
 						{tokenTotals || hasStreamMetrics ? (
@@ -246,6 +328,9 @@ export function TestConnectionDialog({
 								<span className="font-medium tabular-nums">{testProgress}%</span>
 							</div>
 							<Progress value={testProgress} />
+							{isBenchmark ? (
+								<PhaseMetricsTable phases={phaseMetrics} />
+							) : null}
 						</div>
 					) : null}
 				</DialogHeader>

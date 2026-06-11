@@ -111,6 +111,7 @@ function extractUsageTokenTotals(data: AgentRunDataPart): TokenTotals | null {
 const EMPTY_STREAM_METRICS: StreamPerfMetrics = {
 	ttftMs: null,
 	tokensPerSecond: null,
+	totalRequestMs: null,
 };
 
 function publishStreamMetrics(
@@ -119,13 +120,17 @@ function publishStreamMetrics(
 		testStartedAtMs: number;
 		firstTokenAtMs: number | null;
 		lastTokenAtMs: number | null;
+		generationEndedAtMs: number | null;
+		finishedAtMs?: number | null;
 	},
 ): StreamPerfMetrics {
 	const streamMetrics = buildStreamPerfMetrics({
 		testStartedAtMs: timing.testStartedAtMs,
 		firstTokenAtMs: timing.firstTokenAtMs,
 		lastTokenAtMs: timing.lastTokenAtMs,
+		generationEndedAtMs: timing.generationEndedAtMs,
 		completionTokens: state.tokenTotals?.completion,
+		finishedAtMs: timing.finishedAtMs,
 	});
 	state.streamMetrics = streamMetrics;
 	return streamMetrics;
@@ -141,6 +146,7 @@ export async function consumeConnectionTestStream(
 	const testStartedAtMs = options?.testStartedAtMs ?? Date.now();
 	let firstTokenAtMs: number | null = null;
 	let lastTokenAtMs: number | null = null;
+	let generationEndedAtMs: number | null = null;
 	const state: ConnectionTestStreamState = {
 		progress: 5,
 		step: "Starting connection test...",
@@ -214,18 +220,21 @@ export async function consumeConnectionTestStream(
 								testStartedAtMs,
 								firstTokenAtMs,
 								lastTokenAtMs,
+								generationEndedAtMs,
 							}),
 						});
 					}
 
 					const tokenTotals = extractUsageTokenTotals(data);
 					if (tokenTotals) {
+						generationEndedAtMs = Date.now();
 						const streamMetrics = publishStreamMetrics(
 							{ ...state, tokenTotals },
 							{
 								testStartedAtMs,
 								firstTokenAtMs,
 								lastTokenAtMs,
+								generationEndedAtMs,
 							},
 						);
 						publish({ tokenTotals, streamMetrics });
@@ -250,10 +259,13 @@ export async function consumeConnectionTestStream(
 			? buildConnectionTestMessages(state.prompt, response)
 			: state.messages;
 
+	const finishedAtMs = Date.now();
 	const streamMetrics = publishStreamMetrics(state, {
 		testStartedAtMs,
 		firstTokenAtMs,
-		lastTokenAtMs: lastTokenAtMs ?? Date.now(),
+		lastTokenAtMs,
+		generationEndedAtMs: generationEndedAtMs ?? finishedAtMs,
+		finishedAtMs,
 	});
 
 	publish({
