@@ -86,6 +86,13 @@ export async function improveSingleQuestion(
 			input?: unknown;
 			state: "awaiting-input" | "input-streaming" | "input-complete";
 		}) => {
+			if (toolCall.state === "input-streaming") {
+				if (toolCall.name) {
+					toolNamesById.set(toolCall.toolCallId, toolCall.name);
+				}
+				return;
+			}
+
 			if (toolCall.name) {
 				toolNamesById.set(toolCall.toolCallId, toolCall.name);
 			}

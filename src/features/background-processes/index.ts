@@ -18,6 +18,11 @@ export {
 } from "./store/persistence";
 export { canStart, runNextQueued } from "./store/scheduler";
 export {
+	areImproveQuestionsExamViewsEqual,
+	selectImproveQuestionsExamViews,
+	type ImproveQuestionsExamProcessView,
+} from "./store/improve-questions-selectors";
+export {
 	backgroundProcessStore,
 	focusProcess as focusProcessInStore,
 	getExplanationProcesses,

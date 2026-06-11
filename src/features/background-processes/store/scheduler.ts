@@ -9,10 +9,10 @@ import {
 	isIngestProcess,
 } from "./types";
 
-function getImproveQuestionsBatchSize(examId: number): number | null {
+function getImproveQuestionsMaxWorkers(examId: number): number | null {
 	return (
 		backgroundProcessStore.state.improveQuestionsBatchByExam[examId]
-			?.batchSize ?? null
+			?.maxWorkers ?? null
 	);
 }
 
@@ -48,13 +48,13 @@ export function canStart(
 		);
 		if (sameQuestionRunning) return false;
 
-		const batchSize = getImproveQuestionsBatchSize(process.examId);
-		if (batchSize !== null) {
+		const maxWorkers = getImproveQuestionsMaxWorkers(process.examId);
+		if (maxWorkers !== null) {
 			const runningForExam = countRunningImproveQuestionsForExam(
 				process.examId,
 				runningProcesses,
 			);
-			if (runningForExam >= batchSize) return false;
+			if (runningForExam >= maxWorkers) return false;
 		}
 
 		return true;

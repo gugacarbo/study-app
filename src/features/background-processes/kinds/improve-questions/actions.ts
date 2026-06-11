@@ -41,6 +41,12 @@ import {
 	isImproveQuestionsProcess,
 } from "../../store/types";
 import { cloneQuestion, draftToQuestionData } from "./question-helpers";
+import { createImproveQuestionsStoreBatcher } from "./store-sync";
+
+export const MIN_IMPROVE_QUESTIONS_MAX_WORKERS = 1;
+export const MAX_IMPROVE_QUESTIONS_MAX_WORKERS = 20;
+export const DEFAULT_IMPROVE_QUESTIONS_MAX_WORKERS = 3;
+export const MAX_IMPROVE_QUESTIONS_ATTEMPTS = 3;
 
 type ImproveQuestionsProcessTimestamps = {
 	createdAt: number;
@@ -131,6 +137,23 @@ function patchImproveQuestionsProcess(
 
 function isAbortError(err: unknown): boolean {
 	return err instanceof DOMException && err.name === "AbortError";
+}
+
+function clampMaxWorkers(maxWorkers: number): number {
+	return Math.max(
+		MIN_IMPROVE_QUESTIONS_MAX_WORKERS,
+		Math.min(MAX_IMPROVE_QUESTIONS_MAX_WORKERS, maxWorkers),
+	);
+}
+
+function agentRunIdForAttempt(questionId: number, attempt: number): string {
+	if (attempt <= 1) return `improve-questions-${questionId}`;
+	return `improve-questions-${questionId}-retry-${attempt - 1}`;
+}
+
+function labelForAttempt(attempt: number): string {
+	if (attempt <= 1) return "Improve question";
+	return `Improve question (retry ${attempt - 1})`;
 }
 
 function buildUpdatePayload(
@@ -238,13 +261,13 @@ export function hasRunningImproveQuestionsRun(): boolean {
 
 export function setImproveQuestionsBatchConfig(
 	examId: number,
-	batchSize: number,
+	maxWorkers: number,
 ): void {
 	backgroundProcessStore.setState((state) => ({
 		...state,
 		improveQuestionsBatchByExam: {
 			...state.improveQuestionsBatchByExam,
-			[examId]: { batchSize },
+			[examId]: { maxWorkers: clampMaxWorkers(maxWorkers) },
 		},
 	}));
 }
@@ -268,16 +291,59 @@ export function maybeClearImproveQuestionsBatchConfig(examId: number): void {
 export function startImproveQuestionsBatch(
 	examId: number,
 	questions: QuestionData[],
-	batchSize: number,
+	maxWorkers: number,
 ): void {
-	const clampedBatchSize = Math.max(1, Math.min(20, batchSize));
-	setImproveQuestionsBatchConfig(examId, clampedBatchSize);
+	setImproveQuestionsBatchConfig(examId, maxWorkers);
 
 	for (const question of questions) {
 		startImproveQuestionsRun(question.id, examId, question);
 	}
 
 	runNextQueued();
+}
+
+export function canContinueImproveQuestionsRun(
+	questionId: number,
+): boolean {
+	const process = getImproveQuestionsProcess(questionId);
+	if (!process) return false;
+	if (
+		process.isStreaming ||
+		process.status === "running" ||
+		process.status === "queued"
+	) {
+		return false;
+	}
+	if (process.status === "awaiting_review" || process.phase === "done") {
+		return false;
+	}
+	return (
+		process.status === "error" ||
+		process.phase === "error" ||
+		process.status === "canceled" ||
+		process.phase === "canceled"
+	);
+}
+
+export function continueImproveQuestionsRun(questionId: number): boolean {
+	if (!canContinueImproveQuestionsRun(questionId)) return false;
+
+	updateImproveQuestionsProcess(questionId, (run) =>
+		patchImproveQuestionsProcess(run, {
+			draftQuestion: cloneQuestion(run.originalSnapshot),
+			changes: [],
+			isStreaming: false,
+			streamError: null,
+			phase: "idle",
+			finishedAt: null,
+			agentRunState: createAgentRunState({
+				agentRunId: `improve-questions-${questionId}`,
+				label: "Improve question",
+			}),
+		}),
+	);
+	runNextQueued();
+	return true;
 }
 
 export function startImproveQuestionsRun(
@@ -294,6 +360,9 @@ export function startImproveQuestionsRun(
 		return;
 	}
 	if (existing) {
+		if (canContinueImproveQuestionsRun(questionId)) {
+			continueImproveQuestionsRun(questionId);
+		}
 		return;
 	}
 
@@ -321,116 +390,131 @@ export function startQueuedImproveQuestions(processId: string): void {
 	);
 
 	void (async () => {
-		let runState =
-			getImproveQuestionsProcess(questionId)?.agentRunState ??
-			createAgentRunState({
-				agentRunId: `improve-questions-${questionId}`,
-				label: "Improve question",
-			});
+		const batcher = createImproveQuestionsStoreBatcher(questionId);
 
 		try {
-			await improveQuestionsStream(
-				{ questionId, signal: controller.signal },
-				{
-					onAgent: (event) => {
-						runState = syncAgentRunId(runState, event);
-						runState = reduceAgentEvent(runState, event);
-						updateImproveQuestionsProcess(questionId, (run) =>
-							patchImproveQuestionsProcess(run, {
-								agentRunState: { ...runState },
-							}),
-						);
-					},
-					onChunk: (chunk) => {
-						if (!chunk.text) return;
-						runState = reduceAgentEvent(runState, {
-							eventType: "text-chunk",
-							agentRunId: chunk.agentRunId ?? runState.agentRunId,
-							text: chunk.text,
-							kind: chunk.kind,
-						});
-						updateImproveQuestionsProcess(questionId, (run) =>
-							patchImproveQuestionsProcess(run, {
-								agentRunState: { ...runState },
-							}),
-						);
-					},
-					onWorkspaceUpdate: ({ question: workspaceQuestion }) => {
-						updateImproveQuestionsProcess(questionId, (run) =>
-							patchImproveQuestionsProcess(run, {
-								draftQuestion: draftToQuestionData(
-									workspaceQuestion,
-									run.originalSnapshot,
-								),
-							}),
-						);
-					},
-					onDone: ({ finalQuestion }) => {
-						updateImproveQuestionsProcess(questionId, (run) => {
-							const finalDraft = draftToQuestionData(
-								finalQuestion,
-								run.originalSnapshot,
-							);
-							const nextAgentRunState = run.agentRunState
-								? { ...run.agentRunState, status: "done" as const }
-								: run.agentRunState;
-							return patchImproveQuestionsProcess(run, {
-								draftQuestion: finalDraft,
-								changes: computeQuestionChanges(
-									run.originalSnapshot,
-									finalDraft,
-								),
-								agentRunState: nextAgentRunState,
-								isStreaming: false,
-								phase: "done",
-							});
-						});
-						const finishedRun = getImproveQuestionsProcess(questionId);
-						if (finishedRun) {
-							maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
-						}
-						runNextQueued();
-					},
-				},
-			);
-		} catch (error) {
-			if (controller.signal.aborted || isAbortError(error)) {
-				return;
-			}
-			const message = getErrorMessage(error);
-			updateImproveQuestionsProcess(questionId, (run) =>
-				patchImproveQuestionsProcess(run, {
-					streamError: message,
-					isStreaming: false,
-					phase: "error",
-					agentRunState: run.agentRunState
-						? {
-								...run.agentRunState,
+			for (let attempt = 1; attempt <= MAX_IMPROVE_QUESTIONS_ATTEMPTS; attempt++) {
+				let runState = createAgentRunState({
+					agentRunId: agentRunIdForAttempt(questionId, attempt),
+					label: labelForAttempt(attempt),
+				});
+
+				if (attempt > 1) {
+					batcher.flush({
+						draftQuestion: cloneQuestion(
+							getImproveQuestionsProcess(questionId)?.originalSnapshot ??
+								improveProcess.originalSnapshot,
+						),
+						changes: [],
+						isStreaming: true,
+						phase: "running",
+						streamError: null,
+						agentRunState: runState,
+					});
+				}
+
+				try {
+					await improveQuestionsStream(
+						{ questionId, signal: controller.signal },
+						{
+							onAgent: (event) => {
+								runState = syncAgentRunId(runState, event);
+								runState = reduceAgentEvent(runState, event);
+								batcher.queue({ agentRunState: { ...runState } });
+							},
+							onChunk: (chunk) => {
+								if (!chunk.text) return;
+								runState = reduceAgentEvent(runState, {
+									eventType: "text-chunk",
+									agentRunId: chunk.agentRunId ?? runState.agentRunId,
+									text: chunk.text,
+									kind: chunk.kind,
+								});
+								batcher.queue({ agentRunState: { ...runState } });
+							},
+							onWorkspaceUpdate: ({ question: workspaceQuestion }) => {
+								const current = getImproveQuestionsProcess(questionId);
+								if (!current) return;
+								batcher.queue({
+									draftQuestion: draftToQuestionData(
+										workspaceQuestion,
+										current.originalSnapshot,
+									),
+								});
+							},
+							onDone: ({ finalQuestion }) => {
+								batcher.dispose();
+								updateImproveQuestionsProcess(questionId, (run) => {
+									const finalDraft = draftToQuestionData(
+										finalQuestion,
+										run.originalSnapshot,
+									);
+									return patchImproveQuestionsProcess(run, {
+										draftQuestion: finalDraft,
+										changes: computeQuestionChanges(
+											run.originalSnapshot,
+											finalDraft,
+										),
+										agentRunState: { ...runState, status: "done" },
+										isStreaming: false,
+										phase: "done",
+									});
+								});
+								const finishedRun = getImproveQuestionsProcess(questionId);
+								if (finishedRun) {
+									maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
+								}
+								runNextQueued();
+							},
+						},
+					);
+					return;
+				} catch (error) {
+					if (controller.signal.aborted || isAbortError(error)) {
+						return;
+					}
+
+					const message = getErrorMessage(error);
+					if (attempt < MAX_IMPROVE_QUESTIONS_ATTEMPTS) {
+						batcher.flush();
+						continue;
+					}
+					updateImproveQuestionsProcess(questionId, (run) =>
+						patchImproveQuestionsProcess(run, {
+							streamError: message,
+							isStreaming: false,
+							phase: "error",
+							agentRunState: {
+								...runState,
 								status: "error",
 								error: message,
-							}
-						: run.agentRunState,
+							},
+						}),
+					);
+					const erroredRun = getImproveQuestionsProcess(questionId);
+					if (erroredRun) {
+						maybeClearImproveQuestionsBatchConfig(erroredRun.examId);
+					}
+					runNextQueued();
+					return;
+				}
+			}
+		} finally {
+			batcher.dispose();
+		}
+	})().finally(() => {
+		unregisterAbort(processId);
+		const current = getImproveQuestionsProcess(questionId);
+		if (current?.isStreaming && !controller.signal.aborted) {
+			updateImproveQuestionsProcess(questionId, (run) =>
+				patchImproveQuestionsProcess(run, {
+					isStreaming: false,
+					phase: run.phase === "running" ? "done" : run.phase,
 				}),
 			);
-			const erroredRun = getImproveQuestionsProcess(questionId);
-			if (erroredRun) {
-				maybeClearImproveQuestionsBatchConfig(erroredRun.examId);
-			}
 			runNextQueued();
-		} finally {
-			unregisterAbort(processId);
-			const current = getImproveQuestionsProcess(questionId);
-			if (current?.isStreaming && !controller.signal.aborted) {
-				updateImproveQuestionsProcess(questionId, (run) =>
-					patchImproveQuestionsProcess(run, {
-						isStreaming: false,
-						phase: run.phase === "running" ? "done" : run.phase,
-					}),
-				);
-				runNextQueued();
-			}
 		}
-	})();
+	});
 }
 
 export function cancelImproveQuestionsRun(questionId: number): void {
@@ -491,6 +575,46 @@ export function revertAllImproveQuestionsChanges(questionId: number): void {
 	);
 }
 
+function buildImproveQuestionsApplyPayload(
+	run: ImproveQuestionsProcess,
+	question: QuestionData,
+) {
+	const resolved = {
+		...resolveQuestion(run.originalSnapshot, run.draftQuestion, run.changes),
+		scoringMode: question.scoringMode,
+		deepExplanation: question.deepExplanation,
+		topic: question.topic,
+		exam_id: question.exam_id,
+	};
+	return buildUpdatePayload(run.originalSnapshot, resolved, run.changes);
+}
+
+function hasImproveQuestionsApplyPayload(
+	payload: ReturnType<typeof buildImproveQuestionsApplyPayload>,
+): boolean {
+	return (
+		payload.question !== undefined ||
+		payload.options !== undefined ||
+		payload.answers !== undefined ||
+		payload.explanation !== undefined
+	);
+}
+
+export function canApplyImproveQuestionsRun(
+	questionId: number,
+	question: QuestionData,
+): boolean {
+	const run = getImproveQuestionsProcess(questionId);
+	if (!run) return false;
+	if (run.isStreaming || run.status === "running" || run.status === "queued") {
+		return false;
+	}
+	if (run.status !== "awaiting_review" && run.phase !== "done") return false;
+	return hasImproveQuestionsApplyPayload(
+		buildImproveQuestionsApplyPayload(run, question),
+	);
+}
+
 export async function applyImproveQuestionsRun(
 	questionId: number,
 	question: QuestionData,
@@ -500,24 +624,8 @@ export async function applyImproveQuestionsRun(
 		return { ok: false, error: "No improve-questions run found." };
 	}
 
-	const resolved = {
-		...resolveQuestion(run.originalSnapshot, run.draftQuestion, run.changes),
-		scoringMode: question.scoringMode,
-		deepExplanation: question.deepExplanation,
-		topic: question.topic,
-		exam_id: question.exam_id,
-	};
-	const payload = buildUpdatePayload(
-		run.originalSnapshot,
-		resolved,
-		run.changes,
-	);
-	if (
-		payload.question === undefined &&
-		payload.options === undefined &&
-		payload.answers === undefined &&
-		payload.explanation === undefined
-	) {
+	const payload = buildImproveQuestionsApplyPayload(run, question);
+	if (!hasImproveQuestionsApplyPayload(payload)) {
 		return { ok: false, error: "No applicable changes to save." };
 	}
 
@@ -546,4 +654,34 @@ export async function applyImproveQuestionsRun(
 		);
 		return { ok: false, error: message };
 	}
+}
+
+export type ApplyAllReadyImproveQuestionsResult = {
+	applied: number;
+	failed: number;
+	errors: string[];
+};
+
+export async function applyAllReadyImproveQuestionsRuns(
+	questions: QuestionData[],
+): Promise<ApplyAllReadyImproveQuestionsResult> {
+	const readyQuestions = questions.filter((question) =>
+		canApplyImproveQuestionsRun(question.id, question),
+	);
+
+	let applied = 0;
+	let failed = 0;
+	const errors: string[] = [];
+
+	for (const question of readyQuestions) {
+		const result = await applyImproveQuestionsRun(question.id, question);
+		if (result.ok) {
+			applied += 1;
+			continue;
+		}
+		failed += 1;
+		errors.push(`Q${question.id}: ${result.error}`);
+	}
+
+	return { applied, failed, errors };
 }

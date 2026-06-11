@@ -497,7 +497,7 @@ describe("background process scheduler", () => {
 		expect(startQueuedIngest).toHaveBeenCalledWith(ingestProcessId("old"));
 	});
 
-	it("limits improve-questions concurrency per exam when batch config is set", () => {
+	it("limits improve-questions concurrency per exam when max-workers config is set", () => {
 		const queuedA = createImproveQuestionsProcess({
 			id: improveQuestionsProcessId(1),
 			questionId: 1,
@@ -520,7 +520,7 @@ describe("background process scheduler", () => {
 		backgroundProcessStore.setState(() =>
 			createState({
 				processes: [queuedA, queuedB, queuedC],
-				improveQuestionsBatchByExam: { 10: { batchSize: 2 } },
+				improveQuestionsBatchByExam: { 10: { maxWorkers: 2 } },
 			}),
 		);
 

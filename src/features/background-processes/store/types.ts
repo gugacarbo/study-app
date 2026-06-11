@@ -107,7 +107,7 @@ export type BackgroundProcess =
 	| ExplanationGenerationBackgroundProcess;
 
 export interface ImproveQuestionsBatchConfig {
-	batchSize: number;
+	maxWorkers: number;
 }
 
 export interface BackgroundProcessStoreState {

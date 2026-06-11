@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -33,50 +33,18 @@ export function ImproveQuestionsBatchDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-lg">
-				<DialogHeader>
+			<DialogContent className="flex h-[600px] w-[calc(100vw-2rem)] flex-col gap-4 sm:max-w-4xl">
+				<DialogHeader className="shrink-0">
 					<DialogTitle>Melhorar questões com agente</DialogTitle>
 					<DialogDescription>
-						Selecione as questões e defina quantos agentes rodam em paralelo.
-						Clique em um agente para revisar as melhorias.
+						{batch.showAgentPanel
+							? "Acompanhe o progresso dos agentes. Clique em um agente para revisar as melhorias."
+							: "Selecione as questões e defina quantos agentes rodam em paralelo."}
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex flex-col gap-3 text-sm">
-					<QuestionSelection
-						questions={questions}
-						selectAll={batch.selectAll}
-						selectedIds={batch.selectedIds}
-						disabled={batch.isBatchRunning}
-						onSelectAll={batch.handleSelectAll}
-						onToggleQuestion={batch.toggleQuestion}
-					/>
-
-					<div>
-						<span className="text-xs font-semibold text-muted-foreground">
-							Tamanho do batch (1-20)
-						</span>
-						<Input
-							type="number"
-							min={1}
-							max={20}
-							value={batch.batchSize}
-							disabled={batch.isBatchRunning}
-							onChange={(e) => {
-								const value = Number(e.target.value);
-								if (Number.isNaN(value)) return;
-								batch.setBatchSize(Math.max(1, Math.min(20, value)));
-							}}
-							className="mt-1"
-						/>
-						<p className="mt-1 text-xs text-muted-foreground">
-							{batch.selectedCount} questão
-							{batch.selectedCount === 1 ? "" : "ões"} selecionada
-							{batch.selectedCount === 1 ? "" : "s"}
-						</p>
-					</div>
-
-					{batch.hasAgents && (
+				<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden text-sm">
+					{batch.showAgentPanel ? (
 						<BatchAgentList
 							agentItems={batch.agentItems}
 							finishedCount={batch.finishedCount}
@@ -84,30 +52,80 @@ export function ImproveQuestionsBatchDialog({
 							errorCount={batch.errorCount}
 							progressPercent={batch.progressPercent}
 							onAgentClick={onOpenQuestion}
+							onContinue={batch.handleContinue}
 						/>
+					) : (
+						<>
+							<QuestionSelection
+								questions={questions}
+								selectAll={batch.selectAll}
+								selectedIds={batch.selectedIds}
+								disabled={false}
+								onSelectAll={batch.handleSelectAll}
+								onToggleQuestion={batch.toggleQuestion}
+							/>
+
+							<div className="shrink-0">
+								<span className="text-xs font-semibold text-muted-foreground">
+									Agentes em paralelo (1-20)
+								</span>
+								<Input
+									type="number"
+									min={1}
+									max={20}
+									value={batch.maxWorkers}
+									onChange={(e) => {
+										const value = Number(e.target.value);
+										if (Number.isNaN(value)) return;
+										batch.setMaxWorkers(Math.max(1, Math.min(20, value)));
+									}}
+									className="mt-1"
+								/>
+								<p className="mt-1 text-xs text-muted-foreground">
+									{batch.selectedCount} questão
+									{batch.selectedCount === 1 ? "" : "ões"} selecionada
+									{batch.selectedCount === 1 ? "" : "s"}
+								</p>
+							</div>
+						</>
 					)}
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="shrink-0 gap-2 sm:justify-end">
 					<Button
 						type="button"
 						variant="outline"
 						onClick={() => onOpenChange(false)}
+						disabled={batch.applyingAll}
 					>
 						Fechar
 					</Button>
-					<Button
-						type="button"
-						onClick={batch.handleStart}
-						disabled={
-							batch.isBatchRunning ||
-							batch.selectedCount === 0 ||
-							questions.length === 0
-						}
-					>
-						<Sparkles data-icon="inline-start" />
-						{batch.isBatchRunning ? "Executando..." : "Iniciar melhorias"}
-					</Button>
+					{batch.showAgentPanel && batch.readyToApplyCount > 0 && (
+						<Button
+							type="button"
+							onClick={batch.handleApplyAll}
+							disabled={batch.applyingAll}
+						>
+							{batch.applyingAll ? (
+								<>
+									<Loader2 className="size-4 animate-spin" />
+									Aplicando…
+								</>
+							) : (
+								`Aplicar todos (${batch.readyToApplyCount})`
+							)}
+						</Button>
+					)}
+					{!batch.showAgentPanel && (
+						<Button
+							type="button"
+							onClick={batch.handleStart}
+							disabled={batch.selectedCount === 0 || questions.length === 0}
+						>
+							<Sparkles data-icon="inline-start" />
+							Iniciar melhorias
+						</Button>
+					)}
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

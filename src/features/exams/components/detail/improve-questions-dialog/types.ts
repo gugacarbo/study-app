@@ -21,5 +21,7 @@ export interface ImproveQuestionsDialogProps {
 	onRevertAll: () => void;
 	onApply: () => void;
 	onCancel: () => void;
+	onContinue: () => void;
+	canContinue: boolean;
 	applying: boolean;
 }

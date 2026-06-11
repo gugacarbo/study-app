@@ -6,6 +6,8 @@ import {
 	applyImproveQuestionsRun,
 	backgroundProcessStore,
 	cancelImproveQuestionsRun,
+	canContinueImproveQuestionsRun,
+	continueImproveQuestionsRun,
 	getImproveQuestionsRun,
 	getRunPreviewQuestion,
 	improveQuestionsProcessId,
@@ -70,6 +72,11 @@ export function useImproveQuestions({
 		[run?.agentRunState?.status, run?.isStreaming],
 	);
 
+	const canContinue = useMemo(
+		() => canContinueImproveQuestionsRun(questionId),
+		[questionId, run],
+	);
+
 	const handleDecision = useCallback(
 		(id: string, decision: ChangeDecision) => {
 			setImproveQuestionsDecision(questionId, id, decision);
@@ -89,6 +96,10 @@ export function useImproveQuestions({
 		cancelImproveQuestionsRun(questionId);
 		onOpenChange(false);
 	}, [questionId, onOpenChange]);
+
+	const handleContinue = useCallback(() => {
+		continueImproveQuestionsRun(questionId);
+	}, [questionId]);
 
 	const handleApply = useCallback(async () => {
 		setApplying(true);
@@ -122,7 +133,9 @@ export function useImproveQuestions({
 		onRevertAll: handleRevertAll,
 		onApply: handleApply,
 		onCancel: handleCancel,
+		onContinue: handleContinue,
 		onOpenChange: handleOpenChange,
+		canContinue,
 		applying,
 	};
 }

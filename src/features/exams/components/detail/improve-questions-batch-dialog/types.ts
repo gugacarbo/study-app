@@ -1,4 +1,4 @@
-import type { ImproveQuestionsBackgroundProcess } from "@/features/background-processes";
+import type { ImproveQuestionsExamProcessView } from "@/features/background-processes";
 import type { QuestionData } from "../exam-utils";
 
 export type ImproveQuestionsAgentDisplayStatus =
@@ -9,31 +9,35 @@ export type ImproveQuestionsAgentDisplayStatus =
 	| "canceled";
 
 export interface ImproveQuestionsBatchAgentItem {
-	process: ImproveQuestionsBackgroundProcess;
+	processView: ImproveQuestionsExamProcessView;
 	question: QuestionData;
 	questionIndex: number;
 	displayStatus: ImproveQuestionsAgentDisplayStatus;
 }
 
-export function mapProcessToDisplayStatus(
-	process: ImproveQuestionsBackgroundProcess,
+export function mapProcessViewToDisplayStatus(
+	view: ImproveQuestionsExamProcessView,
 ): ImproveQuestionsAgentDisplayStatus {
-	if (process.status === "queued" || process.phase === "idle") return "pending";
-	if (
-		process.isStreaming ||
-		process.status === "running" ||
-		process.phase === "running"
-	) {
+	if (view.status === "queued" || view.phase === "idle") return "pending";
+	if (view.isStreaming || view.status === "running" || view.phase === "running") {
 		return "running";
 	}
-	if (process.status === "awaiting_review" || process.phase === "done") {
+	if (view.status === "awaiting_review" || view.phase === "done") {
 		return "done";
 	}
-	if (process.status === "error" || process.phase === "error") return "error";
-	if (process.status === "canceled" || process.phase === "canceled") {
+	if (view.status === "error" || view.phase === "error") return "error";
+	if (view.status === "canceled" || view.phase === "canceled") {
 		return "canceled";
 	}
 	return "pending";
+}
+
+export function canContinueImproveQuestionsAgent(
+	item: ImproveQuestionsBatchAgentItem,
+): boolean {
+	return (
+		item.displayStatus === "error" || item.displayStatus === "canceled"
+	);
 }
 
 export function improveQuestionsAgentBadgeClass(

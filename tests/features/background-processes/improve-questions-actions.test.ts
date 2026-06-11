@@ -1,0 +1,307 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { improveQuestionsStreamMock, runNextQueuedMock, updateQuestionMock } =
+	vi.hoisted(() => ({
+		improveQuestionsStreamMock: vi.fn(),
+		runNextQueuedMock: vi.fn(),
+		updateQuestionMock: vi.fn(),
+	}));
+
+vi.mock("@/lib/sse-stream/improve-questions-stream", () => ({
+	improveQuestionsStream: improveQuestionsStreamMock,
+}));
+
+vi.mock("@/features/background-processes/store/scheduler", () => ({
+	runNextQueued: runNextQueuedMock,
+	canStart: vi.fn(),
+}));
+
+vi.mock("@/routes/__root", () => ({
+	queryClient: { invalidateQueries: vi.fn() },
+}));
+
+vi.mock("@/server-functions/exams", () => ({
+	updateQuestion: updateQuestionMock,
+}));
+
+import {
+	applyAllReadyImproveQuestionsRuns,
+	canApplyImproveQuestionsRun,
+	canContinueImproveQuestionsRun,
+	continueImproveQuestionsRun,
+	MAX_IMPROVE_QUESTIONS_ATTEMPTS,
+	startQueuedImproveQuestions,
+	getImproveQuestionsRun,
+} from "@/features/background-processes/kinds/improve-questions/actions";
+import { backgroundProcessStore } from "@/features/background-processes/store/store";
+import type { ImproveQuestionsBackgroundProcess } from "@/features/background-processes/store/types";
+import { improveQuestionsProcessId } from "@/features/background-processes/store/types";
+
+function createQueuedProcess(): ImproveQuestionsBackgroundProcess {
+	return {
+		kind: "improve-questions",
+		id: improveQuestionsProcessId(1),
+		status: "queued",
+		questionId: 1,
+		examId: 10,
+		originalSnapshot: {
+			id: 1,
+			exam_id: 10,
+			question: "Question?",
+			options: ["A", "B"],
+			answers: ["A"],
+			scoringMode: "exact",
+			explanation: "",
+			deepExplanation: "",
+			topic: "General",
+		},
+		draftQuestion: {
+			id: 1,
+			exam_id: 10,
+			question: "Question?",
+			options: ["A", "B"],
+			answers: ["A"],
+			scoringMode: "exact",
+			explanation: "",
+			deepExplanation: "",
+			topic: "General",
+		},
+		agentRunState: null,
+		changes: [],
+		isStreaming: false,
+		streamError: null,
+		phase: "idle",
+	};
+}
+
+function mockStreamSuccess() {
+	improveQuestionsStreamMock.mockImplementation(async (_payload, callbacks) => {
+		const doneEvent = {
+			finalQuestion: {
+				id: 1,
+				question: "Improved?",
+				options: ["A", "B"],
+				answers: ["A"],
+				scoringMode: "exact" as const,
+				explanation: "Because",
+			},
+			agentRun: {
+				agentRunId: "improve-questions-1",
+				label: "Improve question",
+				status: "done" as const,
+				systemPrompt: "",
+				userPrompt: "",
+			},
+		};
+		callbacks.onDone?.(doneEvent);
+		return doneEvent;
+	});
+}
+
+async function flushAsyncWork() {
+	await vi.waitFor(() => {
+		expect(improveQuestionsStreamMock.mock.calls.length).toBeGreaterThan(0);
+	});
+	await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe("startQueuedImproveQuestions retries", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		backgroundProcessStore.setState(() => ({
+			processes: [createQueuedProcess()],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+		}));
+	});
+
+	it("succeeds on the first attempt without retrying", async () => {
+		mockStreamSuccess();
+
+		startQueuedImproveQuestions(improveQuestionsProcessId(1));
+		await flushAsyncWork();
+
+		expect(improveQuestionsStreamMock).toHaveBeenCalledTimes(1);
+		const run = getImproveQuestionsRun(1);
+		expect(run?.phase).toBe("done");
+		expect(run?.status).toBe("awaiting_review");
+	});
+
+	it(`retries failed streams up to MAX_IMPROVE_QUESTIONS_ATTEMPTS`, async () => {
+		let callCount = 0;
+		improveQuestionsStreamMock.mockImplementation(async () => {
+			callCount += 1;
+			throw new Error(`attempt ${callCount} failed`);
+		});
+
+		startQueuedImproveQuestions(improveQuestionsProcessId(1));
+
+		await vi.waitFor(() => {
+			expect(improveQuestionsStreamMock).toHaveBeenCalledTimes(
+				MAX_IMPROVE_QUESTIONS_ATTEMPTS,
+			);
+		});
+
+		const run = getImproveQuestionsRun(1);
+		expect(run?.phase).toBe("error");
+		expect(run?.status).toBe("error");
+		expect(run?.streamError).toBe(
+			`attempt ${MAX_IMPROVE_QUESTIONS_ATTEMPTS} failed`,
+		);
+		expect(runNextQueuedMock).toHaveBeenCalled();
+	});
+
+	it("uses retry labels on subsequent attempts", async () => {
+		let callCount = 0;
+		improveQuestionsStreamMock.mockImplementation(async (_payload, callbacks) => {
+			callCount += 1;
+			if (callCount < MAX_IMPROVE_QUESTIONS_ATTEMPTS) {
+				throw new Error("transient failure");
+			}
+			const doneEvent = {
+				finalQuestion: {
+					id: 1,
+					question: "Improved?",
+					options: ["A", "B"],
+					answers: ["A"],
+					scoringMode: "exact" as const,
+					explanation: "Because",
+				},
+				agentRun: {
+					agentRunId: `improve-questions-1-retry-${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1}`,
+					label: `Improve question (retry ${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1})`,
+					status: "done" as const,
+					systemPrompt: "",
+					userPrompt: "",
+				},
+			};
+			callbacks.onDone?.(doneEvent);
+			return doneEvent;
+		});
+
+		startQueuedImproveQuestions(improveQuestionsProcessId(1));
+
+		await vi.waitFor(() => {
+			const run = getImproveQuestionsRun(1);
+			expect(run?.phase).toBe("done");
+		});
+
+		const run = getImproveQuestionsRun(1);
+		expect(improveQuestionsStreamMock).toHaveBeenCalledTimes(
+			MAX_IMPROVE_QUESTIONS_ATTEMPTS,
+		);
+		expect(run?.agentRunState?.label).toBe(
+			`Improve question (retry ${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1})`,
+		);
+	});
+});
+
+describe("continueImproveQuestionsRun", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("re-queues an errored process and triggers the scheduler", () => {
+		backgroundProcessStore.setState(() => ({
+			processes: [
+				{
+					...createQueuedProcess(),
+					status: "error",
+					phase: "error",
+					streamError: "network failed",
+					finishedAt: Date.now(),
+				},
+			],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+		}));
+
+		expect(canContinueImproveQuestionsRun(1)).toBe(true);
+		expect(continueImproveQuestionsRun(1)).toBe(true);
+
+		const run = getImproveQuestionsRun(1);
+		expect(run?.status).toBe("queued");
+		expect(run?.phase).toBe("idle");
+		expect(run?.streamError).toBeNull();
+		expect(runNextQueuedMock).toHaveBeenCalled();
+	});
+
+	it("does not continue completed or running processes", () => {
+		backgroundProcessStore.setState(() => ({
+			processes: [
+				{
+					...createQueuedProcess(),
+					status: "awaiting_review",
+					phase: "done",
+				},
+			],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+		}));
+
+		expect(canContinueImproveQuestionsRun(1)).toBe(false);
+		expect(continueImproveQuestionsRun(1)).toBe(false);
+	});
+});
+
+describe("applyAllReadyImproveQuestionsRuns", () => {
+	const question = {
+		id: 1,
+		exam_id: 10,
+		question: "Question?",
+		options: ["A", "B"],
+		answers: ["A"],
+		scoringMode: "exact" as const,
+		explanation: "",
+		deepExplanation: "",
+		topic: "General",
+	};
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		updateQuestionMock.mockResolvedValue(undefined);
+	});
+
+	it("applies only ready runs with applicable changes", async () => {
+		backgroundProcessStore.setState(() => ({
+			processes: [
+				{
+					...createQueuedProcess(),
+					status: "awaiting_review",
+					phase: "done",
+					draftQuestion: {
+						...question,
+						question: "Improved?",
+					},
+					changes: [
+						{
+							id: "question",
+							field: "question",
+							label: "Question stem",
+							before: "Question?",
+							after: "Improved?",
+							decision: "pending",
+						},
+					],
+				},
+				{
+					...createQueuedProcess(),
+					id: improveQuestionsProcessId(2),
+					questionId: 2,
+					status: "error",
+					phase: "error",
+				},
+			],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+		}));
+
+		expect(canApplyImproveQuestionsRun(1, question)).toBe(true);
+
+		const result = await applyAllReadyImproveQuestionsRuns([question]);
+
+		expect(result).toEqual({ applied: 1, failed: 0, errors: [] });
+		expect(updateQuestionMock).toHaveBeenCalledTimes(1);
+		expect(getImproveQuestionsRun(1)).toBeNull();
+	});
+});

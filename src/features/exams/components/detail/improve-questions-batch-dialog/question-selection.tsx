@@ -18,8 +18,8 @@ export function QuestionSelection({
 	onToggleQuestion,
 }: QuestionSelectionProps) {
 	return (
-		<div className="flex flex-col gap-2">
-			<label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2.5">
+		<div className="flex min-h-0 flex-1 flex-col gap-2">
+			<label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2.5">
 				<input
 					type="checkbox"
 					checked={selectAll}
@@ -29,8 +29,8 @@ export function QuestionSelection({
 				/>
 				<span className="font-medium">Selecionar todas as questões</span>
 			</label>
-			<div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-muted p-2">
-				<div className="flex flex-col gap-1.5">
+			<div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-muted p-2">
+				<div className="grid grid-cols-3 gap-1.5">
 					{questions.map((question, index) => (
 						<label
 							key={question.id}

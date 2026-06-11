@@ -40,6 +40,8 @@ export function ImproveQuestionsDialog({
 	onRevertAll,
 	onApply,
 	onCancel,
+	onContinue,
+	canContinue,
 	applying,
 }: ImproveQuestionsDialogProps) {
 	const [panelLayout, setPanelLayout] = useState<PanelLayout>("balanced");
@@ -169,14 +171,26 @@ export function ImproveQuestionsDialog({
 				</div>
 
 				<DialogFooter className="gap-2 sm:justify-between">
-					<Button
-						type="button"
-						variant="outline"
-						onClick={onCancel}
-						disabled={applying}
-					>
-						Cancel
-					</Button>
+					<div className="flex gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onCancel}
+							disabled={applying || isRunning}
+						>
+							Cancel
+						</Button>
+						{canContinue && (
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={onContinue}
+								disabled={applying || isRunning}
+							>
+								Continuar
+							</Button>
+						)}
+					</div>
 					<div className="flex gap-2">
 						{showReview && hasDiff && (
 							<Button

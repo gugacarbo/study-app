@@ -5,13 +5,14 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+	areImproveQuestionsExamViewsEqual,
 	backgroundProcessStore,
 	getImproveQuestionsRun,
 	getRunPreviewQuestion,
-	isImproveQuestionsProcess,
 	type ImproveQuestionsRunPhase,
 	parseExplanationGenerationProcessId,
 	parseImproveQuestionsProcessId,
+	selectImproveQuestionsExamViews,
 } from "@/features/background-processes";
 import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
@@ -36,8 +37,10 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	const [improveQuestionsOpen, setImproveQuestionsOpen] = useState(false);
 	const [improveQuestionsBatchOpen, setImproveQuestionsBatchOpen] =
 		useState(false);
-	const improveQuestionsProcesses = useStore(backgroundProcessStore, (state) =>
-		state.processes.filter(isImproveQuestionsProcess),
+	const improveQuestionsExamViews = useStore(
+		backgroundProcessStore,
+		(state) => selectImproveQuestionsExamViews(state, examId),
+		areImproveQuestionsExamViewsEqual,
 	);
 	const focusedProcessId = useStore(
 		backgroundProcessStore,
@@ -68,20 +71,19 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		const statusById = new Map<number, ImproveQuestionsRunPhase>();
 		const draftById = new Map<number, QuestionData>();
 
-		for (const run of improveQuestionsProcesses) {
-			if (run.examId !== examId) continue;
-			statusById.set(run.questionId, run.phase);
-			const liveQuestion = exam.questions.find((q) => q.id === run.questionId);
+		for (const view of improveQuestionsExamViews) {
+			statusById.set(view.questionId, view.phase);
+			const liveQuestion = exam.questions.find((q) => q.id === view.questionId);
 			if (liveQuestion) {
 				draftById.set(
-					run.questionId,
-					getRunPreviewQuestion(run, liveQuestion),
+					view.questionId,
+					getRunPreviewQuestion(view, liveQuestion),
 				);
 			}
 		}
 
 		return { statusById, draftById };
-	}, [improveQuestionsProcesses, examId, exam.questions]);
+	}, [improveQuestionsExamViews, exam.questions]);
 
 	useEffect(() => {
 		if (!focusedProcessId) return;

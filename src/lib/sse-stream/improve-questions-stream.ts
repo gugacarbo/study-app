@@ -41,20 +41,6 @@ type ImproveQuestionsCallbacks = {
 	onDone?: (event: ImproveQuestionsDoneEvent) => void;
 };
 
-function shouldYieldAfterAgentToolEvent(event: string, raw: unknown): boolean {
-	if (event !== "agent" || typeof raw !== "object" || raw == null) {
-		return false;
-	}
-	const eventType = (raw as { eventType?: unknown }).eventType;
-	return eventType === "tool-call" || eventType === "tool-result";
-}
-
-function yieldToRenderer(): Promise<void> {
-	return new Promise((resolve) => {
-		requestAnimationFrame(() => resolve());
-	});
-}
-
 function dispatchChunk(
 	raw: unknown,
 	callbacks: ImproveQuestionsCallbacks,
@@ -167,10 +153,6 @@ export async function improveQuestionsStream(
 							(data as { message?: string }).message ??
 								"Unknown improve-questions error",
 						);
-					}
-
-					if (shouldYieldAfterAgentToolEvent(parsed.event, data)) {
-						await yieldToRenderer();
 					}
 				}
 			}

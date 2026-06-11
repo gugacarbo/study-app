@@ -1,14 +1,18 @@
 import { useStore } from "@tanstack/react-store";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+	applyAllReadyImproveQuestionsRuns,
+	areImproveQuestionsExamViewsEqual,
 	backgroundProcessStore,
-	isImproveQuestionsProcess,
+	canApplyImproveQuestionsRun,
+	continueImproveQuestionsRun,
+	selectImproveQuestionsExamViews,
 	startImproveQuestionsBatch,
 } from "@/features/background-processes";
 import type { QuestionData } from "../exam-utils";
 import {
 	type ImproveQuestionsBatchAgentItem,
-	mapProcessToDisplayStatus,
+	mapProcessViewToDisplayStatus,
 } from "./types";
 
 export interface UseImproveQuestionsBatchParams {
@@ -26,12 +30,13 @@ export function useImproveQuestionsBatch({
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(
 		() => new Set(questions.map((q) => q.id)),
 	);
-	const [batchSize, setBatchSize] = useState(3);
+	const [maxWorkers, setMaxWorkers] = useState(3);
+	const [applyingAll, setApplyingAll] = useState(false);
 
-	const examProcesses = useStore(backgroundProcessStore, (state) =>
-		state.processes.filter(isImproveQuestionsProcess).filter(
-			(process) => process.examId === examId,
-		),
+	const examProcessViews = useStore(
+		backgroundProcessStore,
+		(state) => selectImproveQuestionsExamViews(state, examId),
+		areImproveQuestionsExamViewsEqual,
 	);
 
 	const questionIndexById = useMemo(() => {
@@ -43,30 +48,37 @@ export function useImproveQuestionsBatch({
 	}, [questions]);
 
 	const agentItems = useMemo((): ImproveQuestionsBatchAgentItem[] => {
-		return examProcesses
-			.map((process) => {
-				const question = questions.find((q) => q.id === process.questionId);
+		return examProcessViews
+			.map((processView) => {
+				const question = questions.find((q) => q.id === processView.questionId);
 				if (!question) return null;
 				return {
-					process,
+					processView,
 					question,
 					questionIndex: questionIndexById.get(question.id) ?? 0,
-					displayStatus: mapProcessToDisplayStatus(process),
+					displayStatus: mapProcessViewToDisplayStatus(processView),
 				};
 			})
 			.filter((item): item is ImproveQuestionsBatchAgentItem => item != null)
 			.sort((left, right) => left.questionIndex - right.questionIndex);
-	}, [examProcesses, questions, questionIndexById]);
+	}, [examProcessViews, questions, questionIndexById]);
 
 	const isBatchRunning = useMemo(
 		() =>
-			examProcesses.some(
-				(process) =>
-					process.status === "queued" ||
-					process.status === "running" ||
-					process.isStreaming,
+			examProcessViews.some(
+				(view) =>
+					view.isStreaming ||
+					view.status === "running" ||
+					view.status === "queued",
 			),
-		[examProcesses],
+		[examProcessViews],
+	);
+
+	const showAgentPanel = useMemo(
+		() =>
+			isBatchRunning ||
+			agentItems.some((item) => item.displayStatus !== "done"),
+		[isBatchRunning, agentItems],
 	);
 
 	const finishedCount = useMemo(
@@ -87,6 +99,16 @@ export function useImproveQuestionsBatch({
 
 	const errorCount = useMemo(
 		() => agentItems.filter((item) => item.displayStatus === "error").length,
+		[agentItems],
+	);
+
+	const readyToApplyCount = useMemo(
+		() =>
+			agentItems.filter(
+				(item) =>
+					item.displayStatus === "done" &&
+					canApplyImproveQuestionsRun(item.question.id, item.question),
+			).length,
 		[agentItems],
 	);
 
@@ -128,24 +150,49 @@ export function useImproveQuestionsBatch({
 
 	const handleStart = useCallback(() => {
 		if (selectedQuestions.length === 0 || isBatchRunning) return;
-		startImproveQuestionsBatch(examId, selectedQuestions, batchSize);
-	}, [examId, selectedQuestions, batchSize, isBatchRunning]);
+		startImproveQuestionsBatch(examId, selectedQuestions, maxWorkers);
+	}, [examId, selectedQuestions, maxWorkers, isBatchRunning]);
+
+	const handleContinue = useCallback((questionId: number) => {
+		continueImproveQuestionsRun(questionId);
+	}, []);
+
+	const handleApplyAll = useCallback(async () => {
+		if (applyingAll || readyToApplyCount === 0) return;
+		setApplyingAll(true);
+		try {
+			const readyQuestions = agentItems
+				.filter(
+					(item) =>
+						item.displayStatus === "done" &&
+						canApplyImproveQuestionsRun(item.question.id, item.question),
+				)
+				.map((item) => item.question);
+			await applyAllReadyImproveQuestionsRuns(readyQuestions);
+		} finally {
+			setApplyingAll(false);
+		}
+	}, [agentItems, applyingAll, readyToApplyCount]);
 
 	return {
 		selectAll,
 		selectedIds,
 		selectedCount: selectedIds.size,
-		batchSize,
-		setBatchSize,
+		maxWorkers,
+		setMaxWorkers,
 		toggleQuestion,
 		handleSelectAll,
 		handleStart,
+		handleContinue,
+		handleApplyAll,
+		applyingAll,
+		readyToApplyCount,
 		agentItems,
 		isBatchRunning,
+		showAgentPanel,
 		finishedCount,
 		processingCount,
 		errorCount,
 		progressPercent,
-		hasAgents: agentItems.length > 0,
 	};
 }

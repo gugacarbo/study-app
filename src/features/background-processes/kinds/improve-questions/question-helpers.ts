@@ -1,7 +1,12 @@
 import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import { resolveQuestion } from "@/features/exams/components/detail/improve-questions-dialog/resolve-question";
+import type { ImproveQuestionsExamProcessView } from "../../store/improve-questions-selectors";
 import type { ImproveQuestionsBackgroundProcess } from "../../store/types";
+
+type ImproveQuestionsPreviewSource =
+	| ImproveQuestionsBackgroundProcess
+	| ImproveQuestionsExamProcessView;
 
 type DraftLike = DraftQuestion & {
 	answer?: string;
@@ -43,7 +48,7 @@ export function draftToQuestionData(
 }
 
 export function getRunPreviewQuestion(
-	run: ImproveQuestionsBackgroundProcess,
+	run: ImproveQuestionsPreviewSource,
 	question: QuestionData,
 ): QuestionData {
 	const { originalSnapshot, draftQuestion, changes } = run;
