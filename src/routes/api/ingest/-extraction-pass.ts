@@ -1,4 +1,4 @@
-import { stepCountIs, streamText, type ToolSet } from "ai";
+import { stepCountIs, type ToolSet } from "ai";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
@@ -9,6 +9,8 @@ import {
 	payloadFromToolExecuteResult,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { createLlmLogContext } from "@/lib/llm-logging";
 import type {
 	AgentRunDescriptor,
 	JobUIMessageStreamWriter,
@@ -117,14 +119,22 @@ export async function runExtractionPass(
 	agentRuns.lifecycle(run, "running");
 
 	try {
-		const result = streamText({
-			model: getAiModel(config),
-			system: systemPrompt,
-			messages: [{ role: "user", content: userPrompt }],
-			tools: tools as ToolSet,
-			stopWhen: stepCountIs(10),
-			providerOptions: buildProviderOptions(config),
-		});
+		const result = loggedStreamText(
+			createLlmLogContext("ingest.extraction", config, {
+				callId: run.agentRunId,
+				systemPrompt,
+				requestSummary: stageLabel,
+				metadata: { stageId, agentRunId: run.agentRunId },
+			}),
+			{
+				model: getAiModel(config),
+				system: systemPrompt,
+				messages: [{ role: "user", content: userPrompt }],
+				tools: tools as ToolSet,
+				stopWhen: stepCountIs(10),
+				providerOptions: buildProviderOptions(config),
+			},
+		);
 
 		writer.merge(result.toUIMessageStream({ sendStart: false }));
 

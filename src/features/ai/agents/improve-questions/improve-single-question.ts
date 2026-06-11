@@ -1,4 +1,4 @@
-import { stepCountIs, streamText, type ToolSet } from "ai";
+import { stepCountIs, type ToolSet } from "ai";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
@@ -7,6 +7,8 @@ import {
 	isAiStreamRunErrorChunk,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { createLlmLogContext } from "@/lib/llm-logging";
 import {
 	createImproveQuestionsTools,
 	createImproveQuestionsWorkspace,
@@ -161,14 +163,22 @@ export async function improveSingleQuestion(
 			streamState,
 		);
 
-		const result = streamText({
-			model: getAiModel(providerConfig),
-			system: systemPrompt,
-			messages: [{ role: "user", content: userPrompt }],
-			tools: combinedTools,
-			stopWhen: stepCountIs(10),
-			providerOptions: buildProviderOptions(providerConfig),
-		});
+		const result = loggedStreamText(
+			createLlmLogContext("improve-questions", providerConfig, {
+				callId: agentRunId,
+				systemPrompt,
+				requestSummary: `questionId=${question.id}`,
+				metadata: baseMeta,
+			}),
+			{
+				model: getAiModel(providerConfig),
+				system: systemPrompt,
+				messages: [{ role: "user", content: userPrompt }],
+				tools: combinedTools,
+				stopWhen: stepCountIs(10),
+				providerOptions: buildProviderOptions(providerConfig),
+			},
+		);
 
 		for await (const chunk of result.fullStream) {
 			if (isAiStreamRunErrorChunk(chunk)) {

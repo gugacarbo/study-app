@@ -1,4 +1,5 @@
 import { generateJson } from "@/features/ai/core/generate";
+import { createLlmLogContext } from "@/lib/llm-logging";
 import type { ProviderConfig, Question } from "@/lib/validation";
 import { questionSchema } from "@/lib/validation";
 import { buildQuizSystemPrompt } from "./system-prompt";
@@ -28,6 +29,12 @@ export async function generateQuizQuestions(
     ]
   `,
 		questionSchema.array(),
-		{ system: systemPrompt },
+		{
+			system: systemPrompt,
+			logging: createLlmLogContext("quiz.generate", config, {
+				systemPrompt,
+				requestSummary: `${count} questions on ${topic}`,
+			}),
+		},
 	);
 }

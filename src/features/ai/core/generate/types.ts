@@ -1,5 +1,6 @@
 import type { FlexibleSchema, ToolSet } from "ai";
 import type { z } from "zod";
+import type { LlmLogContext } from "@/lib/llm-logging";
 
 type SafeParseResult<T> =
 	| { success: true; data: T }
@@ -46,6 +47,7 @@ export type GenerateJsonStreamChunk<T> =
 export interface GenerateJsonOptions {
 	system?: string;
 	tools?: ToolSet;
+	logging?: LlmLogContext;
 }
 
 export interface GenerateJsonStreamOptions<T> extends GenerateJsonOptions {

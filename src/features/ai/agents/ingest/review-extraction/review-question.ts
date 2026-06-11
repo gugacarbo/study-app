@@ -1,4 +1,4 @@
-import { stepCountIs, streamText, type ToolSet } from "ai";
+import { stepCountIs, type ToolSet } from "ai";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
@@ -7,6 +7,8 @@ import {
 	isAiStreamRunErrorChunk,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { createLlmLogContext } from "@/lib/llm-logging";
 import type {
 	ExtractionWorkspaceQuestion,
 	ExtractionWorkspaceState,
@@ -143,14 +145,22 @@ export async function reviewSingleQuestion(
 			streamState,
 		);
 
-		const result = streamText({
-			model: getAiModel(config),
-			system: systemPrompt,
-			messages: [{ role: "user", content: userPrompt }],
-			tools: combinedTools,
-			stopWhen: stepCountIs(10),
-			providerOptions: buildProviderOptions(config),
-		});
+		const result = loggedStreamText(
+			createLlmLogContext("ingest.review", config, {
+				callId: agentRunId,
+				systemPrompt,
+				requestSummary: `question ${index + 1}/${totalQuestions}`,
+				metadata: { questionIndex: index + 1, totalQuestions },
+			}),
+			{
+				model: getAiModel(config),
+				system: systemPrompt,
+				messages: [{ role: "user", content: userPrompt }],
+				tools: combinedTools,
+				stopWhen: stepCountIs(10),
+				providerOptions: buildProviderOptions(config),
+			},
+		);
 
 		for await (const chunk of result.fullStream) {
 			if (isAiStreamRunErrorChunk(chunk)) {

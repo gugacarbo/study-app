@@ -1,4 +1,5 @@
 import { generateJson } from "@/features/ai/core/generate";
+import { createLlmLogCallId, createLlmLogContext } from "@/lib/llm-logging";
 import type { ProviderConfig } from "@/lib/validation";
 import {
 	arbiterResultSchema,
@@ -42,6 +43,14 @@ export async function runParallelReview(
 					{
 						system: systemPrompt,
 						tools: options?.tools,
+						logging: createLlmLogContext("reviewer.draft", config, {
+							callId: createLlmLogCallId(
+								"reviewer.draft",
+								String(index + 1),
+							),
+							systemPrompt,
+							requestSummary: question.slice(0, 200),
+						}),
 					},
 				);
 				return { ok: true as const, draft: reviewerResult };
@@ -98,7 +107,14 @@ ${failedReviewerCount > 0 ? `Note: ${failedReviewerCount} reviewer(s) failed —
 		config,
 		arbiterPrompt,
 		arbiterResultSchema,
-		{ system: REVIEW_ARBITER_SYSTEM_PROMPT, tools: options?.tools },
+		{
+			system: REVIEW_ARBITER_SYSTEM_PROMPT,
+			tools: options?.tools,
+			logging: createLlmLogContext("reviewer.arbiter", config, {
+				systemPrompt: REVIEW_ARBITER_SYSTEM_PROMPT,
+				requestSummary: `${reviewerDrafts.length} reviewer drafts`,
+			}),
+		},
 	);
 
 	return {

@@ -1,5 +1,4 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import { env } from "../env";
 
 export interface Logger {
 	info(message: string, data?: Record<string, unknown>): void;
@@ -64,23 +63,25 @@ export function createIngestLogger(module: string, db?: D1Database): Logger {
 				data ? safeStringify(data) : "",
 			);
 
-			if (db && env.AI_LOG_LLM === "true") {
-				import("../db/queries")
-					.then(({ DBQueries }) => {
-						const queries = new DBQueries(db);
-						return queries.insertLLMLog({
-							callId: `ingest-err-${module}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-							callType: `ingest.${module}`,
-							provider: "system",
-							model: "system",
-							status: "failed",
-							errorMessage: `${message}: ${err.message}`,
-							responsePayload: safeStringify({
-								error: err,
-								context: data ?? null,
-							}),
-							durationMs: 0,
-						});
+			if (db) {
+				import("./llm-logging")
+					.then(({ createLlmLogCallId, scheduleLlmLog }) => {
+						scheduleLlmLog(
+							{
+								callId: createLlmLogCallId(`ingest.${module}`, "error"),
+								callType: `ingest.${module}`,
+								provider: "system",
+								model: "system",
+								status: "failed",
+								errorMessage: `${message}: ${err.message}`,
+								responsePayload: safeStringify({
+									error: err,
+									context: data ?? null,
+								}),
+								durationMs: 0,
+							},
+							db,
+						);
 					})
 					.catch((e) =>
 						console.error(

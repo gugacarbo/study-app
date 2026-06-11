@@ -15,6 +15,7 @@ MemoryManager singleton with lazy init (cached bucket/tables promises). R2 store
 - `file-service.ts` — `FileService` class wrapping R2 + D1 for exam file storage
 - `ai-config.ts` — Resolve AI model/provider config from D1 + KV
 - `connection-test.ts` — Server-side connection test runner (used by `/api/test-connection`)
+- `llm-logging.ts` — Centralized D1 LLM call logging (`createLlmLogContext`, `scheduleLlmLog`; gated by `AI_LOG_LLM`)
 
 ## Conventions
 
@@ -22,4 +23,4 @@ MemoryManager singleton with lazy init (cached bucket/tables promises). R2 store
 - **Lazy bucket resolution:** `resolveBucket()` uses `dynamic import("cloudflare:workers")` — required for Vite bundling compat
 - **Content format:** All memory content stored as markdown with YAML frontmatter (`type`, `date`, `topic`)
 - **search_text truncation:** D1 column truncated to 4000 chars, whitespace-normalized before storage
-- **Logger pattern:** `createIngestLogger()` lazy-imports `DBQueries` to avoid circular dependencies
+- **Logger pattern:** `createIngestLogger()` lazy-imports `scheduleLlmLog` from `llm-logging.ts` to avoid circular dependencies

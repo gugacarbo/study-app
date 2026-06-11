@@ -196,6 +196,17 @@ export function createAgentRunWriter(writer: JobUIMessageStreamWriter) {
 				meta,
 			});
 		},
+		textDelta(run: AgentRunDescriptor, delta: string) {
+			if (!delta) return;
+			emit({
+				eventType: "token",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				rawText: delta,
+				timestamp: Date.now(),
+			});
+		},
 		token(
 			run: AgentRunDescriptor,
 			tokens: unknown,

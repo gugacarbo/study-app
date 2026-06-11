@@ -1,6 +1,12 @@
-import { Output, streamObject, streamText } from "ai";
+import { Output, streamObject } from "ai";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import {
+	buildLlmLogInsert,
+	createLlmLogContext,
+	scheduleLlmLog,
+} from "@/lib/llm-logging";
 import {
 	type ProviderConfig,
 	type ResolvedModelConfig,
@@ -40,6 +46,15 @@ export async function generateJsonStream<T>(
 		);
 	}
 
+	const startedAt = Date.now();
+	const requestPayload = { prompt, system: options?.system };
+	const logging =
+		options?.logging ??
+		createLlmLogContext("generate-json-stream", providerConfig, {
+			systemPrompt: options?.system,
+			requestSummary: "structured object stream",
+		});
+
 	const result = streamObject({
 		model,
 		prompt,
@@ -48,11 +63,50 @@ export async function generateJsonStream<T>(
 		output,
 		providerOptions,
 		onError: (event) => {
+			if (logging) {
+				scheduleLlmLog(
+					buildLlmLogInsert(logging, {
+						status: "failed",
+						startedAt,
+						errorMessage:
+							event.error instanceof Error
+								? event.error.message
+								: String(event.error),
+						requestPayload,
+					}),
+				);
+			}
 			options?.onError?.({
 				error: event.error,
 				baseUrl: providerConfig.baseUrl,
 				model: providerConfig.model,
 			});
+		},
+		onFinish: (event) => {
+			if (!logging) return;
+			const status = event.error ? "failed" : "success";
+			scheduleLlmLog(
+				buildLlmLogInsert(logging, {
+					status,
+					startedAt,
+					finish: {
+						text:
+							event.object !== undefined
+								? JSON.stringify(event.object)
+								: "",
+						finishReason: status,
+						usage: event.usage,
+					},
+					requestPayload,
+					responsePayload: { object: event.object },
+					errorMessage:
+						event.error instanceof Error
+							? event.error.message
+							: event.error
+								? String(event.error)
+								: undefined,
+				}),
+			);
 		},
 	});
 
@@ -61,6 +115,7 @@ export async function generateJsonStream<T>(
 		providerConfig,
 		outputSchema,
 		options,
+		startedAt,
 	);
 }
 
@@ -72,7 +127,14 @@ async function generateJsonStreamWithTools<T>(
 	flexibleSchema: ReturnType<typeof toFlexibleSchema<T>>,
 	options: GenerateJsonStreamOptions<T>,
 ): Promise<T> {
-	const result = streamText({
+	const logging =
+		options.logging ??
+		createLlmLogContext("generate-json-stream", config, {
+			systemPrompt: options.system,
+			requestSummary: "structured output with tools",
+		});
+
+	const result = loggedStreamText(logging, {
 		model,
 		prompt,
 		system: options.system,
@@ -181,6 +243,7 @@ async function consumeStructuredObjectStream<T>(
 	config: ProviderConfig,
 	outputSchema: OutputSchema<T>,
 	options?: GenerateJsonStreamOptions<T>,
+	_startedAt?: number,
 ): Promise<T> {
 	let accumulatedText = "";
 	let accumulatedThinking = "";

@@ -3,10 +3,11 @@ import type { ToolJSONSchema } from "assistant-stream";
 import {
 	convertToModelMessages,
 	stepCountIs,
-	streamText,
 	type ToolSet,
 	type UIMessage,
 } from "ai";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { createLlmLogCallId, createLlmLogContext } from "@/lib/llm-logging";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
@@ -197,15 +198,30 @@ export async function handleChatPost(request: Request): Promise<Response> {
 		parseClientTools(body),
 	);
 
-	const result = streamText({
-		model: getAiModel(providerConfig),
-		system: buildChatSystemPrompt({ reviewMode }),
-		messages: await convertToModelMessages(messages),
-		tools,
-		stopWhen: stepCountIs(10),
-		providerOptions: buildProviderOptions(providerConfig),
-		abortSignal: abortController.signal,
-	});
+	const chatSystemPrompt = buildChatSystemPrompt({ reviewMode });
+	const chatCallId = createLlmLogCallId("chat");
+
+	const result = loggedStreamText(
+		createLlmLogContext("chat", providerConfig, {
+			callId: chatCallId,
+			systemPrompt: chatSystemPrompt,
+			requestSummary: `${messages.length} messages`,
+			metadata: {
+				reviewMode,
+				...(body.metadata ?? {}),
+			},
+		}),
+		{
+			model: getAiModel(providerConfig),
+			system: chatSystemPrompt,
+			messages: await convertToModelMessages(messages),
+			tools,
+			stopWhen: stepCountIs(10),
+			providerOptions: buildProviderOptions(providerConfig),
+			abortSignal: abortController.signal,
+		},
+		db,
+	);
 
 	return result.toUIMessageStreamResponse({
 		originalMessages: messages,
