@@ -1,5 +1,5 @@
+import { IMPROVE_QUESTIONS_BASE_PROMPT } from "./base-prompt";
 import type { DraftQuestion } from "./contracts";
-import basePrompt from "./improve-questions.md?raw";
 
 export function buildImproveQuestionsSystemPrompt(question: DraftQuestion): string {
 	const topic = question.topic?.trim() || "General";
@@ -7,7 +7,7 @@ export function buildImproveQuestionsSystemPrompt(question: DraftQuestion): stri
 	const needsMoreOptions = optionCount < 5;
 
 	const sections = [
-		basePrompt.trim(),
+		IMPROVE_QUESTIONS_BASE_PROMPT.trim(),
 		`
 Question context:
 - Topic: ${topic}
