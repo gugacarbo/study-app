@@ -1,9 +1,11 @@
+import { startQueuedConnectionTest } from "../kinds/connection-test/actions";
 import { startQueuedExplanationGeneration } from "../kinds/explanation-generation/actions";
 import { startQueuedIngest } from "../kinds/ingest/actions";
 import { startQueuedImproveQuestions } from "../kinds/improve-questions/actions";
 import { backgroundProcessStore } from "./store";
 import type { BackgroundProcess } from "./types";
 import {
+	isConnectionTestProcess,
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
@@ -69,6 +71,15 @@ export function canStart(
 		);
 	}
 
+	if (isConnectionTestProcess(process)) {
+		return !runningProcesses.some(
+			(candidate) =>
+				isConnectionTestProcess(candidate) &&
+				candidate.status === "running" &&
+				candidate.modelId === process.modelId,
+		);
+	}
+
 	return false;
 }
 
@@ -98,6 +109,13 @@ export function runNextQueued(): void {
 	for (const process of queued.filter(isExplanationGenerationProcess)) {
 		if (canStart(process, running)) {
 			startQueuedExplanationGeneration(process.id);
+		}
+	}
+
+	for (const process of queued.filter(isConnectionTestProcess)) {
+		if (canStart(process, running)) {
+			startQueuedConnectionTest(process.id);
+			running.push({ ...process, status: "running" });
 		}
 	}
 }

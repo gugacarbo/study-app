@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { getConnectionTestProcessForModel } from "@/features/background-processes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
@@ -31,6 +32,8 @@ import {
 	THINKING_EFFORT_LEVELS,
 	type ThinkingEffortLevel,
 } from "@/lib/validation";
+import { ModelConnectionTestBadge } from "./model-connection-test-badge";
+import { useConnectionTestDialog } from "./connection-test-dialog-provider";
 
 type ModelFormState = {
 	id?: number;
@@ -101,6 +104,7 @@ function parseOptionalFloat(value: string): number | null {
 
 export function ModelsPanel() {
 	const queryClient = useQueryClient();
+	const { openDialog, startTest } = useConnectionTestDialog();
 	const [filterProviderId, setFilterProviderId] = useState<string>("all");
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [form, setForm] = useState<ModelFormState>(emptyForm());
@@ -235,45 +239,85 @@ export function ModelsPanel() {
 					{models.length === 0 ? (
 						<p className="text-sm text-muted-foreground">No models yet.</p>
 					) : (
-						models.map((model) => (
-							<div
-								key={model.id}
-								className="flex items-start justify-between gap-3 rounded-md border p-3"
-							>
-								<div>
-									<p className="font-medium">{model.displayName}</p>
-									<p className="text-xs text-muted-foreground">
-										{model.providerName} · {model.modelId}
-									</p>
-									<p className="text-xs text-muted-foreground mt-1">
-										Context: {model.contextWindow ?? "—"} · Input: $
-										{model.inputCostPerMillion ?? 0}/M · Output: $
-										{model.outputCostPerMillion ?? 0}/M
-										{model.thinkingEffortLevels.length > 0
-											? ` · Thinking: ${model.defaultThinkingEffort ?? "—"} (${model.thinkingEffortLevels.join(", ")})`
-											: ""}
-									</p>
+						models.map((model) => {
+							const process = getConnectionTestProcessForModel(model.id);
+							const testActive =
+								process != null &&
+								(process.status === "queued" || process.status === "running");
+							const hasCompletedProcess =
+								process != null &&
+								(process.status === "success" ||
+									process.status === "error" ||
+									process.status === "canceled");
+
+							return (
+								<div
+									key={model.id}
+									className="flex items-start justify-between gap-3 rounded-md border p-3"
+								>
+									<div className="min-w-0 space-y-1">
+										<div className="flex flex-wrap items-center gap-2">
+											<p className="font-medium">{model.displayName}</p>
+											<ModelConnectionTestBadge
+												modelId={model.id}
+												onViewTest={() => openDialog(model.id)}
+											/>
+										</div>
+										<p className="text-xs text-muted-foreground">
+											{model.providerName} · {model.modelId}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											Context: {model.contextWindow ?? "—"} · Input: $
+											{model.inputCostPerMillion ?? 0}/M · Output: $
+											{model.outputCostPerMillion ?? 0}/M
+											{model.thinkingEffortLevels.length > 0
+												? ` · Thinking: ${model.defaultThinkingEffort ?? "—"} (${model.thinkingEffortLevels.join(", ")})`
+												: ""}
+										</p>
+									</div>
+									<div className="flex shrink-0 gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												if (hasCompletedProcess || testActive) {
+													openDialog(model.id);
+													return;
+												}
+
+												startTest(model.id, {
+													modelDisplayName: model.displayName,
+													providerName: model.providerName,
+												});
+											}}
+										>
+											{testActive
+												? "Testing..."
+												: hasCompletedProcess
+													? "View test"
+													: "Test"}
+										</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => openEditDialog(model)}
+										>
+											Edit
+										</Button>
+										<Button
+											type="button"
+											variant="destructive"
+											size="sm"
+											onClick={() => deleteMutation.mutate(model.id)}
+										>
+											Delete
+										</Button>
+									</div>
 								</div>
-								<div className="flex gap-2">
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => openEditDialog(model)}
-									>
-										Edit
-									</Button>
-									<Button
-										type="button"
-										variant="destructive"
-										size="sm"
-										onClick={() => deleteMutation.mutate(model.id)}
-									>
-										Delete
-									</Button>
-								</div>
-							</div>
-						))
+							);
+						})
 					)}
 				</CardContent>
 			</Card>

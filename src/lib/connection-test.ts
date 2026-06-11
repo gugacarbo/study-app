@@ -1,4 +1,3 @@
-import { streamText } from "ai";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
@@ -6,6 +5,8 @@ import {
 	isAiStreamRunErrorChunk,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { createLlmLogContext } from "@/lib/llm-logging";
 import type { ProviderConfig } from "@/lib/validation";
 
 export type ConnectionProgressEvent = {
@@ -46,13 +47,19 @@ export async function runConnectionTestWithProgress(
 	const streamState = createAiStreamState();
 	let response = "";
 
-	const result = streamText({
-		model: getAiModel(config),
-		system,
-		messages: [{ role: "user", content: userMsg }],
-		providerOptions: buildProviderOptions(config),
-		abortSignal,
-	});
+	const result = loggedStreamText(
+		createLlmLogContext("connection-test", config, {
+			systemPrompt: system,
+			requestSummary: userMsg,
+		}),
+		{
+			model: getAiModel(config),
+			system,
+			messages: [{ role: "user", content: userMsg }],
+			providerOptions: buildProviderOptions(config),
+			abortSignal,
+		},
+	);
 
 	onProgress({ progress: 55, step: "Streaming model response..." });
 

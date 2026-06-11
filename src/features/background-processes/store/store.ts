@@ -4,11 +4,17 @@ import type {
 	BackgroundProcess,
 	BackgroundProcessKind,
 	BackgroundProcessStoreState,
+	ConnectionTestBackgroundProcess,
 	ExplanationGenerationBackgroundProcess,
 	ImproveQuestionsBackgroundProcess,
 	IngestBackgroundProcess,
 } from "./types";
-import { isExplanationGenerationProcess, isImproveQuestionsProcess, isIngestProcess } from "./types";
+import {
+	isConnectionTestProcess,
+	isExplanationGenerationProcess,
+	isImproveQuestionsProcess,
+	isIngestProcess,
+} from "./types";
 
 export const backgroundProcessStore = new Store<BackgroundProcessStoreState>(
 	loadInitialState(),
@@ -93,4 +99,8 @@ export function getExplanationProcesses(): ExplanationGenerationBackgroundProces
 	return backgroundProcessStore.state.processes.filter(
 		isExplanationGenerationProcess,
 	);
+}
+
+export function getConnectionTestProcesses(): ConnectionTestBackgroundProcess[] {
+	return backgroundProcessStore.state.processes.filter(isConnectionTestProcess);
 }

@@ -1,11 +1,14 @@
+import { cancelConnectionTest } from "../kinds/connection-test/actions";
 import { cancelExplanationGeneration } from "../kinds/explanation-generation/actions";
 import { cancelJob } from "../kinds/ingest/actions";
 import { cancelImproveQuestionsRun } from "../kinds/improve-questions/actions";
 import { getProcessById } from "./store";
 import {
+	isConnectionTestProcess,
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
+	parseConnectionTestProcessId,
 	parseIngestProcessId,
 } from "./types";
 
@@ -50,5 +53,11 @@ export function cancelProcess(id: string): void {
 
 	if (isExplanationGenerationProcess(process)) {
 		cancelExplanationGeneration(process.examId);
+		return;
+	}
+
+	if (isConnectionTestProcess(process)) {
+		const modelId = parseConnectionTestProcessId(process.id) ?? process.modelId;
+		cancelConnectionTest(modelId);
 	}
 }

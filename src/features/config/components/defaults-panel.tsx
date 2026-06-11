@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useStore } from "@tanstack/react-store";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +11,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { TestConnectionDialog } from "@/features/ai/components/config/test-connection-dialog";
-import { useConnectionTest } from "@/features/ai/components/config/use-connection-test";
+import {
+	backgroundProcessStore,
+	connectionTestProcessId,
+	isConnectionTestProcess,
+} from "@/features/background-processes";
 import { AI_AGENT_TASKS } from "@/lib/validation";
 import { listEnabledModels } from "@/server-functions/ai-models";
 import {
@@ -19,6 +23,7 @@ import {
 	setAgentModel,
 	setDefaultModel,
 } from "@/server-functions/ai-settings";
+import { useConnectionTestDialog } from "./connection-test-dialog-provider";
 
 const AGENT_LABELS: Record<(typeof AI_AGENT_TASKS)[number], string> = {
 	chat: "Chat",
@@ -33,6 +38,7 @@ export function DefaultsPanel() {
 	const queryClient = useQueryClient();
 	const [testModelId, setTestModelId] = useState<string>("");
 	const [message, setMessage] = useState("");
+	const { openDialog, startTest } = useConnectionTestDialog();
 
 	const { data: models = [] } = useQuery({
 		queryKey: ["ai-models-enabled"],
@@ -44,17 +50,29 @@ export function DefaultsPanel() {
 		queryFn: () => getAiSettings(),
 	});
 
-	const {
-		testStatus,
-		dialogOpen,
-		testProgress,
-		testStep,
-		testPrompt,
-		testResponse,
-		testError,
-		handleTest,
-		closeDialog,
-	} = useConnectionTest();
+	const selectedTestModel = models.find(
+		(model) => String(model.id) === testModelId,
+	);
+
+	const selectedModelId = testModelId
+		? Number.parseInt(testModelId, 10)
+		: null;
+	const connectionTestProcess = useStore(backgroundProcessStore, (state) => {
+		if (selectedModelId == null) return null;
+		const process = state.processes.find(
+			(candidate) => candidate.id === connectionTestProcessId(selectedModelId),
+		);
+		return process && isConnectionTestProcess(process) ? process : null;
+	});
+	const testActive =
+		connectionTestProcess != null &&
+		(connectionTestProcess.status === "queued" ||
+			connectionTestProcess.status === "running");
+	const hasCompletedProcess =
+		connectionTestProcess != null &&
+		(connectionTestProcess.status === "success" ||
+			connectionTestProcess.status === "error" ||
+			connectionTestProcess.status === "canceled");
 
 	const defaultMutation = useMutation({
 		mutationFn: (modelId: number) => setDefaultModel({ data: { modelId } }),
@@ -179,28 +197,31 @@ export function DefaultsPanel() {
 					<Button
 						type="button"
 						variant="outline"
-						disabled={!testModelId || testStatus === "testing"}
-						onClick={() =>
-							handleTest({ modelId: Number.parseInt(testModelId, 10) })
-						}
+						disabled={!testModelId}
+						onClick={() => {
+							if (!selectedTestModel || selectedModelId == null) return;
+
+							if (hasCompletedProcess || testActive) {
+								openDialog(selectedModelId);
+								return;
+							}
+
+							startTest(selectedModelId, {
+								modelDisplayName: selectedTestModel.displayName,
+								providerName: selectedTestModel.providerName,
+							});
+						}}
 					>
-						{testStatus === "testing" ? "Testing..." : "Test connection"}
+						{testActive
+							? "View test"
+							: hasCompletedProcess
+								? "View test"
+								: "Test connection"}
 					</Button>
 				</CardContent>
 			</Card>
 
 			{message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-
-			<TestConnectionDialog
-				open={dialogOpen}
-				onOpenChange={closeDialog}
-				testStatus={testStatus}
-				testProgress={testProgress}
-				testStep={testStep}
-				testPrompt={testPrompt}
-				testResponse={testResponse}
-				testError={testError}
-			/>
 		</div>
 	);
 }

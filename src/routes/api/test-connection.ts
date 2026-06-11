@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { streamText } from "ai";
+import type { LanguageModelUsage } from "ai";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { createLlmLogContext } from "@/lib/llm-logging";
 import { DBQueries } from "@/db/queries";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
@@ -74,14 +76,23 @@ async function runConnectionTest(
 
 	const streamState = createAiStreamState();
 	let responseText = "";
+	let usage: LanguageModelUsage | undefined;
 
-	const result = streamText({
-		model: getAiModel(providerConfig),
-		system,
-		messages: [{ role: "user", content: userMsg }],
-		providerOptions: buildProviderOptions(providerConfig),
-		abortSignal,
-	});
+	const result = loggedStreamText(
+		createLlmLogContext("connection-test", providerConfig, {
+			callId: run.agentRunId,
+			systemPrompt: system,
+			requestSummary: userMsg,
+			metadata: { modelId: modelConfig.modelId },
+		}),
+		{
+			model: getAiModel(providerConfig),
+			system,
+			messages: [{ role: "user", content: userMsg }],
+			providerOptions: buildProviderOptions(providerConfig),
+			abortSignal,
+		},
+	);
 
 	sendProgress(55, "Streaming model response...");
 
@@ -100,7 +111,11 @@ async function runConnectionTest(
 			{
 				onTextDelta: (delta) => {
 					responseText += delta;
-					agentRuns.token(run, delta);
+					agentRuns.textDelta(run, delta);
+				},
+				onUsage: (nextUsage) => {
+					usage = nextUsage;
+					agentRuns.token(run, nextUsage);
 				},
 			},
 			streamState,
@@ -108,10 +123,17 @@ async function runConnectionTest(
 	}
 
 	const response = responseText.trim() || (await result.text).trim();
+	usage ??= await result.usage;
 
 	agentRuns.lifecycle(run, "done");
 	sendProgress(100, "Completed");
-	writeJobResult(writer, { response });
+	writeJobResult(writer, {
+		response,
+		usage,
+		modelId: modelConfig.modelId,
+		model: modelConfig.model,
+		providerName: modelConfig.providerName,
+	});
 }
 
 export const Route = createFileRoute("/api/test-connection")({

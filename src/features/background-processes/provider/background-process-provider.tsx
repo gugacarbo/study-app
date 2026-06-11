@@ -10,6 +10,7 @@ import { backgroundProcessStore, getProcessById } from "../store/store";
 import {
 	getActiveProcesses,
 	getRecentProcesses,
+	isConnectionTestProcess,
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
@@ -57,6 +58,11 @@ export function BackgroundProcessProvider({
 					to: "/exams/$id",
 					params: { id: String(process.examId) },
 				});
+				return;
+			}
+
+			if (isConnectionTestProcess(process)) {
+				navigate({ to: "/config" });
 			}
 		},
 		[navigate],

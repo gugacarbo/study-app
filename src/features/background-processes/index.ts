@@ -25,6 +25,7 @@ export {
 export {
 	backgroundProcessStore,
 	focusProcess as focusProcessInStore,
+	getConnectionTestProcesses,
 	getExplanationProcesses,
 	getImproveQuestionsProcesses,
 	getIngestProcesses,
@@ -39,6 +40,7 @@ export type {
 	BackgroundProcessKind,
 	BackgroundProcessStatus,
 	BackgroundProcessStoreState,
+	ConnectionTestBackgroundProcess,
 	ExplanationGenerationBackgroundProcess,
 	ExplanationQuestionSnapshot,
 	ImproveQuestionsBackgroundProcess,
@@ -50,6 +52,7 @@ export type {
 } from "./store/types";
 export {
 	BACKGROUND_PROCESS_STORAGE_KEY,
+	connectionTestProcessId,
 	explanationGenerationProcessId,
 	getActiveProcesses,
 	getRecentProcesses,
@@ -58,16 +61,19 @@ export {
 	ingestProcessToJob,
 	isActiveProcess,
 	isCompletedProcess,
+	isConnectionTestProcess,
 	isExplanationGenerationProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 	improveQuestionsProcessId,
 	MAX_RECENT_COMPLETED_PROCESSES,
+	parseConnectionTestProcessId,
 	parseExplanationGenerationProcessId,
 	parseImproveQuestionsProcessId,
 	parseIngestProcessId,
 } from "./store/types";
 
+export * from "./kinds/connection-test";
 export * from "./kinds/ingest";
 export * from "./kinds/improve-questions";
 export * from "./kinds/explanation-generation";

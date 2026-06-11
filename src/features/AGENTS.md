@@ -1,6 +1,6 @@
 # Features
 
-**Generated:** 2026-06-10 · **Last updated:** 2026-06-10 · Domínios colocados em `src/features/{domain}/`.
+**Generated:** 2026-06-10 · **Last updated:** 2026-06-11 · Domínios colocados em `src/features/{domain}/`.
 
 Cada feature agrupa components, hooks e stores do mesmo domínio. Rotas em `src/routes/` são wrappers finos que importam daqui.
 
@@ -9,7 +9,7 @@ Cada feature agrupa components, hooks e stores do mesmo domínio. Rotas em `src/
 | Feature     | Path         | Responsabilidade                                               |
 | ----------- | ------------ | -------------------------------------------------------------- |
 | `ai`        | `ai/`        | Agents, tools, chat, streaming, providers → ver `ai/AGENTS.md` |
-| `background-processes` | `background-processes/` | Fila unificada (ingest, improve-questions, explanation-generation), provider, nav indicator, persistência |
+| `background-processes` | `background-processes/` | Fila unificada (ingest, improve-questions, explanation-generation, connection-test), provider, nav indicator, persistência |
 | `ingest`    | `ingest/`    | Upload PDF, UI de ingestão; jobs orquestrados via `background-processes` |
 | `exams`     | `exams/`     | Lista, detalhe, stats, explicações; improve-questions consome `background-processes` |
 | `quiz`      | `quiz/`      | Player de quiz, `quiz/store/` (localStorage por exam/topic)    |
