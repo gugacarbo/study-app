@@ -76,7 +76,7 @@ describe("improve-questions selectors", () => {
 									{
 										id: "assistant",
 										role: "assistant" as const,
-										parts: [{ type: "text" as const, content: "more" }],
+										parts: [{ type: "text" as const, text: "more" }],
 									},
 								],
 							}

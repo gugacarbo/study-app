@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type {
-	AgentStreamToolCallPayload,
-	AgentStreamToolResultPayload,
-} from "@/features/ai/core/agent-stream-handler";
+	AiStreamToolCallPayload,
+	AiStreamToolResultPayload,
+} from "@/features/ai/core/ai-stream-handler";
 
 export const explanationBatchSchema = z.object({
 	questions: z.array(
@@ -93,14 +93,14 @@ export interface RunQuestionExplanationsOptions {
 			agentRunId: string;
 			label: string;
 			stageId: "explanations";
-		} & AgentStreamToolCallPayload,
+		} & AiStreamToolCallPayload,
 	) => void;
 	onToolResult?: (
 		event: {
 			agentRunId: string;
 			label: string;
 			stageId: "explanations";
-		} & AgentStreamToolResultPayload,
+		} & AiStreamToolResultPayload,
 	) => void;
 	createAgentRunId?: (label: string) => string;
 }

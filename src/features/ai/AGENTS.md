@@ -14,14 +14,16 @@ features/ai/
 │   ├── explanations/ # Explanation agent (batch deep explanations)
 │   ├── quiz/        # Quiz agent (question generation)
 │   └── reviewer/    # Reviewer agent (critical-topic verification)
-├── core/            # Core generation + chat streaming
-├── adapters/        # Provider adapter factory
+├── core/            # Core generation + UI Message Stream helpers
+├── adapters/        # Provider model + provider options
 ├── providers/       # Web search/content providers (Tavily)
 ├── tools/           # Tool registry, resolver, DB + web, ingest extraction tools
 │   ├── ingest-tools/ # Ingest extraction workspace + tools (add_extracted_question, update_extracted_question)
 ├── components/      # AI-related UI (chat, config, exam-detail)
-├── hooks/           # AI-specific hooks (chat client, auto-title)
-├── stores/          # Chat + conversations stores (TanStack Store)
+├── hooks/           # AI-specific hooks (readonly runtime, auto-title)
+├── stores/          # Conversations store (TanStack Store)
+├── lib/             # Job stream client, stream response headers
+├── types/           # UI Message data parts
 └── utils/           # Shared AI utilities
 ```
 
@@ -51,8 +53,10 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 ## Core
 
-- **`generate.ts`** — AI generation with streaming + structured output
-- **`chat-stream.ts`** — Chat streaming via OpenRouter / configurable provider
+- **`core/generate/`** — `generateObject` / `streamObject` structured output
+- **`core/ai-stream-handler.ts`** — Stream chunk processing for agent runs
+- **`core/ui-message-job-stream.ts`** — `createJobUIMessageStream` + data-part writers for jobs
+- **`lib/read-job-ui-message-stream.ts`** — `consumeJobStream()` client for UI Message Stream jobs
 
 ## Providers
 
@@ -65,7 +69,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | Folder                                   | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |
 | `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools, `StudyAssistantRuntimeProvider` + DevTools in dev, collapsible prompts on agent-run surfaces) |
-| `components/chat/`                       | Chat shell wiring (`chat.tsx`)                             |
+| `components/chat/`                       | Chat shell wiring (`chat.tsx` + `useChatRuntime`)          |
 | `components/config/`                     | Test connection dialog                                     |
 | `components/exam-detail/`                | Explanation generation hook                                |
 | `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
@@ -74,6 +78,6 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 - **Agent isolation:** Each agent has its own system prompt + domain logic — don't mix
 - **Tool resolution:** `resolveToolsForAgent()` determines which tools each agent gets
-- **SSE streaming:** Chat + ingest use Server-Sent Events for real-time progress
-- **Provider abstraction:** AI providers behind adapter pattern — swap without changing agents
-- **Store separation:** `chat-store.ts` for single conversation, `conversations-store.ts` for multi-conversation management
+- **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, test-connection) use AI SDK v6 streams with typed `data-*` parts
+- **Provider abstraction:** `getAiModel()` + `buildProviderOptions()` — swap providers without changing agents
+- **Store:** `conversations-store/` for multi-conversation chat history (`chat-conversations-v2`)

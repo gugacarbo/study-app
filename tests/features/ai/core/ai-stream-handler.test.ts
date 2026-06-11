@@ -1,23 +1,22 @@
-import type { StreamChunk } from "@tanstack/ai";
+import type { TextStreamPart, ToolSet } from "ai";
 import { describe, expect, it, vi } from "vitest";
 import {
-	createAgentStreamState,
-	createIncrementalToolEventMiddleware,
+	createAiStreamState,
+	createIncrementalToolChunkHandler,
 	createToolResultEmitter,
-	processAgentStreamChunk,
-} from "@/features/ai/core/agent-stream-handler";
+	processAiStreamPart,
+} from "@/features/ai/core/ai-stream-handler";
 
-describe("processAgentStreamChunk", () => {
+describe("processAiStreamPart", () => {
 	it("forwards reasoning deltas without mutating rawText", () => {
-		const state = createAgentStreamState();
+		const state = createAiStreamState();
 		const onReasoningDelta = vi.fn();
 
-		processAgentStreamChunk(
+		processAiStreamPart(
 			{
-				type: "REASONING_MESSAGE_CONTENT",
-				messageId: "reasoning-1",
-				delta: "Conferindo alternativas...",
-			} as StreamChunk,
+				type: "reasoning-delta",
+				text: "Conferindo alternativas...",
+			} as TextStreamPart<ToolSet>,
 			{ onReasoningDelta },
 			state,
 		);
@@ -27,36 +26,46 @@ describe("processAgentStreamChunk", () => {
 	});
 
 	it("streams tool-call states before completion", () => {
-		const state = createAgentStreamState();
+		const state = createAiStreamState();
 		const onToolCall = vi.fn();
 		const onToolResult = vi.fn();
 
-		processAgentStreamChunk(
+		processAiStreamPart(
 			{
-				type: "TOOL_CALL_START",
-				toolCallId: "tc-1",
-				toolCallName: "add_extracted_question",
-			} as StreamChunk,
+				type: "tool-input-start",
+				id: "tc-1",
+				toolName: "add_extracted_question",
+			} as TextStreamPart<ToolSet>,
 			{ onToolCall, onToolResult },
 			state,
 		);
-		processAgentStreamChunk(
+		processAiStreamPart(
 			{
-				type: "TOOL_CALL_ARGS",
-				toolCallId: "tc-1",
+				type: "tool-input-delta",
+				id: "tc-1",
 				delta: '{"question":"Q1"}',
-			} as StreamChunk,
+			} as TextStreamPart<ToolSet>,
 			{ onToolCall, onToolResult },
 			state,
 		);
-		processAgentStreamChunk(
+		processAiStreamPart(
 			{
-				type: "TOOL_CALL_END",
+				type: "tool-call",
 				toolCallId: "tc-1",
-				toolCallName: "add_extracted_question",
+				toolName: "add_extracted_question",
 				input: { question: "Q1" },
-				result: JSON.stringify({ ok: true, questionId: "q1" }),
-			} as unknown as StreamChunk,
+			} as TextStreamPart<ToolSet>,
+			{ onToolCall, onToolResult },
+			state,
+		);
+		processAiStreamPart(
+			{
+				type: "tool-result",
+				toolCallId: "tc-1",
+				toolName: "add_extracted_question",
+				input: { question: "Q1" },
+				output: { ok: true, questionId: "q1" },
+			} as TextStreamPart<ToolSet>,
 			{ onToolCall, onToolResult },
 			state,
 		);
@@ -80,27 +89,34 @@ describe("processAgentStreamChunk", () => {
 			input: { question: "Q1" },
 			state: "input-complete",
 		});
+		expect(onToolCall).toHaveBeenNthCalledWith(4, {
+			toolCallId: "tc-1",
+			name: "add_extracted_question",
+			arguments: '{"question":"Q1"}',
+			input: { question: "Q1" },
+			state: "input-complete",
+		});
 		expect(onToolResult).toHaveBeenCalledWith({
 			toolCallId: "tc-1",
-			content: JSON.stringify({ ok: true, questionId: "q1" }),
+			content: { ok: true, questionId: "q1" },
 			error: undefined,
 			state: "complete",
 		});
 	});
 
 	it("skips duplicate tool-result emissions when middleware already reported the result", () => {
-		const state = createAgentStreamState();
+		const state = createAiStreamState();
 		state.emittedToolResultIds.add("tc-1");
 		const onToolResult = vi.fn();
 
-		processAgentStreamChunk(
+		processAiStreamPart(
 			{
-				type: "TOOL_CALL_END",
+				type: "tool-result",
 				toolCallId: "tc-1",
-				toolCallName: "add_extracted_question",
+				toolName: "add_extracted_question",
 				input: { question: "Q1" },
-				result: JSON.stringify({ ok: true, questionId: "q1" }),
-			} as unknown as StreamChunk,
+				output: { ok: true, questionId: "q1" },
+			} as TextStreamPart<ToolSet>,
 			{ onToolResult },
 			state,
 		);
@@ -109,40 +125,29 @@ describe("processAgentStreamChunk", () => {
 	});
 });
 
-describe("createIncrementalToolEventMiddleware", () => {
-	it("emits input-complete before execution and result right after each tool finishes", async () => {
+describe("createIncrementalToolChunkHandler", () => {
+	it("emits input-complete and result when tool-call and tool-result arrive", () => {
 		const onToolCall = vi.fn();
 		const onToolResult = vi.fn();
-		const middleware = createIncrementalToolEventMiddleware({
-			onToolCall,
-			onToolResult,
-		});
+		const state = createAiStreamState();
+		const handler = createIncrementalToolChunkHandler(
+			{ onToolCall, onToolResult },
+			state,
+		);
 
-		await middleware.onBeforeToolCall?.({} as never, {
-			toolCall: {
-				id: "tc-1",
-				type: "function",
-				function: { name: "add_extracted_question", arguments: "{}" },
-			},
-			tool: undefined,
-			args: { questionId: "q1" },
-			toolName: "add_extracted_question",
+		handler({
+			type: "tool-call",
 			toolCallId: "tc-1",
-		});
-
-		await middleware.onAfterToolCall?.({} as never, {
-			toolCall: {
-				id: "tc-1",
-				type: "function",
-				function: { name: "add_extracted_question", arguments: "{}" },
-			},
-			tool: undefined,
 			toolName: "add_extracted_question",
+			input: { questionId: "q1" },
+		} as TextStreamPart<ToolSet>);
+		handler({
+			type: "tool-result",
 			toolCallId: "tc-1",
-			ok: true,
-			duration: 12,
-			result: { ok: true, questionId: "q1" },
-		});
+			toolName: "add_extracted_question",
+			input: { questionId: "q1" },
+			output: { ok: true, questionId: "q1" },
+		} as TextStreamPart<ToolSet>);
 
 		expect(onToolCall).toHaveBeenCalledWith({
 			toolCallId: "tc-1",
@@ -159,7 +164,7 @@ describe("createIncrementalToolEventMiddleware", () => {
 	});
 
 	it("ignores empty tool results so onToolExecuted can emit the real payload later", () => {
-		const state = createAgentStreamState();
+		const state = createAiStreamState();
 		const emitted: unknown[] = [];
 		const emitToolResult = createToolResultEmitter((payload) => {
 			emitted.push(payload);
@@ -182,7 +187,7 @@ describe("createIncrementalToolEventMiddleware", () => {
 	});
 
 	it("upgrades a partial list result when a richer payload arrives later", () => {
-		const state = createAgentStreamState();
+		const state = createAiStreamState();
 		const emitted: unknown[] = [];
 		const emitToolResult = createToolResultEmitter((payload) => {
 			emitted.push(payload);
@@ -227,29 +232,25 @@ describe("createIncrementalToolEventMiddleware", () => {
 		});
 	});
 
-	it("forwards middleware tool results through createToolResultEmitter without dropping payload", () => {
-		const state = createAgentStreamState();
+	it("forwards tool results through createToolResultEmitter without dropping payload", () => {
+		const state = createAiStreamState();
 		const emitted: unknown[] = [];
 		const emitToolResult = createToolResultEmitter((payload) => {
 			emitted.push(payload);
 		}, state);
-		const middleware = createIncrementalToolEventMiddleware({
-			onToolResult: emitToolResult,
-		});
 
-		void middleware.onAfterToolCall?.({} as never, {
-			toolCall: {
-				id: "tc-1",
-				type: "function",
-				function: { name: "add_extracted_question", arguments: "{}" },
-			},
-			tool: undefined,
-			toolName: "add_extracted_question",
-			toolCallId: "tc-1",
-			ok: true,
-			duration: 8,
-			result: { ok: true, questionId: "q9" },
-		});
+		processAiStreamPart(
+			{
+				type: "tool-result",
+				toolCallId: "tc-1",
+				toolName: "add_extracted_question",
+				input: {},
+				output: { ok: true, questionId: "q9" },
+			} as TextStreamPart<ToolSet>,
+			{},
+			state,
+			emitToolResult,
+		);
 
 		expect(emitted).toEqual([
 			{

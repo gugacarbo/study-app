@@ -1,5 +1,11 @@
+import type { ThinkingEffortLevel } from "@/lib/validation";
 import { and, eq } from "drizzle-orm";
 import * as schema from "../schema";
+import {
+	parseDefaultThinkingEffort,
+	parseThinkingEffortLevels,
+	serializeThinkingEffortLevels,
+} from "./ai-model-thinking-effort";
 import type { DBQueries } from "./base";
 import type {
 	AiModelPublic,
@@ -9,6 +15,10 @@ import type {
 } from "./types";
 
 function toPublicModel(row: AiModelWithProvider): AiModelPublic {
+	const thinkingEffortLevels = parseThinkingEffortLevels(
+		row.thinking_effort_levels,
+	);
+
 	return {
 		id: row.id,
 		providerId: row.provider_id,
@@ -19,6 +29,11 @@ function toPublicModel(row: AiModelWithProvider): AiModelPublic {
 		maxOutputTokens: row.max_output_tokens,
 		inputCostPerMillion: row.input_cost_per_million,
 		outputCostPerMillion: row.output_cost_per_million,
+		thinkingEffortLevels,
+		defaultThinkingEffort: parseDefaultThinkingEffort(
+			row.default_thinking_effort,
+			thinkingEffortLevels,
+		),
 		enabled: row.enabled,
 		metadata: row.metadata,
 	};
@@ -35,6 +50,8 @@ function modelWithProviderSelect(db: DBQueries["db"]) {
 			max_output_tokens: schema.aiModels.max_output_tokens,
 			input_cost_per_million: schema.aiModels.input_cost_per_million,
 			output_cost_per_million: schema.aiModels.output_cost_per_million,
+			thinking_effort_levels: schema.aiModels.thinking_effort_levels,
+			default_thinking_effort: schema.aiModels.default_thinking_effort,
 			enabled: schema.aiModels.enabled,
 			metadata: schema.aiModels.metadata,
 			created_at: schema.aiModels.created_at,
@@ -115,6 +132,8 @@ export function insertAiModel(
 		maxOutputTokens?: number | null;
 		inputCostPerMillion?: number | null;
 		outputCostPerMillion?: number | null;
+		thinkingEffortLevels?: ThinkingEffortLevel[];
+		defaultThinkingEffort?: ThinkingEffortLevel | null;
 		enabled?: boolean;
 		metadata?: string | null;
 	},
@@ -129,6 +148,10 @@ export function insertAiModel(
 			max_output_tokens: data.maxOutputTokens ?? null,
 			input_cost_per_million: data.inputCostPerMillion ?? null,
 			output_cost_per_million: data.outputCostPerMillion ?? null,
+			thinking_effort_levels: serializeThinkingEffortLevels(
+				data.thinkingEffortLevels ?? [],
+			),
+			default_thinking_effort: data.defaultThinkingEffort ?? null,
 			enabled: data.enabled ?? true,
 			metadata: data.metadata ?? null,
 		})
@@ -147,6 +170,8 @@ export function updateAiModel(
 		maxOutputTokens?: number | null;
 		inputCostPerMillion?: number | null;
 		outputCostPerMillion?: number | null;
+		thinkingEffortLevels?: ThinkingEffortLevel[];
+		defaultThinkingEffort?: ThinkingEffortLevel | null;
 		enabled?: boolean;
 		metadata?: string | null;
 	},
@@ -165,6 +190,14 @@ export function updateAiModel(
 	}
 	if (data.outputCostPerMillion !== undefined) {
 		values.output_cost_per_million = data.outputCostPerMillion;
+	}
+	if (data.thinkingEffortLevels !== undefined) {
+		values.thinking_effort_levels = serializeThinkingEffortLevels(
+			data.thinkingEffortLevels,
+		);
+	}
+	if (data.defaultThinkingEffort !== undefined) {
+		values.default_thinking_effort = data.defaultThinkingEffort;
 	}
 	if (data.enabled !== undefined) values.enabled = data.enabled;
 	if (data.metadata !== undefined) values.metadata = data.metadata;

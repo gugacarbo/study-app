@@ -29,7 +29,10 @@ import {
 	isIngestProcess,
 } from "@/features/background-processes/store/types";
 import type { IngestAgentRun, IngestJob } from "@/features/ingest/store/types";
-import type { IngestAgentEvent, IngestTokenEvent } from "@/lib/sse-stream";
+import type {
+	IngestAgentEvent,
+	IngestTokenEvent,
+} from "@/features/ingest/store/types";
 
 const { startQueuedIngest, startQueuedImproveQuestions, startQueuedExplanationGeneration } =
 	vi.hoisted(() => ({
@@ -388,17 +391,17 @@ describe("background process persistence", () => {
 			{
 				id: "agent-legacy:system",
 				role: "system",
-				parts: [{ type: "text", content: "legacy system" }],
+				parts: [{ type: "text", text: "legacy system" }],
 			},
 			{
 				id: "agent-legacy:user",
 				role: "user",
-				parts: [{ type: "text", content: "legacy user" }],
+				parts: [{ type: "text", text: "legacy user" }],
 			},
 			{
 				id: "agent-legacy:assistant",
 				role: "assistant",
-				parts: [{ type: "text", content: "legacy output" }],
+				parts: [{ type: "text", text: "legacy output" }],
 			},
 		]);
 	});

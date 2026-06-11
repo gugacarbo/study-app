@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import type {
 	IngestAgentRunViewModel,
 	IngestPipelineStageViewModel,
@@ -56,7 +56,7 @@ function getAgentMessages(
 	isStreaming: boolean,
 ): UIMessage[] {
 	if (agent.messages?.length) {
-		return agent.messages;
+		return agent.messages as unknown as UIMessage[];
 	}
 
 	const messages: UIMessage[] = [];
@@ -110,6 +110,6 @@ function createTextMessage(
 	return {
 		id,
 		role,
-		parts: [{ type: "text", content }],
+		parts: [{ type: "text", text: content }],
 	};
 }

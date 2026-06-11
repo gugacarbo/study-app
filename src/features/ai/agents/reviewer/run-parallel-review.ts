@@ -1,7 +1,6 @@
 import { generateJson } from "@/features/ai/core/generate";
 import type { ProviderConfig } from "@/lib/validation";
 import {
-	type ArbiterResult,
 	arbiterResultSchema,
 	buildReviewerSystemPrompt,
 	REVIEW_ARBITER_SYSTEM_PROMPT,
@@ -36,7 +35,7 @@ export async function runParallelReview(
 		async (_, index) => {
 			try {
 				const systemPrompt = buildReviewerSystemPrompt(index + 1);
-				const reviewerResult = (await generateJson(
+				const reviewerResult = await generateJson(
 					config,
 					question,
 					reviewerDraftSchema,
@@ -44,8 +43,8 @@ export async function runParallelReview(
 						system: systemPrompt,
 						tools: options?.tools,
 					},
-				)) as { finalObject: ReviewerDraft };
-				return { ok: true as const, draft: reviewerResult.finalObject };
+				);
+				return { ok: true as const, draft: reviewerResult };
 			} catch (error) {
 				const message =
 					error instanceof Error ? error.message : "Unknown reviewer error";
@@ -95,14 +94,12 @@ ${JSON.stringify(draft, null, 2)}`,
 
 ${failedReviewerCount > 0 ? `Note: ${failedReviewerCount} reviewer(s) failed — rely on the available drafts.` : ""}`;
 
-	const arbiterResult = (await generateJson(
+	const finalAnswer = await generateJson(
 		config,
 		arbiterPrompt,
 		arbiterResultSchema,
 		{ system: REVIEW_ARBITER_SYSTEM_PROMPT, tools: options?.tools },
-	)) as { finalObject: ArbiterResult };
-
-	const finalAnswer = arbiterResult.finalObject;
+	);
 
 	return {
 		answer: finalAnswer.answer,

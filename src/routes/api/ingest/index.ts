@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+	createJobUIMessageStream,
+	createJobUIMessageStreamResponse,
+	writeJobError,
+	writeJobResult,
+} from "@/features/ai/core/ui-message-job-stream";
 import { ingestRequestSchema, runIngestWithProgress } from "./-pipeline";
-import { formatSSE } from "./-sse-emitter";
 
 export {
 	buildExtractionUserPrompt,
@@ -16,19 +21,6 @@ export {
 	summarizeSearchResultSnippets,
 } from "./-review";
 export { runReviewStage } from "./-review-stage";
-export type {
-	AgentRunDescriptor,
-	AgentRunEvent,
-	AgentRunEventType,
-	AgentRunStatus,
-	StageStatus,
-} from "./-sse-emitter";
-export {
-	createAgentRunHelpers,
-	formatSSE,
-	isTextChunk,
-	sendStage,
-} from "./-sse-emitter";
 
 export const Route = createFileRoute("/api/ingest/")({
 	server: {
@@ -49,47 +41,32 @@ export const Route = createFileRoute("/api/ingest/")({
 					);
 				}
 
-				const encoder = new TextEncoder();
-				const stream = new ReadableStream<Uint8Array>({
-					start(controller) {
-						const send = (event: string, data: unknown) => {
-							controller.enqueue(encoder.encode(formatSSE(event, data)));
-						};
-
-						void (async () => {
-							try {
-								const result = await runIngestWithProgress(
-									parsed.data,
-									send,
-									request.signal,
-								);
-								send("result", result);
-							} catch (error) {
-								console.error(
-									`[${new Date().toISOString()} ERROR ingest-handler] Ingest job failed:`,
-									error,
-									`fileName=${parsed.data.fileName}`,
-								);
-								send("error", {
-									message:
-										error instanceof Error
-											? error.message
-											: "Unknown ingest error",
-								});
-							} finally {
-								controller.close();
-							}
-						})();
+				const stream = createJobUIMessageStream({
+					execute: async ({ writer }) => {
+						try {
+							const result = await runIngestWithProgress(
+								parsed.data,
+								writer,
+								request.signal,
+							);
+							writeJobResult(writer, result);
+						} catch (error) {
+							console.error(
+								`[${new Date().toISOString()} ERROR ingest-handler] Ingest job failed:`,
+								error,
+								`fileName=${parsed.data.fileName}`,
+							);
+							writeJobError(writer, {
+								message:
+									error instanceof Error
+										? error.message
+										: "Unknown ingest error",
+							});
+						}
 					},
 				});
 
-				return new Response(stream, {
-					headers: {
-						"Content-Type": "text/event-stream",
-						"Cache-Control": "no-cache, no-transform",
-						Connection: "keep-alive",
-					},
-				});
+				return createJobUIMessageStreamResponse(stream);
 			},
 		},
 	},

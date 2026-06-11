@@ -39,6 +39,8 @@ export const createModel = createServerFn({ method: "POST" })
 			maxOutputTokens: data.maxOutputTokens,
 			inputCostPerMillion: data.inputCostPerMillion,
 			outputCostPerMillion: data.outputCostPerMillion,
+			thinkingEffortLevels: data.thinkingEffortLevels,
+			defaultThinkingEffort: data.defaultThinkingEffort,
 			enabled: data.enabled,
 			metadata: data.metadata,
 		});
@@ -62,6 +64,8 @@ export const updateModel = createServerFn({ method: "POST" })
 			maxOutputTokens: data.maxOutputTokens,
 			inputCostPerMillion: data.inputCostPerMillion,
 			outputCostPerMillion: data.outputCostPerMillion,
+			thinkingEffortLevels: data.thinkingEffortLevels,
+			defaultThinkingEffort: data.defaultThinkingEffort,
 			enabled: data.enabled,
 			metadata: data.metadata,
 		});

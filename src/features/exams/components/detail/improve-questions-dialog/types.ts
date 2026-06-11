@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import type {
 	ChangeDecision,
 	QuestionChange,
@@ -7,12 +7,14 @@ import type { QuestionData } from "@/features/exams/components/detail/exam-utils
 
 export type ImproveQuestionsAgentStatus = "idle" | "running" | "done" | "error";
 
+export type ImproveQuestionsUIMessage = UIMessage;
+
 export interface ImproveQuestionsDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	question: QuestionData;
 	draftQuestion: QuestionData;
-	messages: UIMessage[];
+	messages: ImproveQuestionsUIMessage[];
 	isStreaming: boolean;
 	agentStatus: ImproveQuestionsAgentStatus;
 	changes: QuestionChange[];

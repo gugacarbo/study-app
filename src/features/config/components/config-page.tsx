@@ -5,19 +5,19 @@ import { ProvidersPanel } from "./providers-panel";
 
 export function ConfigPage() {
 	return (
-		<Tabs defaultValue="providers" className="w-full">
+		<Tabs defaultValue="providers" className="w-full gap-0">
 			<TabsList>
 				<TabsTrigger value="providers">Providers</TabsTrigger>
 				<TabsTrigger value="models">Models</TabsTrigger>
 				<TabsTrigger value="defaults">Defaults & Test</TabsTrigger>
 			</TabsList>
-			<TabsContent value="providers" className="mt-6">
+			<TabsContent value="providers" className="mt-4">
 				<ProvidersPanel />
 			</TabsContent>
-			<TabsContent value="models" className="mt-6">
+			<TabsContent value="models" className="mt-4">
 				<ModelsPanel />
 			</TabsContent>
-			<TabsContent value="defaults" className="mt-6">
+			<TabsContent value="defaults" className="mt-4">
 				<DefaultsPanel />
 			</TabsContent>
 		</Tabs>

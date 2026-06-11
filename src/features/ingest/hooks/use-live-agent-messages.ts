@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import { useStore } from "@tanstack/react-store";
 import {
 	backgroundProcessStore,

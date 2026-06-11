@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import { Badge } from "@/components/ui/badge";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
@@ -31,8 +31,8 @@ export function AgentRunThread({
 		if (message.parts.length === 0) return false;
 		if (isStreaming) return true;
 		return message.parts.some((part) => {
-			if (part.type === "text" || part.type === "thinking") {
-				return (part.content ?? "").trim().length > 0;
+			if (part.type === "text" || part.type === "reasoning") {
+				return part.text.trim().length > 0;
 			}
 			return true;
 		});

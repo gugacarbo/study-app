@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 
 export interface IngestTokenTotals {
 	prompt: number;

@@ -1,11 +1,11 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import { createConversation } from "./actions";
 import type { ChatTokenTotals } from "./types";
-import { conversationsStore, ensureWelcomeMessage } from "./types";
+import { conversationsStore } from "./types";
 
 export function getConversationMessages(id: string): UIMessage[] {
-	return ensureWelcomeMessage(conversationsStore.state.messagesMap[id] ?? []);
+	return conversationsStore.state.messagesMap[id] ?? [];
 }
 
 export function getTokenTotals(id: string): ChatTokenTotals {

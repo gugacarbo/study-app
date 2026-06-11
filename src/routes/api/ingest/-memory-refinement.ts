@@ -10,20 +10,21 @@ interface MemorySetupParams {
 	db: D1Database;
 	queries: DBQueries;
 	providerConfig: ProviderConfig;
-	send: (event: string, data: unknown) => void;
+	onProgress: (step: string) => void;
+	onWarning: (message: string, meta?: Record<string, unknown>) => void;
 }
 
 interface MemorySetupResult {
 	memory: MemoryManager;
 	criticalTopics: string[];
-	// biome-ignore lint/suspicious/noExplicitAny: tool type from @tanstack/ai
+	// biome-ignore lint/suspicious/noExplicitAny: tool type from AI SDK ToolSet
 	webTools?: any;
 }
 
 export async function setupMemory(
 	params: MemorySetupParams,
 ): Promise<MemorySetupResult> {
-	const { db, queries, providerConfig, send } = params;
+	const { db, queries, providerConfig, onWarning } = params;
 
 	const log = createIngestLogger("ingest-pipeline", db);
 	const config = await queries.getAllConfig();
@@ -31,11 +32,11 @@ export async function setupMemory(
 
 	await memory.ensureStructure().catch((error) => {
 		log.error("Memory ensureStructure failed", error, { stage: "init" });
-		send("warning", {
-			message: `Memory initialization failed: ${
+		onWarning(
+			`Memory initialization failed: ${
 				error instanceof Error ? error.message : "unknown error"
 			}`,
-		});
+		);
 	});
 
 	const criticalTopics = getCriticalTopics(
@@ -64,11 +65,11 @@ export async function setupMemory(
 							stage: "web_observer",
 							query: input.query,
 						});
-						send("warning", {
-							message: `Failed to save web search memory: ${
+						onWarning(
+							`Failed to save web search memory: ${
 								error instanceof Error ? error.message : "unknown error"
 							}`,
-						});
+						);
 					}
 				},
 				onFetch: async ({ output }) => {
@@ -85,25 +86,24 @@ export async function setupMemory(
 							stage: "web_observer",
 							url: output.url,
 						});
-						send("warning", {
-							message: `Failed to save web fetch memory: ${
+						onWarning(
+							`Failed to save web fetch memory: ${
 								error instanceof Error ? error.message : "unknown error"
 							}`,
-						});
+						);
 					}
 				},
 			},
-			onWarning: (message) => send("warning", { message }),
+			onWarning,
 		},
 	});
 
 	const webTools = resolvedTools.tools.length ? resolvedTools.tools : undefined;
 
 	if (!webTools?.length && criticalTopics.length > 0) {
-		send("warning", {
-			message:
-				"Web tools are unavailable. Review will proceed without web verification.",
-		});
+		onWarning(
+			"Web tools are unavailable. Review will proceed without web verification.",
+		);
 	}
 
 	return { memory, criticalTopics, webTools };

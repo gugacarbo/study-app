@@ -61,7 +61,9 @@ describe("runReviewStage", () => {
 			},
 		);
 
-		const send = vi.fn();
+		const writer = { write: vi.fn() };
+		const onProgress = vi.fn();
+		const onWarning = vi.fn();
 		const agentRuns = createAgentRunsMock();
 
 		await runReviewStage({
@@ -88,7 +90,9 @@ describe("runReviewStage", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			send,
+			writer: writer as never,
+			onProgress,
+			onWarning,
 			log: { error: vi.fn() },
 		});
 
@@ -101,11 +105,12 @@ describe("runReviewStage", () => {
 			"Review failed for question #1. Keeping the original extracted question.",
 			{ questionIndex: 0, questionNumber: 1 },
 		);
-		expect(send).toHaveBeenCalledWith("warning", {
-			message:
-				"Review failed for question #1. Keeping the original extracted question.",
-			stageId: "review",
-			agentRunId: "review-1",
-		});
+		expect(onWarning).toHaveBeenCalledWith(
+			"Review failed for question #1. Keeping the original extracted question.",
+			{
+				stageId: "review",
+				agentRunId: "review-1",
+			},
+		);
 	});
 });

@@ -23,22 +23,24 @@ function getBubbleContentSignature(bubble: ChatBubble) {
 		partCount += 1;
 
 		if (part.type === "text") {
-			textLength += part.content.length;
+			textLength += part.text.length;
 			continue;
 		}
 
-		if (part.type === "thinking") {
-			textLength += part.content?.length ?? 0;
+		if (part.type === "reasoning") {
+			textLength += part.text.length;
 			continue;
 		}
 
-		if (part.type === "tool-call") {
-			latestToolCallId = part.id;
-			continue;
-		}
-
-		if (part.type === "tool-result") {
-			latestToolResultToolCallId = part.toolCallId;
+		if (part.type === "dynamic-tool") {
+			latestToolCallId = part.toolCallId;
+			if (
+				part.state === "output-available" ||
+				part.state === "output-error" ||
+				part.output != null
+			) {
+				latestToolResultToolCallId = part.toolCallId;
+			}
 		}
 	}
 

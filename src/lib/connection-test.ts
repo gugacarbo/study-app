@@ -1,5 +1,11 @@
-import { chat, type StreamChunk } from "@tanstack/ai";
-import { getAiAdapter } from "@/features/ai/adapters/provider-adapter";
+import { streamText } from "ai";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
+import { getAiModel } from "@/features/ai/adapters/provider-model";
+import {
+	createAiStreamState,
+	isAiStreamRunErrorChunk,
+	processAiStreamPart,
+} from "@/features/ai/core/ai-stream-handler";
 import type { ProviderConfig } from "@/lib/validation";
 
 export type ConnectionProgressEvent = {
@@ -10,14 +16,6 @@ export type ConnectionProgressEvent = {
 export type ConnectionResultEvent = {
 	response: string;
 };
-
-function isTextChunk(
-	chunk: StreamChunk,
-): chunk is StreamChunk & { delta: string } {
-	return (
-		chunk.type === "TEXT_MESSAGE_CONTENT" && typeof chunk.delta === "string"
-	);
-}
 
 export async function runConnectionTestWithProgress(
 	config: ProviderConfig,
@@ -35,8 +33,7 @@ export async function runConnectionTestWithProgress(
 	onProgress({ progress: 10, step: "Validating configuration..." });
 	assertNotAborted();
 
-	onProgress({ progress: 25, step: "Preparing AI adapter..." });
-	const adapter = getAiAdapter(config);
+	onProgress({ progress: 25, step: "Preparing AI model..." });
 	assertNotAborted();
 
 	const system = "You are a connection test assistant. Respond concisely.";
@@ -46,22 +43,39 @@ export async function runConnectionTestWithProgress(
 
 	onProgress({ progress: 40, step: "Connecting to provider..." });
 
-	const stream = chat({
-		adapter,
+	const streamState = createAiStreamState();
+	let response = "";
+
+	const result = streamText({
+		model: getAiModel(config),
+		system,
 		messages: [{ role: "user", content: userMsg }],
-		systemPrompts: [system],
-		stream: true,
+		providerOptions: buildProviderOptions(config),
+		abortSignal,
 	});
 
-	let response = "";
 	onProgress({ progress: 55, step: "Streaming model response..." });
 
-	for await (const chunk of stream) {
+	for await (const chunk of result.fullStream) {
 		assertNotAborted();
-		if (isTextChunk(chunk) && chunk.delta) {
-			response += chunk.delta;
-			onChunk(chunk.delta);
+		if (isAiStreamRunErrorChunk(chunk)) {
+			const message =
+				chunk.error instanceof Error
+					? chunk.error.message
+					: String(chunk.error);
+			throw new Error(`AI provider returned error: ${message}`);
 		}
+
+		processAiStreamPart(
+			chunk,
+			{
+				onTextDelta: (delta) => {
+					response += delta;
+					onChunk(delta);
+				},
+			},
+			streamState,
+		);
 	}
 
 	onProgress({ progress: 100, step: "Completed" });

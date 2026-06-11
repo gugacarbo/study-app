@@ -1,6 +1,8 @@
 import { flushSync } from "react-dom";
-import type { IngestAgentEvent, IngestStageEvent } from "@/lib/sse-stream";
-import { ingestStream } from "@/lib/sse-stream";
+import type {
+	IngestAgentEvent,
+	IngestStageEvent,
+} from "@/features/ingest/store/types";
 import { queryClient } from "@/routes/__root";
 import type { IngestJob } from "@/features/ingest/store/types";
 import {
@@ -39,6 +41,7 @@ import {
 	syncJobTokenTotals,
 	updateFlowStages,
 	upsertAgentRun,
+	ingestJobStream,
 } from "./job-utils";
 
 function resolveProcessId(jobId: string): string {
@@ -105,7 +108,7 @@ async function runJob(processId: string): Promise<void> {
 		const controller = new AbortController();
 		registerAbort(processId, controller);
 
-		const result = await ingestStream(
+		const result = await ingestJobStream(
 			{
 				buffer: currentJob.buffer,
 				fileName: currentJob.fileName,

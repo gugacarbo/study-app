@@ -22,8 +22,8 @@ TanStack Router file-based. Árvore gerada em `src/routeTree.gen.ts` — não ed
 | `memory.tsx`                   | `/memory`              | Page         | memória R2+D1                               |
 | `about.tsx`                    | `/about`               | Page         | —                                           |
 | `api/chat/index.ts`            | `/api/chat`            | API POST     | streaming chat                              |
-| `api/ingest/index.ts`          | `/api/ingest`          | API POST SSE | pipeline ingestão                           |
-| `api/test-connection.ts`       | `/api/test-connection` | API POST SSE | teste de provider                           |
+| `api/ingest/index.ts`          | `/api/ingest`          | API POST stream | pipeline ingestão (UI Message Stream)    |
+| `api/test-connection.ts`       | `/api/test-connection` | API POST stream | teste de provider (UI Message Stream)  |
 
 ## Colocated modules (`-prefix`)
 
@@ -39,7 +39,7 @@ Lógica pesada fica ao lado da rota, não importada pelo client:
 - API routes: `createFileRoute` + `server.handlers`
 - Data: `useSuspenseQuery` + server functions — não route loaders
 - Sem auth / guards — app single-user
-- SSE: `text/event-stream` em ingest e test-connection (`src/lib/sse-stream/`)
+- Job streams: UI Message Stream via `src/features/ai/core/ui-message-job-stream.ts`
 
 ## Notable
 

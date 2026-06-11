@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -31,6 +39,7 @@ const emptyForm = (): ProviderFormState => ({
 
 export function ProvidersPanel() {
 	const queryClient = useQueryClient();
+	const [dialogOpen, setDialogOpen] = useState(false);
 	const [form, setForm] = useState<ProviderFormState>(emptyForm);
 	const [message, setMessage] = useState("");
 
@@ -38,6 +47,30 @@ export function ProvidersPanel() {
 		queryKey: ["ai-providers"],
 		queryFn: () => listProviders(),
 	});
+
+	const resetDialog = () => {
+		setDialogOpen(false);
+		setForm(emptyForm());
+	};
+
+	const openCreateDialog = () => {
+		setForm(emptyForm());
+		setMessage("");
+		setDialogOpen(true);
+	};
+
+	const openEditDialog = (provider: (typeof providers)[number]) => {
+		setForm({
+			id: provider.id,
+			name: provider.name,
+			baseUrl: provider.baseUrl,
+			apiKey: "",
+			enabled: provider.enabled,
+			hasApiKey: provider.hasApiKey,
+		});
+		setMessage("");
+		setDialogOpen(true);
+	};
 
 	const saveMutation = useMutation({
 		mutationFn: async () => {
@@ -67,7 +100,7 @@ export function ProvidersPanel() {
 		},
 		onSuccess: async () => {
 			setMessage("Provider saved");
-			setForm(emptyForm());
+			resetDialog();
 			await queryClient.invalidateQueries({ queryKey: ["ai-providers"] });
 		},
 		onError: (error) => {
@@ -87,12 +120,19 @@ export function ProvidersPanel() {
 	});
 
 	return (
-		<div className="grid gap-6 lg:grid-cols-2">
+		<>
 			<Card>
-				<CardHeader>
+				<CardHeader className="flex flex-row items-center justify-between gap-3">
 					<CardTitle>Providers</CardTitle>
+					<Button type="button" size="sm" onClick={openCreateDialog}>
+						<Plus className="size-3.5" />
+						Add provider
+					</Button>
 				</CardHeader>
 				<CardContent className="space-y-3">
+					{message && !dialogOpen ? (
+						<p className="text-xs text-muted-foreground">{message}</p>
+					) : null}
 					{providers.length === 0 ? (
 						<p className="text-sm text-muted-foreground">No providers yet.</p>
 					) : (
@@ -116,16 +156,7 @@ export function ProvidersPanel() {
 										type="button"
 										variant="outline"
 										size="sm"
-										onClick={() =>
-											setForm({
-												id: provider.id,
-												name: provider.name,
-												baseUrl: provider.baseUrl,
-												apiKey: "",
-												enabled: provider.enabled,
-												hasApiKey: provider.hasApiKey,
-											})
-										}
+										onClick={() => openEditDialog(provider)}
 									>
 										Edit
 									</Button>
@@ -144,89 +175,107 @@ export function ProvidersPanel() {
 				</CardContent>
 			</Card>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>{form.id ? "Edit provider" : "Add provider"}</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="space-y-2">
-						<Label htmlFor="provider-name">Name</Label>
-						<Input
-							id="provider-name"
-							value={form.name}
-							onChange={(event) =>
-								setForm((current) => ({ ...current, name: event.target.value }))
-							}
-							placeholder="OpenRouter"
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="provider-base-url">Base URL</Label>
-						<Input
-							id="provider-base-url"
-							value={form.baseUrl}
-							onChange={(event) =>
-								setForm((current) => ({
-									...current,
-									baseUrl: event.target.value,
-								}))
-							}
-							placeholder="https://openrouter.ai/api/v1"
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="provider-api-key">API Key</Label>
-						<Input
-							id="provider-api-key"
-							type="password"
-							autoComplete="off"
-							value={form.apiKey}
-							onChange={(event) =>
-								setForm((current) => ({
-									...current,
-									apiKey: event.target.value,
-								}))
-							}
-							placeholder={
-								form.hasApiKey
-									? "Saved — leave blank to keep current key"
-									: "sk-..."
-							}
-						/>
-					</div>
-					<div className="flex items-center gap-2">
-						<Switch
-							id="provider-enabled"
-							checked={form.enabled}
-							onCheckedChange={(enabled) =>
-								setForm((current) => ({ ...current, enabled }))
-							}
-						/>
-						<Label htmlFor="provider-enabled">Enabled</Label>
-					</div>
-					<div className="flex gap-2">
-						<Button
-							type="button"
-							onClick={() => saveMutation.mutate()}
-							disabled={saveMutation.isPending}
-						>
-							{saveMutation.isPending ? "Saving..." : "Save provider"}
-						</Button>
-						{form.id ? (
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setForm(emptyForm())}
+			<Dialog
+				open={dialogOpen}
+				onOpenChange={(open) => {
+					if (!open) resetDialog();
+					else setDialogOpen(true);
+				}}
+			>
+				<DialogContent className="sm:max-w-lg">
+					<DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b pb-4">
+						<DialogTitle>
+							{form.id ? "Edit provider" : "Add provider"}
+						</DialogTitle>
+						<div className="flex items-center gap-2 pr-8">
+							<Label
+								htmlFor="provider-enabled"
+								className="text-muted-foreground font-normal"
 							>
+								Enabled
+							</Label>
+							<Switch
+								id="provider-enabled"
+								checked={form.enabled}
+								onCheckedChange={(enabled) =>
+									setForm((current) => ({ ...current, enabled }))
+								}
+							/>
+						</div>
+					</DialogHeader>
+
+					<div className="space-y-3">
+						<div className="space-y-1.5">
+							<Label htmlFor="provider-name">Name</Label>
+							<Input
+								id="provider-name"
+								value={form.name}
+								onChange={(event) =>
+									setForm((current) => ({
+										...current,
+										name: event.target.value,
+									}))
+								}
+								placeholder="OpenRouter"
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<Label htmlFor="provider-base-url">Base URL</Label>
+							<Input
+								id="provider-base-url"
+								value={form.baseUrl}
+								onChange={(event) =>
+									setForm((current) => ({
+										...current,
+										baseUrl: event.target.value,
+									}))
+								}
+								placeholder="https://openrouter.ai/api/v1"
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<Label htmlFor="provider-api-key">API Key</Label>
+							<Input
+								id="provider-api-key"
+								type="password"
+								autoComplete="off"
+								value={form.apiKey}
+								onChange={(event) =>
+									setForm((current) => ({
+										...current,
+										apiKey: event.target.value,
+									}))
+								}
+								placeholder={
+									form.hasApiKey
+										? "Saved — leave blank to keep current key"
+										: "sk-..."
+								}
+							/>
+						</div>
+					</div>
+
+					<DialogFooter className="border-t pt-4 sm:justify-between">
+						{message ? (
+							<p className="text-xs text-muted-foreground">{message}</p>
+						) : (
+							<span />
+						)}
+						<div className="flex gap-2">
+							<Button type="button" variant="outline" onClick={resetDialog}>
 								Cancel
 							</Button>
-						) : null}
-					</div>
-					{message ? (
-						<p className="text-sm text-muted-foreground">{message}</p>
-					) : null}
-				</CardContent>
-			</Card>
-		</div>
+							<Button
+								type="button"
+								onClick={() => saveMutation.mutate()}
+								disabled={saveMutation.isPending}
+							>
+								{saveMutation.isPending ? "Saving..." : "Save provider"}
+							</Button>
+						</div>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
 	);
 }

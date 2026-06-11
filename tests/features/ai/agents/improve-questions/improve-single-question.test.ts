@@ -1,35 +1,57 @@
+import type { TextStreamPart, ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
+const { streamTextMock } = vi.hoisted(() => ({
+	streamTextMock: vi.fn(),
 }));
 
-const { streamChatMessagesMock } = vi.hoisted(() => ({
-	streamChatMessagesMock: vi.fn(),
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		streamText: streamTextMock,
+	};
+});
+
+vi.mock("@/features/ai/adapters/provider-model", () => ({
+	getAiModel: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@/features/ai/core/chat-stream", () => ({
-	streamChatMessages: streamChatMessagesMock,
-}));
+vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
+	return {
+		...actual,
+		processAiStreamPart(
+			chunk: Parameters<typeof actual.processAiStreamPart>[0],
+			handlers: Parameters<typeof actual.processAiStreamPart>[1],
+			state: Parameters<typeof actual.processAiStreamPart>[2],
+		) {
+			const { onToolResult, ...restHandlers } = handlers;
+			if (onToolResult) {
+				return actual.processAiStreamPart(
+					chunk,
+					restHandlers,
+					state,
+					onToolResult,
+				);
+			}
+			return actual.processAiStreamPart(chunk, handlers, state);
+		},
+	};
+});
 
 import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
 import { improveSingleQuestion } from "@/features/ai/agents/improve-questions/improve-single-question";
 
-type Tool = {
-	name: string;
+type ExecutableTool = {
 	execute: (input: Record<string, unknown>) => Promise<unknown>;
 };
 
-function getTool(tools: readonly unknown[] | undefined, name: string): Tool {
-	const tool = tools?.find((candidate) => (candidate as Tool).name === name);
-	if (!tool) throw new Error(`Tool ${name} not found`);
-	return tool as Tool;
+function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
+	const tool = tools?.[name] as ExecutableTool | undefined;
+	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
+	return tool;
 }
 
 const baseQuestion: DraftQuestion = {
@@ -44,35 +66,31 @@ const baseQuestion: DraftQuestion = {
 
 describe("improveSingleQuestion", () => {
 	beforeEach(() => {
-		streamChatMessagesMock.mockReset();
+		streamTextMock.mockReset();
 	});
 
 	it("improves a question through workspace tools and emits workspace updates", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
-			) =>
-				(async function* () {
-					yield {
-						type: "TEXT_MESSAGE_CONTENT",
-						delta: "Melhorando os distratores...",
-					};
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const getQuestion = getTool(options?.tools, "get_question");
+			const updateQuestionOptions = getTool(
+				options?.tools,
+				"update_question_options",
+			);
 
-					const getQuestion = getTool(options?.tools, "get_question");
-					const updateQuestionOptions = getTool(
-						options?.tools,
-						"update_question_options",
-					);
+			return {
+				fullStream: (async function* () {
+					yield {
+						type: "text-delta",
+						text: "Melhorando os distratores...",
+					} as TextStreamPart<ToolSet>;
 
 					await getQuestion.execute({ id: 7 });
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-1",
-						toolCallName: "get_question",
+						toolName: "get_question",
 						input: { id: 7 },
-						result: {
+						output: {
 							ok: true,
 							data: {
 								id: 7,
@@ -83,7 +101,7 @@ describe("improveSingleQuestion", () => {
 								explanation: baseQuestion.explanation,
 							},
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 
 					await updateQuestionOptions.execute({
 						id: 7,
@@ -97,9 +115,9 @@ describe("improveSingleQuestion", () => {
 						explanation: "Brasilia foi inaugurada em 1960 como capital federal.",
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-2",
-						toolCallName: "update_question_options",
+						toolName: "update_question_options",
 						input: {
 							id: 7,
 							options: [
@@ -112,30 +130,33 @@ describe("improveSingleQuestion", () => {
 							explanation:
 								"Brasilia foi inaugurada em 1960 como capital federal.",
 						},
-						result: {
+						output: {
 							ok: true,
 							id: 7,
 							updatedFields: ["options", "explanation"],
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 
 					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
+						type: "finish-step",
 						usage: {
-							promptTokens: 14,
-							completionTokens: 9,
+							inputTokens: 14,
+							outputTokens: 9,
 							totalTokens: 23,
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+			};
+		});
 
 		const onAgentEvent = vi.fn();
 		const onWorkspaceUpdate = vi.fn();
-		const webTools = [{ name: "web_search", execute: vi.fn() }] as unknown[];
+		const webTools = {
+			web_search: {
+				description: "Search the web",
+				execute: vi.fn(),
+			},
+		} as unknown as ToolSet;
 
 		const result = await improveSingleQuestion(
 			{
@@ -145,7 +166,7 @@ describe("improveSingleQuestion", () => {
 			},
 			baseQuestion,
 			{
-				tools: webTools as never,
+				tools: webTools,
 				onAgentEvent,
 				onWorkspaceUpdate,
 				createAgentRunId: () => "improve-q7",
@@ -176,20 +197,21 @@ describe("improveSingleQuestion", () => {
 				userPrompt: expect.stringContaining("Improve question #7."),
 			}),
 		);
-		expect(streamChatMessagesMock).toHaveBeenCalledWith(
-			expect.anything(),
-			[
-				{
-					role: "user",
-					content: expect.stringContaining("Improve question #7."),
-				},
-			],
+		expect(streamTextMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				tools: expect.arrayContaining([
-					expect.objectContaining({ name: "get_question" }),
-					expect.objectContaining({ name: "update_question_options" }),
-					expect.objectContaining({ name: "web_search" }),
-				]),
+				messages: [
+					{
+						role: "user",
+						content: expect.stringContaining("Improve question #7."),
+					},
+				],
+				tools: expect.objectContaining({
+					get_question: expect.objectContaining({ execute: expect.any(Function) }),
+					update_question_options: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+					web_search: expect.objectContaining({ execute: expect.any(Function) }),
+				}),
 				system: expect.stringContaining(
 					"You are an exam-question specialist.",
 				),
@@ -288,8 +310,8 @@ describe("improveSingleQuestion", () => {
 				stageId: "improve-questions",
 				agentRunId: "improve-q7",
 				tokens: {
-					promptTokens: 14,
-					completionTokens: 9,
+					inputTokens: 14,
+					outputTokens: 9,
 					totalTokens: 23,
 				},
 			}),
@@ -315,44 +337,34 @@ describe("improveSingleQuestion", () => {
 	});
 
 	it("reports failure when tool calls error out and no update is applied", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
-			) =>
-				(async function* () {
-					const updateQuestionOptions = getTool(
-						options?.tools,
-						"update_question_options",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const updateQuestionOptions = getTool(
+				options?.tools,
+				"update_question_options",
+			);
 
+			return {
+				fullStream: (async function* () {
 					await updateQuestionOptions.execute({
 						id: 7,
 						options: ["A", "B"],
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-fail-1",
-						toolCallName: "update_question_options",
+						toolName: "update_question_options",
 						input: { id: 7, options: ["A", "B"] },
-						result: {
+						output: {
 							ok: false,
 							error: {
 								code: "IMPROVE_QUESTIONS_TOOL_ERROR",
 								message: "At least 5 options required",
 							},
 						},
-					};
-
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+			};
+		});
 
 		const onAgentEvent = vi.fn();
 		const onWorkspaceUpdate = vi.fn();

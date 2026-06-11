@@ -138,6 +138,8 @@ export interface DBQueries {
 		maxOutputTokens?: number | null;
 		inputCostPerMillion?: number | null;
 		outputCostPerMillion?: number | null;
+		thinkingEffortLevels?: import("@/lib/validation").ThinkingEffortLevel[];
+		defaultThinkingEffort?: import("@/lib/validation").ThinkingEffortLevel | null;
 		enabled?: boolean;
 		metadata?: string | null;
 	}): Promise<number>;
@@ -150,6 +152,8 @@ export interface DBQueries {
 			maxOutputTokens?: number | null;
 			inputCostPerMillion?: number | null;
 			outputCostPerMillion?: number | null;
+			thinkingEffortLevels?: import("@/lib/validation").ThinkingEffortLevel[];
+			defaultThinkingEffort?: import("@/lib/validation").ThinkingEffortLevel | null;
 			enabled?: boolean;
 			metadata?: string | null;
 		},

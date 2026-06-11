@@ -32,17 +32,17 @@ describe("agent-run-messages", () => {
 			{
 				id: "run-1:system",
 				role: "system",
-				parts: [{ type: "text", content: "system" }],
+				parts: [{ type: "text", text: "system" }],
 			},
 			{
 				id: "run-1:user",
 				role: "user",
-				parts: [{ type: "text", content: "user" }],
+				parts: [{ type: "text", text: "user" }],
 			},
 			{
 				id: "run-1:assistant",
 				role: "assistant",
-				parts: [{ type: "text", content: "" }],
+				parts: [{ type: "text", text: "" }],
 			},
 		]);
 	});
@@ -78,8 +78,8 @@ describe("agent-run-messages", () => {
 
 		expect(state.outputText).toBe("Hello world");
 		expect(assistant?.parts).toEqual([
-			{ type: "text", content: "Hello world" },
-			{ type: "thinking", content: "Thinking..." },
+			{ type: "text", text: "Hello world" },
+			{ type: "reasoning", text: "Thinking..." },
 		]);
 	});
 
@@ -113,20 +113,13 @@ describe("agent-run-messages", () => {
 
 		expect(assistant?.parts).toEqual([
 			{
-				type: "tool-call",
-				id: "run-1:tool-call:0",
-				name: "get_question",
-				arguments: "{}",
-				input: undefined,
-				output: "{\n  \"ok\": true\n}",
-				state: "input-complete",
-			},
-			{
-				type: "tool-result",
+				type: "dynamic-tool",
 				toolCallId: "run-1:tool-call:0",
-				content: "{\n  \"ok\": true\n}",
-				state: "complete",
-				error: undefined,
+				toolName: "unknown_tool",
+				state: "output-available",
+				input: {},
+				output: { ok: true },
+				errorText: undefined,
 			},
 		]);
 	});
@@ -150,17 +143,17 @@ describe("agent-run-messages", () => {
 			{
 				id: "run-1:system",
 				role: "system",
-				parts: [{ type: "text", content: "system prompt" }],
+				parts: [{ type: "text", text: "system prompt" }],
 			},
 			{
 				id: "run-1:user",
 				role: "user",
-				parts: [{ type: "text", content: "user prompt" }],
+				parts: [{ type: "text", text: "user prompt" }],
 			},
 			{
 				id: "run-1:assistant",
 				role: "assistant",
-				parts: [{ type: "text", content: "" }],
+				parts: [{ type: "text", text: "" }],
 			},
 		]);
 	});

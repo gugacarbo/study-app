@@ -7,6 +7,7 @@ export {
 	setActiveConversation,
 	updateConversationTitle,
 } from "./actions";
+export { createConversationHistoryAdapter } from "./history-adapter";
 export {
 	ensureActiveConversation,
 	getAssistantMetrics,

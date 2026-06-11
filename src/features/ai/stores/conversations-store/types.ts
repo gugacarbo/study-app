@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import { Store } from "@tanstack/store";
 import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 
@@ -23,30 +23,11 @@ export interface PersistedData {
 	metricsMap: Record<string, Record<string, AssistantPerfMetrics>>;
 }
 
-const STORAGE_KEY = "chat-conversations";
+const STORAGE_KEY = "chat-conversations-v2";
 
 let idCounter = 0;
 function generateId(): string {
 	return `conv_${Date.now()}_${idCounter++}`;
-}
-
-const WELCOME_MESSAGE: UIMessage = {
-	id: "welcome",
-	role: "assistant",
-	parts: [
-		{
-			type: "text",
-			content:
-				"Hi! I'm your study assistant. Ask me anything about your subjects.",
-		},
-	],
-};
-
-function ensureWelcomeMessage(messages: UIMessage[]): UIMessage[] {
-	if (messages.length === 0) {
-		return [WELCOME_MESSAGE];
-	}
-	return messages;
 }
 
 const EMPTY_PERSISTED_DATA: PersistedData = {
@@ -139,4 +120,4 @@ conversationsStore.subscribe(() => {
 	}, 0);
 });
 
-export { ensureWelcomeMessage, generateId };
+export { generateId };

@@ -7,6 +7,7 @@ import {
   providerConfigSchema,
   testConnectionInputSchema,
   toProviderConfig,
+  resolveThinkingEffort,
   examIngestResponseSchema,
   normalizeExamIngestResponseWithDiagnostics,
 } from '#/lib/validation';
@@ -156,6 +157,14 @@ describe('attemptSchema', () => {
   });
 });
 
+describe('resolveThinkingEffort', () => {
+  it('returns default only when it is part of configured levels', () => {
+    expect(resolveThinkingEffort(['low', 'high'], 'high')).toBe('high');
+    expect(resolveThinkingEffort(['low', 'high'], 'medium')).toBeUndefined();
+    expect(resolveThinkingEffort([], 'low')).toBeUndefined();
+  });
+});
+
 describe('toProviderConfig', () => {
   it('maps resolved model config to adapter config', () => {
     expect(
@@ -165,11 +174,32 @@ describe('toProviderConfig', () => {
         model: 'llama3',
         apiKey: 'ollama',
         baseUrl: 'http://localhost:11434/v1',
+        thinkingEffortLevels: [],
       }),
     ).toEqual({
       model: 'llama3',
       apiKey: 'ollama',
       baseUrl: 'http://localhost:11434/v1',
+      thinkingEffort: undefined,
+    });
+  });
+
+  it('includes default thinking effort when configured', () => {
+    expect(
+      toProviderConfig({
+        modelId: 1,
+        providerName: 'OpenRouter',
+        model: 'gpt-5',
+        apiKey: 'sk-test',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        thinkingEffortLevels: ['low', 'medium', 'high'],
+        defaultThinkingEffort: 'medium',
+      }),
+    ).toEqual({
+      model: 'gpt-5',
+      apiKey: 'sk-test',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      thinkingEffort: 'medium',
     });
   });
 });
@@ -198,6 +228,17 @@ describe('createAiModelSchema', () => {
         outputCostPerMillion: 0.6,
       }).success,
     ).toBe(true);
+  });
+
+  it('rejects default thinking effort outside selected levels', () => {
+    const result = createAiModelSchema.safeParse({
+      providerId: 1,
+      modelId: 'openai/gpt-5',
+      displayName: 'GPT-5',
+      thinkingEffortLevels: ['low'],
+      defaultThinkingEffort: 'high',
+    });
+    expect(result.success).toBe(false);
   });
 });
 

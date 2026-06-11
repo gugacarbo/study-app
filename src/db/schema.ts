@@ -132,6 +132,8 @@ export const aiModels = sqliteTable(
 		max_output_tokens: integer("max_output_tokens"),
 		input_cost_per_million: real("input_cost_per_million"),
 		output_cost_per_million: real("output_cost_per_million"),
+		thinking_effort_levels: text("thinking_effort_levels"),
+		default_thinking_effort: text("default_thinking_effort"),
 		enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
 		metadata: text("metadata"),
 		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),

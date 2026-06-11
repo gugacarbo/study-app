@@ -1,6 +1,11 @@
 import { Output, streamObject, streamText } from "ai";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
-import type { ProviderConfig } from "@/lib/validation";
+import {
+	type ProviderConfig,
+	type ResolvedModelConfig,
+	toProviderConfig,
+} from "@/lib/validation";
 import {
 	extractStructuredOutputErrorCode,
 	isRecoverableGenerationError,
@@ -13,18 +18,20 @@ import { isRecoverableStructuredOutputError } from "./types";
 type StreamFailure = { message: string; code?: string };
 
 export async function generateJsonStream<T>(
-	config: ProviderConfig,
+	config: ProviderConfig | ResolvedModelConfig,
 	prompt: string,
 	outputSchema: OutputSchema<T>,
 	options?: GenerateJsonStreamOptions<T>,
 ): Promise<T> {
-	const model = getAiModel(config);
+	const providerConfig = toProviderConfig(config);
+	const model = getAiModel(providerConfig);
+	const providerOptions = buildProviderOptions(providerConfig);
 	const { schema, output } = resolveObjectGenerationOptions(outputSchema);
 	const flexibleSchema = toFlexibleSchema(outputSchema);
 
 	if (options?.tools) {
 		return generateJsonStreamWithTools(
-			config,
+			providerConfig,
 			model,
 			prompt,
 			outputSchema,
@@ -39,16 +46,22 @@ export async function generateJsonStream<T>(
 		system: options?.system,
 		schema,
 		output,
+		providerOptions,
 		onError: (event) => {
 			options?.onError?.({
 				error: event.error,
-				baseUrl: config.baseUrl,
-				model: config.model,
+				baseUrl: providerConfig.baseUrl,
+				model: providerConfig.model,
 			});
 		},
 	});
 
-	return consumeStructuredObjectStream(result, config, outputSchema, options);
+	return consumeStructuredObjectStream(
+		result,
+		providerConfig,
+		outputSchema,
+		options,
+	);
 }
 
 async function generateJsonStreamWithTools<T>(
@@ -65,6 +78,7 @@ async function generateJsonStreamWithTools<T>(
 		system: options.system,
 		tools: options.tools,
 		output: Output.object({ schema: flexibleSchema }),
+		providerOptions: buildProviderOptions(config),
 		onError: (event) => {
 			options.onError?.({
 				error: event.error,

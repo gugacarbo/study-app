@@ -59,6 +59,8 @@ async function resolvedFromModelRow(
 		contextWindow: row.contextWindow,
 		inputCostPerMillion: row.inputCostPerMillion,
 		outputCostPerMillion: row.outputCostPerMillion,
+		thinkingEffortLevels: row.thinkingEffortLevels,
+		defaultThinkingEffort: row.defaultThinkingEffort,
 	};
 }
 
@@ -79,6 +81,8 @@ async function legacyProviderConfig(
 		baseUrl,
 		apiKey,
 		providerName: "legacy",
+		thinkingEffortLevels: [],
+		defaultThinkingEffort: null,
 	};
 }
 

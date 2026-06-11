@@ -11,7 +11,7 @@ import {
 	upsertAgentRun,
 } from "@/features/ingest/store";
 import type { IngestAgentRun, IngestJob } from "@/features/ingest/store";
-import type { IngestAgentEvent, IngestTokenEvent } from "@/lib/sse-stream";
+import type { IngestAgentEvent, IngestTokenEvent } from "@/features/ingest/store/types";
 
 function createJob(overrides?: Partial<IngestJob>): IngestJob {
 	return {
@@ -77,17 +77,17 @@ function makeAgentRun(
 			{
 				id: "agent-1:system",
 				role: "system",
-				parts: [{ type: "text", content: "" }],
+				parts: [{ type: "text", text: "" }],
 			},
 			{
 				id: "agent-1:user",
 				role: "user",
-				parts: [{ type: "text", content: "" }],
+				parts: [{ type: "text", text: "" }],
 			},
 			{
 				id: "agent-1:assistant",
 				role: "assistant",
-				parts: [{ type: "text", content: "" }],
+				parts: [{ type: "text", text: "" }],
 			},
 		],
 		systemPrompt: "",
@@ -181,17 +181,17 @@ describe("upsertAgentRun", () => {
 			{
 				id: "agent-1:system",
 				role: "system",
-				parts: [{ type: "text", content: "system prompt" }],
+				parts: [{ type: "text", text: "system prompt" }],
 			},
 			{
 				id: "agent-1:user",
 				role: "user",
-				parts: [{ type: "text", content: "user prompt" }],
+				parts: [{ type: "text", text: "user prompt" }],
 			},
 			{
 				id: "agent-1:assistant",
 				role: "assistant",
-				parts: [{ type: "text", content: "assistant text" }],
+				parts: [{ type: "text", text: "assistant text" }],
 			},
 		]);
 	});
@@ -212,7 +212,7 @@ describe("upsertAgentRun", () => {
 
 		expect(updated.agentRuns[0].outputText).toBe("partial output");
 		expect(assistant?.parts).toEqual([
-			{ type: "text", content: "partial output" },
+			{ type: "text", text: "partial output" },
 		]);
 	});
 
@@ -236,7 +236,7 @@ describe("upsertAgentRun", () => {
 		);
 
 		expect(assistant?.parts).toEqual([
-			{ type: "thinking", content: "Analisando a questao..." },
+			{ type: "reasoning", text: "Analisando a questao..." },
 		]);
 	});
 
@@ -268,20 +268,13 @@ describe("upsertAgentRun", () => {
 
 		expect(assistant?.parts).toEqual([
 			{
-				type: "tool-call",
-				id: "agent-1:tool-call:0",
-				name: "search_docs",
-				arguments: "{\"query\":\"ingest\"}",
-				input: { query: "ingest" },
-				output: "{\n  \"ok\": true\n}",
-				state: "input-complete",
-			},
-			{
-				type: "tool-result",
+				type: "dynamic-tool",
 				toolCallId: "agent-1:tool-call:0",
-				content: "{\n  \"ok\": true\n}",
-				state: "complete",
-				error: undefined,
+				toolName: "unknown_tool",
+				state: "output-available",
+				input: { query: "ingest" },
+				output: { ok: true },
+				errorText: undefined,
 			},
 		]);
 	});
@@ -334,20 +327,13 @@ describe("upsertAgentRun", () => {
 		expect(updated.agentRuns[0].userPrompt).toBe("updated user");
 		expect(assistant?.parts).toEqual([
 			{
-				type: "tool-call",
-				id: "tool-1",
-				name: "update_extracted_question",
-				arguments: '{"questionId":"q1"}',
-				input: { questionId: "q1" },
-				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',
-				state: "input-complete",
-			},
-			{
-				type: "tool-result",
+				type: "dynamic-tool",
 				toolCallId: "tool-1",
-				content: '{\n  "ok": true,\n  "questionId": "q1"\n}',
-				state: "complete",
-				error: undefined,
+				toolName: "unknown_tool",
+				state: "output-available",
+				input: { questionId: "q1" },
+				output: { ok: true, questionId: "q1" },
+				errorText: undefined,
 			},
 		]);
 	});
@@ -416,24 +402,17 @@ describe("upsertAgentRun", () => {
 
 		expect(updated.agentRuns[0].outputText).toContain("TOOL CALL: add_extracted_question");
 		expect(assistant?.parts).toContainEqual({
-			type: "tool-call",
-			id: "tool-structured-1",
-			name: "add_extracted_question",
-			arguments: '{"question":"Qual e a derivada de f(x) = x^2?"}',
-			input: { question: "Qual e a derivada de f(x) = x^2?" },
-			output: "{\n  \"ok\": true\n}",
-			state: "input-complete",
-		});
-		expect(assistant?.parts).toContainEqual({
-			type: "tool-result",
+			type: "dynamic-tool",
 			toolCallId: "tool-structured-1",
-			content: "{\n  \"ok\": true\n}",
-			state: "complete",
-			error: undefined,
+			toolName: "unknown_tool",
+			state: "output-available",
+			input: { question: "Qual e a derivada de f(x) = x^2?" },
+			output: { ok: true },
+			errorText: undefined,
 		});
 		expect(assistant?.parts[0]).toEqual({
 			type: "text",
-			content: "Extraction complete. Successfully added 1 question.",
+			text: "Extraction complete. Successfully added 1 question.",
 		});
 		expect(textPart).toEqual(assistant?.parts[0]);
 	});
@@ -473,37 +452,25 @@ describe("upsertAgentRun", () => {
 		const assistant = withFirstResult.agentRuns[0].messages.find(
 			(message) => message.role === "assistant",
 		);
-		const toolResults =
-			assistant?.parts.filter((part) => part.type === "tool-result") ?? [];
+		const toolParts =
+			assistant?.parts.filter((part) => part.type === "dynamic-tool") ?? [];
 
-		expect(toolResults).toEqual([
-			{
-				type: "tool-result",
+		expect(toolParts).toHaveLength(2);
+		expect(toolParts[0]).toEqual(
+			expect.objectContaining({
+				type: "dynamic-tool",
 				toolCallId: "tc-1",
-				content: '{\n  "ok": true,\n  "questionId": "q1"\n}',
-				state: "complete",
-				error: undefined,
-			},
-		]);
-		expect(assistant?.parts[0]).toEqual(
-			expect.objectContaining({
-				type: "tool-call",
-				id: "tc-1",
-				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',
+				state: "output-available",
+				output: { ok: true, questionId: "q1" },
 			}),
 		);
-		expect(assistant?.parts[1]).toEqual(
-			expect.objectContaining({
-				type: "tool-result",
-				toolCallId: "tc-1",
-			}),
-		);
-		expect(assistant?.parts[2]).toEqual(
-			expect.objectContaining({
-				type: "tool-call",
-				id: "tc-2",
-			}),
-		);
+		expect(toolParts[1]).toEqual({
+			type: "dynamic-tool",
+			toolCallId: "tc-2",
+			toolName: "add_extracted_question",
+			state: "input-streaming",
+			input: { questionId: "q2" },
+		});
 	});
 
 	it("preserves streaming order when new assistant text arrives after a tool event", () => {
@@ -545,26 +512,19 @@ describe("upsertAgentRun", () => {
 		);
 
 		expect(assistant?.parts).toEqual([
-			{ type: "text", content: "Vou conferir a pergunta antes de editar." },
+			{ type: "text", text: "Vou conferir a pergunta antes de editar." },
 			{
-				type: "tool-call",
-				id: "tool-order-1",
-				name: "list_extracted_questions",
-				arguments: "{}",
-				input: {},
-				output: "{\n  \"ok\": true\n}",
-				state: "input-complete",
-			},
-			{
-				type: "tool-result",
+				type: "dynamic-tool",
 				toolCallId: "tool-order-1",
-				content: "{\n  \"ok\": true\n}",
-				state: "complete",
-				error: undefined,
+				toolName: "unknown_tool",
+				state: "output-available",
+				input: {},
+				output: { ok: true },
+				errorText: undefined,
 			},
 			{
 				type: "text",
-				content: "Agora vou ajustar a alternativa correta.",
+				text: "Agora vou ajustar a alternativa correta.",
 			},
 		]);
 	});
@@ -617,15 +577,15 @@ describe("upsertAgentRun", () => {
 		const assistant = updated.agentRuns[0].messages.find(
 			(message) => message.role === "assistant",
 		);
-		const toolResult = assistant?.parts.find(
-			(part) => part.type === "tool-result",
+		const toolPart = assistant?.parts.find(
+			(part) => part.type === "dynamic-tool",
 		);
 
-		expect(toolResult).toMatchObject({
-			type: "tool-result",
+		expect(toolPart).toMatchObject({
+			type: "dynamic-tool",
 			toolCallId: "tool-list-1",
 		});
-		expect(JSON.parse(String(toolResult?.content))).toMatchObject({
+		expect(JSON.parse(String(toolPart?.output))).toMatchObject({
 			ok: true,
 			totalQuestions: 3,
 			data: [
@@ -684,29 +644,18 @@ describe("upsertAgentRun", () => {
 		const assistant = updated.agentRuns[0].messages.find(
 			(message) => message.role === "assistant",
 		);
-		const toolCalls =
-			assistant?.parts.filter((part) => part.type === "tool-call") ?? [];
-		const toolResults =
-			assistant?.parts.filter((part) => part.type === "tool-result") ?? [];
+		const toolParts =
+			assistant?.parts.filter((part) => part.type === "dynamic-tool") ?? [];
 
-		expect(toolCalls).toEqual([
+		expect(toolParts).toEqual([
 			{
-				type: "tool-call",
-				id: "tool-dedupe-1",
-				name: "add_extracted_question",
-				arguments: '{"question":"Q1","topic":"General"}',
+				type: "dynamic-tool",
+				toolCallId: "tool-dedupe-1",
+				toolName: "unknown_tool",
+				state: "output-available",
 				input: { question: "Q1", topic: "General" },
 				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',
-				state: "input-complete",
-			},
-		]);
-		expect(toolResults).toEqual([
-			{
-				type: "tool-result",
-				toolCallId: "tool-dedupe-1",
-				content: '{\n  "ok": true,\n  "questionId": "q1"\n}',
-				state: "complete",
-				error: undefined,
+				errorText: "retry",
 			},
 		]);
 	});
@@ -741,16 +690,18 @@ describe("upsertAgentRun", () => {
 		const assistant = updated.agentRuns[0].messages.find(
 			(message) => message.role === "assistant",
 		);
-		const toolCall = assistant?.parts.find((part) => part.type === "tool-call");
+		const toolPart = assistant?.parts.find(
+			(part) => part.type === "dynamic-tool",
+		);
 
-		expect(toolCall).toEqual({
-			type: "tool-call",
-			id: "tool-rich-1",
-			name: "add_extracted_question",
-			arguments: '{"question":"Qual e a derivada?","answer":"2x"}',
+		expect(toolPart).toEqual({
+			type: "dynamic-tool",
+			toolCallId: "tool-rich-1",
+			toolName: "add_extracted_question",
 			input: { question: "Qual e a derivada?", answer: "2x" },
 			output: undefined,
-			state: "input-complete",
+			state: "input-available",
+			errorText: undefined,
 		});
 	});
 });

@@ -1,8 +1,15 @@
 import type {
 	ChangeDecision,
+	DraftQuestion,
 	ImproveQuestionsAgentEvent,
+	ImproveQuestionsJobResult,
 	QuestionChange,
 } from "@/features/ai/agents/improve-questions/contracts";
+import { consumeJobStream } from "@/features/ai/lib/read-job-ui-message-stream";
+import type {
+	JobResultDataPart,
+	WorkspaceUpdateDataPart,
+} from "@/features/ai/types/ui-message-data-parts";
 import {
 	createAgentRunState,
 	reduceAgentEvent,
@@ -15,7 +22,6 @@ import {
 	computeQuestionChanges,
 } from "@/features/exams/components/detail/improve-questions-dialog/diff-changes";
 import { resolveQuestion } from "@/features/exams/components/detail/improve-questions-dialog/resolve-question";
-import { improveQuestionsStream } from "@/lib/sse-stream/improve-questions-stream";
 import { queryClient } from "@/routes/__root";
 import { updateQuestion } from "@/server-functions/exams";
 import {
@@ -149,6 +155,51 @@ function clampMaxWorkers(maxWorkers: number): number {
 function agentRunIdForAttempt(questionId: number, attempt: number): string {
 	if (attempt <= 1) return `improve-questions-${questionId}`;
 	return `improve-questions-${questionId}-retry-${attempt - 1}`;
+}
+
+function workspaceUpdateToDraft(
+	update: WorkspaceUpdateDataPart,
+): DraftQuestion {
+	const question = update.question;
+	return {
+		id: Number(question.id),
+		exam_id:
+			question.exam_id != null ? Number(question.exam_id) : undefined,
+		question: question.question,
+		options: [...question.options],
+		answers: [...question.answers],
+		scoringMode: (question.scoringMode ?? "exact") as DraftQuestion["scoringMode"],
+		explanation: question.explanation ?? "",
+		...(question.deepExplanation !== undefined
+			? { deepExplanation: question.deepExplanation }
+			: {}),
+		...(question.topic !== undefined ? { topic: question.topic } : {}),
+	};
+}
+
+function normalizeJobResult(
+	raw: JobResultDataPart,
+): ImproveQuestionsJobResult | null {
+	if (typeof raw !== "object" || raw == null) return null;
+	const data = raw as Record<string, unknown>;
+
+	if (data.finalQuestion && data.agentRun) {
+		return {
+			finalQuestion: data.finalQuestion as DraftQuestion,
+			agentRun:
+				data.agentRun as ImproveQuestionsJobResult["agentRun"],
+		};
+	}
+
+	if (data.question && data.agentRun) {
+		return {
+			finalQuestion: data.question as DraftQuestion,
+			agentRun:
+				data.agentRun as ImproveQuestionsJobResult["agentRun"],
+		};
+	}
+
+	return null;
 }
 
 function labelForAttempt(attempt: number): string {
@@ -414,60 +465,80 @@ export function startQueuedImproveQuestions(processId: string): void {
 				}
 
 				try {
-					await improveQuestionsStream(
-						{ questionId, signal: controller.signal },
+					let jobCompleted = false;
+
+					const finishJob = (finalQuestion: DraftQuestion) => {
+						jobCompleted = true;
+						batcher.dispose();
+						updateImproveQuestionsProcess(questionId, (run) => {
+							const finalDraft = draftToQuestionData(
+								finalQuestion,
+								run.originalSnapshot,
+							);
+							return patchImproveQuestionsProcess(run, {
+								draftQuestion: finalDraft,
+								changes: computeQuestionChanges(
+									run.originalSnapshot,
+									finalDraft,
+								),
+								agentRunState: { ...runState, status: "done" },
+								isStreaming: false,
+								phase: "done",
+							});
+						});
+						const finishedRun = getImproveQuestionsProcess(questionId);
+						if (finishedRun) {
+							maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
+						}
+						runNextQueued();
+					};
+
+					await consumeJobStream(
 						{
-							onAgent: (event) => {
-								runState = syncAgentRunId(runState, event);
-								runState = reduceAgentEvent(runState, event);
-								batcher.queue({ agentRunState: { ...runState } });
+							url: "/api/improve-questions",
+							init: {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ questionId }),
 							},
-							onChunk: (chunk) => {
-								if (!chunk.text) return;
-								runState = reduceAgentEvent(runState, {
-									eventType: "text-chunk",
-									agentRunId: chunk.agentRunId ?? runState.agentRunId,
-									text: chunk.text,
-									kind: chunk.kind,
-								});
-								batcher.queue({ agentRunState: { ...runState } });
-							},
-							onWorkspaceUpdate: ({ question: workspaceQuestion }) => {
-								const current = getImproveQuestionsProcess(questionId);
-								if (!current) return;
-								batcher.queue({
-									draftQuestion: draftToQuestionData(
-										workspaceQuestion,
-										current.originalSnapshot,
-									),
-								});
-							},
-							onDone: ({ finalQuestion }) => {
-								batcher.dispose();
-								updateImproveQuestionsProcess(questionId, (run) => {
-									const finalDraft = draftToQuestionData(
-										finalQuestion,
-										run.originalSnapshot,
-									);
-									return patchImproveQuestionsProcess(run, {
-										draftQuestion: finalDraft,
-										changes: computeQuestionChanges(
-											run.originalSnapshot,
-											finalDraft,
-										),
-										agentRunState: { ...runState, status: "done" },
-										isStreaming: false,
-										phase: "done",
-									});
-								});
-								const finishedRun = getImproveQuestionsProcess(questionId);
-								if (finishedRun) {
-									maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
+							signal: controller.signal,
+						},
+						{
+							onData: (part) => {
+								if (part.type === "data-agent-run") {
+									const event = part.data as ImproveQuestionsAgentEvent;
+									runState = syncAgentRunId(runState, event);
+									runState = reduceAgentEvent(runState, event);
+									batcher.queue({ agentRunState: { ...runState } });
+									return;
 								}
-								runNextQueued();
+
+								if (part.type === "data-workspace-update") {
+									const current = getImproveQuestionsProcess(questionId);
+									if (!current) return;
+									batcher.queue({
+										draftQuestion: draftToQuestionData(
+											workspaceUpdateToDraft(part.data),
+											current.originalSnapshot,
+										),
+									});
+									return;
+								}
+
+								if (part.type === "data-job-result") {
+									const jobResult = normalizeJobResult(part.data);
+									if (!jobResult) return;
+									finishJob(jobResult.finalQuestion);
+								}
 							},
 						},
 					);
+
+					if (!jobCompleted) {
+						throw new Error(
+							"Improve question stream finished without a job result",
+						);
+					}
 					return;
 				} catch (error) {
 					if (controller.signal.aborted || isAbortError(error)) {

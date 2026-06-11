@@ -1,3 +1,5 @@
+import type { ThinkingEffortLevel } from "@/lib/validation";
+
 export interface ExamRecord {
 	id: number;
 	name: string;
@@ -98,6 +100,8 @@ export interface AiModelRecord {
 	max_output_tokens: number | null;
 	input_cost_per_million: number | null;
 	output_cost_per_million: number | null;
+	thinking_effort_levels: string | null;
+	default_thinking_effort: string | null;
 	enabled: boolean;
 	metadata: string | null;
 	created_at: string | null;
@@ -120,6 +124,8 @@ export interface AiModelPublic {
 	maxOutputTokens: number | null;
 	inputCostPerMillion: number | null;
 	outputCostPerMillion: number | null;
+	thinkingEffortLevels: ThinkingEffortLevel[];
+	defaultThinkingEffort: ThinkingEffortLevel | null;
 	enabled: boolean;
 	metadata: string | null;
 }

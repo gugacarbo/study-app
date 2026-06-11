@@ -1,15 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
-}));
-
 const { reviewSingleQuestionMock } = vi.hoisted(() => ({
 	reviewSingleQuestionMock: vi.fn(),
 }));

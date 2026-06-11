@@ -1,34 +1,71 @@
+import type { TextStreamPart, ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tanstack/ai", () => ({
-	toolDefinition: (definition: Record<string, unknown>) => ({
-		...definition,
-		server: (handler: (input: unknown) => Promise<unknown>) => ({
-			...definition,
-			execute: handler,
-		}),
-	}),
+const { streamTextMock } = vi.hoisted(() => ({
+	streamTextMock: vi.fn(),
 }));
 
-const { streamChatMessagesMock } = vi.hoisted(() => ({
-	streamChatMessagesMock: vi.fn(),
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		streamText: streamTextMock,
+	};
+});
+
+vi.mock("@/features/ai/adapters/provider-model", () => ({
+	getAiModel: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@/features/ai/core/chat-stream", () => ({
-	streamChatMessages: streamChatMessagesMock,
-}));
+vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
+	return {
+		...actual,
+		processAiStreamPart(
+			chunk: Parameters<typeof actual.processAiStreamPart>[0],
+			handlers: Parameters<typeof actual.processAiStreamPart>[1],
+			state: Parameters<typeof actual.processAiStreamPart>[2],
+		) {
+			const { onToolResult, ...restHandlers } = handlers;
+			if (onToolResult) {
+				return actual.processAiStreamPart(
+					chunk,
+					restHandlers,
+					state,
+					onToolResult,
+				);
+			}
+			return actual.processAiStreamPart(chunk, handlers, state);
+		},
+	};
+});
 
+import type { JobUIMessageStreamWriter } from "@/features/ai/core/ui-message-job-stream";
 import { runExtractionPass } from "@/routes/api/ingest/-extraction-pass";
 
-type Tool = {
-	name: string;
-	execute: (input: Record<string, unknown>) => Promise<unknown>;
+type ExecutableTool = {
+	execute: (
+		input: Record<string, unknown>,
+		context?: { toolCallId?: string },
+	) => Promise<unknown>;
 };
 
-function getTool(tools: readonly unknown[] | undefined, name: string): Tool {
-	const tool = tools?.find((candidate) => (candidate as Tool).name === name);
-	if (!tool) throw new Error(`Tool ${name} not found`);
-	return tool as Tool;
+function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
+	const tool = tools?.[name] as ExecutableTool | undefined;
+	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
+	return tool;
+}
+
+function mockStreamParts(parts: TextStreamPart<ToolSet>[]) {
+	streamTextMock.mockReturnValue({
+		fullStream: (async function* () {
+			for (const part of parts) {
+				yield part;
+			}
+		})(),
+		toUIMessageStream: vi.fn(() => (async function* () {})()),
+	});
 }
 
 function createAgentRunsMock() {
@@ -46,56 +83,51 @@ function createAgentRunsMock() {
 	};
 }
 
+function createWriterMock(): JobUIMessageStreamWriter {
+	return {
+		merge: vi.fn(),
+		write: vi.fn(),
+		onError: undefined,
+	} as unknown as JobUIMessageStreamWriter;
+}
+
 describe("runExtractionPass", () => {
 	beforeEach(() => {
-		streamChatMessagesMock.mockReset();
+		streamTextMock.mockReset();
 	});
 
 	it("builds the final ingest result from tool calls", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
-			) =>
-				(async function* () {
-					const addQuestion = getTool(
-						options?.tools,
-						"add_extracted_question",
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
+					await addQuestion.execute(
+						{
+							question: "O que e cache?",
+							options: ["Memoria rapida", "Disco rigido"],
+							answer: "Memoria rapida",
+							topic: "Memoria",
+						},
+						{ toolCallId: "tc-1" },
 					);
-					await addQuestion.execute({
-						question: "O que e cache?",
-						options: ["Memoria rapida", "Disco rigido"],
-						answer: "Memoria rapida",
-						topic: "Memoria",
-					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tc-1",
-						toolCallName: "add_extracted_question",
+						toolName: "add_extracted_question",
 						input: {
 							question: "O que e cache?",
 							options: ["Memoria rapida", "Disco rigido"],
 							answer: "Memoria rapida",
 							topic: "Memoria",
 						},
-						result: '{"ok":true}',
-					};
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-						usage: {
-							promptTokens: 10,
-							completionTokens: 5,
-							totalTokens: 15,
-						},
-					};
+						output: { ok: true },
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
 
-		const send = vi.fn();
+		const onWarning = vi.fn();
 		const agentRuns = createAgentRunsMock();
 		const log = { error: vi.fn() };
 
@@ -108,7 +140,8 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			send,
+			writer: createWriterMock(),
+			onWarning,
 			log,
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
@@ -164,31 +197,20 @@ describe("runExtractionPass", () => {
 			expect.objectContaining({
 				agentRunId: "initial_extraction-1",
 			}),
-			{
-				content: '{"ok":true}',
-				error: undefined,
+			expect.objectContaining({
+				content: expect.objectContaining({ ok: true }),
 				state: "complete",
-			},
+			}),
 			{ toolCallId: "tc-1" },
 		);
 	});
 
 	it("supports add followed by update on the same question", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
-			) =>
-				(async function* () {
-					const addQuestion = getTool(
-						options?.tools,
-						"add_extracted_question",
-					);
-					const updateQuestion = getTool(
-						options?.tools,
-						"update_extracted_question",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			const updateQuestion = getTool(options?.tools, "update_extracted_question");
+			return {
+				fullStream: (async function* () {
 					await addQuestion.execute({
 						question: "Questao original",
 						options: ["A", "B"],
@@ -200,14 +222,10 @@ describe("runExtractionPass", () => {
 						question: "Questao corrigida",
 						topic: "Topico 2",
 					});
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
 				})(),
-		);
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
 
 		const result = await runExtractionPass({
 			text: "Texto da prova",
@@ -218,7 +236,8 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns: createAgentRunsMock(),
-			send: vi.fn(),
+			writer: createWriterMock(),
+			onWarning: vi.fn(),
 			log: { error: vi.fn() },
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
@@ -241,17 +260,10 @@ describe("runExtractionPass", () => {
 	});
 
 	it("deduplicates repeated tool transcript lines for the same toolCallId", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
-			) =>
-				(async function* () {
-					const addQuestion = getTool(
-						options?.tools,
-						"add_extracted_question",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
 					await addQuestion.execute({
 						question: "Questao unica",
 						options: ["A", "B"],
@@ -259,37 +271,33 @@ describe("runExtractionPass", () => {
 						topic: "Geral",
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tc-dedupe-1",
-						toolCallName: "add_extracted_question",
+						toolName: "add_extracted_question",
 						input: {
 							question: "Questao unica",
 							options: ["A", "B"],
 							answer: "A",
 							topic: "Geral",
 						},
-						result: '{"ok":false,"error":{"message":"retry"}}',
-					};
+						output: { ok: false, error: { message: "retry" } },
+					} as TextStreamPart<ToolSet>;
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tc-dedupe-1",
-						toolCallName: "add_extracted_question",
+						toolName: "add_extracted_question",
 						input: {
 							question: "Questao unica",
 							options: ["A", "B"],
 							answer: "A",
 							topic: "Geral",
 						},
-						result: '{"ok":true,"questionId":"q1"}',
-					};
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
+						output: { ok: true, questionId: "q1" },
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
 
 		const agentRuns = createAgentRunsMock();
 
@@ -302,32 +310,24 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			send: vi.fn(),
+			writer: createWriterMock(),
+			onWarning: vi.fn(),
 			log: { error: vi.fn() },
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
 		});
 
 		const rawText = agentRuns.result.mock.calls[0]?.[2];
-		const toolMatches = String(rawText).match(/\[tool:add_extracted_question\]/g) ?? [];
+		const toolMatches =
+			String(rawText).match(/\[tool:add_extracted_question\]/g) ?? [];
 
 		expect(toolMatches).toHaveLength(1);
 	});
 
 	it("throws and warns when no question is added", async () => {
-		streamChatMessagesMock.mockImplementation(
-			() =>
-				(async function* () {
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
-				})(),
-		);
+		mockStreamParts([]);
 
-		const send = vi.fn();
+		const onWarning = vi.fn();
 
 		await expect(
 			runExtractionPass({
@@ -339,7 +339,8 @@ describe("runExtractionPass", () => {
 				},
 				criticalTopics: [],
 				agentRuns: createAgentRunsMock(),
-				send,
+				writer: createWriterMock(),
+				onWarning,
 				log: { error: vi.fn() },
 				stageId: "initial_extraction",
 				stageLabel: "Initial extraction agent",
@@ -347,38 +348,31 @@ describe("runExtractionPass", () => {
 		).rejects.toThrow(
 			"No questions were extracted during the initial ingest pass.",
 		);
-		expect(send).toHaveBeenCalledWith("warning", {
-			message: "No questions were extracted during the initial ingest pass.",
-		});
+		expect(onWarning).toHaveBeenCalledWith(
+			"No questions were extracted during the initial ingest pass.",
+		);
 	});
 
 	it("emits incremental tool-call events while arguments stream", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: readonly unknown[] },
-			) =>
-				(async function* () {
-					const addQuestion = getTool(
-						options?.tools,
-						"add_extracted_question",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
 					yield {
-						type: "TOOL_CALL_START",
-						toolCallId: "tc-stream-1",
-						toolCallName: "add_extracted_question",
-					};
+						type: "tool-input-start",
+						id: "tc-stream-1",
+						toolName: "add_extracted_question",
+					} as TextStreamPart<ToolSet>;
 					yield {
-						type: "TOOL_CALL_ARGS",
-						toolCallId: "tc-stream-1",
+						type: "tool-input-delta",
+						id: "tc-stream-1",
 						delta: '{"question":"Qual e a derivada?"',
-					};
+					} as TextStreamPart<ToolSet>;
 					yield {
-						type: "TOOL_CALL_ARGS",
-						toolCallId: "tc-stream-1",
+						type: "tool-input-delta",
+						id: "tc-stream-1",
 						delta: ',"answer":"2x"}',
-					};
+					} as TextStreamPart<ToolSet>;
 					await addQuestion.execute({
 						question: "Qual e a derivada?",
 						answer: "2x",
@@ -386,25 +380,32 @@ describe("runExtractionPass", () => {
 						topic: "Calculo",
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-call",
 						toolCallId: "tc-stream-1",
-						toolCallName: "add_extracted_question",
+						toolName: "add_extracted_question",
 						input: {
 							question: "Qual e a derivada?",
 							answer: "2x",
 							options: ["1", "2x"],
 							topic: "Calculo",
 						},
-						result: { ok: true, questionId: "q1" },
-					};
+					} as TextStreamPart<ToolSet>;
 					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
+						type: "tool-result",
+						toolCallId: "tc-stream-1",
+						toolName: "add_extracted_question",
+						input: {
+							question: "Qual e a derivada?",
+							answer: "2x",
+							options: ["1", "2x"],
+							topic: "Calculo",
+						},
+						output: { ok: true, questionId: "q1" },
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
 
 		const agentRuns = createAgentRunsMock();
 		await runExtractionPass({
@@ -416,7 +417,8 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			send: vi.fn(),
+			writer: createWriterMock(),
+			onWarning: vi.fn(),
 			log: { error: vi.fn() },
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",

@@ -1,4 +1,5 @@
 import { stepCountIs, streamText, type ToolSet } from "ai";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
 	createAiStreamState,
@@ -10,7 +11,11 @@ import {
 	createImproveQuestionsTools,
 	createImproveQuestionsWorkspace,
 } from "@/features/ai/tools/improve-questions-tools";
-import type { ProviderConfig } from "@/lib/validation";
+import {
+	type ProviderConfig,
+	type ResolvedModelConfig,
+	toProviderConfig,
+} from "@/lib/validation";
 import {
 	IMPROVE_QUESTIONS_STAGE_ID,
 	UPDATE_QUESTION_OPTIONS_TOOL,
@@ -23,7 +28,7 @@ import { buildUserPrompt } from "./prompt";
 import { buildImproveQuestionsSystemPrompt } from "./system-prompt";
 
 export async function improveSingleQuestion(
-	config: ProviderConfig,
+	config: ProviderConfig | ResolvedModelConfig,
 	question: DraftQuestion,
 	options: ImproveSingleQuestionOptions = {},
 ): Promise<
@@ -56,6 +61,7 @@ export async function improveSingleQuestion(
 	let hasSuccessfulUpdate = false;
 
 	const baseMeta = { questionId: question.id };
+	const providerConfig = toProviderConfig(config);
 
 	emitAgentEvent(options, {
 		eventType: "lifecycle",
@@ -156,11 +162,12 @@ export async function improveSingleQuestion(
 		);
 
 		const result = streamText({
-			model: getAiModel(config),
+			model: getAiModel(providerConfig),
 			system: systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 			tools: combinedTools,
 			stopWhen: stepCountIs(10),
+			providerOptions: buildProviderOptions(providerConfig),
 		});
 
 		for await (const chunk of result.fullStream) {

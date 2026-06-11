@@ -2,11 +2,15 @@ import {
 	type ExplanationAgentRunEvent,
 	runQuestionExplanations,
 } from "@/features/ai/agents/explanations";
+import {
+	writeStage,
+	type AgentRunDescriptor,
+	type JobUIMessageStreamWriter,
+} from "@/features/ai/core/ui-message-job-stream";
+import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import type { MemoryManager } from "../../../lib/memory";
 import { buildTopicMemoryResolver } from "../../../lib/memory/topic-context";
-import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
-import { sendStage } from "./-sse-emitter";
 
 interface AgentRunsHelper {
 	createRun(stageId: string, label: string): AgentRunDescriptor;
@@ -60,7 +64,9 @@ interface RunExplanationsStageParams {
 	extracted: ExamIngestResponse;
 	memory: MemoryManager;
 	agentRuns: AgentRunsHelper;
-	send: (event: string, data: unknown) => void;
+	writer: JobUIMessageStreamWriter;
+	onProgress: (step: string) => void;
+	onWarning: (message: string, meta?: Record<string, unknown>) => void;
 	log: {
 		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
 	};
@@ -69,7 +75,7 @@ interface RunExplanationsStageParams {
 function bridgeExplanationAgentEvent(
 	event: ExplanationAgentRunEvent,
 	agentRuns: AgentRunsHelper,
-	send: (event: string, data: unknown) => void,
+	onWarning: (message: string, meta?: Record<string, unknown>) => void,
 ) {
 	const run = {
 		stageId: event.stageId,
@@ -91,8 +97,7 @@ function bridgeExplanationAgentEvent(
 	}
 
 	if (event.eventType === "warning" && event.warning) {
-		send("warning", {
-			message: event.warning,
+		onWarning(event.warning, {
 			stageId: event.stageId,
 			agentRunId: event.agentRunId,
 		});
@@ -147,16 +152,20 @@ export async function runExplanationsStage(
 		extracted,
 		memory,
 		agentRuns,
-		send,
+		writer,
+		onProgress,
+		onWarning,
 		log,
 	} = params;
 
 	if (!enableExplanations) {
-		send("progress", {
-			step: "Explanation generation disabled for this ingest.",
-		});
-		sendStage(send, "explanations", "Generating explanations", "skipped", {
-			disabled: true,
+		onProgress("Explanation generation disabled for this ingest.");
+		writeStage(writer, {
+			stageId: "explanations",
+			label: "Generating explanations",
+			status: "skipped",
+			timestamp: Date.now(),
+			meta: { disabled: true },
 		});
 		const skippedRun = agentRuns.createRun(
 			"explanations",
@@ -167,15 +176,24 @@ export async function runExplanationsStage(
 	}
 
 	if (extracted.questions.length === 0) {
-		send("progress", { step: "No questions to explain." });
-		sendStage(send, "explanations", "Generating explanations", "skipped", {
-			reason: "no_questions",
+		onProgress("No questions to explain.");
+		writeStage(writer, {
+			stageId: "explanations",
+			label: "Generating explanations",
+			status: "skipped",
+			timestamp: Date.now(),
+			meta: { reason: "no_questions" },
 		});
 		return null;
 	}
 
-	send("progress", { step: "Generating explanations..." });
-	sendStage(send, "explanations", "Generating explanations", "running");
+	onProgress("Generating explanations...");
+	writeStage(writer, {
+		stageId: "explanations",
+		label: "Generating explanations",
+		status: "running",
+		timestamp: Date.now(),
+	});
 
 	try {
 		const explanationInput = extracted.questions.map((question, index) => ({
@@ -200,9 +218,9 @@ export async function runExplanationsStage(
 				concurrency: agentConcurrency,
 				resolveMemoryContext: (question) =>
 					topicMemory.resolveMemoryContext(question.topic),
-				onProgress: ({ message }) => send("progress", { step: message }),
+				onProgress: ({ message }) => onProgress(message),
 				onAgentEvent: (event) =>
-					bridgeExplanationAgentEvent(event, agentRuns, send),
+					bridgeExplanationAgentEvent(event, agentRuns, onWarning),
 				createAgentRunId: (label) =>
 					agentRuns.createRun("explanations", label).agentRunId,
 			},
@@ -223,12 +241,18 @@ export async function runExplanationsStage(
 			};
 		});
 
-		sendStage(send, "explanations", "Generating explanations", "done", {
-			questionCount: questions.length,
-			generatedQuestionCount: explanationResult.generatedQuestionCount,
-			failedQuestionCount: explanationResult.failedQuestionCount,
+		writeStage(writer, {
+			stageId: "explanations",
+			label: "Generating explanations",
+			status: "done",
+			timestamp: Date.now(),
+			meta: {
+				questionCount: questions.length,
+				generatedQuestionCount: explanationResult.generatedQuestionCount,
+				failedQuestionCount: explanationResult.failedQuestionCount,
+			},
 		});
-		send("progress", { step: "Explanation generation completed" });
+		onProgress("Explanation generation completed");
 
 		return {
 			questions,
@@ -239,8 +263,12 @@ export async function runExplanationsStage(
 			stage: "explanations",
 			questionCount: extracted.questions.length,
 		});
-		sendStage(send, "explanations", "Generating explanations", "error", {
-			error: err instanceof Error ? err.message : "unknown",
+		writeStage(writer, {
+			stageId: "explanations",
+			label: "Generating explanations",
+			status: "error",
+			timestamp: Date.now(),
+			meta: { error: err instanceof Error ? err.message : "unknown" },
 		});
 		throw err;
 	}

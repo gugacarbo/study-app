@@ -1,12 +1,20 @@
 import type { ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { streamChatMessagesMock } = vi.hoisted(() => ({
-	streamChatMessagesMock: vi.fn(),
+const { streamTextMock } = vi.hoisted(() => ({
+	streamTextMock: vi.fn(),
 }));
 
-vi.mock("@/features/ai/core/chat-stream", () => ({
-	streamChatMessages: streamChatMessagesMock,
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		streamText: streamTextMock,
+	};
+});
+
+vi.mock("@/features/ai/adapters/provider-model", () => ({
+	getAiModel: vi.fn(() => "mock-model"),
 }));
 
 import {
@@ -25,35 +33,26 @@ function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
 }
 
 function mockSuccessfulExplanationRun(questionId: number) {
-	streamChatMessagesMock.mockImplementation(
-		(
-			_config: unknown,
-			_messages: unknown,
-			options?: { tools?: ToolSet },
-		) =>
-			(async function* () {
-				const updateExplanation = getTool(
-					options?.tools,
-					"update_question_explanation",
-				);
+	streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+		const updateExplanation = getTool(
+			options?.tools,
+			"update_question_explanation",
+		);
+		return {
+			fullStream: (async function* () {
 				await updateExplanation.execute({
 					questionId,
 					explanation: `Curta ${questionId}`,
 					deepExplanation: `Longa ${questionId}`,
 				});
-				yield {
-					type: "RUN_FINISHED",
-					threadId: "thread-1",
-					runId: "run-1",
-					finishReason: "stop",
-				};
 			})(),
-	);
+		};
+	});
 }
 
 describe("explainSingleQuestion", () => {
 	beforeEach(() => {
-		streamChatMessagesMock.mockReset();
+		streamTextMock.mockReset();
 	});
 
 	it("emits lifecycle and result events for a single-question explanation run", async () => {
@@ -112,7 +111,7 @@ describe("explainSingleQuestion", () => {
 		);
 	});
 
-	it("passes explanation tools and memory context through streamChatMessages", async () => {
+	it("passes explanation tools and memory context through streamText", async () => {
 		mockSuccessfulExplanationRun(11);
 
 		await explainSingleQuestion(
@@ -134,18 +133,17 @@ describe("explainSingleQuestion", () => {
 			},
 		);
 
-		expect(streamChatMessagesMock).toHaveBeenCalledWith(
-			expect.anything(),
-			expect.arrayContaining([
-				expect.objectContaining({
-					role: "user",
-					content: expect.stringContaining("question #1"),
-				}),
-			]),
+		expect(streamTextMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining(
 					"Use this student memory context to adapt teaching style and emphasis.",
 				),
+				messages: [
+					expect.objectContaining({
+						role: "user",
+						content: expect.stringContaining("question #1"),
+					}),
+				],
 				tools: expect.objectContaining({
 					update_question_explanation: expect.objectContaining({
 						execute: expect.any(Function),
@@ -183,59 +181,48 @@ describe("explainSingleQuestion", () => {
 			},
 		);
 
-		expect(streamChatMessagesMock).toHaveBeenCalledWith(
-			expect.anything(),
-			expect.anything(),
+		expect(streamTextMock).toHaveBeenCalledWith(
 			expect.objectContaining({
 				system: expect.stringContaining("contexto de SO"),
 			}),
 		);
-		expect(streamChatMessagesMock).toHaveBeenCalledWith(
-			expect.anything(),
-			[
-				expect.objectContaining({
-					role: "user",
-					content: expect.not.stringContaining('"options"'),
-				}),
-			],
-			expect.anything(),
+		expect(streamTextMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				messages: [
+					expect.objectContaining({
+						role: "user",
+						content: expect.not.stringContaining('"options"'),
+					}),
+				],
+			}),
 		);
 	});
 });
 
 describe("runQuestionExplanations", () => {
 	beforeEach(() => {
-		streamChatMessagesMock.mockReset();
+		streamTextMock.mockReset();
 	});
 
 	it("runs one agent per question and aggregates the results", async () => {
 		let callCount = 0;
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: ToolSet },
-			) =>
-				(async function* () {
-					callCount += 1;
-					const questionId = callCount === 1 ? 1 : 2;
-					const updateExplanation = getTool(
-						options?.tools,
-						"update_question_explanation",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const updateExplanation = getTool(
+				options?.tools,
+				"update_question_explanation",
+			);
+			callCount += 1;
+			const questionId = callCount === 1 ? 1 : 2;
+			return {
+				fullStream: (async function* () {
 					await updateExplanation.execute({
 						questionId,
 						explanation: `Curta ${questionId}`,
 						deepExplanation: `Longa ${questionId}`,
 					});
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
 				})(),
-		);
+			};
+		});
 
 		const result = await runQuestionExplanations(
 			{
@@ -259,7 +246,7 @@ describe("runQuestionExplanations", () => {
 			],
 		);
 
-		expect(streamChatMessagesMock).toHaveBeenCalledTimes(2);
+		expect(streamTextMock).toHaveBeenCalledTimes(2);
 		expect(result.questions).toEqual([
 			{ id: 1, explanation: "Curta 1", deepExplanation: "Longa 1" },
 			{ id: 2, explanation: "Curta 2", deepExplanation: "Longa 2" },

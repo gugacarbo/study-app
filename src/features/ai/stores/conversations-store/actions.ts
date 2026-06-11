@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import type { AssistantPerfMetrics } from "@/features/ai/types/assistant-perf-metrics";
 import type { ChatTokenTotals } from "./types";
 import { conversationsStore, generateId } from "./types";

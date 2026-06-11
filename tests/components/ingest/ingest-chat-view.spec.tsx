@@ -1,11 +1,15 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import type { UIMessage } from "@tanstack/ai-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IngestChatView } from "@/features/ingest/components/ingest-chat-view";
 import type {
 	IngestAgentRunViewModel,
 	IngestPipelineStageViewModel,
 } from "@/features/ingest/components/types";
+import {
+	buildAssistantMessage,
+	buildDynamicToolPart,
+	buildTextMessage,
+} from "./ui-message-fixtures";
 
 const requestAnimationFrameSpy = vi
 	.spyOn(window, "requestAnimationFrame")
@@ -13,18 +17,6 @@ const requestAnimationFrameSpy = vi
 		setTimeout(() => callback(performance.now()), 0);
 		return 1;
 	});
-
-function buildTextMessage(
-	id: string,
-	role: UIMessage["role"],
-	content: string,
-): UIMessage {
-	return {
-		id,
-		role,
-		parts: [{ type: "text", content }],
-	};
-}
 
 function buildAgentRun(
 	overrides: Partial<IngestAgentRunViewModel> = {},
@@ -37,17 +29,6 @@ function buildAgentRun(
 		startedAt: 10,
 		messages: [],
 		...overrides,
-	};
-}
-
-function buildStreamingMessage(
-	parts: UIMessage["parts"],
-	messageId = "assistant-1",
-): UIMessage {
-	return {
-		id: messageId,
-		role: "assistant",
-		parts,
 	};
 }
 
@@ -139,7 +120,7 @@ describe("IngestChatView", () => {
 						state: "running",
 						messages: [
 							buildTextMessage("user-1", "user", "Parse this exam PDF."),
-							buildStreamingMessage([{ type: "text", content: "" }]),
+							buildAssistantMessage([{ type: "text", text: "" }]),
 						],
 					}),
 				]}
@@ -158,27 +139,19 @@ describe("IngestChatView", () => {
 					buildAgentRun({
 						state: "running",
 						messages: [
-							buildStreamingMessage([
-								{ type: "text", content: "Reviewing q1." },
-								{
-									type: "tool-call",
-									id: "tc-1",
-									name: "update_extracted_question",
-									arguments:
-										'{"questionId":"q1","answer":"2x","topic":"Derivatives"}',
+							buildAssistantMessage([
+								{ type: "text", text: "Reviewing q1." },
+								buildDynamicToolPart({
+									toolCallId: "tc-1",
+									toolName: "update_extracted_question",
+									state: "output-available",
 									input: {
 										questionId: "q1",
 										answer: "2x",
 										topic: "Derivatives",
 									},
-									state: "input-complete",
-								},
-								{
-									type: "tool-result",
-									toolCallId: "tc-1",
-									content: '{"ok":true,"questionId":"q1"}',
-									state: "complete",
-								},
+									output: { ok: true, questionId: "q1" },
+								}),
 							]),
 						],
 					}),
@@ -202,8 +175,8 @@ describe("IngestChatView", () => {
 					buildAgentRun({
 						state: "running",
 						messages: [
-							buildStreamingMessage([
-								{ type: "text", content: "Streaming partial" },
+							buildAssistantMessage([
+								{ type: "text", text: "Streaming partial" },
 							]),
 						],
 					}),
@@ -222,8 +195,8 @@ describe("IngestChatView", () => {
 					buildAgentRun({
 						state: "running",
 						messages: [
-							buildStreamingMessage([
-								{ type: "text", content: "Streaming partial response" },
+							buildAssistantMessage([
+								{ type: "text", text: "Streaming partial response" },
 							]),
 						],
 					}),
@@ -244,8 +217,8 @@ describe("IngestChatView", () => {
 		const scrollToSpy = vi.fn();
 		HTMLElement.prototype.scrollTo = scrollToSpy;
 
-		const baseMessage = buildStreamingMessage([
-			{ type: "text", content: "Reviewing q1." },
+		const baseMessage = buildAssistantMessage([
+			{ type: "text", text: "Reviewing q1." },
 		]);
 
 		const { rerender } = render(
@@ -272,16 +245,14 @@ describe("IngestChatView", () => {
 					buildAgentRun({
 						state: "running",
 						messages: [
-							buildStreamingMessage([
+							buildAssistantMessage([
 								...baseMessage.parts,
-								{
-									type: "tool-call",
-									id: "tc-1",
-									name: "list_extracted_questions",
-									arguments: "{}",
+								buildDynamicToolPart({
+									toolCallId: "tc-1",
+									toolName: "list_extracted_questions",
+									state: "input-available",
 									input: {},
-									state: "input-complete",
-								},
+								}),
 							]),
 						],
 					}),
@@ -304,16 +275,14 @@ describe("IngestChatView", () => {
 		const scrollToSpy = vi.fn();
 		HTMLElement.prototype.scrollTo = scrollToSpy;
 
-		const baseMessage = buildStreamingMessage([
-			{ type: "text", content: "Reviewing q1." },
-			{
-				type: "tool-call",
-				id: "tc-1",
-				name: "update_extracted_question",
-				arguments: '{"questionId":"q1"}',
+		const baseMessage = buildAssistantMessage([
+			{ type: "text", text: "Reviewing q1." },
+			buildDynamicToolPart({
+				toolCallId: "tc-1",
+				toolName: "update_extracted_question",
+				state: "input-available",
 				input: { questionId: "q1" },
-				state: "input-complete",
-			},
+			}),
 		]);
 
 		const { rerender } = render(
@@ -340,14 +309,15 @@ describe("IngestChatView", () => {
 					buildAgentRun({
 						state: "running",
 						messages: [
-							buildStreamingMessage([
-								...baseMessage.parts,
-								{
-									type: "tool-result",
+							buildAssistantMessage([
+								{ type: "text", text: "Reviewing q1." },
+								buildDynamicToolPart({
 									toolCallId: "tc-1",
-									content: '{"ok":true,"questionId":"q1"}',
-									state: "complete",
-								},
+									toolName: "update_extracted_question",
+									state: "output-available",
+									input: { questionId: "q1" },
+									output: { ok: true, questionId: "q1" },
+								}),
 							]),
 						],
 					}),

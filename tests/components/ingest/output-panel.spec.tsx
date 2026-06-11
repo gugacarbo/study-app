@@ -6,22 +6,14 @@ import {
 	waitFor,
 	within,
 } from "@testing-library/react";
-import type { UIMessage } from "@tanstack/ai-client";
 import type { IngestPipelineStageViewModel } from "@/features/ingest/components/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OutputPanel } from "@/features/ingest/components/output-panel";
-
-function buildTextMessage(
-	id: string,
-	role: UIMessage["role"],
-	content: string,
-): UIMessage {
-	return {
-		id,
-		role,
-		parts: [{ type: "text", content }],
-	};
-}
+import {
+	buildAssistantMessage,
+	buildDynamicToolPart,
+	buildTextMessage,
+} from "./ui-message-fixtures";
 
 const stages: IngestPipelineStageViewModel[] = [
 	{
@@ -74,27 +66,18 @@ describe("OutputPanel", () => {
 								"user",
 								"Review q1 and fix the alternatives if needed.",
 							),
-							{
-								id: "assistant-1",
-								role: "assistant",
-								parts: [
-									{ type: "text", content: "Inspecting the current question." },
-									{
-										type: "tool-call",
-										id: "tc-1",
-										name: "list_extracted_questions",
-										arguments: "{}",
-										input: {},
-										state: "input-complete",
-									},
-									{
-										type: "tool-result",
-										toolCallId: "tc-1",
-										content: '[{"id":"q1","question":"Qual é a derivada de f(x)=x²?"}]',
-										state: "complete",
-									},
-								],
-							},
+							buildAssistantMessage([
+								{ type: "text", text: "Inspecting the current question." },
+								buildDynamicToolPart({
+									toolCallId: "tc-1",
+									toolName: "list_extracted_questions",
+									state: "output-available",
+									input: {},
+									output: [
+										{ id: "q1", question: "Qual é a derivada de f(x)=x²?" },
+									],
+								}),
+							]),
 						],
 					},
 				]}
@@ -133,11 +116,7 @@ describe("OutputPanel", () => {
 			messages: [
 				buildTextMessage("system-1", "system", "review system prompt"),
 				buildTextMessage("user-1", "user", "review user prompt"),
-				{
-					id: "assistant-1",
-					role: "assistant" as const,
-					parts: [{ type: "text" as const, content: "Inspecting q1." }],
-				},
+				buildAssistantMessage([{ type: "text", text: "Inspecting q1." }]),
 			],
 		};
 
@@ -176,27 +155,16 @@ describe("OutputPanel", () => {
 						messages: [
 							buildTextMessage("system-1", "system", "review system prompt"),
 							buildTextMessage("user-1", "user", "review user prompt"),
-							{
-								id: "assistant-1",
-								role: "assistant",
-								parts: [
-									{ type: "text", content: "Inspecting q1." },
-									{
-										type: "tool-call",
-										id: "tc-1",
-										name: "update_extracted_question",
-										arguments: '{"questionId":"q1"}',
-										input: { questionId: "q1" },
-										state: "input-complete",
-									},
-									{
-										type: "tool-result",
-										toolCallId: "tc-1",
-										content: '{"ok":true}',
-										state: "complete",
-									},
-								],
-							},
+							buildAssistantMessage([
+								{ type: "text", text: "Inspecting q1." },
+								buildDynamicToolPart({
+									toolCallId: "tc-1",
+									toolName: "update_extracted_question",
+									state: "output-available",
+									input: { questionId: "q1" },
+									output: { ok: true },
+								}),
+							]),
 						],
 					},
 				]}
@@ -219,35 +187,21 @@ describe("OutputPanel", () => {
 			messages: [
 				buildTextMessage("system-1", "system", "extract system prompt"),
 				buildTextMessage("user-1", "user", "extract user prompt"),
-				{
-					id: "assistant-1",
-					role: "assistant" as const,
-					parts: [
-						{
-							type: "tool-call" as const,
-							id: "tc-1",
-							name: "add_extracted_question",
-							arguments: '{"questionId":"q1"}',
-							input: { questionId: "q1" },
-							state: "input-complete" as const,
-							output: '{"ok":true,"questionId":"q1"}',
-						},
-						{
-							type: "tool-result" as const,
-							toolCallId: "tc-1",
-							content: '{"ok":true,"questionId":"q1"}',
-							state: "complete" as const,
-						},
-						{
-							type: "tool-call" as const,
-							id: "tc-2",
-							name: "add_extracted_question",
-							arguments: '{"questionId":"q2"}',
-							input: { questionId: "q2" },
-							state: "input-streaming" as const,
-						},
-					],
-				},
+				buildAssistantMessage([
+					buildDynamicToolPart({
+						toolCallId: "tc-1",
+						toolName: "add_extracted_question",
+						state: "output-available",
+						input: { questionId: "q1" },
+						output: { ok: true, questionId: "q1" },
+					}),
+					buildDynamicToolPart({
+						toolCallId: "tc-2",
+						toolName: "add_extracted_question",
+						state: "input-streaming",
+						input: { questionId: "q2" },
+					}),
+				]),
 			],
 		};
 
@@ -288,42 +242,22 @@ describe("OutputPanel", () => {
 						messages: [
 							buildTextMessage("system-1", "system", "extract system prompt"),
 							buildTextMessage("user-1", "user", "extract user prompt"),
-							{
-								id: "assistant-1",
-								role: "assistant",
-								parts: [
-									{
-										type: "tool-call",
-										id: "tc-1",
-										name: "add_extracted_question",
-										arguments: '{"questionId":"q1"}',
-										input: { questionId: "q1" },
-										state: "input-complete",
-										output: '{"ok":true,"questionId":"q1"}',
-									},
-									{
-										type: "tool-result",
-										toolCallId: "tc-1",
-										content: '{"ok":true,"questionId":"q1"}',
-										state: "complete",
-									},
-									{
-										type: "tool-call",
-										id: "tc-2",
-										name: "add_extracted_question",
-										arguments: '{"questionId":"q2"}',
-										input: { questionId: "q2" },
-										state: "input-complete",
-										output: '{"ok":true,"questionId":"q2"}',
-									},
-									{
-										type: "tool-result",
-										toolCallId: "tc-2",
-										content: '{"ok":true,"questionId":"q2"}',
-										state: "complete",
-									},
-								],
-							},
+							buildAssistantMessage([
+								buildDynamicToolPart({
+									toolCallId: "tc-1",
+									toolName: "add_extracted_question",
+									state: "output-available",
+									input: { questionId: "q1" },
+									output: { ok: true, questionId: "q1" },
+								}),
+								buildDynamicToolPart({
+									toolCallId: "tc-2",
+									toolName: "add_extracted_question",
+									state: "output-available",
+									input: { questionId: "q2" },
+									output: { ok: true, questionId: "q2" },
+								}),
+							]),
 						],
 					},
 				]}
@@ -359,27 +293,16 @@ describe("OutputPanel", () => {
 						messages: [
 							buildTextMessage("system-1", "system", "review system prompt"),
 							buildTextMessage("user-1", "user", "review user prompt"),
-							{
-								id: "assistant-1",
-								role: "assistant",
-								parts: [
-									{ type: "text", content: "Inspecting the current question." },
-									{
-										type: "tool-call",
-										id: "tc-1",
-										name: "list_extracted_questions",
-										arguments: '{"questionId":"q1"}',
-										input: { questionId: "q1" },
-										state: "input-complete",
-									},
-									{
-										type: "tool-result",
-										toolCallId: "tc-1",
-										content: '{"ok":true}',
-										state: "complete",
-									},
-								],
-							},
+							buildAssistantMessage([
+								{ type: "text", text: "Inspecting the current question." },
+								buildDynamicToolPart({
+									toolCallId: "tc-1",
+									toolName: "list_extracted_questions",
+									state: "output-available",
+									input: { questionId: "q1" },
+									output: { ok: true },
+								}),
+							]),
 						],
 					},
 				]}

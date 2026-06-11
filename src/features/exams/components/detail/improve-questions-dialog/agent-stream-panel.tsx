@@ -1,19 +1,31 @@
-import type { UIMessage } from "@tanstack/ai-client";
 import { useEffect, useMemo, useRef } from "react";
 import { IMPROVE_QUESTIONS_STAGE_ID } from "@/features/ai/agents/improve-questions/contracts";
 import { AgentRunThread } from "@/features/ai/components/assistant-ui/agent-run-thread";
-import type { ChatBubble } from "@/features/ingest/components/ingest-chat-view/chat-bubbles";
-import type { ImproveQuestionsAgentStatus } from "./types";
+import type { IngestAgentRunViewModel } from "@/features/ingest/components/types";
+import type {
+	ImproveQuestionsAgentStatus,
+	ImproveQuestionsUIMessage,
+} from "./types";
 
 interface AgentStreamPanelProps {
-	messages: UIMessage[];
+	messages: ImproveQuestionsUIMessage[];
 	isStreaming: boolean;
 	agentStatus: ImproveQuestionsAgentStatus;
 }
 
+interface ImproveQuestionsStreamBubble {
+	id: string;
+	agentRunId: string;
+	agentName: string;
+	agentState: IngestAgentRunViewModel["state"];
+	stageId: typeof IMPROVE_QUESTIONS_STAGE_ID;
+	message: ImproveQuestionsUIMessage;
+	isStreaming: boolean;
+}
+
 function mapAgentState(
 	status: ImproveQuestionsAgentStatus,
-): ChatBubble["agentState"] {
+): ImproveQuestionsStreamBubble["agentState"] {
 	switch (status) {
 		case "running":
 			return "running";
@@ -27,10 +39,10 @@ function mapAgentState(
 }
 
 function toChatBubbles(
-	messages: UIMessage[],
+	messages: ImproveQuestionsUIMessage[],
 	isStreaming: boolean,
 	agentStatus: ImproveQuestionsAgentStatus,
-): ChatBubble[] {
+): ImproveQuestionsStreamBubble[] {
 	const visibleMessages = messages.filter(
 		(message) => message.parts.length > 0,
 	);

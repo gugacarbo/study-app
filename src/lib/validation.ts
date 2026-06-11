@@ -265,21 +265,61 @@ export const AI_AGENT_TASKS = [
 
 export type AiAgentTask = (typeof AI_AGENT_TASKS)[number];
 
+export const THINKING_EFFORT_LEVELS = [
+	"minimal",
+	"low",
+	"medium",
+	"high",
+] as const;
+
+export type ThinkingEffortLevel = (typeof THINKING_EFFORT_LEVELS)[number];
+
+export const thinkingEffortLevelSchema = z.enum(THINKING_EFFORT_LEVELS);
+
+export const thinkingEffortLevelsSchema = z.array(thinkingEffortLevelSchema);
+
+function refineThinkingEffortDefault<
+	T extends {
+		thinkingEffortLevels?: ThinkingEffortLevel[];
+		defaultThinkingEffort?: ThinkingEffortLevel | null;
+	},
+>(
+	data: T,
+	ctx: z.RefinementCtx,
+): void {
+	const levels = data.thinkingEffortLevels ?? [];
+	if (
+		data.defaultThinkingEffort &&
+		!levels.includes(data.defaultThinkingEffort)
+	) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: "Default must be one of the selected effort levels",
+			path: ["defaultThinkingEffort"],
+		});
+	}
+}
+
 export const providerConfigSchema = z.object({
 	model: z.string().min(1, "Model is required"),
 	baseUrl: z.string().url("Base URL must be a valid URL"),
 	apiKey: z.string(),
+	thinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
 });
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 
-export const resolvedModelConfigSchema = providerConfigSchema.extend({
-	modelId: z.number().int().positive(),
-	providerName: z.string(),
-	contextWindow: z.number().int().positive().nullable().optional(),
-	inputCostPerMillion: z.number().nonnegative().nullable().optional(),
-	outputCostPerMillion: z.number().nonnegative().nullable().optional(),
-});
+export const resolvedModelConfigSchema = providerConfigSchema
+	.omit({ thinkingEffort: true })
+	.extend({
+		modelId: z.number().int().positive(),
+		providerName: z.string(),
+		contextWindow: z.number().int().positive().nullable().optional(),
+		inputCostPerMillion: z.number().nonnegative().nullable().optional(),
+		outputCostPerMillion: z.number().nonnegative().nullable().optional(),
+		thinkingEffortLevels: thinkingEffortLevelsSchema.default([]),
+		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+	});
 
 export type ResolvedModelConfig = z.infer<typeof resolvedModelConfigSchema>;
 
@@ -298,29 +338,37 @@ export const updateAiProviderSchema = z.object({
 	enabled: z.boolean().optional(),
 });
 
-export const createAiModelSchema = z.object({
-	providerId: z.number().int().positive(),
-	modelId: z.string().min(1, "Model ID is required"),
-	displayName: z.string().min(1, "Display name is required"),
-	contextWindow: z.number().int().positive().nullable().optional(),
-	maxOutputTokens: z.number().int().positive().nullable().optional(),
-	inputCostPerMillion: z.number().nonnegative().nullable().optional(),
-	outputCostPerMillion: z.number().nonnegative().nullable().optional(),
-	enabled: z.boolean().optional(),
-	metadata: z.string().nullable().optional(),
-});
+export const createAiModelSchema = z
+	.object({
+		providerId: z.number().int().positive(),
+		modelId: z.string().min(1, "Model ID is required"),
+		displayName: z.string().min(1, "Display name is required"),
+		contextWindow: z.number().int().positive().nullable().optional(),
+		maxOutputTokens: z.number().int().positive().nullable().optional(),
+		inputCostPerMillion: z.number().nonnegative().nullable().optional(),
+		outputCostPerMillion: z.number().nonnegative().nullable().optional(),
+		thinkingEffortLevels: thinkingEffortLevelsSchema.optional(),
+		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+		enabled: z.boolean().optional(),
+		metadata: z.string().nullable().optional(),
+	})
+	.superRefine(refineThinkingEffortDefault);
 
-export const updateAiModelSchema = z.object({
-	id: z.number().int().positive(),
-	modelId: z.string().min(1).optional(),
-	displayName: z.string().min(1).optional(),
-	contextWindow: z.number().int().positive().nullable().optional(),
-	maxOutputTokens: z.number().int().positive().nullable().optional(),
-	inputCostPerMillion: z.number().nonnegative().nullable().optional(),
-	outputCostPerMillion: z.number().nonnegative().nullable().optional(),
-	enabled: z.boolean().optional(),
-	metadata: z.string().nullable().optional(),
-});
+export const updateAiModelSchema = z
+	.object({
+		id: z.number().int().positive(),
+		modelId: z.string().min(1).optional(),
+		displayName: z.string().min(1).optional(),
+		contextWindow: z.number().int().positive().nullable().optional(),
+		maxOutputTokens: z.number().int().positive().nullable().optional(),
+		inputCostPerMillion: z.number().nonnegative().nullable().optional(),
+		outputCostPerMillion: z.number().nonnegative().nullable().optional(),
+		thinkingEffortLevels: thinkingEffortLevelsSchema.optional(),
+		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+		enabled: z.boolean().optional(),
+		metadata: z.string().nullable().optional(),
+	})
+	.superRefine(refineThinkingEffortDefault);
 
 export const aiSettingsSchema = z.object({
 	defaultModelId: z.number().int().positive().nullable(),
@@ -348,13 +396,30 @@ export function agentModelConfigKey(agent: AiAgentTask): string {
 	return `agent.${agent}.model_id`;
 }
 
+export function resolveThinkingEffort(
+	levels: ThinkingEffortLevel[],
+	defaultLevel: ThinkingEffortLevel | null | undefined,
+): ThinkingEffortLevel | undefined {
+	if (!defaultLevel || levels.length === 0) return undefined;
+	return levels.includes(defaultLevel) ? defaultLevel : undefined;
+}
+
 export function toProviderConfig(
 	config: ResolvedModelConfig | ProviderConfig,
 ): ProviderConfig {
+	const thinkingEffort =
+		"thinkingEffortLevels" in config
+			? resolveThinkingEffort(
+					config.thinkingEffortLevels,
+					config.defaultThinkingEffort,
+				)
+			: config.thinkingEffort;
+
 	return {
 		model: config.model,
 		baseUrl: config.baseUrl,
 		apiKey: config.apiKey,
+		thinkingEffort,
 	};
 }
 

@@ -38,7 +38,9 @@ describe("runExplanationsStage", () => {
 	});
 
 	it("skips explanation generation when disabled", async () => {
-		const send = vi.fn();
+		const writer = { write: vi.fn() };
+		const onProgress = vi.fn();
+		const onWarning = vi.fn();
 		const agentRuns = createAgentRunsMock();
 
 		const result = await runExplanationsStage({
@@ -64,17 +66,21 @@ describe("runExplanationsStage", () => {
 			},
 			memory: createMemoryMock() as never,
 			agentRuns,
-			send,
+			writer: writer as never,
+			onProgress,
+			onWarning,
 			log: { error: vi.fn() },
 		});
 
 		expect(result).toBeNull();
 		expect(runQuestionExplanationsMock).not.toHaveBeenCalled();
-		expect(send).toHaveBeenCalledWith(
-			"stage",
+		expect(writer.write).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stageId: "explanations",
-				status: "skipped",
+				type: "data-stage",
+				data: expect.objectContaining({
+					stageId: "explanations",
+					status: "skipped",
+				}),
 			}),
 		);
 	});
@@ -94,7 +100,9 @@ describe("runExplanationsStage", () => {
 			reasons: [],
 		});
 
-		const send = vi.fn();
+		const writer = { write: vi.fn() };
+		const onProgress = vi.fn();
+		const onWarning = vi.fn();
 		const agentRuns = createAgentRunsMock();
 		const memory = createMemoryMock();
 
@@ -121,7 +129,9 @@ describe("runExplanationsStage", () => {
 			},
 			memory: memory as never,
 			agentRuns,
-			send,
+			writer: writer as never,
+			onProgress,
+			onWarning,
 			log: { error: vi.fn() },
 		});
 
@@ -152,11 +162,13 @@ describe("runExplanationsStage", () => {
 			],
 			topics: ["Geral"],
 		});
-		expect(send).toHaveBeenCalledWith(
-			"stage",
+		expect(writer.write).toHaveBeenCalledWith(
 			expect.objectContaining({
-				stageId: "explanations",
-				status: "done",
+				type: "data-stage",
+				data: expect.objectContaining({
+					stageId: "explanations",
+					status: "done",
+				}),
 			}),
 		);
 	});

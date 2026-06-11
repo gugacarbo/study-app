@@ -1,7 +1,7 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
 import type { ImproveQuestionsAgentRunStatus } from "@/features/ai/agents/improve-questions/contracts";
-import { pickRicherToolResultContent } from "@/features/ai/core/agent-stream-handler";
+import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
 
 export interface AgentRunState {
 	agentRunId: string;
@@ -28,21 +28,17 @@ export type AgentRunReducerEvent =
 	| AgentRunTextChunkEvent;
 
 type AgentRole = "system" | "user" | "assistant";
-type AssistantToolCallPart = Extract<
+type DynamicToolPart = Extract<
 	UIMessage["parts"][number],
-	{ type: "tool-call" }
->;
-type AssistantToolResultPart = Extract<
-	UIMessage["parts"][number],
-	{ type: "tool-result" }
+	{ type: "dynamic-tool" }
 >;
 
-function createTextPart(content: string) {
-	return { type: "text" as const, content };
+function createTextPart(text: string) {
+	return { type: "text" as const, text };
 }
 
-function createThinkingPart(content: string) {
-	return { type: "thinking" as const, content };
+function createReasoningPart(text: string) {
+	return { type: "reasoning" as const, text };
 }
 
 function createAgentMessage(
@@ -95,15 +91,15 @@ function stripToolTranscriptFromTextParts(
 	return parts
 		.map((part) => {
 			if (part.type !== "text" || didStrip) return part;
-			const content = part.content ?? "";
-			const strippedContent = stripStructuredToolTranscript(content);
-			if (strippedContent === content) return part;
+			const text = part.text;
+			const strippedContent = stripStructuredToolTranscript(text);
+			if (strippedContent === text) return part;
 			didStrip = true;
-			return { ...part, content: strippedContent };
+			return { ...part, text: strippedContent };
 		})
 		.filter((part, index, allParts) => {
 			if (part.type !== "text") return true;
-			if ((part.content ?? "").length > 0) return true;
+			if (part.text.length > 0) return true;
 			return (
 				allParts.some((candidate) => candidate.type !== "text") || index !== 0
 			);
@@ -112,7 +108,7 @@ function stripToolTranscriptFromTextParts(
 
 function hasMeaningfulAssistantParts(parts: UIMessage["parts"]): boolean {
 	return parts.some((part) =>
-		part.type === "text" ? (part.content ?? "").length > 0 : true,
+		part.type === "text" ? part.text.length > 0 : true,
 	);
 }
 
@@ -126,7 +122,7 @@ function updateTrailingTextPart(
 	if (lastPart?.type === "text") {
 		nextParts[nextParts.length - 1] = {
 			...lastPart,
-			content: `${lastPart.content ?? ""}${chunk}`,
+			text: `${lastPart.text}${chunk}`,
 		};
 		return nextParts;
 	}
@@ -134,22 +130,22 @@ function updateTrailingTextPart(
 	return [...nextParts, createTextPart(chunk)];
 }
 
-function updateTrailingThinkingPart(
+function updateTrailingReasoningPart(
 	parts: UIMessage["parts"],
 	chunk: string,
 ): UIMessage["parts"] {
 	const nextParts = [...parts];
 	const lastPart = nextParts.at(-1);
 
-	if (lastPart?.type === "thinking") {
+	if (lastPart?.type === "reasoning") {
 		nextParts[nextParts.length - 1] = {
 			...lastPart,
-			content: `${lastPart.content ?? ""}${chunk}`,
+			text: `${lastPart.text}${chunk}`,
 		};
 		return nextParts;
 	}
 
-	return [...nextParts, createThinkingPart(chunk)];
+	return [...nextParts, createReasoningPart(chunk)];
 }
 
 function upsertMessageText(
@@ -195,7 +191,7 @@ function upsertMessageText(
 				part.type === "text" &&
 				index ===
 					currentParts.findIndex((candidate) => candidate.type === "text")
-					? { ...part, content }
+					? { ...part, text: content }
 					: part,
 			)
 		: [createTextPart(content), ...currentParts];
@@ -265,7 +261,7 @@ function appendAssistantThinkingMessage(
 
 		return {
 			...message,
-			parts: updateTrailingThinkingPart(baseParts, chunk),
+			parts: updateTrailingReasoningPart(baseParts, chunk),
 		};
 	});
 }
@@ -275,7 +271,7 @@ function readAssistantText(messages: UIMessage[]): string {
 	if (!assistant) return "";
 	return assistant.parts
 		.filter((part) => part.type === "text")
-		.map((part) => part.content ?? "")
+		.map((part) => part.text)
 		.join("");
 }
 
@@ -324,31 +320,46 @@ function safeJsonString(value: unknown): string {
 	}
 }
 
-function normalizeToolCallState(
+function normalizeDynamicToolInputState(
 	value: unknown,
-): AssistantToolCallPart["state"] {
+): Extract<DynamicToolPart["state"], `input${string}` | `approval${string}`> {
 	switch (value) {
-		case "awaiting-input":
 		case "input-streaming":
-		case "input-complete":
+		case "input-available":
 		case "approval-requested":
 		case "approval-responded":
 			return value;
+		case "awaiting-input":
+		case "input-complete":
+			return "input-available";
 		default:
-			return "input-complete";
+			return "input-available";
 	}
 }
 
-function normalizeToolResultState(
+function normalizeDynamicToolOutputState(
 	value: unknown,
-): AssistantToolResultPart["state"] {
+	error?: string,
+): Extract<
+	DynamicToolPart["state"],
+	`output${string}` | "input-available"
+> {
+	if (typeof error === "string" && error.length > 0) {
+		return "output-error";
+	}
 	switch (value) {
+		case "output-available":
+		case "output-error":
+		case "output-denied":
+			return value;
 		case "streaming":
 		case "complete":
+		case "completed":
+			return "output-available";
 		case "error":
-			return value;
+			return "output-error";
 		default:
-			return "complete";
+			return "output-available";
 	}
 }
 
@@ -361,8 +372,8 @@ function readLatestToolCallId(state: AgentRunState): string | undefined {
 
 	for (let index = assistant.parts.length - 1; index >= 0; index -= 1) {
 		const part = assistant.parts[index];
-		if (part.type === "tool-call") {
-			return part.id;
+		if (part.type === "dynamic-tool") {
+			return part.toolCallId;
 		}
 	}
 
@@ -381,27 +392,18 @@ function createToolCallId(
 
 	const existingCount = ensureAgentRunMessages(state)
 		.messages.find((message) => message.role === "assistant")
-		?.parts.filter((part) => part.type === "tool-call").length;
+		?.parts.filter((part) => part.type === "dynamic-tool").length;
 
 	return `${state.agentRunId}:tool-call:${existingCount ?? 0}`;
 }
 
-function createToolCallPart(
-	state: AgentRunState,
-	event: ImproveQuestionsAgentEvent,
-): AssistantToolCallPart {
-	return {
-		type: "tool-call",
-		id: createToolCallId(state, event),
-		name: typeof event.name === "string" ? event.name : "unknown_tool",
-		arguments:
-			typeof event.arguments === "string"
-				? event.arguments
-				: safeJsonString(event.input ?? {}),
-		input: event.input,
-		output: undefined,
-		state: normalizeToolCallState(event.state),
-	};
+function tryParseJson(value: string | undefined): unknown {
+	if (!value) return undefined;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
 }
 
 function isMeaningfulToolValue(value: unknown): boolean {
@@ -419,146 +421,137 @@ function isMeaningfulToolValue(value: unknown): boolean {
 	return true;
 }
 
-function mergeToolCallPart(
-	existing: AssistantToolCallPart,
-	incoming: AssistantToolCallPart,
-): AssistantToolCallPart {
-	return {
-		...existing,
-		...incoming,
-		name:
-			typeof incoming.name === "string" && incoming.name.length > 0
-				? incoming.name
-				: existing.name,
-		arguments: isMeaningfulToolValue(incoming.arguments)
-			? incoming.arguments
-			: existing.arguments,
-		input: isMeaningfulToolValue(incoming.input)
-			? incoming.input
-			: existing.input,
-		output: isMeaningfulToolValue(incoming.output)
-			? incoming.output
-			: existing.output,
-		state: normalizeToolCallState(incoming.state ?? existing.state),
-	};
-}
-
-function readToolResultContent(event: ImproveQuestionsAgentEvent): string {
+function readToolResultOutput(event: ImproveQuestionsAgentEvent): unknown {
 	const eventRecord = event as ImproveQuestionsAgentEvent & { result?: unknown };
-	return safeJsonString(
-		event.content ?? event.output ?? eventRecord.result ?? "",
-	);
+	return event.content ?? event.output ?? eventRecord.result ?? "";
 }
 
-function isMeaningfulToolResultContent(content: string): boolean {
-	const trimmed = content.trim();
-	return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+function isMeaningfulToolResultOutput(output: unknown): boolean {
+	if (output == null) return false;
+	if (typeof output === "string") {
+		const trimmed = output.trim();
+		return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+	}
+	if (Array.isArray(output)) return output.length > 0;
+	if (typeof output === "object") {
+		return Object.keys(output as Record<string, unknown>).length > 0;
+	}
+	return true;
 }
 
-function mergeToolResultPart(
-	existing: AssistantToolResultPart,
-	incoming: AssistantToolResultPart,
-): AssistantToolResultPart {
-	const mergedContent = isMeaningfulToolResultContent(incoming.content)
-		? isMeaningfulToolResultContent(existing.content)
-			? pickRicherToolResultContent(existing.content, incoming.content)
-			: incoming.content
-		: existing.content;
-
-	return {
-		...existing,
-		...incoming,
-		content: mergedContent,
-		state: normalizeToolResultState(incoming.state ?? existing.state),
-		error:
-			typeof incoming.error === "string" && incoming.error.length > 0
-				? incoming.error
-				: incoming.state === "complete"
-					? undefined
-					: existing.error,
-	};
+function mergeDynamicToolOutput(
+	existing: unknown,
+	incoming: unknown,
+): unknown {
+	const existingText =
+		typeof existing === "string" ? existing : safeJsonString(existing);
+	const incomingText =
+		typeof incoming === "string" ? incoming : safeJsonString(incoming);
+	if (!isMeaningfulToolResultOutput(incoming)) return existing;
+	if (!isMeaningfulToolResultOutput(existing)) return incoming;
+	return pickRicherToolResultContent(existingText, incomingText);
 }
 
-function createToolResultPart(
+function createDynamicToolFromCallEvent(
 	state: AgentRunState,
 	event: ImproveQuestionsAgentEvent,
-): AssistantToolResultPart {
+): DynamicToolPart {
+	return {
+		type: "dynamic-tool",
+		toolCallId: createToolCallId(state, event),
+		toolName: typeof event.name === "string" ? event.name : "unknown_tool",
+		state: normalizeDynamicToolInputState(event.state),
+		input: isMeaningfulToolValue(event.input)
+			? event.input
+			: (tryParseJson(event.arguments) ?? {}),
+	} as DynamicToolPart;
+}
+
+function createDynamicToolFromResultEvent(
+	state: AgentRunState,
+	event: ImproveQuestionsAgentEvent,
+): DynamicToolPart {
 	const meta = event.meta as Record<string, unknown> | undefined;
 	const candidate = meta?.toolCallId;
 	const toolCallId =
 		typeof candidate === "string" && candidate.length > 0
 			? candidate
 			: (readLatestToolCallId(state) ?? `${state.agentRunId}:tool-call:0`);
-	const content = readToolResultContent(event);
+	const output = readToolResultOutput(event);
+	const errorText = typeof event.error === "string" ? event.error : undefined;
 
 	return {
-		type: "tool-result",
+		type: "dynamic-tool",
 		toolCallId,
-		content,
-		state: normalizeToolResultState(event.state),
-		error: typeof event.error === "string" ? event.error : undefined,
-	};
+		toolName: typeof event.name === "string" ? event.name : "unknown_tool",
+		state: normalizeDynamicToolOutputState(event.state, errorText),
+		input: event.input ?? {},
+		output: isMeaningfulToolResultOutput(output) ? output : undefined,
+		errorText,
+	} as DynamicToolPart;
 }
 
-function upsertAssistantToolResultPart(
+function mergeDynamicToolPart(
+	existing: DynamicToolPart,
+	incoming: DynamicToolPart,
+): DynamicToolPart {
+	const mergedOutput = mergeDynamicToolOutput(existing.output, incoming.output);
+	const nextState =
+		incoming.state === "output-available" ||
+		incoming.state === "output-error" ||
+		incoming.state === "output-denied"
+			? incoming.state
+			: existing.state === "output-available" ||
+					existing.state === "output-error" ||
+					existing.state === "output-denied"
+				? existing.state
+				: normalizeDynamicToolInputState(incoming.state ?? existing.state);
+
+	return {
+		...existing,
+		...incoming,
+		toolName:
+			incoming.toolName.length > 0 ? incoming.toolName : existing.toolName,
+		input: isMeaningfulToolValue(incoming.input)
+			? incoming.input
+			: existing.input,
+		output: mergedOutput,
+		errorText: incoming.errorText ?? existing.errorText,
+		state: nextState,
+	} as DynamicToolPart;
+}
+
+function upsertDynamicToolPart(
 	parts: UIMessage["parts"],
-	resultPart: AssistantToolResultPart,
+	toolPart: DynamicToolPart,
 ): UIMessage["parts"] {
-	const nextParts = [...parts];
-	const callIndex = nextParts.findIndex(
+	const existingIndex = parts.findIndex(
 		(candidate) =>
-			candidate.type === "tool-call" && candidate.id === resultPart.toolCallId,
+			candidate.type === "dynamic-tool" &&
+			candidate.toolCallId === toolPart.toolCallId,
 	);
 
-	if (callIndex !== -1) {
-		const currentCall = nextParts[callIndex];
-		if (currentCall.type === "tool-call") {
-			const nextOutput = isMeaningfulToolResultContent(resultPart.content)
-				? typeof currentCall.output === "string" &&
-					isMeaningfulToolResultContent(currentCall.output)
-					? pickRicherToolResultContent(currentCall.output, resultPart.content)
-					: resultPart.content
-				: currentCall.output;
-
-			if (nextOutput !== undefined) {
-				nextParts[callIndex] = {
-					...currentCall,
-					output: nextOutput,
-				};
-			}
+	if (existingIndex === -1) {
+		if (
+			toolPart.state === "output-available" &&
+			!isMeaningfulToolResultOutput(toolPart.output)
+		) {
+			return parts;
 		}
+		return [...parts, toolPart];
 	}
 
-	const existingResultIndex = nextParts.findIndex(
-		(candidate) =>
-			candidate.type === "tool-result" &&
-			candidate.toolCallId === resultPart.toolCallId,
-	);
+	const current = parts[existingIndex];
+	if (current.type !== "dynamic-tool") return parts;
 
-	if (existingResultIndex !== -1) {
-		const currentResult = nextParts[existingResultIndex];
-		nextParts[existingResultIndex] =
-			currentResult.type === "tool-result"
-				? mergeToolResultPart(currentResult, resultPart)
-				: resultPart;
-		return nextParts;
-	}
-
-	if (!isMeaningfulToolResultContent(resultPart.content)) {
-		return nextParts;
-	}
-
-	if (callIndex !== -1) {
-		nextParts.splice(callIndex + 1, 0, resultPart);
-		return nextParts;
-	}
-
-	return [...nextParts, resultPart];
+	const nextParts = [...parts];
+	nextParts[existingIndex] = mergeDynamicToolPart(current, toolPart);
+	return nextParts;
 }
 
-function appendAssistantPart(
+function appendAssistantToolPart(
 	state: AgentRunState,
-	part: AssistantToolCallPart | AssistantToolResultPart,
+	toolPart: DynamicToolPart,
 ): AgentRunState {
 	return withAssistantMessage(state, (message) => {
 		const baseParts = hasMeaningfulAssistantParts(message.parts)
@@ -566,38 +559,9 @@ function appendAssistantPart(
 			: [];
 		const nextParts = stripToolTranscriptFromTextParts(baseParts);
 
-		if (part.type === "tool-result") {
-			return {
-				...message,
-				parts: upsertAssistantToolResultPart(nextParts, part),
-			};
-		}
-
-		const existingIndex = nextParts.findIndex((candidate) => {
-			if (candidate.type !== part.type) return false;
-			if (part.type === "tool-call" && candidate.type === "tool-call") {
-				return candidate.id === part.id;
-			}
-			return false;
-		});
-
-		if (existingIndex !== -1) {
-			const updatedParts = [...nextParts];
-			const currentPart = updatedParts[existingIndex];
-			updatedParts[existingIndex] =
-				part.type === "tool-call" && currentPart.type === "tool-call"
-					? mergeToolCallPart(currentPart, part)
-					: part;
-
-			return {
-				...message,
-				parts: updatedParts,
-			};
-		}
-
 		return {
 			...message,
-			parts: [...nextParts, part],
+			parts: upsertDynamicToolPart(nextParts, toolPart),
 		};
 	});
 }
@@ -710,16 +674,16 @@ export function reduceAgentEvent(
 	let nextState = applyAgentMetadata(state, event);
 
 	if (event.eventType === "tool-call") {
-		nextState = appendAssistantPart(
+		nextState = appendAssistantToolPart(
 			nextState,
-			createToolCallPart(nextState, event),
+			createDynamicToolFromCallEvent(nextState, event),
 		);
 	}
 
 	if (event.eventType === "tool-result") {
-		nextState = appendAssistantPart(
+		nextState = appendAssistantToolPart(
 			nextState,
-			createToolResultPart(nextState, event),
+			createDynamicToolFromResultEvent(nextState, event),
 		);
 	}
 

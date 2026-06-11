@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import { useEffect } from "react";
 import type { Conversation } from "@/features/ai/stores/conversations-store";
 import { updateConversationTitle } from "@/features/ai/stores/conversations-store";
@@ -15,7 +15,7 @@ export function useAutoTitle(
 		const text =
 			messages
 				.find((m) => m.role === "user")
-				?.parts.find((p) => p.type === "text")?.content ?? "";
+				?.parts.find((p) => p.type === "text")?.text ?? "";
 		if (text)
 			updateConversationTitle(
 				activeId,

@@ -172,31 +172,25 @@ describe("toIngestJobViewModel", () => {
 						{
 							id: "review-structured:system",
 							role: "system",
-							parts: [{ type: "text", content: "system prompt" }],
+							parts: [{ type: "text", text: "system prompt" }],
 						},
 						{
 							id: "review-structured:user",
 							role: "user",
-							parts: [{ type: "text", content: "user prompt" }],
+							parts: [{ type: "text", text: "user prompt" }],
 						},
 						{
 							id: "review-structured:assistant",
 							role: "assistant",
 							parts: [
-								{ type: "text", content: "assistant text" },
+								{ type: "text", text: "assistant text" },
 								{
-									type: "tool-call",
-									id: "review-structured:tool-call:0",
-									name: "search_docs",
-									arguments: "{\"query\":\"ingest\"}",
-									input: { query: "ingest" },
-									state: "input-complete",
-								},
-								{
-									type: "tool-result",
+									type: "dynamic-tool",
 									toolCallId: "review-structured:tool-call:0",
-									content: "{\n  \"ok\": true\n}",
-									state: "complete",
+									toolName: "search_docs",
+									state: "output-available",
+									input: { query: "ingest" },
+									output: { ok: true },
 								},
 							],
 						},
@@ -249,12 +243,12 @@ describe("toIngestJobViewModel", () => {
 			{
 				id: "review-legacy:system",
 				role: "system",
-				parts: [{ type: "text", content: "legacy system" }],
+				parts: [{ type: "text", text: "legacy system" }],
 			},
 			{
 				id: "review-legacy:user",
 				role: "user",
-				parts: [{ type: "text", content: "legacy user" }],
+				parts: [{ type: "text", text: "legacy user" }],
 			},
 			{
 				id: "review-legacy:assistant",
@@ -262,7 +256,7 @@ describe("toIngestJobViewModel", () => {
 				parts: [
 					{
 						type: "text",
-						content: '{\n  "answer": "42"\n}',
+						text: '{\n  "answer": "42"\n}',
 					},
 				],
 			},

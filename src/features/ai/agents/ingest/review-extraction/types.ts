@@ -1,4 +1,4 @@
-import type { IngestAgentEvent } from "@/lib/sse-stream";
+import type { IngestAgentEvent } from "@/features/ingest/store/types";
 import type { ExamIngestResponse } from "@/lib/validation";
 
 export interface IngestReviewEvent {

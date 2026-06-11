@@ -1,26 +1,25 @@
+import type { UIMessage } from "ai";
+
 export interface PerfRuntime {
 	startedAt: number;
 	firstTokenAt: number | null;
 }
 
-export const WELCOME = {
+export const WELCOME: UIMessage = {
 	id: "welcome",
-	role: "assistant" as const,
+	role: "assistant",
 	parts: [
 		{
-			type: "text" as const,
-			content:
-				"Hi! I'm your study assistant. Ask me anything about your subjects.",
+			type: "text",
+			text: "Hi! I'm your study assistant. Ask me anything about your subjects.",
 		},
 	],
 };
 
-export function getMessageText(message: {
-	parts: Array<{ type: string; content?: string }>;
-}): string {
+export function getMessageText(message: UIMessage): string {
 	return message.parts
-		.filter((part) => part.type === "text" || part.type === "thinking")
-		.map((part) => part.content ?? "")
+		.filter((part) => part.type === "text" || part.type === "reasoning")
+		.map((part) => ("text" in part ? part.text : ""))
 		.join("");
 }
 

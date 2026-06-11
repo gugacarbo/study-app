@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { improveQuestionsStreamMock, runNextQueuedMock, updateQuestionMock } =
+const { consumeJobStreamMock, runNextQueuedMock, updateQuestionMock } =
 	vi.hoisted(() => ({
-		improveQuestionsStreamMock: vi.fn(),
+		consumeJobStreamMock: vi.fn(),
 		runNextQueuedMock: vi.fn(),
 		updateQuestionMock: vi.fn(),
 	}));
 
-vi.mock("@/lib/sse-stream/improve-questions-stream", () => ({
-	improveQuestionsStream: improveQuestionsStreamMock,
+vi.mock("@/features/ai/lib/read-job-ui-message-stream", () => ({
+	consumeJobStream: consumeJobStreamMock,
 }));
 
 vi.mock("@/features/background-processes/store/scheduler", () => ({
@@ -74,33 +74,47 @@ function createQueuedProcess(): ImproveQuestionsBackgroundProcess {
 	};
 }
 
-function mockStreamSuccess() {
-	improveQuestionsStreamMock.mockImplementation(async (_payload, callbacks) => {
-		const doneEvent = {
-			finalQuestion: {
+function emitJobResult(
+	callbacks: { onData?: (part: { type: string; data: unknown }) => void },
+	overrides?: {
+		finalQuestion?: Record<string, unknown>;
+		agentRun?: Record<string, unknown>;
+	},
+) {
+	callbacks.onData?.({
+		type: "data-job-result",
+		data: {
+			finalQuestion: overrides?.finalQuestion ?? {
 				id: 1,
 				question: "Improved?",
 				options: ["A", "B"],
 				answers: ["A"],
-				scoringMode: "exact" as const,
+				scoringMode: "exact",
 				explanation: "Because",
 			},
-			agentRun: {
+			agentRun: overrides?.agentRun ?? {
 				agentRunId: "improve-questions-1",
 				label: "Improve question",
-				status: "done" as const,
+				status: "done",
 				systemPrompt: "",
 				userPrompt: "",
 			},
-		};
-		callbacks.onDone?.(doneEvent);
-		return doneEvent;
+		},
 	});
+}
+
+function mockStreamSuccess() {
+	consumeJobStreamMock.mockImplementation(
+		async (_request, callbacks?: { onData?: (part: unknown) => void }) => {
+			emitJobResult(callbacks ?? {});
+			return { messages: [] };
+		},
+	);
 }
 
 async function flushAsyncWork() {
 	await vi.waitFor(() => {
-		expect(improveQuestionsStreamMock.mock.calls.length).toBeGreaterThan(0);
+		expect(consumeJobStreamMock.mock.calls.length).toBeGreaterThan(0);
 	});
 	await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -121,7 +135,7 @@ describe("startQueuedImproveQuestions retries", () => {
 		startQueuedImproveQuestions(improveQuestionsProcessId(1));
 		await flushAsyncWork();
 
-		expect(improveQuestionsStreamMock).toHaveBeenCalledTimes(1);
+		expect(consumeJobStreamMock).toHaveBeenCalledTimes(1);
 		const run = getImproveQuestionsRun(1);
 		expect(run?.phase).toBe("done");
 		expect(run?.status).toBe("awaiting_review");
@@ -129,7 +143,7 @@ describe("startQueuedImproveQuestions retries", () => {
 
 	it(`retries failed streams up to MAX_IMPROVE_QUESTIONS_ATTEMPTS`, async () => {
 		let callCount = 0;
-		improveQuestionsStreamMock.mockImplementation(async () => {
+		consumeJobStreamMock.mockImplementation(async () => {
 			callCount += 1;
 			throw new Error(`attempt ${callCount} failed`);
 		});
@@ -137,7 +151,7 @@ describe("startQueuedImproveQuestions retries", () => {
 		startQueuedImproveQuestions(improveQuestionsProcessId(1));
 
 		await vi.waitFor(() => {
-			expect(improveQuestionsStreamMock).toHaveBeenCalledTimes(
+			expect(consumeJobStreamMock).toHaveBeenCalledTimes(
 				MAX_IMPROVE_QUESTIONS_ATTEMPTS,
 			);
 		});
@@ -153,31 +167,24 @@ describe("startQueuedImproveQuestions retries", () => {
 
 	it("uses retry labels on subsequent attempts", async () => {
 		let callCount = 0;
-		improveQuestionsStreamMock.mockImplementation(async (_payload, callbacks) => {
-			callCount += 1;
-			if (callCount < MAX_IMPROVE_QUESTIONS_ATTEMPTS) {
-				throw new Error("transient failure");
-			}
-			const doneEvent = {
-				finalQuestion: {
-					id: 1,
-					question: "Improved?",
-					options: ["A", "B"],
-					answers: ["A"],
-					scoringMode: "exact" as const,
-					explanation: "Because",
-				},
-				agentRun: {
-					agentRunId: `improve-questions-1-retry-${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1}`,
-					label: `Improve question (retry ${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1})`,
-					status: "done" as const,
-					systemPrompt: "",
-					userPrompt: "",
-				},
-			};
-			callbacks.onDone?.(doneEvent);
-			return doneEvent;
-		});
+		consumeJobStreamMock.mockImplementation(
+			async (_request, callbacks?: { onData?: (part: unknown) => void }) => {
+				callCount += 1;
+				if (callCount < MAX_IMPROVE_QUESTIONS_ATTEMPTS) {
+					throw new Error("transient failure");
+				}
+				emitJobResult(callbacks ?? {}, {
+					agentRun: {
+						agentRunId: `improve-questions-1-retry-${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1}`,
+						label: `Improve question (retry ${MAX_IMPROVE_QUESTIONS_ATTEMPTS - 1})`,
+						status: "done",
+						systemPrompt: "",
+						userPrompt: "",
+					},
+				});
+				return { messages: [] };
+			},
+		);
 
 		startQueuedImproveQuestions(improveQuestionsProcessId(1));
 
@@ -187,7 +194,7 @@ describe("startQueuedImproveQuestions retries", () => {
 		});
 
 		const run = getImproveQuestionsRun(1);
-		expect(improveQuestionsStreamMock).toHaveBeenCalledTimes(
+		expect(consumeJobStreamMock).toHaveBeenCalledTimes(
 			MAX_IMPROVE_QUESTIONS_ATTEMPTS,
 		);
 		expect(run?.agentRunState?.label).toBe(

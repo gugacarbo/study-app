@@ -1,9 +1,12 @@
+import { stepCountIs, streamText, type ToolSet } from "ai";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
+import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
-	createAgentStreamState,
-	isAgentStreamRunErrorChunk,
-	processAgentStreamChunk,
-} from "@/features/ai/core/agent-stream-handler";
-import { streamChatMessages } from "@/features/ai/core/chat-stream";
+	createAiStreamState,
+	createToolResultEmitter,
+	isAiStreamRunErrorChunk,
+	processAiStreamPart,
+} from "@/features/ai/core/ai-stream-handler";
 import {
 	createExplanationTools,
 	createExplanationWorkspace,
@@ -37,11 +40,11 @@ export async function explainSingleQuestion(
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
 	const explanationTools = createExplanationTools(workspace);
-	const combinedTools = {
+	const combinedTools: ToolSet = {
 		...explanationTools,
-		...((options.tools as Record<string, unknown> | undefined) ?? {}),
-	} as unknown as NonNullable<Parameters<typeof streamChatMessages>[2]>["tools"];
-	const streamState = createAgentStreamState();
+		...(options.tools as ToolSet | undefined),
+	};
+	const streamState = createAiStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
@@ -79,6 +82,13 @@ export async function explainSingleQuestion(
 			input?: unknown;
 			state: "awaiting-input" | "input-streaming" | "input-complete";
 		}) => {
+			if (toolCall.state === "input-streaming") {
+				if (toolCall.name) {
+					toolNamesById.set(toolCall.toolCallId, toolCall.name);
+				}
+				return;
+			}
+
 			if (toolCall.name) {
 				toolNamesById.set(toolCall.toolCallId, toolCall.name);
 			}
@@ -130,30 +140,31 @@ export async function explainSingleQuestion(
 				hasSuccessfulUpdate = true;
 			}
 		};
-
-		const stream = streamChatMessages(
-			config,
-			[{ role: "user", content: userPrompt }],
-			{
-				system: systemPrompt,
-				tools: combinedTools,
-				toolStreamHandlers: {
-					onToolCall: handleToolCall,
-					onToolResult: handleToolResult,
-				},
-				streamState,
-			},
+		const emitToolResult = createToolResultEmitter(
+			handleToolResult,
+			streamState,
 		);
 
-		for await (const chunk of stream) {
-			if (isAgentStreamRunErrorChunk(chunk)) {
-				throw new Error(
-					`AI provider returned error: ${chunk.message}${chunk.code ? ` (code: ${chunk.code})` : ""}`,
-				);
+		const result = streamText({
+			model: getAiModel(config),
+			system: systemPrompt,
+			messages: [{ role: "user", content: userPrompt }],
+			tools: combinedTools,
+			stopWhen: stepCountIs(10),
+			providerOptions: buildProviderOptions(config),
+		});
+
+		for await (const chunk of result.fullStream) {
+			if (isAiStreamRunErrorChunk(chunk)) {
+				const message =
+					chunk.error instanceof Error
+						? chunk.error.message
+						: String(chunk.error);
+				throw new Error(`AI provider returned error: ${message}`);
 			}
 
-			processAgentStreamChunk(
-				chunk as Parameters<typeof processAgentStreamChunk>[0],
+			processAiStreamPart(
+				chunk,
 				{
 					onUsage: (usage) => {
 						emitAgentEvent(options, {
@@ -166,7 +177,7 @@ export async function explainSingleQuestion(
 						});
 					},
 					onToolCall: handleToolCall,
-					onToolResult: handleToolResult,
+					onToolResult: emitToolResult,
 				},
 				streamState,
 			);

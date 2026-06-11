@@ -1,9 +1,8 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { safeJson } from "@/features/ai/adapters/tanstack-message-adapter";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
@@ -180,26 +179,56 @@ export function AgentRunDetailDialog({
 	);
 }
 
+function safeJson(value: unknown): string {
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+}
+
+function stringifyToolOutput(output: unknown): string {
+	if (typeof output === "string") return output;
+	try {
+		return JSON.stringify(output, null, 2);
+	} catch {
+		return String(output ?? "");
+	}
+}
+
 function buildRawTranscript(messages: UIMessage[], response?: string): string {
 	const sections = messages.map((message) => {
 		const lines: string[] = [`[${message.role.toUpperCase()}]`];
 
 		for (const part of message.parts) {
 			if (part.type === "text") {
-				if (part.content) lines.push(part.content);
+				if (part.text) lines.push(part.text);
 				continue;
 			}
 
-			if (part.type === "tool-call") {
-				lines.push(`TOOL CALL: ${part.name}`);
-				if (part.arguments) lines.push(String(part.arguments));
+			if (part.type === "reasoning") {
+				if (part.text) {
+					lines.push(`REASONING: ${part.text}`);
+				}
 				continue;
 			}
 
-			if (part.type === "tool-result") {
-				lines.push(`TOOL RESULT (${part.toolCallId}):`);
-				if (part.content) lines.push(String(part.content));
-				if (part.error) lines.push(`ERROR: ${part.error}`);
+			if (part.type === "dynamic-tool") {
+				lines.push(`TOOL CALL: ${part.toolName}`);
+				if (part.input != null) {
+					lines.push(stringifyToolOutput(part.input));
+				}
+				if (
+					part.state === "output-available" ||
+					part.state === "output-error" ||
+					part.output != null
+				) {
+					lines.push(`TOOL RESULT (${part.toolCallId}):`);
+					if (part.output != null) {
+						lines.push(stringifyToolOutput(part.output));
+					}
+					if (part.errorText) lines.push(`ERROR: ${part.errorText}`);
+				}
 			}
 		}
 
@@ -219,7 +248,7 @@ function createTextMessage(
 	content?: string,
 ): UIMessage | null {
 	if (!content) return null;
-	return { id, role, parts: [{ type: "text" as const, content }] };
+	return { id, role, parts: [{ type: "text" as const, text: content }] };
 }
 
 function createFallbackMessages({

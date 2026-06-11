@@ -13,11 +13,11 @@ Vitest v4 + jsdom. ~30 arquivos. Detalhe → `docs/context/TESTS.md`.
 
 | Área                            | Arquivos                                                                                                                 |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `lib/`                          | validation, sse-stream, ingest-stream, generate, chat-db-tools                                                           |
+| `lib/`                          | validation, generate, chat-db-tools                                                                                      |
 | `server-functions/`             | config, quiz                                                                                                             |
 | `routes/`                       | exams.ingest, api/ingest-\*-stage, ingest-extraction-pass                                                                |
 | `components/`                   | ingest (output-panel, ingest-chat-view), quiz (quiz, results, hooks), exams-view, explanation-dialog, chat-message-utils |
-| `features/ai/`                  | agents (ingest review, explanations), tools, core/agent-stream-handler                                                   |
+| `features/ai/`                  | agents (ingest review, explanations), tools, core/ai-stream-handler, lib/read-job-ui-message-stream                      |
 | `stores/`                       | ingestStore                                                                                                              |
 | `db.queries.pagination.test.ts` | FakeDrizzle pagination                                                                                                   |
 
@@ -25,7 +25,7 @@ Vitest v4 + jsdom. ~30 arquivos. Detalhe → `docs/context/TESTS.md`.
 
 - Imports: `@/` ou `#/` (ambos mapeados no vitest)
 - D1: `createMockDB()` local com `.bind().raw()` quando Drizzle exige
-- AI: `vi.mock('@tanstack/ai')` ou mock de módulo específico
+- AI: mock `ai` SDK modules or specific `src/features/ai/` helpers
 - React: `@testing-library/react` + `vi.hoisted()` para mocks de Query/Store
 - Sem E2E, sem coverage, sem setup global
 

@@ -1,4 +1,4 @@
-import type { UIMessage } from "@tanstack/ai-client";
+import type { UIMessage } from "ai";
 import type { IngestAgentRunViewModel } from "@/features/ingest/components/types";
 import {
 	isRecord,
@@ -12,12 +12,12 @@ import {
 function createTextMessage(
 	id: string,
 	role: UIMessage["role"],
-	content: string,
+	text: string,
 ): UIMessage {
 	return {
 		id,
 		role,
-		parts: [{ type: "text", content }],
+		parts: [{ type: "text", text }],
 	};
 }
 
@@ -51,51 +51,79 @@ function normalizeMessagePart(
 	if (type === "text") {
 		return {
 			type: "text",
-			content: readString(part.content) ?? "",
+			text: readString(part.content) ?? readString(part.text) ?? "",
 		};
+	}
+
+	if (type === "thinking" || type === "reasoning") {
+		return {
+			type: "reasoning",
+			text: readString(part.content) ?? readString(part.text) ?? "",
+		};
+	}
+
+	if (type === "dynamic-tool") {
+		return {
+			type: "dynamic-tool",
+			toolCallId:
+				readString(part.toolCallId) ??
+				readString(part.id) ??
+				`${crypto.randomUUID()}:tool-call`,
+			toolName: readString(part.toolName) ?? readString(part.name) ?? "unknown_tool",
+			input: part.input,
+			output: part.output,
+			errorText: readString(part.errorText) ?? readString(part.error),
+			state:
+				part.state === "input-streaming" ||
+				part.state === "input-available" ||
+				part.state === "approval-requested" ||
+				part.state === "approval-responded" ||
+				part.state === "output-available" ||
+				part.state === "output-error" ||
+				part.state === "output-denied"
+					? part.state
+					: "input-available",
+		} as UIMessage["parts"][number];
 	}
 
 	if (type === "tool-call") {
 		return {
-			type: "tool-call",
-			id:
+			type: "dynamic-tool",
+			toolCallId:
 				readString(part.id) ??
 				`${readString(part.name) ?? "tool"}:${crypto.randomUUID()}`,
-			name: readString(part.name) ?? "unknown_tool",
-			arguments:
-				readString(part.arguments) ?? stringifyMessageContent(part.input),
-			input: part.input,
+			toolName: readString(part.name) ?? "unknown_tool",
+			input: part.input ?? tryParseJson(readString(part.arguments)),
 			output: part.output,
-			state:
-				part.state === "awaiting-input" ||
-				part.state === "input-streaming" ||
-				part.state === "input-complete" ||
-				part.state === "approval-requested" ||
-				part.state === "approval-responded"
-					? part.state
-					: "input-complete",
+			state: "input-available",
 		} as UIMessage["parts"][number];
 	}
 
 	if (type === "tool-result") {
 		return {
-			type: "tool-result",
+			type: "dynamic-tool",
 			toolCallId:
 				readString(part.toolCallId) ??
 				readString(part.id) ??
 				`${crypto.randomUUID()}:tool-call`,
-			content: stringifyMessageContent(part.content),
-			error: readString(part.error),
-			state:
-				part.state === "streaming" ||
-				part.state === "complete" ||
-				part.state === "error"
-					? part.state
-					: "complete",
+			toolName: "unknown_tool",
+			input: {},
+			output: tryParseJson(stringifyMessageContent(part.content)),
+			errorText: readString(part.error),
+			state: part.state === "error" ? "output-error" : "output-available",
 		} as UIMessage["parts"][number];
 	}
 
 	return part as UIMessage["parts"][number];
+}
+
+function tryParseJson(value: string | undefined): unknown {
+	if (!value) return undefined;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
 }
 
 function readMessages(value: unknown, agentId: string): UIMessage[] {
@@ -133,7 +161,7 @@ function readRoleText(
 	if (!message) return undefined;
 	const text = message.parts
 		.filter((part) => part.type === "text")
-		.map((part) => part.content ?? "")
+		.map((part) => part.text)
 		.join("");
 	return text.length > 0 ? text : undefined;
 }
@@ -194,10 +222,14 @@ export function toAgentRun(value: unknown): IngestAgentRunViewModel | null {
 		systemPrompt,
 		userPrompt,
 		response,
-		messages:
-			messages.length > 0
-				? messages
-				: buildFallbackMessages(id, systemPrompt, userPrompt, response),
+		messages: (messages.length > 0
+			? messages
+			: buildFallbackMessages(
+					id,
+					systemPrompt,
+					userPrompt,
+					response,
+				)) as unknown as IngestAgentRunViewModel["messages"],
 		tokens: normalizePartialTokenTotals(value.tokens ?? value.tokenTotals),
 		error: readString(value.error),
 		raw: {

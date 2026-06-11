@@ -1,7 +1,10 @@
 import type { Question } from "@/lib/validation";
+import {
+	writeStage,
+	type JobUIMessageStreamWriter,
+} from "@/features/ai/core/ui-message-job-stream";
 import type { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
-import { sendStage } from "./-sse-emitter";
 
 interface PersistParams {
 	queries: DBQueries;
@@ -9,7 +12,7 @@ interface PersistParams {
 	fileName: string;
 	buffer: number[];
 	questions: Question[];
-	send: (event: string, data: unknown) => void;
+	writer: JobUIMessageStreamWriter;
 	log: {
 		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
 	};
@@ -18,10 +21,15 @@ interface PersistParams {
 export async function persistResults(
 	params: PersistParams,
 ): Promise<{ examId: number; fileId: number }> {
-	const { queries, fileService, fileName, buffer, questions, send, log } =
+	const { queries, fileService, fileName, buffer, questions, writer, log } =
 		params;
 
-	sendStage(send, "persist", "Saving to database", "running");
+	writeStage(writer, {
+		stageId: "persist",
+		label: "Saving to database",
+		status: "running",
+		timestamp: Date.now(),
+	});
 
 	let examId: number;
 	try {
@@ -32,8 +40,12 @@ export async function persistResults(
 			fileName,
 			questionCount: questions.length,
 		});
-		sendStage(send, "persist", "Saving to database", "error", {
-			error: err instanceof Error ? err.message : "unknown",
+		writeStage(writer, {
+			stageId: "persist",
+			label: "Saving to database",
+			status: "error",
+			timestamp: Date.now(),
+			meta: { error: err instanceof Error ? err.message : "unknown" },
 		});
 		throw err;
 	}
@@ -47,8 +59,12 @@ export async function persistResults(
 				examId,
 				questionCount: questions.length,
 			});
-			sendStage(send, "persist", "Saving to database", "error", {
-				error: err instanceof Error ? err.message : "unknown",
+			writeStage(writer, {
+				stageId: "persist",
+				label: "Saving to database",
+				status: "error",
+				timestamp: Date.now(),
+				meta: { error: err instanceof Error ? err.message : "unknown" },
 			});
 			throw err;
 		}
@@ -66,12 +82,21 @@ export async function persistResults(
 			mimeType,
 			bufferSize: buffer.length,
 		});
-		sendStage(send, "persist", "Saving to database", "error", {
-			error: err instanceof Error ? err.message : "unknown",
+		writeStage(writer, {
+			stageId: "persist",
+			label: "Saving to database",
+			status: "error",
+			timestamp: Date.now(),
+			meta: { error: err instanceof Error ? err.message : "unknown" },
 		});
 		throw err;
 	}
 
-	sendStage(send, "persist", "Saving to database", "done");
+	writeStage(writer, {
+		stageId: "persist",
+		label: "Saving to database",
+		status: "done",
+		timestamp: Date.now(),
+	});
 	return { examId, fileId };
 }

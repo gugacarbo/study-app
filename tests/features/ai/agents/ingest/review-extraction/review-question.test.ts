@@ -1,13 +1,45 @@
-import type { ToolSet } from "ai";
+import type { TextStreamPart, ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { streamChatMessagesMock } = vi.hoisted(() => ({
-	streamChatMessagesMock: vi.fn(),
+const { streamTextMock } = vi.hoisted(() => ({
+	streamTextMock: vi.fn(),
 }));
 
-vi.mock("@/features/ai/core/chat-stream", () => ({
-	streamChatMessages: streamChatMessagesMock,
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		streamText: streamTextMock,
+	};
+});
+
+vi.mock("@/features/ai/adapters/provider-model", () => ({
+	getAiModel: vi.fn(() => "mock-model"),
 }));
+
+vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
+	return {
+		...actual,
+		processAiStreamPart(
+			chunk: Parameters<typeof actual.processAiStreamPart>[0],
+			handlers: Parameters<typeof actual.processAiStreamPart>[1],
+			state: Parameters<typeof actual.processAiStreamPart>[2],
+		) {
+			const { onToolResult, ...restHandlers } = handlers;
+			if (onToolResult) {
+				return actual.processAiStreamPart(
+					chunk,
+					restHandlers,
+					state,
+					onToolResult,
+				);
+			}
+			return actual.processAiStreamPart(chunk, handlers, state);
+		},
+	};
+});
 
 import { reviewSingleQuestion } from "@/features/ai/agents/ingest/review-extraction/review-question";
 
@@ -23,38 +55,28 @@ function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
 
 describe("reviewSingleQuestion", () => {
 	beforeEach(() => {
-		streamChatMessagesMock.mockReset();
+		streamTextMock.mockReset();
 	});
 
 	it("reviews a question through workspace tools and forwards tool events", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: ToolSet },
-			) =>
-				(async function* () {
-					yield {
-						type: "TEXT_MESSAGE_CONTENT",
-						delta: "Conferindo a questao extraida...",
-					};
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const listQuestions = getTool(options?.tools, "list_extracted_questions");
+			const updateQuestion = getTool(options?.tools, "update_extracted_question");
 
-					const listQuestions = getTool(
-						options?.tools,
-						"list_extracted_questions",
-					);
-					const updateQuestion = getTool(
-						options?.tools,
-						"update_extracted_question",
-					);
+			return {
+				fullStream: (async function* () {
+					yield {
+						type: "text-delta",
+						text: "Conferindo a questao extraida...",
+					} as TextStreamPart<ToolSet>;
 
 					await listQuestions.execute({});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-1",
-						toolCallName: "list_extracted_questions",
+						toolName: "list_extracted_questions",
 						input: {},
-						result: {
+						output: {
 							ok: true,
 							totalQuestions: 1,
 							data: [
@@ -68,7 +90,7 @@ describe("reviewSingleQuestion", () => {
 								},
 							],
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 
 					await updateQuestion.execute({
 						questionId: "q1",
@@ -76,34 +98,32 @@ describe("reviewSingleQuestion", () => {
 						options: ["Memoria rapida", "Disco"],
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-2",
-						toolCallName: "update_extracted_question",
+						toolName: "update_extracted_question",
 						input: {
 							questionId: "q1",
 							answers: ["Memoria rapida"],
 							options: ["Memoria rapida", "Disco"],
 						},
-						result: {
+						output: {
 							ok: true,
 							questionId: "q1",
 							updatedFields: ["answers", "options"],
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 
 					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
+						type: "finish-step",
 						usage: {
-							promptTokens: 12,
-							completionTokens: 8,
+							inputTokens: 12,
+							outputTokens: 8,
 							totalTokens: 20,
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+			};
+		});
 
 		const onAgentEvent = vi.fn();
 		const webTools = {
@@ -149,10 +169,14 @@ describe("reviewSingleQuestion", () => {
 			},
 			success: true,
 		});
-		expect(streamChatMessagesMock).toHaveBeenCalledWith(
-			expect.anything(),
-			[{ role: "user", content: expect.stringContaining("Review extracted question #1.") }],
+		expect(streamTextMock).toHaveBeenCalledWith(
 			expect.objectContaining({
+				messages: [
+					{
+						role: "user",
+						content: expect.stringContaining("Review extracted question #1."),
+					},
+				],
 				tools: expect.objectContaining({
 					list_extracted_questions: expect.objectContaining({
 						execute: expect.any(Function),
@@ -251,8 +275,8 @@ describe("reviewSingleQuestion", () => {
 				eventType: "token",
 				agentRunId: "review-q1",
 				tokens: {
-					promptTokens: 12,
-					completionTokens: 8,
+					inputTokens: 12,
+					outputTokens: 8,
 					totalTokens: 20,
 				},
 			}),
@@ -276,57 +300,45 @@ describe("reviewSingleQuestion", () => {
 	});
 
 	it("deduplicates repeated tool transcript lines for the same reviewer toolCallId", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: ToolSet },
-			) =>
-				(async function* () {
-					const updateQuestion = getTool(
-						options?.tools,
-						"update_extracted_question",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const updateQuestion = getTool(options?.tools, "update_extracted_question");
 
+			return {
+				fullStream: (async function* () {
 					await updateQuestion.execute({
 						questionId: "q1",
 						answers: ["Memoria rapida"],
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-review-dedupe-1",
-						toolCallName: "update_extracted_question",
+						toolName: "update_extracted_question",
 						input: {
 							questionId: "q1",
 							answers: ["Memoria rapida"],
 						},
-						result: {
+						output: {
 							ok: false,
 							error: { message: "retry" },
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-review-dedupe-1",
-						toolCallName: "update_extracted_question",
+						toolName: "update_extracted_question",
 						input: {
 							questionId: "q1",
 							answers: ["Memoria rapida"],
 						},
-						result: {
+						output: {
 							ok: true,
 							questionId: "q1",
 							updatedFields: ["answers"],
 						},
-					};
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+			};
+		});
 
 		const onAgentEvent = vi.fn();
 
@@ -358,35 +370,26 @@ describe("reviewSingleQuestion", () => {
 			([event]) => event?.eventType === "result",
 		)?.[0];
 		const toolMatches =
-			String(resultEvent?.rawText).match(/\[tool:update_extracted_question\]/g) ?? [];
+			String(resultEvent?.rawText).match(/\[tool:update_extracted_question\]/g) ??
+			[];
 
 		expect(toolMatches).toHaveLength(1);
 	});
 
 	it("succeeds when reviewer sends an all-null update for an already correct question", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: ToolSet },
-			) =>
-				(async function* () {
-					const listQuestions = getTool(
-						options?.tools,
-						"list_extracted_questions",
-					);
-					const updateQuestion = getTool(
-						options?.tools,
-						"update_extracted_question",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const listQuestions = getTool(options?.tools, "list_extracted_questions");
+			const updateQuestion = getTool(options?.tools, "update_extracted_question");
 
+			return {
+				fullStream: (async function* () {
 					await listQuestions.execute({});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-review-noop-1",
-						toolCallName: "list_extracted_questions",
+						toolName: "list_extracted_questions",
 						input: {},
-						result: {
+						output: {
 							ok: true,
 							data: [
 								{
@@ -398,7 +401,7 @@ describe("reviewSingleQuestion", () => {
 								},
 							],
 						},
-					};
+					} as TextStreamPart<ToolSet>;
 
 					await updateQuestion.execute({
 						questionId: "q1",
@@ -409,9 +412,9 @@ describe("reviewSingleQuestion", () => {
 						explanation: null,
 					});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-review-noop-2",
-						toolCallName: "update_extracted_question",
+						toolName: "update_extracted_question",
 						input: {
 							questionId: "q1",
 							question: null,
@@ -420,21 +423,15 @@ describe("reviewSingleQuestion", () => {
 							topic: null,
 							explanation: null,
 						},
-						result: {
+						output: {
 							ok: true,
 							questionId: "q1",
 							updatedFields: [],
 						},
-					};
-
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+			};
+		});
 
 		const onAgentEvent = vi.fn();
 
@@ -476,41 +473,28 @@ describe("reviewSingleQuestion", () => {
 	});
 
 	it("emits a warning and reports failure when reviewer tool calls error out and no review is applied", async () => {
-		streamChatMessagesMock.mockImplementation(
-			(
-				_config: unknown,
-				_messages: unknown,
-				options?: { tools?: ToolSet },
-			) =>
-				(async function* () {
-					const listQuestions = getTool(
-						options?.tools,
-						"list_extracted_questions",
-					);
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const listQuestions = getTool(options?.tools, "list_extracted_questions");
 
+			return {
+				fullStream: (async function* () {
 					await listQuestions.execute({});
 					yield {
-						type: "TOOL_CALL_END",
+						type: "tool-result",
 						toolCallId: "tool-review-fail-1",
-						toolCallName: "update_extracted_question",
+						toolName: "update_extracted_question",
 						input: {
 							questionId: "q1",
 							question: null,
 							options: null,
 							answers: null,
 						},
-						result:
+						output:
 							'{"error":"Input validation failed for tool update_extracted_question: Validation failed: Invalid input: expected array, received null"}',
-					};
-
-					yield {
-						type: "RUN_FINISHED",
-						threadId: "thread-1",
-						runId: "run-1",
-						finishReason: "stop",
-					};
+					} as TextStreamPart<ToolSet>;
 				})(),
-		);
+			};
+		});
 
 		const onAgentEvent = vi.fn();
 
@@ -544,6 +528,7 @@ describe("reviewSingleQuestion", () => {
 				options: ["A", "B"],
 				answers: ["A"],
 				scoringMode: "exact",
+				deepExplanation: undefined,
 				explanation: "",
 				topic: "Arquitetura",
 			},

@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { requireModelConfig } from "@/lib/ai-config";
 import type { ExamIngestResponse } from "@/lib/validation";
+import {
+	createAgentRunWriter,
+	writeAgentRun,
+	writeJobProgress,
+	writeStage,
+	type JobUIMessageStreamWriter,
+} from "@/features/ai/core/ui-message-job-stream";
 import { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
 import { createIngestLogger } from "../../../lib/logger";
@@ -10,7 +17,6 @@ import { runExtractionPass } from "./-extraction-pass";
 import { setupMemory } from "./-memory-refinement";
 import { persistResults } from "./-persist";
 import { runReviewStage } from "./-review-stage";
-import { createAgentRunHelpers, sendStage } from "./-sse-emitter";
 
 export const ingestRequestSchema = z.object({
 	buffer: z.array(z.number()),
@@ -22,9 +28,27 @@ export const ingestRequestSchema = z.object({
 
 export type IngestRequest = z.infer<typeof ingestRequestSchema>;
 
+function writeIngestWarning(
+	writer: JobUIMessageStreamWriter,
+	message: string,
+	meta?: Record<string, unknown>,
+) {
+	writeAgentRun(writer, {
+		eventType: "warning",
+		stageId: typeof meta?.stageId === "string" ? meta.stageId : "pipeline",
+		agentRunId:
+			typeof meta?.agentRunId === "string" ? meta.agentRunId : "pipeline",
+		label: "Ingest",
+		warning: message,
+		timestamp: Date.now(),
+		meta,
+	});
+	writeJobProgress(writer, { step: `Warning: ${message}` });
+}
+
 export async function runIngestWithProgress(
 	payload: IngestRequest,
-	send: (event: string, data: unknown) => void,
+	writer: JobUIMessageStreamWriter,
 	abortSignal: AbortSignal,
 ) {
 	const { getDB } = await import("../../../server-functions/db");
@@ -33,8 +57,10 @@ export async function runIngestWithProgress(
 		if (abortSignal.aborted) throw new Error("Upload canceled");
 	};
 
-	const onProgress = (step: string) => send("progress", { step });
-	const agentRuns = createAgentRunHelpers(send);
+	const onProgress = (step: string) => writeJobProgress(writer, { step });
+	const onWarning = (message: string, meta?: Record<string, unknown>) =>
+		writeIngestWarning(writer, message, meta);
+	const agentRuns = createAgentRunWriter(writer);
 
 	onProgress("Connecting to database...");
 	const db = await getDB();
@@ -47,7 +73,8 @@ export async function runIngestWithProgress(
 		db,
 		queries,
 		providerConfig: ingestConfig,
-		send,
+		onProgress,
+		onWarning,
 	});
 
 	const filesBucket = await getFilesBucket();
@@ -58,10 +85,20 @@ export async function runIngestWithProgress(
 	assertNotAborted();
 
 	onProgress("Decoding file...");
-	sendStage(send, "decode", "Decoding file", "running");
+	writeStage(writer, {
+		stageId: "decode",
+		label: "Decoding file",
+		status: "running",
+		timestamp: Date.now(),
+	});
 	const bytes = new Uint8Array(payload.buffer);
 	const text = extractTextFromBytes(bytes);
-	sendStage(send, "decode", "Decoding file", "done");
+	writeStage(writer, {
+		stageId: "decode",
+		label: "Decoding file",
+		status: "done",
+		timestamp: Date.now(),
+	});
 	assertNotAborted();
 
 	if (!text || text.length < 50) {
@@ -71,12 +108,12 @@ export async function runIngestWithProgress(
 	}
 
 	onProgress("Extracting questions with AI...");
-	sendStage(
-		send,
-		"initial_extraction",
-		"Extracting questions with AI",
-		"running",
-	);
+	writeStage(writer, {
+		stageId: "initial_extraction",
+		label: "Extracting questions with AI",
+		status: "running",
+		timestamp: Date.now(),
+	});
 	let extracted: ExamIngestResponse;
 	try {
 		extracted = await runExtractionPass({
@@ -84,11 +121,11 @@ export async function runIngestWithProgress(
 			config: ingestConfig,
 			criticalTopics,
 			agentRuns,
-			send,
+			writer,
+			onWarning,
 			log,
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
-			flushStream: () => new Promise((resolve) => setTimeout(resolve, 0)),
 		});
 	} catch (err) {
 		log.error("Initial extraction failed", err, {
@@ -96,16 +133,21 @@ export async function runIngestWithProgress(
 			textLength: text.length,
 			textPreview: text.length > 500 ? `${text.slice(0, 500)}...` : text,
 		});
-		sendStage(
-			send,
-			"initial_extraction",
-			"Extracting questions with AI",
-			"error",
-			{ error: err instanceof Error ? err.message : "unknown" },
-		);
+		writeStage(writer, {
+			stageId: "initial_extraction",
+			label: "Extracting questions with AI",
+			status: "error",
+			timestamp: Date.now(),
+			meta: { error: err instanceof Error ? err.message : "unknown" },
+		});
 		throw err;
 	}
-	sendStage(send, "initial_extraction", "Extracting questions with AI", "done");
+	writeStage(writer, {
+		stageId: "initial_extraction",
+		label: "Extracting questions with AI",
+		status: "done",
+		timestamp: Date.now(),
+	});
 	onProgress("Initial extraction completed");
 	assertNotAborted();
 
@@ -121,7 +163,9 @@ export async function runIngestWithProgress(
 		criticalTopics,
 		tools: webTools,
 		agentRuns,
-		send,
+		writer,
+		onProgress,
+		onWarning,
 		log,
 	});
 	assertNotAborted();
@@ -136,7 +180,9 @@ export async function runIngestWithProgress(
 		extracted: finalExtracted,
 		memory,
 		agentRuns,
-		send,
+		writer,
+		onProgress,
+		onWarning,
 		log,
 	});
 	assertNotAborted();
@@ -150,12 +196,17 @@ export async function runIngestWithProgress(
 		fileName: payload.fileName,
 		buffer: payload.buffer,
 		questions: finalExtracted.questions,
-		send,
+		writer,
 		log,
 	});
 
 	onProgress("Completed");
-	sendStage(send, "complete", "Ingest complete", "done");
+	writeStage(writer, {
+		stageId: "complete",
+		label: "Ingest complete",
+		status: "done",
+		timestamp: Date.now(),
+	});
 	return {
 		questions: finalExtracted.questions.length,
 		topics: finalExtracted.topics,

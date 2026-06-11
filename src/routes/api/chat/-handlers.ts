@@ -1,25 +1,100 @@
-import type { ModelMessage } from "@tanstack/ai";
-import { chatParamsFromRequest } from "@tanstack/ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import type { ToolJSONSchema } from "assistant-stream";
+import {
+	convertToModelMessages,
+	stepCountIs,
+	streamText,
+	type ToolSet,
+	type UIMessage,
+} from "ai";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
+import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
-import { streamChatMessages } from "@/features/ai/core/chat-stream";
+import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-headers";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
 import { requireModelConfig } from "../../../lib/ai-config";
 import { MemoryManager } from "../../../lib/memory";
-import { safeSSEResponse, withCleanup } from "./-streaming";
 import { summarizeSearchResultSnippets, toBoolean } from "./-tools";
 
 const AI_TIMEOUT_MS = 60_000;
 
+interface ChatRequestBody {
+	messages?: UIMessage[];
+	tools?:
+		| Record<string, ToolJSONSchema>
+		| Array<{
+				name: string;
+				description?: string;
+				parameters: ToolJSONSchema["parameters"];
+		  }>;
+	forwardedProps?: Record<string, unknown>;
+	reviewMode?: unknown;
+	metadata?: Record<string, unknown>;
+}
+
+function parseChatRequestBody(body: unknown): ChatRequestBody {
+	if (!body || typeof body !== "object") {
+		throw new Response("Invalid chat request body", { status: 400 });
+	}
+	return body as ChatRequestBody;
+}
+
+function parseClientTools(
+	body: ChatRequestBody,
+): Record<string, ToolJSONSchema> {
+	if (!body.tools) return {};
+
+	if (Array.isArray(body.tools)) {
+		return Object.fromEntries(
+			body.tools.map((tool) => [
+				tool.name,
+				{
+					...(tool.description !== undefined
+						? { description: tool.description }
+						: {}),
+					parameters: tool.parameters,
+				},
+			]),
+		);
+	}
+
+	return body.tools;
+}
+
+function readReviewMode(body: ChatRequestBody): boolean {
+	return toBoolean(
+		body.forwardedProps?.reviewMode ?? body.reviewMode ?? body.metadata?.reviewMode,
+	);
+}
+
+function mergeChatTools(
+	serverTools: ToolSet,
+	clientTools: Record<string, ToolJSONSchema>,
+): ToolSet {
+	const clientToolSet =
+		Object.keys(clientTools).length > 0 ? frontendTools(clientTools) : {};
+	return {
+		...clientToolSet,
+		...serverTools,
+	};
+}
+
 export async function handleChatPost(request: Request): Promise<Response> {
 	const { getDB } = await import("../../../server-functions/db");
-	let params: Awaited<ReturnType<typeof chatParamsFromRequest>>;
+
+	let body: ChatRequestBody;
 	try {
-		params = await chatParamsFromRequest(request);
+		body = parseChatRequestBody(await request.json());
 	} catch (error) {
 		if (error instanceof Response) return error;
-		throw error;
+		return new Response("Invalid chat request body", { status: 400 });
+	}
+
+	const messages = body.messages;
+	if (!Array.isArray(messages) || messages.length === 0) {
+		return new Response("messages are required", { status: 400 });
 	}
 
 	const db = await getDB();
@@ -35,10 +110,11 @@ export async function handleChatPost(request: Request): Promise<Response> {
 	} catch {
 		return new Response("AI provider not configured", { status: 400 });
 	}
-	const reviewMode = toBoolean(params.forwardedProps?.reviewMode);
+
+	const reviewMode = readReviewMode(body);
 
 	console.log(
-		`[api.chat] POST model="${providerConfig.model}" baseUrl="${providerConfig.baseUrl}" messages=${params.messages.length} reviewMode=${reviewMode}`,
+		`[api.chat] POST model="${providerConfig.model}" baseUrl="${providerConfig.baseUrl}" messages=${messages.length} reviewMode=${reviewMode}`,
 	);
 
 	const abortController = new AbortController();
@@ -47,6 +123,15 @@ export async function handleChatPost(request: Request): Promise<Response> {
 			new Error(`AI request timed out after ${AI_TIMEOUT_MS / 1000}s`),
 		);
 	}, AI_TIMEOUT_MS);
+
+	const cleanup = () => {
+		clearTimeout(timeoutHandle);
+	};
+	const onAbort = () => {
+		cleanup();
+		abortController.abort();
+	};
+	request.signal.addEventListener("abort", onAbort, { once: true });
 
 	const memory = new MemoryManager(db);
 	void memory.ensureStructure().catch((error) => {
@@ -107,18 +192,24 @@ export async function handleChatPost(request: Request): Promise<Response> {
 		},
 	});
 
-	const rawStream = streamChatMessages(
-		providerConfig,
-		params.messages as Array<ModelMessage>,
-		{
-			abortController,
-			system: buildChatSystemPrompt({ reviewMode }),
-			tools: resolvedTools.tools as NonNullable<
-				Parameters<typeof streamChatMessages>[2]
-			>["tools"],
-		},
+	const tools = mergeChatTools(
+		resolvedTools.tools,
+		parseClientTools(body),
 	);
 
-	const stream = withCleanup(rawStream, () => clearTimeout(timeoutHandle));
-	return safeSSEResponse(stream, abortController);
+	const result = streamText({
+		model: getAiModel(providerConfig),
+		system: buildChatSystemPrompt({ reviewMode }),
+		messages: await convertToModelMessages(messages),
+		tools,
+		stopWhen: stepCountIs(10),
+		providerOptions: buildProviderOptions(providerConfig),
+		abortSignal: abortController.signal,
+	});
+
+	return result.toUIMessageStreamResponse({
+		originalMessages: messages,
+		headers: mergeStreamResponseHeaders(),
+		onFinish: cleanup,
+	});
 }

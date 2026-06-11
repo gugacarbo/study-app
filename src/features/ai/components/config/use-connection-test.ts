@@ -1,5 +1,10 @@
 import { useCallback, useState } from "react";
-import { testConnectionWithStream } from "@/lib/sse-stream";
+import { consumeJobStream } from "@/features/ai/lib/read-job-ui-message-stream";
+import type {
+	AgentRunDataPart,
+	JobProgressDataPart,
+	JobResultDataPart,
+} from "@/features/ai/types/ui-message-data-parts";
 import type { TestConnectionInput } from "@/lib/validation";
 
 export type TestStatus = "idle" | "testing" | "success" | "error";
@@ -23,21 +28,49 @@ export function useConnectionTest() {
 		setTestError("");
 
 		try {
-			const result = await testConnectionWithStream(values, {
-				onProgress: (event) => {
-					setTestProgress(event.progress);
-					setTestStep(event.step);
+			let resultResponse = "";
+
+			await consumeJobStream(
+				{
+					url: "/api/test-connection",
+					init: {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(values),
+					},
 				},
-				onPrompt: (prompt) => {
-					setTestPrompt(prompt);
+				{
+					onData: (part) => {
+						if (part.type === "data-job-progress") {
+							const data = part.data as JobProgressDataPart;
+							if (data.percent != null) setTestProgress(data.percent);
+							if (data.step) setTestStep(data.step);
+						}
+						if (part.type === "data-agent-run") {
+							const data = part.data as AgentRunDataPart;
+							if (
+								data.eventType === "lifecycle" &&
+								data.status === "pending" &&
+								data.userPrompt
+							) {
+								setTestPrompt(data.userPrompt);
+							}
+							if (data.eventType === "token" && data.rawText) {
+								setTestResponse((prev) => `${prev}${data.rawText}`);
+							}
+						}
+						if (part.type === "data-job-result") {
+							const data = part.data as JobResultDataPart;
+							if (typeof data.response === "string") {
+								resultResponse = data.response;
+							}
+						}
+					},
 				},
-				onChunk: (chunk) => {
-					setTestResponse((prev) => `${prev}${chunk}`);
-				},
-			});
+			);
 
 			setTestResponse((prev) =>
-				prev.trim().length > 0 ? prev : result.response,
+				prev.trim().length > 0 ? prev : resultResponse,
 			);
 			setTestProgress(100);
 			setTestStep("Completed");

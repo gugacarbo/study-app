@@ -1,19 +1,34 @@
-import type { UIMessage } from "@tanstack/ai-client";
-import { pickRicherToolResultContent } from "@/features/ai/core/agent-stream-handler";
+import type { UIMessage } from "ai";
+import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
+import type { StudyAppDataUIPart } from "@/features/ai/lib/read-job-ui-message-stream";
+import {
+	parseJsonEventStream,
+	readUIMessageStream,
+	uiMessageChunkSchema,
+} from "ai";
 import type {
-	IngestAgentEvent,
-	IngestChunkEvent,
-	IngestStageEvent,
-	IngestTokenEvent,
-	IngestWarningEvent,
-} from "@/lib/sse-stream";
+	JobErrorDataPart,
+	StudyAppUIMessageChunk,
+} from "@/features/ai/types/ui-message-data-parts";
+import type {
+	AgentRunDataPart,
+	JobResultDataPart,
+	StageDataPart,
+	StudyAppUIMessage,
+} from "@/features/ai/types/ui-message-data-parts";
 import type {
 	FlowStage,
+	IngestAgentEvent,
 	IngestAgentRun,
 	IngestAgentStatus,
+	IngestChunkEvent,
 	IngestJob,
 	IngestLogLevel,
 	IngestOutputEntry,
+	IngestResultEvent,
+	IngestStageEvent,
+	IngestTokenEvent,
+	IngestWarningEvent,
 	TokenTotals,
 } from "@/features/ingest/store/types";
 import { createEmptyTotals } from "@/features/ingest/store/types";
@@ -154,21 +169,17 @@ function resolveNextAgentStatus(
 }
 
 type AgentRole = "system" | "user" | "assistant";
-type AssistantToolCallPart = Extract<
+type DynamicToolPart = Extract<
 	UIMessage["parts"][number],
-	{ type: "tool-call" }
->;
-type AssistantToolResultPart = Extract<
-	UIMessage["parts"][number],
-	{ type: "tool-result" }
+	{ type: "dynamic-tool" }
 >;
 
-function createTextPart(content: string) {
-	return { type: "text" as const, content };
+function createTextPart(text: string) {
+	return { type: "text" as const, text };
 }
 
-function createThinkingPart(content: string) {
-	return { type: "thinking" as const, content };
+function createReasoningPart(text: string) {
+	return { type: "reasoning" as const, text };
 }
 
 function createAgentMessage(
@@ -221,15 +232,15 @@ function stripToolTranscriptFromTextParts(
 	return parts
 		.map((part) => {
 			if (part.type !== "text" || didStrip) return part;
-			const content = part.content ?? "";
-			const strippedContent = stripStructuredToolTranscript(content);
-			if (strippedContent === content) return part;
+			const text = part.text;
+			const strippedContent = stripStructuredToolTranscript(text);
+			if (strippedContent === text) return part;
 			didStrip = true;
-			return { ...part, content: strippedContent };
+			return { ...part, text: strippedContent };
 		})
 		.filter((part, index, allParts) => {
 			if (part.type !== "text") return true;
-			if ((part.content ?? "").length > 0) return true;
+			if (part.text.length > 0) return true;
 			return (
 				allParts.some((candidate) => candidate.type !== "text") || index !== 0
 			);
@@ -238,7 +249,7 @@ function stripToolTranscriptFromTextParts(
 
 function hasMeaningfulAssistantParts(parts: UIMessage["parts"]): boolean {
 	return parts.some((part) =>
-		part.type === "text" ? (part.content ?? "").length > 0 : true,
+		part.type === "text" ? part.text.length > 0 : true,
 	);
 }
 
@@ -252,7 +263,7 @@ function updateTrailingTextPart(
 	if (lastPart?.type === "text") {
 		nextParts[nextParts.length - 1] = {
 			...lastPart,
-			content: `${lastPart.content ?? ""}${chunk}`,
+			text: `${lastPart.text}${chunk}`,
 		};
 		return nextParts;
 	}
@@ -278,7 +289,7 @@ function upsertMessageText(
 				part.type === "text" &&
 				index ===
 					currentParts.findIndex((candidate) => candidate.type === "text")
-					? { ...part, content }
+					? { ...part, text: content }
 					: part,
 			)
 		: [createTextPart(content), ...currentParts];
@@ -327,22 +338,22 @@ function withAssistantMessage(
 	};
 }
 
-function updateTrailingThinkingPart(
+function updateTrailingReasoningPart(
 	parts: UIMessage["parts"],
 	chunk: string,
 ): UIMessage["parts"] {
 	const nextParts = [...parts];
 	const lastPart = nextParts.at(-1);
 
-	if (lastPart?.type === "thinking") {
+	if (lastPart?.type === "reasoning") {
 		nextParts[nextParts.length - 1] = {
 			...lastPart,
-			content: `${lastPart.content ?? ""}${chunk}`,
+			text: `${lastPart.text}${chunk}`,
 		};
 		return nextParts;
 	}
 
-	return [...nextParts, createThinkingPart(chunk)];
+	return [...nextParts, createReasoningPart(chunk)];
 }
 
 function appendAssistantTextMessage(
@@ -372,7 +383,7 @@ function appendAssistantThinkingMessage(
 
 		return {
 			...message,
-			parts: updateTrailingThinkingPart(baseParts, chunk),
+			parts: updateTrailingReasoningPart(baseParts, chunk),
 		};
 	});
 }
@@ -418,7 +429,7 @@ function readAssistantText(messages: UIMessage[]): string {
 	if (!assistant) return "";
 	return assistant.parts
 		.filter((part) => part.type === "text")
-		.map((part) => part.content ?? "")
+		.map((part) => part.text)
 		.join("");
 }
 
@@ -431,31 +442,46 @@ function safeJsonString(value: unknown): string {
 	}
 }
 
-function normalizeToolCallState(
+function normalizeDynamicToolInputState(
 	value: unknown,
-): AssistantToolCallPart["state"] {
+): Extract<DynamicToolPart["state"], `input${string}` | `approval${string}`> {
 	switch (value) {
-		case "awaiting-input":
 		case "input-streaming":
-		case "input-complete":
+		case "input-available":
 		case "approval-requested":
 		case "approval-responded":
 			return value;
+		case "awaiting-input":
+		case "input-complete":
+			return "input-available";
 		default:
-			return "input-complete";
+			return "input-available";
 	}
 }
 
-function normalizeToolResultState(
+function normalizeDynamicToolOutputState(
 	value: unknown,
-): AssistantToolResultPart["state"] {
+	error?: string,
+): Extract<
+	DynamicToolPart["state"],
+	`output${string}` | "input-available"
+> {
+	if (typeof error === "string" && error.length > 0) {
+		return "output-error";
+	}
 	switch (value) {
+		case "output-available":
+		case "output-error":
+		case "output-denied":
+			return value;
 		case "streaming":
 		case "complete":
+		case "completed":
+			return "output-available";
 		case "error":
-			return value;
+			return "output-error";
 		default:
-			return "complete";
+			return "output-available";
 	}
 }
 
@@ -468,8 +494,8 @@ function readLatestToolCallId(agentRun: IngestAgentRun): string | undefined {
 
 	for (let index = assistant.parts.length - 1; index >= 0; index -= 1) {
 		const part = assistant.parts[index];
-		if (part.type === "tool-call") {
-			return part.id;
+		if (part.type === "dynamic-tool") {
+			return part.toolCallId;
 		}
 	}
 
@@ -488,27 +514,9 @@ function createToolCallId(
 
 	const existingCount = ensureAgentRunMessages(agentRun)
 		.messages.find((message) => message.role === "assistant")
-		?.parts.filter((part) => part.type === "tool-call").length;
+		?.parts.filter((part) => part.type === "dynamic-tool").length;
 
 	return `${agentRun.id}:tool-call:${existingCount ?? 0}`;
-}
-
-function createToolCallPart(
-	agentRun: IngestAgentRun,
-	event: IngestAgentEvent,
-): AssistantToolCallPart {
-	return {
-		type: "tool-call",
-		id: createToolCallId(agentRun, event),
-		name: typeof event.name === "string" ? event.name : "unknown_tool",
-		arguments:
-			typeof event.arguments === "string"
-				? event.arguments
-				: safeJsonString(event.input ?? {}),
-		input: event.input,
-		output: undefined,
-		state: normalizeToolCallState(event.state),
-	};
 }
 
 function isMeaningfulToolValue(value: unknown): boolean {
@@ -526,146 +534,146 @@ function isMeaningfulToolValue(value: unknown): boolean {
 	return true;
 }
 
-function mergeToolCallPart(
-	existing: AssistantToolCallPart,
-	incoming: AssistantToolCallPart,
-): AssistantToolCallPart {
-	return {
-		...existing,
-		...incoming,
-		name:
-			typeof incoming.name === "string" && incoming.name.length > 0
-				? incoming.name
-				: existing.name,
-		arguments: isMeaningfulToolValue(incoming.arguments)
-			? incoming.arguments
-			: existing.arguments,
-		input: isMeaningfulToolValue(incoming.input)
-			? incoming.input
-			: existing.input,
-		output: isMeaningfulToolValue(incoming.output)
-			? incoming.output
-			: existing.output,
-		state: normalizeToolCallState(incoming.state ?? existing.state),
-	};
-}
-
-function readToolResultContent(event: IngestAgentEvent): string {
+function readToolResultOutput(event: IngestAgentEvent): unknown {
 	const eventRecord = event as IngestAgentEvent & { result?: unknown };
-	return safeJsonString(
-		event.content ?? event.output ?? eventRecord.result ?? "",
-	);
+	return event.content ?? event.output ?? eventRecord.result ?? "";
 }
 
-function isMeaningfulToolResultContent(content: string): boolean {
-	const trimmed = content.trim();
-	return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+function isMeaningfulToolResultOutput(output: unknown): boolean {
+	if (output == null) return false;
+	if (typeof output === "string") {
+		const trimmed = output.trim();
+		return trimmed.length > 0 && trimmed !== "{}" && trimmed !== "[]";
+	}
+	if (Array.isArray(output)) return output.length > 0;
+	if (typeof output === "object") {
+		return Object.keys(output as Record<string, unknown>).length > 0;
+	}
+	return true;
 }
 
-function mergeToolResultPart(
-	existing: AssistantToolResultPart,
-	incoming: AssistantToolResultPart,
-): AssistantToolResultPart {
-	const mergedContent = isMeaningfulToolResultContent(incoming.content)
-		? isMeaningfulToolResultContent(existing.content)
-			? pickRicherToolResultContent(existing.content, incoming.content)
-			: incoming.content
-		: existing.content;
-
-	return {
-		...existing,
-		...incoming,
-		content: mergedContent,
-		state: normalizeToolResultState(incoming.state ?? existing.state),
-		error:
-			typeof incoming.error === "string" && incoming.error.length > 0
-				? incoming.error
-				: incoming.state === "complete"
-					? undefined
-					: existing.error,
-	};
+function mergeDynamicToolOutput(
+	existing: unknown,
+	incoming: unknown,
+): unknown {
+	const existingText =
+		typeof existing === "string" ? existing : safeJsonString(existing);
+	const incomingText =
+		typeof incoming === "string" ? incoming : safeJsonString(incoming);
+	if (!isMeaningfulToolResultOutput(incoming)) return existing;
+	if (!isMeaningfulToolResultOutput(existing)) return incoming;
+	return pickRicherToolResultContent(existingText, incomingText);
 }
 
-function createToolResultPart(
+function createDynamicToolFromCallEvent(
 	agentRun: IngestAgentRun,
 	event: IngestAgentEvent,
-): AssistantToolResultPart {
+): DynamicToolPart {
+	return {
+		type: "dynamic-tool",
+		toolCallId: createToolCallId(agentRun, event),
+		toolName: typeof event.name === "string" ? event.name : "unknown_tool",
+		state: normalizeDynamicToolInputState(event.state),
+		input: isMeaningfulToolValue(event.input)
+			? event.input
+			: tryParseJson(event.arguments) ?? {},
+	} as DynamicToolPart;
+}
+
+function tryParseJson(value: string | undefined): unknown {
+	if (!value) return undefined;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
+}
+
+function createDynamicToolFromResultEvent(
+	agentRun: IngestAgentRun,
+	event: IngestAgentEvent,
+): DynamicToolPart {
 	const meta = event.meta as Record<string, unknown> | undefined;
 	const candidate = meta?.toolCallId;
 	const toolCallId =
 		typeof candidate === "string" && candidate.length > 0
 			? candidate
 			: (readLatestToolCallId(agentRun) ?? `${agentRun.id}:tool-call:0`);
-	const content = readToolResultContent(event);
+	const output = readToolResultOutput(event);
+	const errorText = typeof event.error === "string" ? event.error : undefined;
 
 	return {
-		type: "tool-result",
+		type: "dynamic-tool",
 		toolCallId,
-		content,
-		state: normalizeToolResultState(event.state),
-		error: typeof event.error === "string" ? event.error : undefined,
-	};
+		toolName: typeof event.name === "string" ? event.name : "unknown_tool",
+		state: normalizeDynamicToolOutputState(event.state, errorText),
+		input: event.input ?? {},
+		output: isMeaningfulToolResultOutput(output) ? output : undefined,
+		errorText,
+	} as DynamicToolPart;
 }
 
-function upsertAssistantToolResultPart(
+function mergeDynamicToolPart(
+	existing: DynamicToolPart,
+	incoming: DynamicToolPart,
+): DynamicToolPart {
+	const mergedOutput = mergeDynamicToolOutput(existing.output, incoming.output);
+	const nextState =
+		incoming.state === "output-available" ||
+		incoming.state === "output-error" ||
+		incoming.state === "output-denied"
+			? incoming.state
+			: existing.state === "output-available" ||
+					existing.state === "output-error" ||
+					existing.state === "output-denied"
+				? existing.state
+				: normalizeDynamicToolInputState(incoming.state ?? existing.state);
+
+	return {
+		...existing,
+		...incoming,
+		toolName:
+			incoming.toolName.length > 0 ? incoming.toolName : existing.toolName,
+		input: isMeaningfulToolValue(incoming.input)
+			? incoming.input
+			: existing.input,
+		output: mergedOutput,
+		errorText: incoming.errorText ?? existing.errorText,
+		state: nextState,
+	} as DynamicToolPart;
+}
+
+function upsertDynamicToolPart(
 	parts: UIMessage["parts"],
-	resultPart: AssistantToolResultPart,
+	toolPart: DynamicToolPart,
 ): UIMessage["parts"] {
-	const nextParts = [...parts];
-	const callIndex = nextParts.findIndex(
+	const existingIndex = parts.findIndex(
 		(candidate) =>
-			candidate.type === "tool-call" && candidate.id === resultPart.toolCallId,
+			candidate.type === "dynamic-tool" &&
+			candidate.toolCallId === toolPart.toolCallId,
 	);
 
-	if (callIndex !== -1) {
-		const currentCall = nextParts[callIndex];
-		if (currentCall.type === "tool-call") {
-			const nextOutput = isMeaningfulToolResultContent(resultPart.content)
-				? typeof currentCall.output === "string" &&
-					isMeaningfulToolResultContent(currentCall.output)
-					? pickRicherToolResultContent(currentCall.output, resultPart.content)
-					: resultPart.content
-				: currentCall.output;
-
-			if (nextOutput !== undefined) {
-				nextParts[callIndex] = {
-					...currentCall,
-					output: nextOutput,
-				};
-			}
+	if (existingIndex === -1) {
+		if (
+			toolPart.state === "output-available" &&
+			!isMeaningfulToolResultOutput(toolPart.output)
+		) {
+			return parts;
 		}
+		return [...parts, toolPart];
 	}
 
-	const existingResultIndex = nextParts.findIndex(
-		(candidate) =>
-			candidate.type === "tool-result" &&
-			candidate.toolCallId === resultPart.toolCallId,
-	);
+	const current = parts[existingIndex];
+	if (current.type !== "dynamic-tool") return parts;
 
-	if (existingResultIndex !== -1) {
-		const currentResult = nextParts[existingResultIndex];
-		nextParts[existingResultIndex] =
-			currentResult.type === "tool-result"
-				? mergeToolResultPart(currentResult, resultPart)
-				: resultPart;
-		return nextParts;
-	}
-
-	if (!isMeaningfulToolResultContent(resultPart.content)) {
-		return nextParts;
-	}
-
-	if (callIndex !== -1) {
-		nextParts.splice(callIndex + 1, 0, resultPart);
-		return nextParts;
-	}
-
-	return [...nextParts, resultPart];
+	const nextParts = [...parts];
+	nextParts[existingIndex] = mergeDynamicToolPart(current, toolPart);
+	return nextParts;
 }
 
-function appendAssistantPart(
+function appendAssistantToolPart(
 	agentRun: IngestAgentRun,
-	part: AssistantToolCallPart | AssistantToolResultPart,
+	toolPart: DynamicToolPart,
 ): IngestAgentRun {
 	return withAssistantMessage(agentRun, (message) => {
 		const baseParts = hasMeaningfulAssistantParts(message.parts)
@@ -673,38 +681,9 @@ function appendAssistantPart(
 			: [];
 		const nextParts = stripToolTranscriptFromTextParts(baseParts);
 
-		if (part.type === "tool-result") {
-			return {
-				...message,
-				parts: upsertAssistantToolResultPart(nextParts, part),
-			};
-		}
-
-		const existingIndex = nextParts.findIndex((candidate) => {
-			if (candidate.type !== part.type) return false;
-			if (part.type === "tool-call" && candidate.type === "tool-call") {
-				return candidate.id === part.id;
-			}
-			return false;
-		});
-
-		if (existingIndex !== -1) {
-			const updatedParts = [...nextParts];
-			const currentPart = updatedParts[existingIndex];
-			updatedParts[existingIndex] =
-				part.type === "tool-call" && currentPart.type === "tool-call"
-					? mergeToolCallPart(currentPart, part)
-					: part;
-
-			return {
-				...message,
-				parts: updatedParts,
-			};
-		}
-
 		return {
 			...message,
-			parts: [...nextParts, part],
+			parts: upsertDynamicToolPart(nextParts, toolPart),
 		};
 	});
 }
@@ -720,9 +699,9 @@ export function appendToolCallToAgentRun(
 	if (existingIndex === -1) return job;
 
 	const nextAgentRuns = [...job.agentRuns];
-	nextAgentRuns[existingIndex] = appendAssistantPart(
+	nextAgentRuns[existingIndex] = appendAssistantToolPart(
 		nextAgentRuns[existingIndex],
-		createToolCallPart(nextAgentRuns[existingIndex], event),
+		createDynamicToolFromCallEvent(nextAgentRuns[existingIndex], event),
 	);
 
 	return {
@@ -742,9 +721,9 @@ export function appendToolResultToAgentRun(
 	if (existingIndex === -1) return job;
 
 	const nextAgentRuns = [...job.agentRuns];
-	nextAgentRuns[existingIndex] = appendAssistantPart(
+	nextAgentRuns[existingIndex] = appendAssistantToolPart(
 		nextAgentRuns[existingIndex],
-		createToolResultPart(nextAgentRuns[existingIndex], event),
+		createDynamicToolFromResultEvent(nextAgentRuns[existingIndex], event),
 	);
 
 	return {
@@ -1094,4 +1073,357 @@ export function applyTokenEvent(
 			},
 		}),
 	);
+}
+
+type IngestJobStreamCallbacks = {
+	onStep: (step: string) => void;
+	onChunk?: (text: string, event?: IngestChunkEvent) => void;
+	onToken: (
+		prompt: number,
+		completion: number,
+		total: number,
+		event?: IngestTokenEvent,
+	) => void;
+	onWarning?: (message: string, event?: IngestWarningEvent) => void;
+	onStage?: (stage: IngestStageEvent) => void;
+	onAgent?: (event: IngestAgentEvent) => void;
+};
+
+function agentRunDataToIngestEvent(data: AgentRunDataPart): IngestAgentEvent {
+	return {
+		eventType: data.eventType,
+		agentRunId: data.agentRunId,
+		stageId: data.stageId,
+		label: data.label,
+		status: data.status,
+		state: data.state,
+		timestamp: data.timestamp,
+		systemPrompt: data.systemPrompt,
+		userPrompt: data.userPrompt,
+		rawText: data.rawText,
+		finalObject: data.finalObject,
+		error: data.error,
+		warning: data.warning,
+		tokens: data.tokens,
+		meta: data.meta,
+		name: data.name,
+		arguments: data.arguments,
+		input: data.input,
+		output: data.output,
+		content: data.content,
+	};
+}
+
+function stageDataToIngestEvent(data: StageDataPart): IngestStageEvent {
+	return {
+		stageId: data.stageId,
+		label: data.label,
+		status: data.status,
+		timestamp: data.timestamp ?? Date.now(),
+		meta: data.meta,
+	};
+}
+
+function extractTokenTotalsFromUsage(value: unknown): {
+	prompt: number;
+	completion: number;
+	total: number;
+} | null {
+	if (typeof value !== "object" || value === null) return null;
+	const record = value as Record<string, unknown>;
+	const prompt =
+		typeof record.promptTokens === "number"
+			? record.promptTokens
+			: typeof record.inputTokens === "number"
+				? record.inputTokens
+				: typeof record.prompt === "number"
+					? record.prompt
+					: 0;
+	const completion =
+		typeof record.completionTokens === "number"
+			? record.completionTokens
+			: typeof record.outputTokens === "number"
+				? record.outputTokens
+				: typeof record.completion === "number"
+					? record.completion
+					: 0;
+	const total =
+		typeof record.totalTokens === "number"
+			? record.totalTokens
+			: typeof record.total === "number"
+				? record.total
+				: prompt + completion;
+	return { prompt, completion, total };
+}
+
+function sumMessageText(
+	messages: StudyAppUIMessage[],
+	kind: "text" | "reasoning",
+): number {
+	let total = 0;
+	for (const message of messages) {
+		if (message.role !== "assistant") continue;
+		for (const part of message.parts) {
+			if (kind === "text" && part.type === "text") {
+				total += part.text.length;
+			}
+			if (kind === "reasoning" && part.type === "reasoning") {
+				total += part.text.length;
+			}
+		}
+	}
+	return total;
+}
+
+function readJobResult(data: JobResultDataPart): IngestResultEvent {
+	const record = data as Record<string, unknown>;
+	const questions =
+		typeof record.questions === "number"
+			? record.questions
+			: Array.isArray(record.questions)
+				? record.questions.length
+				: 0;
+	const topics = Array.isArray(record.topics)
+		? record.topics.filter((topic): topic is string => typeof topic === "string")
+		: [];
+	return {
+		questions,
+		topics,
+		examId: typeof record.examId === "number" ? record.examId : undefined,
+		fileId: typeof record.fileId === "number" ? record.fileId : undefined,
+	};
+}
+
+function shouldYieldAfterAgentToolEvent(event: IngestAgentEvent): boolean {
+	return (
+		event.eventType === "tool-call" || event.eventType === "tool-result"
+	);
+}
+
+function yieldToRenderer(): Promise<void> {
+	return new Promise((resolve) => {
+		requestAnimationFrame(() => resolve());
+	});
+}
+
+function emitMessageTextDeltas(
+	messages: StudyAppUIMessage[],
+	currentAgentRunId: string | null,
+	previousTextLength: number,
+	previousReasoningLength: number,
+	callbacks: IngestJobStreamCallbacks,
+): { textLength: number; reasoningLength: number } {
+	if (!currentAgentRunId || !callbacks.onChunk) {
+		return {
+			textLength: sumMessageText(messages, "text"),
+			reasoningLength: sumMessageText(messages, "reasoning"),
+		};
+	}
+
+	const textDelta = messages
+		.filter((message) => message.role === "assistant")
+		.flatMap((message) => message.parts)
+		.filter((part) => part.type === "text")
+		.map((part) => part.text)
+		.join("");
+	const nextTextLength = textDelta.length;
+	if (nextTextLength > previousTextLength) {
+		const chunk = textDelta.slice(previousTextLength);
+		callbacks.onChunk(chunk, {
+			text: chunk,
+			kind: "text",
+			agentRunId: currentAgentRunId,
+			timestamp: Date.now(),
+		});
+	}
+
+	const reasoningDelta = messages
+		.filter((message) => message.role === "assistant")
+		.flatMap((message) => message.parts)
+		.filter((part) => part.type === "reasoning")
+		.map((part) => part.text)
+		.join("");
+	const nextReasoningLength = reasoningDelta.length;
+	if (nextReasoningLength > previousReasoningLength) {
+		const chunk = reasoningDelta.slice(previousReasoningLength);
+		callbacks.onChunk(chunk, {
+			text: chunk,
+			kind: "reasoning",
+			agentRunId: currentAgentRunId,
+			timestamp: Date.now(),
+		});
+	}
+
+	return {
+		textLength: nextTextLength,
+		reasoningLength: nextReasoningLength,
+	};
+}
+
+async function dispatchIngestDataPart(
+	part: StudyAppDataUIPart,
+	callbacks: IngestJobStreamCallbacks,
+	state: {
+		result: IngestResultEvent | null;
+		currentAgentRunId: string | null;
+	},
+): Promise<void> {
+	if (part.type === "data-job-progress") {
+		if (part.data.step) {
+			callbacks.onStep(part.data.step);
+		}
+		return;
+	}
+
+	if (part.type === "data-stage") {
+		callbacks.onStage?.(stageDataToIngestEvent(part.data));
+		return;
+	}
+
+	if (part.type === "data-agent-run") {
+		const agentEvent = agentRunDataToIngestEvent(part.data);
+		if (agentEvent.status === "running") {
+			state.currentAgentRunId = agentEvent.agentRunId;
+		}
+		callbacks.onAgent?.(agentEvent);
+
+		if (agentEvent.eventType === "token" && agentEvent.tokens) {
+			const totals = extractTokenTotalsFromUsage(agentEvent.tokens);
+			if (totals) {
+				callbacks.onToken(totals.prompt, totals.completion, totals.total, {
+					...totals,
+					stageId: agentEvent.stageId,
+					agentRunId: agentEvent.agentRunId,
+					timestamp: agentEvent.timestamp,
+				});
+			}
+		}
+
+		if (agentEvent.eventType === "warning" && agentEvent.warning) {
+			callbacks.onWarning?.(agentEvent.warning, {
+				message: agentEvent.warning,
+				stageId: agentEvent.stageId,
+				agentRunId: agentEvent.agentRunId,
+				timestamp: agentEvent.timestamp,
+			});
+		}
+
+		if (shouldYieldAfterAgentToolEvent(agentEvent)) {
+			await yieldToRenderer();
+		}
+		return;
+	}
+
+	if (part.type === "data-job-result") {
+		state.result = readJobResult(part.data);
+	}
+}
+
+export async function ingestJobStream(
+	payload: {
+		buffer: number[];
+		fileName: string;
+		enableReview?: boolean;
+		enableExplanations?: boolean;
+		agentConcurrency?: number;
+		signal?: AbortSignal;
+	},
+	callbacks: IngestJobStreamCallbacks,
+): Promise<IngestResultEvent> {
+	const response = await fetch("/api/ingest", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			buffer: payload.buffer,
+			fileName: payload.fileName,
+			enableReview: payload.enableReview ?? true,
+			enableExplanations: payload.enableExplanations ?? true,
+			agentConcurrency: payload.agentConcurrency ?? 10,
+		}),
+		signal: payload.signal,
+	});
+
+	const streamState = {
+		result: null as IngestResultEvent | null,
+		currentAgentRunId: null as string | null,
+	};
+	let previousTextLength = 0;
+	let previousReasoningLength = 0;
+
+	if (!response.ok) {
+		const text = await response.text().catch(() => "");
+		throw new Error(text || `Ingest failed (${response.status})`);
+	}
+	if (!response.body) {
+		throw new Error("Ingest stream is not available");
+	}
+
+	const jobErrorRef = { current: null as JobErrorDataPart | null };
+	let streamError: Error | undefined;
+
+	const chunkStream = parseJsonEventStream({
+		stream: response.body,
+		schema: uiMessageChunkSchema,
+	}).pipeThrough(
+		new TransformStream({
+			transform(chunk, controller) {
+				if (!chunk.success) {
+					controller.error(chunk.error);
+					return;
+				}
+				const value = chunk.value as StudyAppUIMessageChunk;
+				if (value.type.startsWith("data-")) {
+					void dispatchIngestDataPart(
+						value as StudyAppDataUIPart,
+						callbacks,
+						streamState,
+					);
+					if (value.type === "data-job-error") {
+						jobErrorRef.current = (
+							value as Extract<StudyAppDataUIPart, { type: "data-job-error" }>
+						).data;
+					}
+				}
+				controller.enqueue(value);
+			},
+		}),
+	);
+
+	const messages: StudyAppUIMessage[] = [];
+	const messageStream = readUIMessageStream<StudyAppUIMessage>({
+		stream: chunkStream,
+		terminateOnError: true,
+		onError: (error) => {
+			streamError =
+				error instanceof Error ? error : new Error(String(error));
+		},
+	});
+
+	for await (const message of messageStream) {
+		const last = messages.at(-1);
+		if (last?.id === message.id) {
+			messages[messages.length - 1] = message;
+		} else {
+			messages.push(message);
+		}
+
+		const lengths = emitMessageTextDeltas(
+			messages,
+			streamState.currentAgentRunId,
+			previousTextLength,
+			previousReasoningLength,
+			callbacks,
+		);
+		previousTextLength = lengths.textLength;
+		previousReasoningLength = lengths.reasoningLength;
+	}
+
+	if (streamError) throw streamError;
+	if (jobErrorRef.current) {
+		throw new Error(jobErrorRef.current.message);
+	}
+	if (!streamState.result) {
+		throw new Error("Ingest stream finished without a result");
+	}
+	return streamState.result;
 }

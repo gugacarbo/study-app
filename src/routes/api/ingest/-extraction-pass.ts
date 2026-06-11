@@ -1,20 +1,25 @@
-import type { StreamChunk } from "@tanstack/ai";
+import { stepCountIs, streamText, type ToolSet } from "ai";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
+import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
-	createAgentStreamState,
+	createAiStreamState,
 	createToolResultEmitter,
-	isAgentStreamRunErrorChunk,
+	isAiStreamRunErrorChunk,
 	payloadFromToolExecuteResult,
-	processAgentStreamChunk,
-} from "@/features/ai/core/agent-stream-handler";
-import { streamChatMessages } from "@/features/ai/core/chat-stream";
+	processAiStreamPart,
+} from "@/features/ai/core/ai-stream-handler";
+import type {
+	AgentRunDescriptor,
+	JobUIMessageStreamWriter,
+} from "@/features/ai/core/ui-message-job-stream";
+import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import {
 	createExtractionWorkspace,
 	createIngestExtractionTools,
 } from "@/features/ai/tools/ingest-tools";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import { buildExtractionUserPrompt } from "./-extract-text";
-import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
 
 interface ExtractionPassParams {
 	text: string;
@@ -59,18 +64,13 @@ interface ExtractionPassParams {
 			meta?: Record<string, unknown>,
 		): void;
 	};
-	send: (event: string, data: unknown) => void;
+	writer: JobUIMessageStreamWriter;
+	onWarning: (message: string) => void;
 	log: {
 		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
 	};
 	stageId: string;
 	stageLabel: string;
-	flushStream?: () => Promise<void>;
-}
-
-async function flushSseStream(flushStream?: () => Promise<void>) {
-	if (!flushStream) return;
-	await flushStream();
 }
 
 export async function runExtractionPass(
@@ -81,11 +81,11 @@ export async function runExtractionPass(
 		config,
 		criticalTopics,
 		agentRuns,
-		send,
+		writer,
+		onWarning,
 		log,
 		stageId,
 		stageLabel,
-		flushStream,
 	} = params;
 
 	const systemPrompt = buildSystemPrompt({
@@ -95,7 +95,7 @@ export async function runExtractionPass(
 	const userPrompt = buildExtractionUserPrompt(text);
 	const run = agentRuns.createRun(stageId, stageLabel);
 	const workspace = createExtractionWorkspace();
-	const streamState = createAgentStreamState();
+	const streamState = createAiStreamState();
 	const emitToolResult = createToolResultEmitter((toolResult) => {
 		agentRuns.toolResult(
 			run,
@@ -107,17 +107,9 @@ export async function runExtractionPass(
 			{ toolCallId: toolResult.toolCallId },
 		);
 	}, streamState);
-	const emitToolResultAndFlush = async (
-		payload: Parameters<typeof emitToolResult>[0],
-	) => {
-		emitToolResult(payload);
-		await flushSseStream(flushStream);
-	};
 	const tools = createIngestExtractionTools(workspace, {
 		onToolExecuted: async ({ toolCallId, output }) => {
-			await emitToolResultAndFlush(
-				payloadFromToolExecuteResult(toolCallId, output),
-			);
+			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
 		},
 	});
 
@@ -125,77 +117,36 @@ export async function runExtractionPass(
 	agentRuns.lifecycle(run, "running");
 
 	try {
-		const stream = streamChatMessages(
-			config,
-			[{ role: "user", content: userPrompt }],
-			{
-				system: systemPrompt,
-				tools: [...tools] as unknown as NonNullable<
-					Parameters<typeof streamChatMessages>[2]
-				>["tools"],
-				toolStreamHandlers: {
-					onToolCall: (toolCall) => {
-						agentRuns.toolCall(
-							run,
-							{
-								name: toolCall.name,
-								arguments: toolCall.arguments,
-								input: toolCall.input,
-								state: toolCall.state,
-							},
-							{ toolCallId: toolCall.toolCallId },
-						);
-					},
-					onToolResult: (toolResult) => {
-						emitToolResult(toolResult);
-					},
-				},
-				streamState,
-			},
-		);
+		const result = streamText({
+			model: getAiModel(config),
+			system: systemPrompt,
+			messages: [{ role: "user", content: userPrompt }],
+			tools: tools as ToolSet,
+			stopWhen: stepCountIs(10),
+			providerOptions: buildProviderOptions(config),
+		});
 
-		for await (const chunk of stream) {
-			if (isAgentStreamRunErrorChunk(chunk)) {
+		writer.merge(result.toUIMessageStream({ sendStart: false }));
+
+		for await (const chunk of result.fullStream) {
+			if (isAiStreamRunErrorChunk(chunk)) {
 				log.error("AI extraction pass run error", chunk, {
 					stage: stageId,
 					agentRunId: run.agentRunId,
 					label: stageLabel,
-					toolCallId:
-						"toolCallId" in chunk && typeof chunk.toolCallId === "string"
-							? chunk.toolCallId
-							: undefined,
 					rawTextLength: streamState.rawText.length,
 				});
-				throw new Error(
-					`AI provider returned error: ${chunk.message}${chunk.code ? ` (code: ${chunk.code})` : ""}`,
-				);
+				const message =
+					chunk.error instanceof Error
+						? chunk.error.message
+						: String(chunk.error);
+				throw new Error(`AI provider returned error: ${message}`);
 			}
 
-			processAgentStreamChunk(
-				chunk as StreamChunk,
+			processAiStreamPart(
+				chunk,
 				{
-					onTextDelta: (delta) => {
-						send("chunk", {
-							stageId: run.stageId,
-							agentRunId: run.agentRunId,
-							text: delta,
-							kind: "text",
-						});
-					},
-					onReasoningDelta: (delta) => {
-						send("chunk", {
-							stageId: run.stageId,
-							agentRunId: run.agentRunId,
-							text: delta,
-							kind: "reasoning",
-						});
-					},
 					onUsage: (usage) => {
-						send("token", {
-							stageId: run.stageId,
-							agentRunId: run.agentRunId,
-							usage,
-						});
 						agentRuns.token(run, usage);
 					},
 					onToolCall: (toolCall) => {
@@ -210,34 +161,30 @@ export async function runExtractionPass(
 							{ toolCallId: toolCall.toolCallId },
 						);
 					},
-					onToolResult: (toolResult) => {
-						emitToolResult(toolResult);
-					},
+					onToolResult: emitToolResult,
 				},
 				streamState,
 			);
 		}
 
-		const result = workspace.buildResult();
-		if (result.questions.length === 0) {
+		const extractionResult = workspace.buildResult();
+		if (extractionResult.questions.length === 0) {
 			const message =
 				"No questions were extracted during the initial ingest pass.";
-			send("warning", {
-				message,
-			});
+			onWarning(message);
 			throw new Error(message);
 		}
 
-		agentRuns.result(run, result, streamState.rawText, {
+		agentRuns.result(run, extractionResult, streamState.rawText, {
 			toolQuestionCount: workspace.listQuestions().length,
 		});
 		agentRuns.lifecycle(run, "done", {
 			meta: {
-				questionCount: result.questions.length,
-				topicCount: result.topics.length,
+				questionCount: extractionResult.questions.length,
+				topicCount: extractionResult.topics.length,
 			},
 		});
-		return result;
+		return extractionResult;
 	} catch (error) {
 		log.error("AI extraction pass failed", error, {
 			stage: stageId,

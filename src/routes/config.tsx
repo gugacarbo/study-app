@@ -8,7 +8,7 @@ export const Route = createFileRoute("/config")({
 function ConfigRoutePage() {
 	return (
 		<div>
-			<h1 className="text-2xl font-bold mb-6">AI Configuration</h1>
+			<h1 className="text-2xl font-bold mb-4">AI Configuration</h1>
 			<AiConfigPage />
 		</div>
 	);

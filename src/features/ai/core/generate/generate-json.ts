@@ -1,6 +1,11 @@
 import { generateObject, generateText, Output } from "ai";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
-import type { ProviderConfig } from "@/lib/validation";
+import {
+	type ProviderConfig,
+	type ResolvedModelConfig,
+	toProviderConfig,
+} from "@/lib/validation";
 import {
 	extractStructuredOutputErrorCode,
 	isRecoverableGenerationError,
@@ -11,12 +16,14 @@ import type { GenerateJsonOptions, OutputSchema } from "./types";
 import { isSafeParseCapableSchema } from "./types";
 
 export async function generateJson<T>(
-	config: ProviderConfig,
+	config: ProviderConfig | ResolvedModelConfig,
 	prompt: string,
 	outputSchema: OutputSchema<T>,
 	options?: GenerateJsonOptions,
 ): Promise<T> {
-	const model = getAiModel(config);
+	const providerConfig = toProviderConfig(config);
+	const model = getAiModel(providerConfig);
+	const providerOptions = buildProviderOptions(providerConfig);
 	const { schema, output } = resolveObjectGenerationOptions(outputSchema);
 	const flexibleSchema = toFlexibleSchema(outputSchema);
 
@@ -27,6 +34,7 @@ export async function generateJson<T>(
 			system: options.system,
 			tools: options.tools,
 			output: Output.object({ schema: flexibleSchema }),
+			providerOptions,
 		});
 		return result.output as T;
 	}
@@ -38,6 +46,7 @@ export async function generateJson<T>(
 			system: options?.system,
 			schema,
 			output,
+			providerOptions,
 		});
 
 		return result.object as T;
@@ -50,6 +59,7 @@ export async function generateJson<T>(
 			model,
 			prompt,
 			system: options?.system,
+			providerOptions,
 		});
 
 		const cleaned = extractLikelyJson(stripThinkBlocks(fallback.text));

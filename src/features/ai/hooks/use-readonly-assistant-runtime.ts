@@ -1,14 +1,131 @@
-import { useExternalStoreRuntime } from "@assistant-ui/react";
-import type { UIMessage } from "@tanstack/ai-client";
-import { useMemo } from "react";
 import {
-	convertUIMessageToThreadMessageLike,
-	mergeAssistantTurnMessages,
-} from "@/features/ai/adapters/tanstack-message-adapter";
+	useExternalStoreRuntime,
+	type ThreadMessageLike,
+} from "@assistant-ui/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { UIMessage } from "ai";
+import { getToolName, isToolUIPart } from "ai";
+import { useMemo } from "react";
 
 interface UseReadOnlyAssistantRuntimeOptions {
 	messages: UIMessage[];
 	isRunning?: boolean;
+}
+
+type ThreadContentPart = Exclude<ThreadMessageLike["content"], string>[number];
+
+function safeJson(value: unknown): string {
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+}
+
+function stringifyToolArgs(value: unknown): string {
+	if (typeof value === "string") return value;
+	return safeJson(value ?? {});
+}
+
+/**
+ * Chat auto-continuation creates a new assistant UIMessage per tool iteration.
+ * Merge those into one virtual message for assistant-ui rendering.
+ */
+function mergeAssistantTurnMessages(messages: UIMessage[]): UIMessage[] {
+	const merged: UIMessage[] = [];
+
+	for (const message of messages) {
+		if (message.role !== "assistant" || message.id === "welcome") {
+			merged.push(message);
+			continue;
+		}
+
+		const previous = merged[merged.length - 1];
+		if (previous?.role === "assistant" && previous.id !== "welcome") {
+			merged[merged.length - 1] = {
+				...previous,
+				parts: [...previous.parts, ...message.parts],
+				id: message.id,
+			};
+			continue;
+		}
+
+		merged.push({ ...message });
+	}
+
+	return merged;
+}
+
+function mapMessageParts(parts: UIMessage["parts"]): ThreadContentPart[] {
+	const content: ThreadContentPart[] = [];
+
+	for (const part of parts) {
+		if (part.type === "text") {
+			const text = part.text.trim();
+			if (text.length > 0) {
+				content.push({ type: "text", text });
+			}
+			continue;
+		}
+
+		if (part.type === "reasoning") {
+			const text = part.text.trim();
+			if (text.length > 0) {
+				content.push({ type: "reasoning", text });
+			}
+			continue;
+		}
+
+		if (isToolUIPart(part)) {
+			const toolName = getToolName(part);
+			const argsText = stringifyToolArgs(part.input);
+			let result: unknown;
+			let isError = false;
+
+			if (part.state === "output-available") {
+				result = part.output;
+			} else if (part.state === "output-error") {
+				isError = true;
+				result = { error: part.errorText };
+			} else if (part.state === "output-denied") {
+				isError = true;
+				result = { error: part.errorText ?? "Tool approval denied" };
+			}
+
+			content.push({
+				type: "tool-call",
+				toolCallId: part.toolCallId,
+				toolName,
+				argsText,
+				args:
+					part.input != null &&
+					typeof part.input === "object" &&
+					!Array.isArray(part.input)
+						? (part.input as ReadonlyJSONObject)
+						: ({} as ReadonlyJSONObject),
+				result,
+				isError,
+			});
+		}
+	}
+
+	return content;
+}
+
+function convertUIMessageToThreadMessageLike(
+	message: UIMessage,
+	options?: { isPending?: boolean },
+): ThreadMessageLike {
+	return {
+		id: message.id,
+		role: message.role,
+		content: mapMessageParts(message.parts),
+		...(message.role === "assistant" && {
+			status: options?.isPending
+				? ({ type: "running" } as const)
+				: ({ type: "complete", reason: "stop" } as const),
+		}),
+	};
 }
 
 export function useReadOnlyAssistantRuntime({

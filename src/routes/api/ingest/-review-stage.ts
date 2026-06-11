@@ -1,7 +1,11 @@
 import { reviewExtraction } from "@/features/ai/agents/ingest/review-extraction";
+import {
+	writeStage,
+	type AgentRunDescriptor,
+	type JobUIMessageStreamWriter,
+} from "@/features/ai/core/ui-message-job-stream";
+import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
-import type { AgentRunDescriptor, AgentRunStatus } from "./-sse-emitter";
-import { sendStage } from "./-sse-emitter";
 
 interface RunReviewStageParams {
 	enableReview: boolean;
@@ -57,7 +61,9 @@ interface RunReviewStageParams {
 			meta?: Record<string, unknown>,
 		): void;
 	};
-	send: (event: string, data: unknown) => void;
+	writer: JobUIMessageStreamWriter;
+	onProgress: (step: string) => void;
+	onWarning: (message: string, meta?: Record<string, unknown>) => void;
 	log: {
 		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
 	};
@@ -79,13 +85,21 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 		criticalTopics,
 		tools,
 		agentRuns,
-		send,
+		writer,
+		onProgress,
+		onWarning,
 		log,
 	} = params;
 
 	if (!enableReview) {
-		send("progress", { step: "Review disabled for this ingest." });
-		sendStage(send, "review", "Review", "skipped", { disabled: true });
+		onProgress("Review disabled for this ingest.");
+		writeStage(writer, {
+			stageId: "review",
+			label: "Review",
+			status: "skipped",
+			timestamp: Date.now(),
+			meta: { disabled: true },
+		});
 		const skippedRun = agentRuns.createRun("review", "Review disabled");
 		agentRuns.lifecycle(skippedRun, "skipped", {
 			meta: { disabled: true },
@@ -96,8 +110,13 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 		return null;
 	}
 
-	send("progress", { step: "Running review..." });
-	sendStage(send, "review", "Review", "running");
+	onProgress("Running review...");
+	writeStage(writer, {
+		stageId: "review",
+		label: "Review",
+		status: "running",
+		timestamp: Date.now(),
+	});
 
 	try {
 		const reviewResult = await reviewExtraction(
@@ -111,10 +130,10 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 				tools,
 				onEvent: (event) => {
 					if (event.type === "warning") {
-						send("warning", { message: event.message });
+						onWarning(event.message);
 						return;
 					}
-					send("progress", { step: event.message });
+					onProgress(event.message);
 				},
 				onAgentEvent: (event) => {
 					const run = {
@@ -138,8 +157,7 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 					}
 
 					if (event.eventType === "warning" && event.warning) {
-						send("warning", {
-							message: event.warning,
+						onWarning(event.warning, {
 							stageId: event.stageId,
 							agentRunId: event.agentRunId,
 						});
@@ -189,14 +207,20 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 			},
 		);
 
-		sendStage(send, "review", "Review", "done", {
-			reviewed: reviewResult.reviewed,
-			reviewedQuestionCount: reviewResult.reviewedQuestionCount,
-			failedQuestionCount: reviewResult.failedQuestionCount,
+		writeStage(writer, {
+			stageId: "review",
+			label: "Review",
+			status: "done",
+			timestamp: Date.now(),
+			meta: {
+				reviewed: reviewResult.reviewed,
+				reviewedQuestionCount: reviewResult.reviewedQuestionCount,
+				failedQuestionCount: reviewResult.failedQuestionCount,
+			},
 		});
 
 		const step = reviewResult.reviewed ? "Review completed" : "Review skipped";
-		send("progress", { step });
+		onProgress(step);
 
 		return {
 			extracted: reviewResult.extracted,
@@ -211,8 +235,12 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 			questionCount: extracted.questions.length,
 			criticalTopics,
 		});
-		sendStage(send, "review", "Review", "error", {
-			error: err instanceof Error ? err.message : "unknown",
+		writeStage(writer, {
+			stageId: "review",
+			label: "Review",
+			status: "error",
+			timestamp: Date.now(),
+			meta: { error: err instanceof Error ? err.message : "unknown" },
 		});
 		throw err;
 	}
