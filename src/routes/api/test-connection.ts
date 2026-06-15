@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { LanguageModelUsage } from "ai";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { streamTextWithCompatibilityFallback } from "@/features/ai/core/stream-text-compat";
 import { createLlmLogContext } from "@/lib/llm-logging";
 import { DBQueries } from "@/db/queries";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
 	createAiStreamState,
-	isAiStreamRunErrorChunk,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
 import {
@@ -78,52 +77,57 @@ async function runConnectionTest(
 	let responseText = "";
 	let usage: LanguageModelUsage | undefined;
 
-	const result = loggedStreamText(
-		createLlmLogContext("connection-test", providerConfig, {
-			callId: run.agentRunId,
-			systemPrompt: system,
-			requestSummary: userMsg,
-			metadata: { modelId: modelConfig.modelId },
-		}),
-		{
-			model: getAiModel(providerConfig),
-			system,
-			messages: [{ role: "user", content: userMsg }],
-			providerOptions: buildProviderOptions(providerConfig),
-			abortSignal,
-		},
-	);
+	const llmLogContext = createLlmLogContext("connection-test", providerConfig, {
+		callId: run.agentRunId,
+		systemPrompt: system,
+		requestSummary: userMsg,
+		metadata: { modelId: modelConfig.modelId },
+	});
+	const requestOptions = {
+		model: getAiModel(providerConfig),
+		system,
+		messages: [{ role: "user" as const, content: userMsg }],
+		providerOptions: buildProviderOptions(providerConfig),
+		abortSignal,
+	};
 
 	sendProgress(55, "Streaming model response...");
 
-	for await (const chunk of result.fullStream) {
-		assertNotAborted();
-		if (isAiStreamRunErrorChunk(chunk)) {
-			const message =
-				chunk.error instanceof Error
-					? chunk.error.message
-					: String(chunk.error);
-			throw new Error(`AI provider returned error: ${message}`);
-		}
+	const generation = await streamTextWithCompatibilityFallback({
+		ctx: llmLogContext,
+		request: requestOptions,
+		onStreamPart: (chunk) => {
+			assertNotAborted();
+			processAiStreamPart(
+				chunk,
+				{
+					onTextDelta: (delta) => {
+						responseText += delta;
+						agentRuns.textDelta(run, delta);
+					},
+					onUsage: (nextUsage) => {
+						usage = nextUsage;
+						agentRuns.token(run, nextUsage);
+					},
+				},
+				streamState,
+			);
+		},
+	});
 
-		processAiStreamPart(
-			chunk,
-			{
-				onTextDelta: (delta) => {
-					responseText += delta;
-					agentRuns.textDelta(run, delta);
-				},
-				onUsage: (nextUsage) => {
-					usage = nextUsage;
-					agentRuns.token(run, nextUsage);
-				},
-			},
-			streamState,
-		);
+	if (generation.usedGenerateTextFallback) {
+		if (responseText.trim().length === 0 && generation.text.length > 0) {
+			responseText = generation.text;
+			agentRuns.textDelta(run, generation.text);
+		}
+		if (!usage && generation.usage) {
+			usage = generation.usage;
+			agentRuns.token(run, generation.usage);
+		}
 	}
 
-	const response = responseText.trim() || (await result.text).trim();
-	usage ??= await result.usage;
+	const response = generation.text || responseText.trim();
+	usage ??= generation.usage;
 
 	agentRuns.lifecycle(run, "done");
 	sendProgress(100, "Completed");

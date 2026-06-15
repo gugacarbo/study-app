@@ -12,6 +12,49 @@ export type BenchmarkPhaseId =
 	| "tool_echo"
 	| "sustained_text";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function extractNumericValue(value: unknown): number | null {
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return value;
+	}
+
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (trimmed.length === 0) return null;
+
+		const asNumber = Number(trimmed);
+		if (Number.isFinite(asNumber)) {
+			return asNumber;
+		}
+
+		try {
+			return extractNumericValue(JSON.parse(trimmed));
+		} catch {
+			const matched = trimmed.match(/-?\d+(?:\.\d+)?/);
+			if (!matched) return null;
+			const parsed = Number(matched[0]);
+			return Number.isFinite(parsed) ? parsed : null;
+		}
+	}
+
+	if (isRecord(value)) {
+		if ("sum" in value) {
+			return extractNumericValue(value.sum);
+		}
+		if ("result" in value) {
+			return extractNumericValue(value.result);
+		}
+		if ("value" in value) {
+			return extractNumericValue(value.value);
+		}
+	}
+
+	return null;
+}
+
 export function validateBenchmarkPhase(
 	phaseId: BenchmarkPhaseId,
 	response: string,
@@ -21,22 +64,45 @@ export function validateBenchmarkPhase(
 
 	switch (phaseId) {
 		case "text_baseline":
-			return trimmed.length > 0;
+			return trimmed.length > 0 && /ready/i.test(trimmed);
 
 		case "tool_math": {
-			const usedAddNumbers = toolCalls.some(
+			const addNumbersCalls = toolCalls.filter(
 				(call) => call.name === "add_numbers",
 			);
-			return usedAddNumbers && trimmed.includes("42");
+			if (addNumbersCalls.length === 0) return false;
+
+			const responseValue = extractNumericValue(trimmed);
+			if (responseValue === 42) {
+				return true;
+			}
+
+			return addNumbersCalls.some(
+				(call) => extractNumericValue(call.output) === 42,
+			);
 		}
 
 		case "tool_echo": {
-			const usedEcho = toolCalls.some((call) => call.name === "echo");
-			return usedEcho && /benchmark/i.test(trimmed);
+			const echoCalls = toolCalls.filter((call) => call.name === "echo");
+			if (echoCalls.length === 0) return false;
+			if (/benchmark/i.test(trimmed)) return true;
+
+			return echoCalls.some((call) => {
+				if (isRecord(call.output) && "message" in call.output) {
+					return /benchmark/i.test(String(call.output.message));
+				}
+				return /benchmark/i.test(String(call.output ?? ""));
+			});
 		}
 
-		case "sustained_text":
-			return trimmed.length >= SUSTAINED_TEXT_MIN_CHARS;
+		case "sustained_text": {
+			const bulletLines = trimmed
+				.split("\n")
+				.filter((line) => /^\s*[-*•]\s+\S/.test(line));
+			return (
+				bulletLines.length >= 4 || trimmed.length >= SUSTAINED_TEXT_MIN_CHARS
+			);
+		}
 
 		default:
 			return false;

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { stepCountIs, type LanguageModelUsage, type ToolSet } from "ai";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { streamTextWithCompatibilityFallback } from "@/features/ai/core/stream-text-compat";
 import { createLlmLogContext } from "@/lib/llm-logging";
 import { DBQueries } from "@/db/queries";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
@@ -8,7 +8,6 @@ import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
-	isAiStreamRunErrorChunk,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
 import {
@@ -56,13 +55,28 @@ type PhaseDefinition = {
 	progressEnd: number;
 };
 
+const BENCHMARK_TEXT_SYSTEM = `You are a model benchmark assistant.
+
+Rules:
+- Reply in plain text only.
+- Be concise: no preamble, no closing remark, no markdown code fences.
+- Do not emit reasoning or thinking tags in the visible answer.`;
+
+const BENCHMARK_TOOL_SYSTEM = `You are a model benchmark assistant.
+
+When a task requires a tool:
+1. Call the named tool exactly once with the arguments given in the user message.
+2. Wait for the tool result before sending your final answer.
+3. Do not call the same tool again.
+4. Follow the user's output format exactly (plain text only, no markdown fences, no reasoning tags).`;
+
 const BENCHMARK_PHASES: PhaseDefinition[] = [
 	{
 		id: "text_baseline",
 		label: "Text baseline",
-		system:
-			"You are a model benchmark assistant. Respond concisely in plain text.",
-		userMsg: 'Reply with one short sentence containing the word "ready".',
+		system: BENCHMARK_TEXT_SYSTEM,
+		userMsg:
+			'Write exactly one short English sentence. The sentence must contain the word "ready" (any capitalization). Example: I am ready.',
 		useTools: false,
 		progressStart: 10,
 		progressEnd: 25,
@@ -70,10 +84,13 @@ const BENCHMARK_PHASES: PhaseDefinition[] = [
 	{
 		id: "tool_math",
 		label: "Tool math",
-		system:
-			"You are a model benchmark assistant. Use tools when asked and follow instructions precisely.",
-		userMsg:
-			"Use the add_numbers tool with a=17 and b=25. Reply with only the numeric result.",
+		system: BENCHMARK_TOOL_SYSTEM,
+		userMsg: `Task:
+1. Call add_numbers once with a=17 and b=25.
+2. After the tool returns, reply with only the numeric sum.
+
+Required final answer (exactly this, no other characters):
+42`,
 		useTools: true,
 		progressStart: 30,
 		progressEnd: 50,
@@ -81,10 +98,12 @@ const BENCHMARK_PHASES: PhaseDefinition[] = [
 	{
 		id: "tool_echo",
 		label: "Tool echo",
-		system:
-			"You are a model benchmark assistant. Use tools when asked and cite tool output in your reply.",
-		userMsg:
-			"Call the echo tool with message 'benchmark' and include that word in your final answer.",
+		system: BENCHMARK_TOOL_SYSTEM,
+		userMsg: `Task:
+1. Call echo once with message exactly: benchmark
+2. After the tool returns, reply with one short sentence that includes the word benchmark.
+
+Example final answer: The tool echoed benchmark.`,
 		useTools: true,
 		progressStart: 55,
 		progressEnd: 75,
@@ -92,10 +111,18 @@ const BENCHMARK_PHASES: PhaseDefinition[] = [
 	{
 		id: "sustained_text",
 		label: "Sustained text",
-		system:
-			"You are a model benchmark assistant. Produce readable bullet lists when asked.",
-		userMsg:
-			"List exactly 4 short bullet points about LLM latency and throughput. Use one line per bullet.",
+		system: `${BENCHMARK_TEXT_SYSTEM}
+
+When asked for a list, use markdown bullets (- ) with one bullet per line. No title or summary before or after the list.`,
+		userMsg: `Write exactly 4 bullet points about LLM latency and throughput.
+
+Format (4 lines, each starting with "- "):
+- first point
+- second point
+- third point
+- fourth point
+
+Do not add any other lines.`,
 		useTools: false,
 		progressStart: 80,
 		progressEnd: 95,
@@ -178,86 +205,153 @@ async function runBenchmarkPhase(
 	});
 	agentRuns.lifecycle(run, "running");
 
-	const result = loggedStreamText(
-		createLlmLogContext("model-benchmark", providerConfig, {
-			callId: run.agentRunId,
-			systemPrompt: phase.system,
-			requestSummary: phase.label,
-			metadata: { modelId: modelConfig.modelId, phaseId: phase.id },
-		}),
-		{
-			model: getAiModel(providerConfig),
-			system: phase.system,
-			messages: [{ role: "user", content: phase.userMsg }],
-			tools,
-			stopWhen: phase.useTools ? stepCountIs(3) : undefined,
-			providerOptions: buildProviderOptions(providerConfig),
-			abortSignal,
-		},
-	);
+	const llmLogContext = createLlmLogContext("model-benchmark", providerConfig, {
+		callId: run.agentRunId,
+		systemPrompt: phase.system,
+		requestSummary: phase.label,
+		metadata: { modelId: modelConfig.modelId, phaseId: phase.id },
+	});
+	const requestOptions = {
+		model: getAiModel(providerConfig),
+		system: phase.system,
+		messages: [{ role: "user" as const, content: phase.userMsg }],
+		tools,
+		stopWhen: phase.useTools ? stepCountIs(5) : undefined,
+		providerOptions: buildProviderOptions(providerConfig),
+		abortSignal,
+	};
 
-	for await (const chunk of result.fullStream) {
-		assertNotAborted();
-		if (isAiStreamRunErrorChunk(chunk)) {
-			const message =
-				chunk.error instanceof Error
-					? chunk.error.message
-					: String(chunk.error);
-			throw new Error(`AI provider returned error: ${message}`);
+	const generation = await streamTextWithCompatibilityFallback({
+		ctx: llmLogContext,
+		request: requestOptions,
+		onStreamPart: (chunk) => {
+			assertNotAborted();
+			processAiStreamPart(
+				chunk,
+				{
+					onTextDelta: (delta) => {
+						responseText += delta;
+						const now = Date.now();
+						noteBenchmarkPhaseTextDelta(phaseTiming, now);
+						if (jobTiming.firstTokenAtMs == null) {
+							jobTiming.firstTokenAtMs = now;
+						}
+						jobTiming.lastTokenAtMs = now;
+						agentRuns.textDelta(run, delta);
+					},
+					onUsage: (nextUsage) => {
+						usage = nextUsage;
+						const now = Date.now();
+						phaseTiming.generationEndedAtMs = now;
+						jobTiming.generationEndedAtMs = now;
+						const usageTotals = extractTokenTotalsFromUsage(nextUsage);
+						if (usageTotals?.completion) {
+							jobTiming.totalCompletionTokens += usageTotals.completion;
+						}
+						agentRuns.token(run, nextUsage);
+					},
+					onToolCall: (toolCall) => {
+						const now = Date.now();
+						noteBenchmarkPhaseToolCall(phaseTiming, now);
+						const record: BenchmarkToolCallRecord = {
+							name: toolCall.name ?? "unknown",
+							input: toolCall.input,
+						};
+						toolCalls.push(record);
+						toolCallIndexById.set(toolCall.toolCallId, toolCalls.length - 1);
+						agentRuns.toolCall(
+							run,
+							{
+								name: toolCall.name,
+								arguments: toolCall.arguments,
+								input: toolCall.input,
+								state: toolCall.state,
+							},
+							{ toolCallId: toolCall.toolCallId },
+						);
+					},
+					onToolResult: emitToolResult,
+				},
+				streamState,
+			);
+		},
+	});
+
+	if (generation.usedGenerateTextFallback) {
+		const now = Date.now();
+		if (responseText.trim().length === 0 && generation.text.length > 0) {
+			responseText = generation.text;
+			noteBenchmarkPhaseTextDelta(phaseTiming, now);
+			if (jobTiming.firstTokenAtMs == null) {
+				jobTiming.firstTokenAtMs = now;
+			}
+			jobTiming.lastTokenAtMs = now;
+			agentRuns.textDelta(run, generation.text);
+		} else if (generation.text.length > 0) {
+			responseText = generation.text;
 		}
 
-		processAiStreamPart(
-			chunk,
-			{
-				onTextDelta: (delta) => {
-					responseText += delta;
-					const now = Date.now();
-					noteBenchmarkPhaseTextDelta(phaseTiming, now);
-					if (jobTiming.firstTokenAtMs == null) {
-						jobTiming.firstTokenAtMs = now;
-					}
-					jobTiming.lastTokenAtMs = now;
-					agentRuns.textDelta(run, delta);
-				},
-				onUsage: (nextUsage) => {
-					usage = nextUsage;
-					const now = Date.now();
-					phaseTiming.generationEndedAtMs = now;
-					jobTiming.generationEndedAtMs = now;
-					const usageTotals = extractTokenTotalsFromUsage(nextUsage);
-					if (usageTotals?.completion) {
-						jobTiming.totalCompletionTokens += usageTotals.completion;
-					}
-					agentRuns.token(run, nextUsage);
-				},
-				onToolCall: (toolCall) => {
-					const now = Date.now();
-					noteBenchmarkPhaseToolCall(phaseTiming, now);
+		if (!usage && generation.usage) {
+			usage = generation.usage;
+			phaseTiming.generationEndedAtMs = now;
+			jobTiming.generationEndedAtMs = now;
+			const usageTotals = extractTokenTotalsFromUsage(generation.usage);
+			if (usageTotals?.completion) {
+				jobTiming.totalCompletionTokens += usageTotals.completion;
+			}
+			agentRuns.token(run, generation.usage);
+		}
+
+		if (toolCalls.length === 0 && generation.fallbackResult) {
+			for (const step of generation.fallbackResult.steps) {
+				for (const toolCall of step.toolCalls) {
+					const toolCallId = toolCall.toolCallId;
 					const record: BenchmarkToolCallRecord = {
-						name: toolCall.name ?? "unknown",
+						name: toolCall.toolName,
 						input: toolCall.input,
 					};
 					toolCalls.push(record);
-					toolCallIndexById.set(toolCall.toolCallId, toolCalls.length - 1);
+					toolCallIndexById.set(toolCallId, toolCalls.length - 1);
 					agentRuns.toolCall(
 						run,
 						{
-							name: toolCall.name,
-							arguments: toolCall.arguments,
+							name: toolCall.toolName,
+							arguments: JSON.stringify(toolCall.input ?? {}),
 							input: toolCall.input,
-							state: toolCall.state,
+							state: "input-complete",
 						},
-						{ toolCallId: toolCall.toolCallId },
+						{ toolCallId },
 					);
-				},
-				onToolResult: emitToolResult,
-			},
-			streamState,
-		);
+				}
+
+				for (const toolResult of step.toolResults) {
+					const toolCallId = toolResult.toolCallId;
+					const toolFailed =
+						"isError" in toolResult && Boolean(toolResult.isError);
+					noteBenchmarkPhaseToolResult(phaseTiming, now);
+					const index = toolCallIndexById.get(toolCallId);
+					if (index != null) {
+						toolCalls[index] = {
+							...toolCalls[index],
+							output: toolResult.output,
+						};
+					}
+					agentRuns.toolResult(
+						run,
+						{
+							content: toolResult.output,
+							error: toolFailed ? "Tool execution failed" : undefined,
+							state: toolFailed ? "error" : "complete",
+						},
+						{ toolCallId },
+					);
+				}
+			}
+		}
 	}
 
-	const response = responseText.trim() || (await result.text).trim();
-	usage ??= await result.usage;
+	const response = generation.text || responseText.trim();
+	usage ??= generation.usage;
 	const phaseEndedAtMs = Date.now();
 	finalizeBenchmarkPhaseTiming(
 		phaseTiming,

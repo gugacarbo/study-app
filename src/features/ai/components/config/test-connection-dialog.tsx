@@ -1,6 +1,12 @@
-import { CheckCircle2Icon, Loader2Icon, XCircleIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
 import type { UIMessage } from "ai";
+import {
+	CheckCircle2Icon,
+	CheckIcon,
+	CopyIcon,
+	Loader2Icon,
+	XCircleIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,23 +21,23 @@ import { Progress } from "@/components/ui/progress";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import {
-	TokenTotalsBadge,
 	type TokenTotals,
+	TokenTotalsBadge,
 } from "@/features/ai/components/token-totals-badge";
 import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
 import {
+	type BenchmarkPhaseMetrics,
 	formatTokensPerSecond,
 	formatTtft,
-	type BenchmarkPhaseMetrics,
 	type StreamPerfMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
 import {
 	estimateTokenCost,
 	formatUsdCost,
 } from "@/features/ai/lib/token-usage";
+import type { ModelTestMode } from "@/features/config/lib/model-test-process";
 import { cn } from "@/lib/utils";
 import type { TestStatus } from "./use-connection-test";
-import type { ModelTestMode } from "@/features/config/lib/model-test-process";
 
 type TestConnectionDialogProps = {
 	open: boolean;
@@ -156,11 +162,108 @@ function formatMetricValue(value: number | null): string {
 	return `${(value / 1000).toFixed(1)}s`;
 }
 
-function PhaseMetricsTable({
+function formatPhaseStatus(passed: boolean | null | undefined): string {
+	if (passed == null) return "Pending";
+	return passed ? "Passed" : "Failed";
+}
+
+function safeStringify(value: unknown): string {
+	if (typeof value === "string") return value;
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
+}
+
+function buildMessageLog(messages: UIMessage[]): string {
+	return messages
+		.map((message, index) => {
+			const sections = message.parts
+				.map((part) => {
+					if (part.type === "text") {
+						return part.text.trim();
+					}
+					if (part.type === "reasoning") {
+						return part.text.trim() ? `[Reasoning]\n${part.text.trim()}` : "";
+					}
+					if (part.type === "dynamic-tool") {
+						const lines = [
+							`[Tool] ${part.toolName} (${part.state})`,
+							`Input:\n${safeStringify(part.input)}`,
+						];
+						if (part.output !== undefined) {
+							lines.push(`Output:\n${safeStringify(part.output)}`);
+						}
+						if (part.errorText) {
+							lines.push(`Error:\n${part.errorText}`);
+						}
+						return lines.join("\n");
+					}
+					return `[${part.type}]\n${safeStringify(part)}`;
+				})
+				.filter(Boolean)
+				.join("\n\n");
+
+			return `## Message ${index + 1} (${message.role})\n${sections || "[empty]"}`;
+		})
+		.join("\n\n");
+}
+
+function buildBenchmarkLog({
+	modelLabel,
+	testStatus,
+	testStep,
+	testError,
+	tokenTotals,
+	streamMetrics,
 	phases,
+	messages,
 }: {
+	modelLabel?: string;
+	testStatus: TestStatus;
+	testStep: string;
+	testError: string;
+	tokenTotals: TokenTotals | null;
+	streamMetrics?: StreamPerfMetrics | null;
 	phases: BenchmarkPhaseMetrics[];
-}) {
+	messages: UIMessage[];
+}): string {
+	const lines = [
+		"# Benchmark log",
+		modelLabel ? `Model: ${modelLabel}` : null,
+		`Status: ${testStatus}`,
+		testStep ? `Step: ${testStep}` : null,
+		testError ? `Error: ${testError}` : null,
+		streamMetrics?.ttftMs != null
+			? `TTFT: ${formatTtft(streamMetrics.ttftMs)}`
+			: null,
+		streamMetrics?.totalRequestMs != null
+			? `Total: ${formatTtft(streamMetrics.totalRequestMs)}`
+			: null,
+		streamMetrics?.tokensPerSecond != null
+			? `Throughput: ${formatTokensPerSecond(streamMetrics.tokensPerSecond)}`
+			: null,
+		tokenTotals
+			? `Tokens: ${tokenTotals.total.toLocaleString()} (in ${tokenTotals.prompt.toLocaleString()} / out ${tokenTotals.completion.toLocaleString()})`
+			: null,
+		"",
+		"# Phases",
+		...(phases.length > 0
+			? phases.map(
+					(phase) =>
+						`- ${phase.label}: ${formatPhaseStatus(phase.passed)} | TTFT ${formatMetricValue(phase.ttftMs)} | TTFT tool ${formatMetricValue(phase.ttftToolMs)} | Tool RT ${formatMetricValue(phase.toolRoundTripMs)} | Tok/s ${phase.tokensPerSecond != null ? formatTokensPerSecond(phase.tokensPerSecond) : "—"}`,
+				)
+			: ["- No phase metrics captured"]),
+		"",
+		"# Transcript",
+		messages.length > 0 ? buildMessageLog(messages) : "No transcript captured.",
+	];
+
+	return lines.filter((line) => line != null).join("\n");
+}
+
+function PhaseMetricsTable({ phases }: { phases: BenchmarkPhaseMetrics[] }) {
 	if (phases.length === 0) return null;
 
 	return (
@@ -181,11 +284,7 @@ function PhaseMetricsTable({
 						<tr key={phase.phaseId} className="border-b border-border/60">
 							<td className="px-3 py-2 font-medium">{phase.label}</td>
 							<td className="px-3 py-2">
-								{phase.passed == null
-									? "…"
-									: phase.passed
-										? "✓"
-										: "✗"}
+								{phase.passed == null ? "…" : phase.passed ? "✓" : "✗"}
 							</td>
 							<td className="px-3 py-2 tabular-nums">
 								{formatMetricValue(phase.ttftMs)}
@@ -205,6 +304,136 @@ function PhaseMetricsTable({
 					))}
 				</tbody>
 			</table>
+		</div>
+	);
+}
+
+function BenchmarkFailureSummary({
+	testError,
+	testStep,
+	phaseMetrics,
+}: {
+	testError: string;
+	testStep: string;
+	phaseMetrics: BenchmarkPhaseMetrics[];
+}) {
+	const failedPhases = phaseMetrics.filter((phase) => phase.passed === false);
+	const passedPhases = phaseMetrics.filter((phase) => phase.passed === true);
+	const pendingPhases = phaseMetrics.filter((phase) => phase.passed == null);
+
+	return (
+		<div className="max-h-[22rem] space-y-4 overflow-auto rounded-md border border-destructive/25 bg-destructive/10 p-4">
+			<div className="flex items-start gap-3">
+				<XCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
+				<div className="space-y-1">
+					<p className="font-medium text-foreground">
+						Benchmark completed with failures
+					</p>
+					<p className="text-sm text-muted-foreground">
+						{failedPhases.length > 0
+							? `${failedPhases.length} of ${phaseMetrics.length} benchmark phases failed. Review the failed phases and the full trace below.`
+							: "The benchmark returned an error before all phases could pass. Review the details and full trace below."}
+					</p>
+				</div>
+			</div>
+
+			<div className="grid gap-2 sm:grid-cols-3">
+				<div className="rounded-md border border-border/70 bg-background/70 p-3">
+					<p className="text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+						Failed
+					</p>
+					<p className="mt-1 text-lg font-semibold text-destructive">
+						{failedPhases.length}
+					</p>
+				</div>
+				<div className="rounded-md border border-border/70 bg-background/70 p-3">
+					<p className="text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+						Passed
+					</p>
+					<p className="mt-1 text-lg font-semibold text-emerald-600">
+						{passedPhases.length}
+					</p>
+				</div>
+				<div className="rounded-md border border-border/70 bg-background/70 p-3">
+					<p className="text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+						Pending
+					</p>
+					<p className="mt-1 text-lg font-semibold text-foreground">
+						{pendingPhases.length}
+					</p>
+				</div>
+			</div>
+
+			{testStep ? (
+				<div className="rounded-md border border-border/70 bg-background/70 p-3 text-sm">
+					<p className="text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+						Last step
+					</p>
+					<p className="mt-1 text-foreground">{testStep}</p>
+				</div>
+			) : null}
+
+			<div className="rounded-md border border-destructive/20 bg-background/80 p-3">
+				<p className="text-[0.7rem] uppercase tracking-wide text-muted-foreground">
+					Error details
+				</p>
+				<pre className="mt-2 whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+					{testError}
+				</pre>
+			</div>
+
+			{failedPhases.length > 0 ? (
+				<div className="grid gap-2 lg:grid-cols-2">
+					{failedPhases.map((phase) => (
+						<div
+							key={phase.phaseId}
+							className="rounded-md border border-destructive/20 bg-background/80 p-3"
+						>
+							<div className="flex items-center justify-between gap-3">
+								<p className="font-medium text-foreground">{phase.label}</p>
+								<Badge
+									variant="outline"
+									className="border-destructive/30 bg-destructive/5 text-destructive"
+								>
+									Failed
+								</Badge>
+							</div>
+							<div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+								<div>
+									<p>TTFT</p>
+									<p className="mt-1 font-medium text-foreground">
+										{formatMetricValue(phase.ttftMs)}
+									</p>
+								</div>
+								<div>
+									<p>TTFT tool</p>
+									<p className="mt-1 font-medium text-foreground">
+										{formatMetricValue(phase.ttftToolMs)}
+									</p>
+								</div>
+								<div>
+									<p>Tool RT</p>
+									<p className="mt-1 font-medium text-foreground">
+										{formatMetricValue(phase.toolRoundTripMs)}
+									</p>
+								</div>
+								<div>
+									<p>Throughput</p>
+									<p className="mt-1 font-medium text-foreground">
+										{phase.tokensPerSecond != null
+											? formatTokensPerSecond(phase.tokensPerSecond)
+											: "—"}
+									</p>
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			) : null}
+
+			{phaseMetrics.length > 0 ? (
+				<PhaseMetricsTable phases={phaseMetrics} />
+			) : null}
 		</div>
 	);
 }
@@ -254,6 +483,7 @@ export function TestConnectionDialog({
 	onRetest,
 	showRetest = false,
 }: TestConnectionDialogProps) {
+	const [isCopied, setIsCopied] = useState(false);
 	const isBenchmark = testMode === "benchmark";
 	const isStreaming = testStatus === "testing";
 	const hasStreamMetrics =
@@ -268,6 +498,39 @@ export function TestConnectionDialog({
 		) : isStreaming ? (
 			<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
 		) : null;
+	const benchmarkLog = isBenchmark
+		? buildBenchmarkLog({
+				modelLabel,
+				testStatus,
+				testStep,
+				testError,
+				tokenTotals,
+				streamMetrics,
+				phases: phaseMetrics,
+				messages: testMessages,
+			})
+		: "";
+
+	useEffect(() => {
+		if (!open) {
+			setIsCopied(false);
+		}
+	}, [open]);
+
+	const copyBenchmarkLog = () => {
+		if (
+			!benchmarkLog ||
+			typeof navigator === "undefined" ||
+			!navigator.clipboard
+		) {
+			return;
+		}
+
+		navigator.clipboard.writeText(benchmarkLog).then(() => {
+			setIsCopied(true);
+			window.setTimeout(() => setIsCopied(false), 2500);
+		});
+	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -325,32 +588,76 @@ export function TestConnectionDialog({
 								>
 									{testStep}
 								</span>
-								<span className="font-medium tabular-nums">{testProgress}%</span>
+								<span className="font-medium tabular-nums">
+									{testProgress}%
+								</span>
 							</div>
 							<Progress value={testProgress} />
-							{isBenchmark ? (
-								<PhaseMetricsTable phases={phaseMetrics} />
-							) : null}
+							{isBenchmark ? <PhaseMetricsTable phases={phaseMetrics} /> : null}
 						</div>
 					) : null}
 				</DialogHeader>
 
-				{testStatus === "error" ? (
-					<div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-						{testError}
-					</div>
-				) : (
+				<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+					{testStatus === "error" ? (
+						isBenchmark ? (
+							<BenchmarkFailureSummary
+								testError={testError}
+								testStep={testStep}
+								phaseMetrics={phaseMetrics}
+							/>
+						) : (
+							<div className="rounded-md border border-destructive/25 bg-destructive/10 p-4">
+								<div className="flex items-start gap-3">
+									<XCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
+									<div className="space-y-1">
+										<p className="font-medium text-foreground">
+											Connection test failed
+										</p>
+										<pre className="whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+											{testError}
+										</pre>
+									</div>
+								</div>
+							</div>
+						)
+					) : null}
+
 					<ConnectionTestThread
 						messages={testMessages}
 						isStreaming={isStreaming}
 					/>
-				)}
+				</div>
 
 				{showRetest && onRetest ? (
-					<DialogFooter className="shrink-0 border-t pt-4">
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+					<DialogFooter className="shrink-0 flex-row flex-wrap justify-end border-t pt-4">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => onOpenChange(false)}
+						>
 							Close
 						</Button>
+						{isBenchmark ? (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={copyBenchmarkLog}
+								disabled={!benchmarkLog}
+							>
+								{isCopied ? (
+									<>
+										<CheckIcon className="size-4" />
+										Copied
+									</>
+								) : (
+									<>
+										<CopyIcon className="size-4" />
+										Copy log
+									</>
+								)}
+							</Button>
+						) : null}
 						<Button type="button" onClick={onRetest}>
 							Test again
 						</Button>

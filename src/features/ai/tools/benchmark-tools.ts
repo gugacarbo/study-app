@@ -19,12 +19,14 @@ const delayMsInputSchema = z.object({
 export function createBenchmarkTools(): ToolSet {
 	return {
 		add_numbers: tool({
-			description: "Add two numbers and return the sum.",
+			description:
+				"Add integers a and b. Returns { sum: a + b }. Call once, then report the sum from the tool result.",
 			inputSchema: zodSchema(addNumbersInputSchema),
 			execute: async ({ a, b }) => ({ sum: a + b }),
 		}),
 		echo: tool({
-			description: "Echo a message back unchanged.",
+			description:
+				"Echo a message unchanged. Returns { message }. Call once, then cite message in your reply.",
 			inputSchema: zodSchema(echoInputSchema),
 			execute: async ({ message }) => ({ message }),
 		}),
