@@ -1,4 +1,5 @@
 import { stepCountIs, type ToolSet } from "ai";
+import { parseExamNameFromFileName } from "@/features/ai/agents/ingest/parse-exam-name";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
@@ -11,10 +12,7 @@ import {
 } from "@/features/ai/core/ai-stream-handler";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import { createLlmLogContext } from "@/lib/llm-logging";
-import type {
-	AgentRunDescriptor,
-	JobUIMessageStreamWriter,
-} from "@/features/ai/core/ui-message-job-stream";
+import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import {
 	createExtractionWorkspace,
@@ -25,6 +23,7 @@ import { buildExtractionUserPrompt } from "./-extract-text";
 
 interface ExtractionPassParams {
 	text: string;
+	fileName: string;
 	config: ProviderConfig;
 	criticalTopics: string[];
 	agentRuns: {
@@ -65,8 +64,9 @@ interface ExtractionPassParams {
 			},
 			meta?: Record<string, unknown>,
 		): void;
+		textDelta(run: AgentRunDescriptor, delta: string): void;
+		reasoningDelta(run: AgentRunDescriptor, delta: string): void;
 	};
-	writer: JobUIMessageStreamWriter;
 	onWarning: (message: string) => void;
 	log: {
 		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
@@ -80,23 +80,24 @@ export async function runExtractionPass(
 ): Promise<ExamIngestResponse> {
 	const {
 		text,
+		fileName,
 		config,
 		criticalTopics,
 		agentRuns,
-		writer,
 		onWarning,
 		log,
 		stageId,
 		stageLabel,
 	} = params;
 
+	const examName = parseExamNameFromFileName(fileName);
 	const systemPrompt = buildSystemPrompt({
 		criticalTopics,
 		enableWebVerification: false,
 	});
-	const userPrompt = buildExtractionUserPrompt(text);
+	const userPrompt = buildExtractionUserPrompt(text, { fileName, examName });
 	const run = agentRuns.createRun(stageId, stageLabel);
-	const workspace = createExtractionWorkspace();
+	const workspace = createExtractionWorkspace({ examName });
 	const streamState = createAiStreamState();
 	const emitToolResult = createToolResultEmitter((toolResult) => {
 		agentRuns.toolResult(
@@ -136,8 +137,6 @@ export async function runExtractionPass(
 			},
 		);
 
-		writer.merge(result.toUIMessageStream({ sendStart: false }));
-
 		for await (const chunk of result.fullStream) {
 			if (isAiStreamRunErrorChunk(chunk)) {
 				log.error("AI extraction pass run error", chunk, {
@@ -156,6 +155,12 @@ export async function runExtractionPass(
 			processAiStreamPart(
 				chunk,
 				{
+					onTextDelta: (delta) => {
+						agentRuns.textDelta(run, delta);
+					},
+					onReasoningDelta: (delta) => {
+						agentRuns.reasoningDelta(run, delta);
+					},
 					onUsage: (usage) => {
 						agentRuns.token(run, usage);
 					},
@@ -178,6 +183,11 @@ export async function runExtractionPass(
 		}
 
 		const extractionResult = workspace.buildResult();
+		if (extractionResult.questions.length > 1) {
+			onWarning(
+				`Extracted ${extractionResult.questions.length} questions — verify the count matches the source exam.`,
+			);
+		}
 		if (extractionResult.questions.length === 0) {
 			const message =
 				"No questions were extracted during the initial ingest pass.";
@@ -190,6 +200,7 @@ export async function runExtractionPass(
 		});
 		agentRuns.lifecycle(run, "done", {
 			meta: {
+				examName: extractionResult.examName,
 				questionCount: extractionResult.questions.length,
 				topicCount: extractionResult.topics.length,
 			},

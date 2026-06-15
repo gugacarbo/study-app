@@ -15,6 +15,7 @@ export interface ExtractionWorkspaceQuestion extends Question {
 }
 
 export interface ExtractionWorkspaceState {
+	examName: string;
 	questions: ExtractionWorkspaceQuestion[];
 	nextQuestionNumber: number;
 }
@@ -95,6 +96,7 @@ export function createExtractionWorkspace(
 	initial?: Partial<ExtractionWorkspaceState>,
 ) {
 	const state: ExtractionWorkspaceState = {
+		examName: initial?.examName?.trim() || "Untitled exam",
 		questions: initial?.questions ? [...initial.questions] : [],
 		nextQuestionNumber: initial?.nextQuestionNumber ?? 1,
 	};
@@ -151,6 +153,7 @@ export function createExtractionWorkspace(
 			);
 
 			return examIngestResponseSchema.parse({
+				examName: state.examName,
 				questions,
 				topics: deriveTopics(questions),
 			});
@@ -158,12 +161,14 @@ export function createExtractionWorkspace(
 
 		getState(): ExtractionWorkspaceState {
 			return {
+				examName: state.examName,
 				questions: [...state.questions],
 				nextQuestionNumber: state.nextQuestionNumber,
 			};
 		},
 
 		reset() {
+			state.examName = "Untitled exam";
 			state.questions = [];
 			state.nextQuestionNumber = 1;
 		},

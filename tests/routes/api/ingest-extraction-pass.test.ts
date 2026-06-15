@@ -41,7 +41,7 @@ vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
 	};
 });
 
-import type { JobUIMessageStreamWriter } from "@/features/ai/core/ui-message-job-stream";
+
 import { runExtractionPass } from "@/routes/api/ingest/-extraction-pass";
 
 type ExecutableTool = {
@@ -78,17 +78,11 @@ function createAgentRunsMock() {
 		lifecycle: vi.fn(),
 		result: vi.fn(),
 		token: vi.fn(),
+		textDelta: vi.fn(),
+		reasoningDelta: vi.fn(),
 		toolCall: vi.fn(),
 		toolResult: vi.fn(),
 	};
-}
-
-function createWriterMock(): JobUIMessageStreamWriter {
-	return {
-		merge: vi.fn(),
-		write: vi.fn(),
-		onError: undefined,
-	} as unknown as JobUIMessageStreamWriter;
 }
 
 describe("runExtractionPass", () => {
@@ -133,6 +127,7 @@ describe("runExtractionPass", () => {
 
 		const result = await runExtractionPass({
 			text: "Texto da prova",
+			fileName: "ENEM_2023_Linguagens.pdf",
 			config: {
 				model: "openai/gpt-4o-mini",
 				baseUrl: "https://openrouter.ai/api/v1",
@@ -140,7 +135,6 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			writer: createWriterMock(),
 			onWarning,
 			log,
 			stageId: "initial_extraction",
@@ -148,6 +142,7 @@ describe("runExtractionPass", () => {
 		});
 
 		expect(result).toEqual({
+			examName: "ENEM 2023 Linguagens",
 			questions: [
 				{
 					question: "O que e cache?",
@@ -229,6 +224,7 @@ describe("runExtractionPass", () => {
 
 		const result = await runExtractionPass({
 			text: "Texto da prova",
+			fileName: "prova-redes.txt",
 			config: {
 				model: "openai/gpt-4o-mini",
 				baseUrl: "https://openrouter.ai/api/v1",
@@ -236,7 +232,6 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns: createAgentRunsMock(),
-			writer: createWriterMock(),
 			onWarning: vi.fn(),
 			log: { error: vi.fn() },
 			stageId: "initial_extraction",
@@ -244,6 +239,7 @@ describe("runExtractionPass", () => {
 		});
 
 		expect(result).toEqual({
+			examName: "prova redes",
 			questions: [
 				{
 					question: "Questao corrigida",
@@ -303,6 +299,7 @@ describe("runExtractionPass", () => {
 
 		await runExtractionPass({
 			text: "Texto da prova",
+			fileName: "exam.txt",
 			config: {
 				model: "openai/gpt-4o-mini",
 				baseUrl: "https://openrouter.ai/api/v1",
@@ -310,7 +307,6 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			writer: createWriterMock(),
 			onWarning: vi.fn(),
 			log: { error: vi.fn() },
 			stageId: "initial_extraction",
@@ -324,6 +320,50 @@ describe("runExtractionPass", () => {
 		expect(toolMatches).toHaveLength(1);
 	});
 
+	it("warns when more than one question is extracted", async () => {
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
+					await addQuestion.execute({
+						question: "Questao 1",
+						options: ["A", "B"],
+						answer: "A",
+						topic: "Geral",
+					});
+					await addQuestion.execute({
+						question: "Questao 2",
+						options: ["A", "B"],
+						answer: "B",
+						topic: "Geral",
+					});
+				})(),
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
+
+		const onWarning = vi.fn();
+		await runExtractionPass({
+			text: "Texto da prova",
+			fileName: "exam.txt",
+			config: {
+				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
+				apiKey: "test-key",
+			},
+			criticalTopics: [],
+			agentRuns: createAgentRunsMock(),
+			onWarning,
+			log: { error: vi.fn() },
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		expect(onWarning).toHaveBeenCalledWith(
+			"Extracted 2 questions — verify the count matches the source exam.",
+		);
+	});
+
 	it("throws and warns when no question is added", async () => {
 		mockStreamParts([]);
 
@@ -332,6 +372,7 @@ describe("runExtractionPass", () => {
 		await expect(
 			runExtractionPass({
 				text: "Sem questoes",
+				fileName: "exam.txt",
 				config: {
 					model: "openai/gpt-4o-mini",
 					baseUrl: "https://openrouter.ai/api/v1",
@@ -339,7 +380,6 @@ describe("runExtractionPass", () => {
 				},
 				criticalTopics: [],
 				agentRuns: createAgentRunsMock(),
-				writer: createWriterMock(),
 				onWarning,
 				log: { error: vi.fn() },
 				stageId: "initial_extraction",
@@ -410,6 +450,7 @@ describe("runExtractionPass", () => {
 		const agentRuns = createAgentRunsMock();
 		await runExtractionPass({
 			text: "Texto da prova",
+			fileName: "exam.txt",
 			config: {
 				model: "openai/gpt-4o-mini",
 				baseUrl: "https://openrouter.ai/api/v1",
@@ -417,7 +458,6 @@ describe("runExtractionPass", () => {
 			},
 			criticalTopics: [],
 			agentRuns,
-			writer: createWriterMock(),
 			onWarning: vi.fn(),
 			log: { error: vi.fn() },
 			stageId: "initial_extraction",

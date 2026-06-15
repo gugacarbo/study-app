@@ -35,7 +35,7 @@ export async function reviewExtraction(
 		};
 	}
 
-	if (!options.tools?.length) {
+	if (Object.keys(options.tools ?? {}).length === 0) {
 		options.onEvent?.({
 			type: "warning",
 			message:
@@ -63,6 +63,7 @@ export async function reviewExtraction(
 
 	return {
 		extracted: {
+			examName: extracted.examName,
 			questions,
 			topics: deriveTopics(questions, extracted.topics),
 		},
@@ -120,7 +121,6 @@ async function reviewAllQuestionsWithRetries(
 			message: `Retrying ${failedIndices.length} failed review${failedIndices.length === 1 ? "" : "s"} (attempt ${attempt}/${MAX_REVIEW_ATTEMPTS})...`,
 		});
 
-		const retryOptions = reviewOptionsForAttempt(options, attempt);
 		const retryResults = await mapWithConcurrency(
 			failedIndices,
 			concurrency,
@@ -131,7 +131,7 @@ async function reviewAllQuestionsWithRetries(
 					questions[index],
 					index,
 					totalQuestions,
-					retryOptions,
+					options,
 				),
 		);
 
@@ -141,21 +141,4 @@ async function reviewAllQuestionsWithRetries(
 	}
 
 	return results;
-}
-
-function reviewOptionsForAttempt(
-	options: ReviewExtractionOptions,
-	attempt: number,
-): ReviewExtractionOptions {
-	if (attempt <= 1) {
-		return options;
-	}
-
-	const retryNumber = attempt - 1;
-	return {
-		...options,
-		createAgentRunId: (label) =>
-			options.createAgentRunId?.(`${label} (retry ${retryNumber})`) ??
-			`${label}-retry-${retryNumber}`,
-	};
 }

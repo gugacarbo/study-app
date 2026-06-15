@@ -10,6 +10,7 @@ interface PersistParams {
 	queries: DBQueries;
 	fileService: FileService;
 	fileName: string;
+	examName: string;
 	buffer: number[];
 	questions: Question[];
 	writer: JobUIMessageStreamWriter;
@@ -21,7 +22,7 @@ interface PersistParams {
 export async function persistResults(
 	params: PersistParams,
 ): Promise<{ examId: number; fileId: number }> {
-	const { queries, fileService, fileName, buffer, questions, writer, log } =
+	const { queries, fileService, fileName, examName, buffer, questions, writer, log } =
 		params;
 
 	writeStage(writer, {
@@ -33,7 +34,7 @@ export async function persistResults(
 
 	let examId: number;
 	try {
-		examId = await queries.insertExam(fileName, "upload");
+		examId = await queries.insertExam(examName, "upload");
 	} catch (err) {
 		log.error("Failed to insert exam", err, {
 			stage: "persist",

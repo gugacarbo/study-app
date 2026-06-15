@@ -782,6 +782,10 @@ export function upsertAgentRun(
 	job: IngestJob,
 	event: IngestAgentEvent,
 ): IngestJob {
+	if (!event.agentRunId) {
+		return job;
+	}
+
 	const timestamp = event.timestamp ?? Date.now();
 	const existingIndex = job.agentRuns.findIndex(
 		(agentRun) => agentRun.id === event.agentRunId,
@@ -800,7 +804,9 @@ export function upsertAgentRun(
 		return {
 			...job,
 			agentRuns: [
-				...job.agentRuns,
+				...job.agentRuns.filter(
+					(agentRun) => agentRun.id !== event.agentRunId,
+				),
 				{
 					id: event.agentRunId,
 					stageId: event.stageId,

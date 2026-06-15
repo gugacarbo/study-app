@@ -11,7 +11,12 @@ vi.mock("@/features/ai/agents/ingest/review-extraction", () => ({
 import { runReviewStage } from "@/routes/api/ingest/-review-stage";
 
 function createAgentRunsMock() {
+	let counter = 0;
 	return {
+		allocateAgentRunId: vi.fn((stageId: string) => {
+			counter += 1;
+			return `${stageId}-${counter}`;
+		}),
 		createRun: vi.fn((stageId: string, label: string) => ({
 			stageId,
 			agentRunId: `${stageId}-1`,
@@ -86,6 +91,7 @@ describe("runReviewStage", () => {
 						topic: "Geral",
 					},
 				],
+				examName: "exam",
 				topics: ["Geral"],
 			},
 			criticalTopics: [],

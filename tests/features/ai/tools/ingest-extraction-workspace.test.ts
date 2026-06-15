@@ -67,6 +67,7 @@ describe("ingest extraction workspace", () => {
 
 		const result = workspace.buildResult();
 		expect(result).toEqual({
+			examName: "Untitled exam",
 			questions: [
 				{
 					question: "Questao corrigida",

@@ -98,9 +98,10 @@ export async function setupMemory(
 		},
 	});
 
-	const webTools = resolvedTools.tools.length ? resolvedTools.tools : undefined;
+	const hasWebTools = Object.keys(resolvedTools.tools).length > 0;
+	const webTools = hasWebTools ? resolvedTools.tools : undefined;
 
-	if (!webTools?.length && criticalTopics.length > 0) {
+	if (!hasWebTools && criticalTopics.length > 0) {
 		onWarning(
 			"Web tools are unavailable. Review will proceed without web verification.",
 		);

@@ -5,7 +5,8 @@ Tool contract:
 - Use add_extracted_question to register each extracted question.
 - Use update_extracted_question if you need to correct a previously added question.
 - Use list_extracted_questions when you need to inspect the current workspace before editing.
-- Do not return a final JSON object yourself. The server will build the final { questions, topics } result from the tool workspace.
+- Do not return a final JSON object yourself. The server will build the final { examName, questions, topics } result from the tool workspace.
+- The exam name is derived from the uploaded file name before extraction starts; focus only on question extraction.
 - Do not output markdown, code fences, or commentary unless it is strictly necessary for the tool workflow.
 
 Extraction rules:

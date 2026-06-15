@@ -18,6 +18,7 @@ interface RunReviewStageParams {
 		Parameters<typeof import("@/features/ai/core/generate").generateJson>[3]
 	>["tools"];
 	agentRuns: {
+		allocateAgentRunId(stageId: string): string;
 		createRun(stageId: string, label: string): AgentRunDescriptor;
 		lifecycle(
 			run: AgentRunDescriptor,
@@ -118,6 +119,8 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 		timestamp: Date.now(),
 	});
 
+	const agentRunIdsByLabel = new Map<string, string>();
+
 	try {
 		const reviewResult = await reviewExtraction(
 			// biome-ignore lint/suspicious/noExplicitAny: config shape matches
@@ -202,8 +205,13 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 						);
 					}
 				},
-				createAgentRunId: (label) =>
-					agentRuns.createRun("review", label).agentRunId,
+				createAgentRunId: (label) => {
+					const cached = agentRunIdsByLabel.get(label);
+					if (cached) return cached;
+					const agentRunId = agentRuns.allocateAgentRunId("review");
+					agentRunIdsByLabel.set(label, agentRunId);
+					return agentRunId;
+				},
 			},
 		);
 

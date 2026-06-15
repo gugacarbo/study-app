@@ -11,7 +11,12 @@ vi.mock("@/features/ai/agents/explanations", () => ({
 import { runExplanationsStage } from "@/routes/api/ingest/-explanations-stage";
 
 function createAgentRunsMock() {
+	let counter = 0;
 	return {
+		allocateAgentRunId: vi.fn((stageId: string) => {
+			counter += 1;
+			return `${stageId}-${counter}`;
+		}),
 		createRun: vi.fn((stageId: string, label: string) => ({
 			stageId,
 			agentRunId: `${stageId}-${label}`,
@@ -62,6 +67,7 @@ describe("runExplanationsStage", () => {
 						topic: "Geral",
 					},
 				],
+				examName: "exam",
 				topics: ["Geral"],
 			},
 			memory: createMemoryMock() as never,
@@ -115,6 +121,7 @@ describe("runExplanationsStage", () => {
 				apiKey: "test-key",
 			},
 			extracted: {
+				examName: "exam",
 				questions: [
 					{
 						question: "Pergunta",
@@ -149,6 +156,7 @@ describe("runExplanationsStage", () => {
 			}),
 		);
 		expect(result).toEqual({
+			examName: "exam",
 			questions: [
 				{
 					question: "Pergunta",

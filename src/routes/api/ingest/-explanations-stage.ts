@@ -13,6 +13,7 @@ import type { MemoryManager } from "../../../lib/memory";
 import { buildTopicMemoryResolver } from "../../../lib/memory/topic-context";
 
 interface AgentRunsHelper {
+	allocateAgentRunId(stageId: string): string;
 	createRun(stageId: string, label: string): AgentRunDescriptor;
 	lifecycle(
 		run: AgentRunDescriptor,
@@ -211,6 +212,8 @@ export async function runExplanationsStage(
 			explanationInput.map((question) => question.topic ?? "General"),
 		);
 
+		const agentRunIdsByLabel = new Map<string, string>();
+
 		const explanationResult = await runQuestionExplanations(
 			config,
 			explanationInput,
@@ -221,8 +224,13 @@ export async function runExplanationsStage(
 				onProgress: ({ message }) => onProgress(message),
 				onAgentEvent: (event) =>
 					bridgeExplanationAgentEvent(event, agentRuns, onWarning),
-				createAgentRunId: (label) =>
-					agentRuns.createRun("explanations", label).agentRunId,
+				createAgentRunId: (label) => {
+					const cached = agentRunIdsByLabel.get(label);
+					if (cached) return cached;
+					const agentRunId = agentRuns.allocateAgentRunId("explanations");
+					agentRunIdsByLabel.set(label, agentRunId);
+					return agentRunId;
+				},
 			},
 		);
 
@@ -255,6 +263,7 @@ export async function runExplanationsStage(
 		onProgress("Explanation generation completed");
 
 		return {
+			examName: extracted.examName,
 			questions,
 			topics: extracted.topics,
 		};

@@ -401,7 +401,7 @@ describe("generateJsonStream", () => {
 			{
 				type: "text-delta",
 				textDelta:
-					'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
+					'<think>\nVou extrair as questoes da prova e devolver JSON valido.\n1. Questao sobre conceito de E/S\n2. Questao sobre drivers\n"examName":"Prova de E/S","questions": [{"question":"O que e E/S mapeada em memoria?","options":["Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","Usa apenas portas dedicadas de E/S.","Desativa interrupcoes do dispositivo.","E um tipo de memoria cache."],"answer":"Mapeia registradores de dispositivo no espaco de enderecamento da memoria.","explanation":"","topic":"Gerencia de E/S"}],"topics":["Gerencia de E/S"]}',
 			},
 			{
 				type: "error",
@@ -423,6 +423,7 @@ describe("generateJsonStream", () => {
 		);
 
 		expect(result).toEqual({
+			examName: "Prova de E/S",
 			questions: [
 				{
 					question: "O que e E/S mapeada em memoria?",
@@ -450,7 +451,7 @@ describe("generateJsonStream", () => {
 			{
 				type: "text-delta",
 				textDelta:
-					'<think>Analisando a prova dissertativa.</think>{"questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
+					'<think>Analisando a prova dissertativa.</think>{"examName":"Prova de Redes","questions":[{"question":"Explique o modelo OSI.","options":[],"answer":"O modelo OSI possui sete camadas.","explanation":"","topic":"Redes"}],"topics":["Redes"]}',
 			},
 			{
 				type: "error",
@@ -472,6 +473,7 @@ describe("generateJsonStream", () => {
 		);
 
 		expect(result).toEqual({
+			examName: "Prova de Redes",
 			questions: [
 				{
 					question: "Explique o modelo OSI.",

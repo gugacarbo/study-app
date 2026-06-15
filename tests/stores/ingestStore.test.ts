@@ -148,6 +148,43 @@ describe("applyWarningEvent", () => {
 });
 
 describe("upsertAgentRun", () => {
+	it("ignores events without agentRunId", () => {
+		const job = createJob();
+		const updated = upsertAgentRun(
+			job,
+			agentEvent({
+				agentRunId: undefined,
+				label: "orphan",
+			}),
+		);
+
+		expect(updated).toBe(job);
+		expect(updated.agentRuns).toHaveLength(0);
+	});
+
+	it("updates instead of appending when the same agentRunId is seen again", () => {
+		const job = upsertAgentRun(
+			createJob(),
+			agentEvent({
+				agentRunId: "agent-1",
+				label: "Reviewer Q1",
+				status: "running",
+			}),
+		);
+
+		const updated = upsertAgentRun(
+			job,
+			agentEvent({
+				agentRunId: "agent-1",
+				label: "Reviewer Q1",
+				status: "done",
+			}),
+		);
+
+		expect(updated.agentRuns).toHaveLength(1);
+		expect(updated.agentRuns[0].status).toBe("done");
+	});
+
 	it("updates agent token totals via tokens field", () => {
 		const job = createJob();
 

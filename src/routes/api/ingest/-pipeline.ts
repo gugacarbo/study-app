@@ -118,10 +118,10 @@ export async function runIngestWithProgress(
 	try {
 		extracted = await runExtractionPass({
 			text,
+			fileName: payload.fileName,
 			config: ingestConfig,
 			criticalTopics,
 			agentRuns,
-			writer,
 			onWarning,
 			log,
 			stageId: "initial_extraction",
@@ -194,6 +194,7 @@ export async function runIngestWithProgress(
 		queries,
 		fileService,
 		fileName: payload.fileName,
+		examName: finalExtracted.examName,
 		buffer: payload.buffer,
 		questions: finalExtracted.questions,
 		writer,

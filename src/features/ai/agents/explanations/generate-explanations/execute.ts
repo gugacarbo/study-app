@@ -114,7 +114,6 @@ async function explainAllQuestionsWithRetries(
 			message: `Retrying ${failedIndices.length} failed explanation${failedIndices.length === 1 ? "" : "s"} (attempt ${attempt}/${MAX_EXPLANATION_ATTEMPTS})...`,
 		});
 
-		const retryOptions = explanationOptionsForAttempt(options, attempt);
 		const retryResults = await mapWithConcurrency(
 			failedIndices,
 			concurrency,
@@ -124,7 +123,7 @@ async function explainAllQuestionsWithRetries(
 					questions[index],
 					index,
 					totalQuestions,
-					retryOptions,
+					options,
 				),
 		);
 
@@ -134,23 +133,6 @@ async function explainAllQuestionsWithRetries(
 	}
 
 	return results;
-}
-
-function explanationOptionsForAttempt(
-	options: RunQuestionExplanationsOptions,
-	attempt: number,
-): RunQuestionExplanationsOptions {
-	if (attempt <= 1) {
-		return options;
-	}
-
-	const retryNumber = attempt - 1;
-	return {
-		...options,
-		createAgentRunId: (label) =>
-			options.createAgentRunId?.(`${label} (retry ${retryNumber})`) ??
-			`${label}-retry-${retryNumber}`,
-	};
 }
 
 function trackAgentRun(

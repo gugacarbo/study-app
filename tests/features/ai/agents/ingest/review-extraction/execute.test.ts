@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ToolSet } from "ai";
 
 const { reviewSingleQuestionMock } = vi.hoisted(() => ({
 	reviewSingleQuestionMock: vi.fn(),
@@ -68,7 +69,7 @@ describe("reviewExtraction", () => {
 		await reviewExtraction(
 			config,
 			"source text",
-			{ questions, topics: ["General"] },
+			{ examName: "General Exam", questions, topics: ["General"] },
 			{ reviewTopics: ["General"] },
 		);
 
@@ -89,6 +90,7 @@ describe("reviewExtraction", () => {
 				config,
 				"source text",
 				{
+					examName: "General Exam",
 					questions: [makeQuestion(0), makeQuestion(1)],
 					topics: ["General"],
 				},
@@ -120,6 +122,7 @@ describe("reviewExtraction", () => {
 			config,
 			"source text",
 			{
+				examName: "General Exam",
 				questions: [makeQuestion(0), makeQuestion(1)],
 				topics: ["General"],
 			},
@@ -153,6 +156,7 @@ describe("reviewExtraction", () => {
 			config,
 			"source text",
 			{
+				examName: "General Exam",
 				questions: [makeQuestion(0), makeQuestion(1)],
 				topics: ["General"],
 			},
@@ -162,6 +166,96 @@ describe("reviewExtraction", () => {
 		expect(result.reviewedQuestionCount).toBe(1);
 		expect(result.failedQuestionCount).toBe(1);
 		expect(reviewSingleQuestionMock).toHaveBeenCalledTimes(1 + MAX_REVIEW_ATTEMPTS);
+	});
+
+	it("reuses the same agentRunId across review retries", async () => {
+		const agentRunIds: string[] = [];
+
+		reviewSingleQuestionMock.mockImplementation(
+			async (_config, _text, _question, index, _total, options) => {
+				const label = `Reviewer Q${index + 1}`;
+				const id =
+					options.createAgentRunId?.(label) ?? `review-question-${index + 1}`;
+				agentRunIds.push(id);
+				return index === 0 && agentRunIds.filter((value) => value === id).length < 3
+					? failureResult(index)
+					: successResult(index);
+			},
+		);
+
+		await reviewExtraction(
+			config,
+			"source text",
+			{
+				examName: "General Exam",
+				questions: [makeQuestion(0), makeQuestion(1)],
+				topics: ["General"],
+			},
+			{
+				reviewTopics: ["General"],
+				createAgentRunId: (label) => `stable-${label}`,
+			},
+		);
+
+		expect(
+			new Set(agentRunIds.filter((id) => id.startsWith("stable-Reviewer Q1"))),
+		).toEqual(new Set(["stable-Reviewer Q1"]));
+		expect(agentRunIds.filter((id) => id === "stable-Reviewer Q1")).toHaveLength(3);
+	});
+
+	it("warns when web tools are an empty ToolSet object", async () => {
+		const onEvent = vi.fn();
+
+		reviewSingleQuestionMock.mockResolvedValue(successResult(0));
+
+		await reviewExtraction(
+			config,
+			"source text",
+			{
+				examName: "General Exam",
+				questions: [makeQuestion(0)],
+				topics: ["General"],
+			},
+			{
+				reviewTopics: ["General"],
+				tools: {},
+				onEvent,
+			},
+		);
+
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "warning",
+			message:
+				"Web verification tools are unavailable. Continuing with LLM-only review (no web search/fetch).",
+		});
+	});
+
+	it("does not warn about web tools when ToolSet has entries", async () => {
+		const onEvent = vi.fn();
+
+		reviewSingleQuestionMock.mockResolvedValue(successResult(0));
+
+		await reviewExtraction(
+			config,
+			"source text",
+			{
+				examName: "General Exam",
+				questions: [makeQuestion(0)],
+				topics: ["General"],
+			},
+			{
+				reviewTopics: ["General"],
+				tools: { search_web: { execute: async () => ({}) } } as unknown as ToolSet,
+				onEvent,
+			},
+		);
+
+		expect(onEvent).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "warning",
+				message: expect.stringContaining("Web verification tools are unavailable"),
+			}),
+		);
 	});
 
 	it("retries questions that fail later in the cycle without aborting", async () => {
@@ -180,7 +274,7 @@ describe("reviewExtraction", () => {
 		const result = await reviewExtraction(
 			config,
 			"source text",
-			{ questions, topics: ["General"] },
+			{ examName: "General Exam", questions, topics: ["General"] },
 			{ reviewTopics: ["General"] },
 		);
 
