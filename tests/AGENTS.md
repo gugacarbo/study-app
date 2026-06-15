@@ -1,6 +1,6 @@
 # Tests
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-06-15
 
 Vitest v4 + jsdom. ~30 arquivos. Detalhe → `docs/context/TESTS.md`.
 
@@ -16,8 +16,8 @@ Vitest v4 + jsdom. ~30 arquivos. Detalhe → `docs/context/TESTS.md`.
 | `lib/`                          | validation, generate, chat-db-tools                                                                                      |
 | `server-functions/`             | config, quiz                                                                                                             |
 | `routes/`                       | exams.ingest, api/ingest-\*-stage, ingest-extraction-pass                                                                |
-| `components/`                   | ingest (output-panel, ingest-chat-view), quiz (quiz, results, hooks), exams-view, explanation-dialog, chat-message-utils |
-| `features/ai/`                  | agents (ingest review, explanations), tools, core/ai-stream-handler, lib/read-job-ui-message-stream                      |
+| `components/`                   | ingest (output-panel, ingest-chat-view), quiz (quiz, results, hooks), exams-view, chat-message-utils |
+| `features/ai/`                  | agents (ingest review, explanations), adapters/provider-model, tools, core/ai-stream-handler, lib/read-job-ui-message-stream |
 | `stores/`                       | ingestStore                                                                                                              |
 | `db.queries.pagination.test.ts` | FakeDrizzle pagination                                                                                                   |
 
