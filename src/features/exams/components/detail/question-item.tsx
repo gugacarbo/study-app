@@ -40,18 +40,18 @@ export function QuestionItem({
 			value={String(question.id)}
 			className="overflow-hidden rounded-lg border not-last:border-b"
 		>
-			<AccordionTrigger className="items-start gap-3 p-3 hover:bg-muted hover:no-underline">
-				<div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+			<AccordionTrigger className="min-h-12 items-start gap-2.5 p-3 hover:bg-muted hover:no-underline sm:min-h-0 sm:gap-3">
+				<div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary sm:size-6 sm:font-medium">
 					{index + 1}
 				</div>
 				<div className="min-w-0 flex-1 text-left">
-					<p className="text-sm leading-relaxed line-clamp-2">
+					<p className="line-clamp-3 text-sm leading-relaxed sm:line-clamp-2">
 						{question.question}
 					</p>
 				</div>
 			</AccordionTrigger>
 
-			<AccordionContent className="border-t px-3 pb-3">
+			<AccordionContent className="border-t px-2.5 pb-3 sm:px-3">
 				{isEditing && editForm ? (
 					<QuestionEditForm
 						question={question}

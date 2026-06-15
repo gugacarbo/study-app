@@ -41,31 +41,39 @@ export function QuestionAccordion({
 
 	return (
 		<div className="pt-2">
-			<div className="flex items-center justify-end gap-2">
+			<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
 				{statusLabel && (
 					<Badge
 						variant="outline"
-						className="gap-1 border-primary/40 text-primary"
+						className="w-fit gap-1 self-start border-primary/40 text-primary sm:self-auto"
 					>
 						{isRunning && <Loader2 className="size-3 animate-spin" />}
 						{statusLabel}
 					</Badge>
 				)}
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={() => onImproveQuestions(question)}
-				>
-					<Sparkles className="size-3.5" />
-					Improve Question
-				</Button>
-				<Button variant="ghost" size="sm" onClick={() => onStartEdit(question)}>
-					<Pencil className="size-3.5" />
-					Edit
-				</Button>
+				<div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+					<Button
+						variant="outline"
+						size="sm"
+						className="min-h-10 sm:min-h-8"
+						onClick={() => onImproveQuestions(question)}
+					>
+						<Sparkles className="size-3.5" />
+						<span className="truncate">Improve</span>
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						className="min-h-10 sm:min-h-8"
+						onClick={() => onStartEdit(question)}
+					>
+						<Pencil className="size-3.5" />
+						Edit
+					</Button>
+				</div>
 			</div>
 
-			<div className="mt-1 flex flex-col gap-1.5">
+			<div className="mt-2 flex flex-col gap-2 sm:mt-1 sm:gap-1.5">
 				{question.options.map((opt, optIdx) => {
 					const letter = String.fromCharCode(65 + optIdx);
 					const isCorrect = isOptionCorrect(opt, question.answers);
@@ -73,29 +81,31 @@ export function QuestionAccordion({
 						<div
 							key={`${question.id}:${letter}:${opt}`}
 							className={cn(
-								"flex items-start gap-2.5 rounded-md border p-2.5 text-sm",
+								"flex flex-col gap-2 rounded-md border p-3 text-sm sm:flex-row sm:items-start sm:gap-2.5 sm:p-2.5",
 								isCorrect
 									? "border-2 border-success bg-success/5"
 									: "border-border/50 bg-muted/30",
 							)}
 						>
-							<span
-								className={cn(
-									"flex size-5 shrink-0 items-center justify-center rounded border bg-card text-[11px] font-bold",
-									isCorrect
-										? "border-success/60 text-success"
-										: "border-border text-muted-foreground",
-								)}
-							>
-								{letter}
-							</span>
-							<span className="min-w-0 flex-1">
-								<MarkdownRenderer content={opt} />
-							</span>
+							<div className="flex min-w-0 items-start gap-2.5">
+								<span
+									className={cn(
+										"flex size-6 shrink-0 items-center justify-center rounded border bg-card text-xs font-bold sm:size-5 sm:text-[11px]",
+										isCorrect
+											? "border-success/60 text-success"
+											: "border-border text-muted-foreground",
+									)}
+								>
+									{letter}
+								</span>
+								<span className="min-w-0 flex-1">
+									<MarkdownRenderer content={opt} />
+								</span>
+							</div>
 							{isCorrect && (
 								<Badge
 									variant="outline"
-									className="mt-0.5 shrink-0 border-success/50 text-success"
+									className="w-fit shrink-0 border-success/50 text-success sm:mt-0.5"
 								>
 									Correct
 								</Badge>

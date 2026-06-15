@@ -41,8 +41,8 @@ export function QuestionsCard({
 }: QuestionsCardProps) {
 	return (
 		<Card>
-			<CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-				<CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+			<CardHeader className="flex flex-col items-stretch gap-2.5 space-y-0 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+				<CardTitle className="text-sm font-semibold">
 					Questions ({questions.length})
 				</CardTitle>
 				{onOpenImproveQuestionsBatch && questions.length > 0 && (
@@ -50,6 +50,7 @@ export function QuestionsCard({
 						type="button"
 						variant="outline"
 						size="sm"
+						className="min-h-10 w-full sm:min-h-8 sm:w-auto"
 						onClick={onOpenImproveQuestionsBatch}
 					>
 						<Sparkles data-icon="inline-start" />
@@ -57,7 +58,7 @@ export function QuestionsCard({
 					</Button>
 				)}
 			</CardHeader>
-			<CardContent>
+			<CardContent className="px-3 sm:px-4">
 				{questions.length === 0 ? (
 					<p className="text-sm text-muted-foreground">No questions found.</p>
 				) : (

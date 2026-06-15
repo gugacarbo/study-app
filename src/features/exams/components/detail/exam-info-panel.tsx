@@ -42,11 +42,32 @@ function PanelSection({
 }) {
 	return (
 		<section className={className}>
-			<p className="mb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+			<p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
 				{label}
 			</p>
 			{children}
 		</section>
+	);
+}
+
+function StatTile({
+	label,
+	value,
+	valueClassName,
+}: {
+	label: string;
+	value: ReactNode;
+	valueClassName?: string;
+}) {
+	return (
+		<div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+			<dt className="text-[11px] text-muted-foreground sm:text-xs">{label}</dt>
+			<dd
+				className={`mt-0.5 text-sm font-medium tabular-nums sm:text-xs ${valueClassName ?? ""}`}
+			>
+				{value}
+			</dd>
+		</div>
 	);
 }
 
@@ -56,44 +77,36 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 
 	return (
 		<Card size="sm">
-			<CardContent className="space-y-2">
-				<dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
-					<div>
-						<dt className="text-muted-foreground">Uploaded</dt>
-						<dd className="font-medium tabular-nums">
-							{formatDate(exam.created_at)}
-						</dd>
-					</div>
-					<div>
-						<dt className="text-muted-foreground">Questions</dt>
-						<dd className="font-medium tabular-nums">{exam.questionCount}</dd>
-					</div>
-					<div>
-						<dt className="text-muted-foreground">Quiz attempts</dt>
-						<dd className="font-medium tabular-nums">{stats.totalAttempts}</dd>
-					</div>
-					<div>
-						<dt className="text-muted-foreground">Incomplete / accuracy</dt>
-						<dd
-							className={`font-medium tabular-nums ${accuracyColor(stats.overallAccuracy)}`}
-						>
-							{stats.totalAttempts > 0
+			<CardContent className="space-y-3 sm:space-y-2">
+				<dl className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-x-4 sm:gap-y-1">
+					<StatTile label="Uploaded" value={formatDate(exam.created_at)} />
+					<StatTile label="Questions" value={exam.questionCount} />
+					<StatTile label="Quiz attempts" value={stats.totalAttempts} />
+					<StatTile
+						label="Incomplete / accuracy"
+						value={
+							stats.totalAttempts > 0
 								? `${stats.incompleteAttempts} / ${stats.overallAccuracy}%`
-								: "—"}
-						</dd>
-					</div>
+								: "—"
+						}
+						valueClassName={
+							stats.totalAttempts > 0
+								? accuracyColor(stats.overallAccuracy)
+								: undefined
+						}
+					/>
 				</dl>
 
 				{exam.files.length > 0 && (
 					<PanelSection
 						label="Source files"
-						className="border-t border-border pt-2"
+						className="border-t border-border pt-3 sm:pt-2"
 					>
-						<ul className="space-y-0.5">
+						<ul className="space-y-1">
 							{exam.files.map((file) => (
 								<li
 									key={file.id}
-									className="flex min-w-0 items-baseline gap-1 text-xs text-muted-foreground"
+									className="flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground sm:flex-row sm:items-baseline sm:gap-1"
 								>
 									<span className="truncate text-foreground">{file.name}</span>
 									<span className="shrink-0 tabular-nums">
@@ -108,9 +121,9 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 				{exam.topics.length > 0 && (
 					<PanelSection
 						label="Topics"
-						className="border-t border-border pt-2"
+						className="border-t border-border pt-3 sm:pt-2"
 					>
-						<div className="flex flex-wrap gap-1">
+						<div className="flex flex-wrap gap-1.5">
 							{exam.topics.map((topic) => (
 								<Badge key={topic} variant="secondary" className="text-[11px]">
 									{topic}
@@ -123,12 +136,12 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 				{showPerformance && (
 					<PanelSection
 						label="Performance by topic"
-						className="border-t border-border pt-2"
+						className="border-t border-border pt-3 sm:pt-2"
 					>
-						<div className="space-y-2">
+						<div className="space-y-2.5">
 							{stats.topicStats.map((topic) => (
 								<div key={topic.topic}>
-									<div className="mb-0.5 flex items-baseline justify-between gap-2 text-xs">
+									<div className="mb-1 flex flex-col gap-0.5 text-xs sm:mb-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
 										<span className="truncate font-medium">{topic.topic}</span>
 										<span
 											className={`shrink-0 tabular-nums ${accuracyColor(topic.accuracy)}`}
@@ -137,7 +150,7 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 											{topic.completedAnswers} ({topic.accuracy}%)
 										</span>
 									</div>
-									<div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+									<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted sm:h-1">
 										<div
 											className={`h-full rounded-full transition-all ${accuracyBarClass(topic.accuracy)}`}
 											style={{ width: `${topic.accuracy}%` }}
@@ -146,8 +159,8 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 								</div>
 							))}
 
-							<div className="border-t border-border pt-2">
-								<div className="mb-0.5 flex items-baseline justify-between gap-2 text-xs">
+							<div className="border-t border-border pt-2.5 sm:pt-2">
+								<div className="mb-1 flex flex-col gap-0.5 text-xs sm:mb-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
 									<span className="font-medium">Overall</span>
 									<span
 										className={`shrink-0 tabular-nums ${accuracyColor(stats.overallAccuracy)}`}
@@ -156,7 +169,7 @@ export function ExamInfoPanel({ exam, stats }: ExamInfoPanelProps) {
 										{stats.incompleteAttempts} inc · {stats.overallAccuracy}%
 									</span>
 								</div>
-								<div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+								<div className="h-1.5 w-full overflow-hidden rounded-full bg-muted sm:h-1">
 									<div
 										className={`h-full rounded-full transition-all ${accuracyBarClass(stats.overallAccuracy)}`}
 										style={{ width: `${stats.overallAccuracy}%` }}

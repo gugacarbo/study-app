@@ -41,8 +41,8 @@ export function ExamHeader({
 	} = useExamNameEditing({ examId: exam.id, initialName: exam.name });
 
 	return (
-		<div className="flex items-start justify-between gap-3 mb-2">
-			<div className="flex-1 min-w-0">
+		<header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+			<div className="min-w-0 flex-1">
 				<div className="group flex min-w-0 items-center gap-1.5">
 					{isEditing ? (
 						<Input
@@ -55,7 +55,7 @@ export function ExamHeader({
 							aria-label="Exam name"
 							className={cn(
 								"h-8 min-h-8 min-w-0 flex-1 rounded-sm border-0 bg-transparent p-0 shadow-none",
-								"text-2xl font-bold leading-8 md:text-2xl md:leading-8",
+								"text-xl font-bold leading-8 sm:text-2xl sm:leading-8",
 								"ring-0 focus-visible:border-0 focus-visible:bg-input/20 focus-visible:ring-0",
 							)}
 						/>
@@ -64,7 +64,7 @@ export function ExamHeader({
 							<button
 								type="button"
 								onClick={startEditing}
-								className="min-w-0 flex-1 truncate text-left text-2xl font-bold transition-colors hover:text-foreground/80"
+								className="min-w-0 flex-1 truncate text-left text-xl font-bold transition-colors hover:text-foreground/80 sm:text-2xl"
 							>
 								{exam.name}
 							</button>
@@ -72,39 +72,40 @@ export function ExamHeader({
 								type="button"
 								variant="ghost"
 								size="icon"
-								className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+								className="size-8 shrink-0 opacity-100 sm:size-7 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
 								onClick={startEditing}
 								aria-label="Edit exam name"
 							>
-								<Pencil className="h-3.5 w-3.5" />
+								<Pencil className="size-3.5" />
 							</Button>
 						</>
 					)}
 				</div>
 				{exam.source && (
-					<p className="text-sm text-muted-foreground truncate">
+					<p className="mt-0.5 truncate text-sm text-muted-foreground">
 						{exam.source}
 					</p>
 				)}
 			</div>
 
-			<div className="flex gap-2 shrink-0">
-				<Button asChild variant="default" size="sm">
+			<div className="flex shrink-0 items-center gap-2">
+				<Button asChild className="min-h-10 flex-1 sm:min-h-8 sm:flex-none" size="sm">
 					<Link
 						from="/exams/$id"
 						to="/quiz/$id"
 						params={{ id: exam.id.toString() }}
 					>
-						<Play className="h-4 w-4" />
+						<Play className="size-4" />
 						Start Quiz
 					</Link>
 				</Button>
 
 				{confirmDelete ? (
-					<div className="flex gap-1.5">
+					<div className="flex shrink-0 gap-1.5">
 						<Button
 							variant="destructive"
 							size="sm"
+							className="min-h-10 sm:min-h-8"
 							onClick={handleDelete}
 							disabled={deleting}
 						>
@@ -113,6 +114,7 @@ export function ExamHeader({
 						<Button
 							variant="ghost"
 							size="sm"
+							className="min-h-10 sm:min-h-8"
 							onClick={() => setConfirmDelete(false)}
 						>
 							Cancel
@@ -120,14 +122,16 @@ export function ExamHeader({
 					</div>
 				) : (
 					<Button
-						variant="ghost"
+						variant="outline"
 						size="icon"
+						className="size-10 shrink-0 sm:size-8"
 						onClick={() => setConfirmDelete(true)}
+						aria-label="Delete exam"
 					>
-						<Trash2 className="h-4 w-4" />
+						<Trash2 className="size-4" />
 					</Button>
 				)}
 			</div>
-		</div>
+		</header>
 	);
 }
