@@ -1,15 +1,22 @@
+import { computeTotalRequestMs } from "@/features/ai/lib/stream-perf-metrics";
 import {
 	appendLogEntry,
 	createEmptyJob,
 	ensureAgentRunMessages,
 } from "@/features/ingest/store/job-utils";
-import type { IngestJob } from "@/features/ingest/store/types";
 import { hydrateIngestStateFromStorage } from "@/features/ingest/store/persistence";
+import type { IngestJob } from "@/features/ingest/store/types";
 import type {
+	BackgroundProcess,
 	BackgroundProcessStoreState,
+	ConnectionTestBackgroundProcess,
 	IngestBackgroundProcess,
+	ModelBenchmarkBackgroundProcess,
+	PersistedBackgroundProcess,
 	PersistedBackgroundProcessState,
+	PersistedConnectionTestProcess,
 	PersistedIngestProcess,
+	PersistedModelBenchmarkProcess,
 } from "./types";
 import {
 	BACKGROUND_PROCESS_STORAGE_KEY,
@@ -43,15 +50,35 @@ export function trimCompletedIngestProcesses(
 	return [...active, ...kept];
 }
 
+function getPersistableProcesses(
+	state: BackgroundProcessStoreState,
+): PersistedBackgroundProcess[] {
+	return state.processes.reduce<PersistedBackgroundProcess[]>(
+		(acc, process) => {
+			if (process.kind === "ingest") {
+				const { buffer: _buffer, ...persisted } = process;
+				acc.push(persisted);
+				return acc;
+			}
+			if (
+				process.kind === "connection-test" ||
+				process.kind === "model-benchmark"
+			) {
+				acc.push(process);
+			}
+			return acc;
+		},
+		[],
+	);
+}
+
 export function serializeBackgroundProcessStateForStorage(
 	state: BackgroundProcessStoreState,
 ): string {
-	const ingestProcesses = state.processes.filter(
-		(process): process is IngestBackgroundProcess => process.kind === "ingest",
-	);
+	const processes = getPersistableProcesses(state);
 
 	return JSON.stringify({
-		processes: ingestProcesses.map(({ buffer: _buffer, ...process }) => process),
+		processes,
 		focusedProcessId: state.focusedProcessId,
 	} satisfies PersistedBackgroundProcessState);
 }
@@ -79,6 +106,7 @@ export function clearCompletedIngestProcessesFromState(
 		processes,
 		focusedProcessId,
 		improveQuestionsBatchByExam: state.improveQuestionsBatchByExam,
+		explainQuestionsBatchByExam: state.explainQuestionsBatchByExam,
 	};
 }
 
@@ -89,6 +117,26 @@ function isPersistedIngestProcess(
 		typeof value === "object" &&
 		value !== null &&
 		(value as PersistedIngestProcess).kind === "ingest"
+	);
+}
+
+function isPersistedConnectionTestProcess(
+	value: unknown,
+): value is PersistedConnectionTestProcess {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		(value as PersistedConnectionTestProcess).kind === "connection-test"
+	);
+}
+
+function isPersistedModelBenchmarkProcess(
+	value: unknown,
+): value is PersistedModelBenchmarkProcess {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		(value as PersistedModelBenchmarkProcess).kind === "model-benchmark"
 	);
 }
 
@@ -113,6 +161,58 @@ function createInterruptedIngestProcess(
 	);
 
 	return ingestJobToProcess(interruptedJob);
+}
+
+function createInterruptedConnectionTestProcess(
+	process: ConnectionTestBackgroundProcess,
+): ConnectionTestBackgroundProcess {
+	const finishedAt = Date.now();
+	const totalRequestMs = computeTotalRequestMs(
+		process.startedAt ?? finishedAt,
+		finishedAt,
+	);
+
+	return {
+		...process,
+		status: "canceled",
+		finishedAt,
+		step: "Interrupted after reload",
+		error: "Connection test interrupted after page reload",
+		streamMetrics: {
+			...process.streamMetrics,
+			totalRequestMs: totalRequestMs ?? process.streamMetrics.totalRequestMs,
+		},
+	};
+}
+
+function createInterruptedModelBenchmarkProcess(
+	process: ModelBenchmarkBackgroundProcess,
+): ModelBenchmarkBackgroundProcess {
+	const finishedAt = Date.now();
+	const totalRequestMs = computeTotalRequestMs(
+		process.startedAt ?? finishedAt,
+		finishedAt,
+	);
+
+	return {
+		...process,
+		status: "canceled",
+		finishedAt,
+		step: "Interrupted after reload",
+		error: "Model benchmark interrupted after page reload",
+		streamMetrics: {
+			...process.streamMetrics,
+			totalRequestMs: totalRequestMs ?? process.streamMetrics.totalRequestMs,
+		},
+		benchmarkMetrics: {
+			...process.benchmarkMetrics,
+			aggregate: {
+				...process.benchmarkMetrics.aggregate,
+				totalRequestMs:
+					totalRequestMs ?? process.benchmarkMetrics.aggregate.totalRequestMs,
+			},
+		},
+	};
 }
 
 function ingestProcessToHydrationJob(
@@ -168,6 +268,68 @@ function hydratePersistedIngestProcess(
 	return hydratedProcess;
 }
 
+function hydratePersistedConnectionTestProcess(
+	process: unknown,
+): ConnectionTestBackgroundProcess | null {
+	if (!isPersistedConnectionTestProcess(process)) return null;
+	if (
+		typeof process.id !== "string" ||
+		typeof process.modelId !== "number" ||
+		typeof process.modelDisplayName !== "string"
+	) {
+		return null;
+	}
+
+	const hydratedProcess: ConnectionTestBackgroundProcess = {
+		...process,
+		providerName:
+			typeof process.providerName === "string" ? process.providerName : null,
+		prompt: typeof process.prompt === "string" ? process.prompt : "",
+		response: typeof process.response === "string" ? process.response : "",
+		error: typeof process.error === "string" ? process.error : null,
+	};
+
+	if (
+		hydratedProcess.status === "queued" ||
+		hydratedProcess.status === "running"
+	) {
+		return createInterruptedConnectionTestProcess(hydratedProcess);
+	}
+
+	return hydratedProcess;
+}
+
+function hydratePersistedModelBenchmarkProcess(
+	process: unknown,
+): ModelBenchmarkBackgroundProcess | null {
+	if (!isPersistedModelBenchmarkProcess(process)) return null;
+	if (
+		typeof process.id !== "string" ||
+		typeof process.modelId !== "number" ||
+		typeof process.modelDisplayName !== "string"
+	) {
+		return null;
+	}
+
+	const hydratedProcess: ModelBenchmarkBackgroundProcess = {
+		...process,
+		providerName:
+			typeof process.providerName === "string" ? process.providerName : null,
+		error: typeof process.error === "string" ? process.error : null,
+		messages: Array.isArray(process.messages) ? process.messages : [],
+		phases: Array.isArray(process.phases) ? process.phases : [],
+	};
+
+	if (
+		hydratedProcess.status === "queued" ||
+		hydratedProcess.status === "running"
+	) {
+		return createInterruptedModelBenchmarkProcess(hydratedProcess);
+	}
+
+	return hydratedProcess;
+}
+
 function migrateLegacyIngestState(
 	raw: string | null,
 ): BackgroundProcessStoreState {
@@ -186,6 +348,7 @@ function migrateLegacyIngestState(
 				? focusedProcessId
 				: null,
 		improveQuestionsBatchByExam: {},
+		explainQuestionsBatchByExam: {},
 	};
 }
 
@@ -196,22 +359,49 @@ export function hydrateBackgroundProcessStateFromStorage(
 		processes: [],
 		focusedProcessId: null,
 		improveQuestionsBatchByExam: {},
+		explainQuestionsBatchByExam: {},
 	};
 	if (!raw) return initialState;
 
 	try {
 		const parsed = JSON.parse(raw) as Partial<PersistedBackgroundProcessState>;
-		const ingestProcesses = Array.isArray(parsed.processes)
+		const persistedProcesses = Array.isArray(parsed.processes)
 			? parsed.processes
-					.map((process) => hydratePersistedIngestProcess(process))
-					.filter((process): process is IngestBackgroundProcess => process != null)
+					.map((process) => {
+						if (isPersistedIngestProcess(process)) {
+							return hydratePersistedIngestProcess(process);
+						}
+						if (isPersistedConnectionTestProcess(process)) {
+							return hydratePersistedConnectionTestProcess(process);
+						}
+						if (isPersistedModelBenchmarkProcess(process)) {
+							return hydratePersistedModelBenchmarkProcess(process);
+						}
+						return null;
+					})
+					.filter(
+						(
+							process,
+						): process is
+							| IngestBackgroundProcess
+							| ConnectionTestBackgroundProcess
+							| ModelBenchmarkBackgroundProcess => process != null,
+					)
 			: [];
-		const trimmedProcesses = trimCompletedIngestProcesses(ingestProcesses);
+		const ingestProcesses = persistedProcesses.filter(
+			(process): process is IngestBackgroundProcess =>
+				process.kind === "ingest",
+		);
+		const nonIngestProcesses = persistedProcesses.filter(
+			(process) => process.kind !== "ingest",
+		);
+		const trimmedProcesses: BackgroundProcess[] = [
+			...trimCompletedIngestProcesses(ingestProcesses),
+			...nonIngestProcesses,
+		];
 		const focusedProcessId =
 			typeof parsed.focusedProcessId === "string" &&
-			trimmedProcesses.some(
-				(process) => process.id === parsed.focusedProcessId,
-			)
+			trimmedProcesses.some((process) => process.id === parsed.focusedProcessId)
 				? parsed.focusedProcessId
 				: null;
 
@@ -219,6 +409,7 @@ export function hydrateBackgroundProcessStateFromStorage(
 			processes: trimmedProcesses,
 			focusedProcessId,
 			improveQuestionsBatchByExam: {},
+			explainQuestionsBatchByExam: {},
 		};
 	} catch {
 		return initialState;
@@ -231,6 +422,7 @@ function migrateLegacyStorageIfNeeded(): BackgroundProcessStoreState {
 			processes: [],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			explainQuestionsBatchByExam: {},
 		};
 	}
 
@@ -265,6 +457,7 @@ export function loadInitialState(): BackgroundProcessStoreState {
 			processes: [],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			explainQuestionsBatchByExam: {},
 		};
 	}
 	return migrateLegacyStorageIfNeeded();
@@ -276,11 +469,9 @@ export function persistBackgroundProcessState(
 	if (typeof window === "undefined") return;
 
 	try {
-		const ingestProcesses = state.processes.filter(
-			(process): process is IngestBackgroundProcess => process.kind === "ingest",
-		);
+		const persistedProcesses = getPersistableProcesses(state);
 
-		if (ingestProcesses.length === 0) {
+		if (persistedProcesses.length === 0) {
 			localStorage.removeItem(BACKGROUND_PROCESS_STORAGE_KEY);
 			return;
 		}

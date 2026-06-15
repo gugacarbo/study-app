@@ -1,32 +1,45 @@
 export { useBackgroundProcesses } from "./hooks/use-background-processes";
-export { BackgroundProcessProvider } from "./provider/background-process-provider";
+export * from "./kinds/connection-test";
+export * from "./kinds/explain-question";
+export * from "./kinds/improve-questions";
+export * from "./kinds/ingest";
+export * from "./kinds/model-benchmark";
 export type { BackgroundProcessContextValue } from "./provider/background-process-context";
-
-export { cancelProcess, focusProcess, getFocusedProcess } from "./store/actions";
-export { destroyLifecycle, initLifecycle } from "./store/lifecycle";
+export { BackgroundProcessProvider } from "./provider/background-process-provider";
 export {
-	cancelProcess as cancelProcessAbort,
-	getAbortController,
-	registerAbort,
-	unregisterAbort,
-} from "./store/registry";
+	cancelProcess,
+	focusProcess,
+	getFocusedProcess,
+} from "./store/actions";
+export {
+	areExplainQuestionsExamViewsEqual,
+	type ExplainQuestionsExamProcessView,
+	selectExplainQuestionsExamViews,
+} from "./store/explain-question-selectors";
+export {
+	areImproveQuestionsExamViewsEqual,
+	type ImproveQuestionsExamProcessView,
+	selectImproveQuestionsExamViews,
+} from "./store/improve-questions-selectors";
+export { destroyLifecycle, initLifecycle } from "./store/lifecycle";
 export {
 	clearCompletedIngestProcessesFromState,
 	hydrateBackgroundProcessStateFromStorage,
 	serializeBackgroundProcessStateForStorage,
 	trimCompletedIngestProcesses,
 } from "./store/persistence";
-export { canStart, runNextQueued } from "./store/scheduler";
 export {
-	areImproveQuestionsExamViewsEqual,
-	selectImproveQuestionsExamViews,
-	type ImproveQuestionsExamProcessView,
-} from "./store/improve-questions-selectors";
+	cancelProcess as cancelProcessAbort,
+	getAbortController,
+	registerAbort,
+	unregisterAbort,
+} from "./store/registry";
+export { canStart, runNextQueued } from "./store/scheduler";
 export {
 	backgroundProcessStore,
 	focusProcess as focusProcessInStore,
 	getConnectionTestProcesses,
-	getExplanationProcesses,
+	getExplainQuestionProcesses,
 	getImproveQuestionsProcesses,
 	getIngestProcesses,
 	getProcessById,
@@ -41,44 +54,42 @@ export type {
 	BackgroundProcessStatus,
 	BackgroundProcessStoreState,
 	ConnectionTestBackgroundProcess,
-	ModelBenchmarkBackgroundProcess,
-	ExplanationGenerationBackgroundProcess,
-	ExplanationQuestionSnapshot,
+	ExplainQuestionBackgroundProcess,
+	ExplainQuestionRunPhase,
+	ExplainQuestionsBatchConfig,
 	ImproveQuestionsBackgroundProcess,
 	ImproveQuestionsRunPhase,
 	IngestBackgroundProcess,
 	IngestProcessStatus,
+	ModelBenchmarkBackgroundProcess,
+	PersistedBackgroundProcess,
 	PersistedBackgroundProcessState,
+	PersistedConnectionTestProcess,
 	PersistedIngestProcess,
+	PersistedModelBenchmarkProcess,
 } from "./store/types";
 export {
 	BACKGROUND_PROCESS_STORAGE_KEY,
 	connectionTestProcessId,
-	modelBenchmarkProcessId,
-	explanationGenerationProcessId,
+	explainQuestionProcessId,
 	getActiveProcesses,
 	getRecentProcesses,
-	ingestProcessId,
+	improveQuestionsProcessId,
 	ingestJobToProcess,
+	ingestProcessId,
 	ingestProcessToJob,
 	isActiveProcess,
 	isCompletedProcess,
 	isConnectionTestProcess,
-	isModelBenchmarkProcess,
-	isExplanationGenerationProcess,
+	isExplainQuestionProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
-	improveQuestionsProcessId,
+	isModelBenchmarkProcess,
 	MAX_RECENT_COMPLETED_PROCESSES,
+	modelBenchmarkProcessId,
 	parseConnectionTestProcessId,
-	parseModelBenchmarkProcessId,
-	parseExplanationGenerationProcessId,
+	parseExplainQuestionProcessId,
 	parseImproveQuestionsProcessId,
 	parseIngestProcessId,
+	parseModelBenchmarkProcessId,
 } from "./store/types";
-
-export * from "./kinds/connection-test";
-export * from "./kinds/model-benchmark";
-export * from "./kinds/ingest";
-export * from "./kinds/improve-questions";
-export * from "./kinds/explanation-generation";

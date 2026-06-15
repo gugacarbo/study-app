@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-11 (chat server persistence) -->
+<!-- Last updated: 2026-06-15 (per-question explain-question jobs) -->
 
 Domain-driven AI integration layer. 60+ files across 12 subdirectories.
 
@@ -11,7 +11,7 @@ features/ai/
 ├── agents/          # Domain agents with system prompts + logic
 │   ├── chat/        # Chat agent (conversational AI assistant)
 │   ├── ingest/      # Ingest agent (PDF → structured questions)
-│   ├── explanations/ # Explanation agent (batch deep explanations)
+│   ├── explanations/ # Per-question explanation agent (explain-question jobs)
 │   ├── quiz/        # Quiz agent (question generation)
 │   └── reviewer/    # Reviewer agent (critical-topic verification)
 ├── core/            # Core generation + UI Message Stream helpers
@@ -35,7 +35,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | --------------- | ---------------------------------------------------------------- | --------------------------------- |
 | `chat/`         | Conversational AI assistant                                      | DB tools, web tools               |
 | `ingest/`       | PDF → structured questions extraction (tool-based via workspace) | DB tools, ingest extraction tools |
-| `explanations/` | Batch deep explanations for questions                            | DB tools                          |
+| `explanations/` | Per-question deep explanations via explain-question background jobs | DB tools                          |
 | `quiz/`         | Question generation from topics                                  | DB tools                          |
 | `reviewer/`     | Critical-topic verification with web research                    | Web tools (search, fetch)         |
 
@@ -56,6 +56,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`core/generate/`** — `generateObject` / `streamObject` structured output
 - **`core/ai-stream-handler.ts`** — Stream chunk processing for agent runs
 - **`core/ui-message-job-stream.ts`** — `createJobUIMessageStream` + data-part writers for jobs
+- **`core/stream-text-compat.ts`** — `streamTextWithCompatibilityFallback` for providers missing text stream parts
 - **`lib/read-job-ui-message-stream.ts`** — `consumeJobStream()` client for UI Message Stream jobs
 
 ## Providers
@@ -71,14 +72,13 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools, `StudyAssistantRuntimeProvider` + DevTools in dev, collapsible prompts on agent-run surfaces) |
 | `components/chat/`                       | Chat shell wiring (`chat.tsx` + `useChatRuntime`)          |
 | `components/config/`                     | Connection test + benchmark dialogs (per-phase metrics)      |
-| `components/exam-detail/`                | Explanation generation hook                                |
 | `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
 
 ## Key Patterns
 
 - **Agent isolation:** Each agent has its own system prompt + domain logic — don't mix
 - **Tool resolution:** `resolveToolsForAgent()` determines which tools each agent gets
-- **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, test-connection, test-model-benchmark) use AI SDK v6 streams with typed `data-*` parts
+- **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, explain-question, test-connection, test-model-benchmark) use AI SDK v6 streams with typed `data-*` parts
 - **Benchmark tools:** `tools/benchmark-tools.ts` — synthetic tools for `/api/test-model-benchmark` (add_numbers, echo, delay_ms)
 - **Provider abstraction:** `getAiModel()` + `buildProviderOptions()` — swap providers without changing agents
 - **Store:** `conversations-store/` for multi-conversation chat; persisted server-side via `server-functions/chat-conversations` (D1 index + R2 `chats/{id}.json` in `MEMORY_BUCKET`); runtime loads last `CHAT_RUNTIME_MESSAGE_LIMIT` messages

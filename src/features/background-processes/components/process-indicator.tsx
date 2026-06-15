@@ -8,7 +8,7 @@ import {
 	type BackgroundProcessStatus,
 	isCompletedProcess,
 	isConnectionTestProcess,
-	isExplanationGenerationProcess,
+	isExplainQuestionProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 	isModelBenchmarkProcess,
@@ -18,7 +18,7 @@ import { useBackgroundProcesses } from "../hooks/use-background-processes";
 const KIND_CHIP_LABEL: Record<BackgroundProcess["kind"], string> = {
 	ingest: "Upload",
 	"improve-questions": "Improve",
-	"explanation-generation": "Explanations",
+	"explain-question": "Explanations",
 	"connection-test": "Test",
 	"model-benchmark": "Benchmark",
 };
@@ -49,8 +49,8 @@ function getProcessLabel(process: BackgroundProcess): string {
 	if (isImproveQuestionsProcess(process)) {
 		return `Q${process.questionId} — Improve question`;
 	}
-	if (isExplanationGenerationProcess(process)) {
-		return `Exam #${process.examId} — Explanations`;
+	if (isExplainQuestionProcess(process)) {
+		return `Q${process.questionId} — Explanation`;
 	}
 	if (isConnectionTestProcess(process)) {
 		return `${process.modelDisplayName} — Connection test`;
@@ -64,7 +64,7 @@ function getProcessLabel(process: BackgroundProcess): string {
 function getProcessTimestamp(process: BackgroundProcess): number {
 	if (
 		isIngestProcess(process) ||
-		isExplanationGenerationProcess(process) ||
+		isExplainQuestionProcess(process) ||
 		isConnectionTestProcess(process) ||
 		isModelBenchmarkProcess(process)
 	) {

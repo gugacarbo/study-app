@@ -1,14 +1,12 @@
-import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import type { UIMessage } from "ai";
+import type { QuestionChange } from "@/features/ai/agents/improve-questions/contracts";
 import type {
 	BenchmarkPerfMetrics,
 	BenchmarkPhaseMetrics,
 	StreamPerfMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
-import type { UIMessage } from "ai";
-import type { QuestionChange } from "@/features/ai/agents/improve-questions/contracts";
 import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
-import type { ExplanationProgressItem } from "@/features/exams/components/detail/exam-utils";
 import type {
 	FlowStage,
 	IngestAgentRun,
@@ -22,7 +20,7 @@ import type {
 export type BackgroundProcessKind =
 	| "ingest"
 	| "improve-questions"
-	| "explanation-generation"
+	| "explain-question"
 	| "connection-test"
 	| "model-benchmark";
 
@@ -86,27 +84,29 @@ export interface ImproveQuestionsBackgroundProcess {
 	phase: ImproveQuestionsRunPhase;
 }
 
-export interface ExplanationQuestionSnapshot {
-	id: number;
-	question: string;
+export type ExplainQuestionRunPhase =
+	| "idle"
+	| "running"
+	| "done"
+	| "error"
+	| "canceled";
+
+export interface ExplainQuestionBackgroundProcess {
+	kind: "explain-question";
+	id: string;
+	status: BackgroundProcessStatus;
+	questionId: number;
+	examId: number;
+	originalSnapshot: QuestionData;
 	explanation: string;
 	deepExplanation: string;
-}
-
-export interface ExplanationGenerationBackgroundProcess {
-	kind: "explanation-generation";
-	id: string;
-	examId: number;
-	status: BackgroundProcessStatus;
+	overwrite: boolean;
+	agentRunState: AgentRunState | null;
+	isStreaming: boolean;
+	streamError: string | null;
+	phase: ExplainQuestionRunPhase;
 	createdAt: number;
-	startedAt: number | null;
 	finishedAt: number | null;
-	progressItems: ExplanationProgressItem[];
-	agentRuns: ExplanationAgentRunSummary[];
-	batchSize: number;
-	overwriteExplanations: boolean;
-	generationMessage: string | null;
-	questions: ExplanationQuestionSnapshot[];
 }
 
 export interface ConnectionTestBackgroundProcess {
@@ -153,7 +153,7 @@ export interface ModelBenchmarkBackgroundProcess {
 export type BackgroundProcess =
 	| IngestBackgroundProcess
 	| ImproveQuestionsBackgroundProcess
-	| ExplanationGenerationBackgroundProcess
+	| ExplainQuestionBackgroundProcess
 	| ConnectionTestBackgroundProcess
 	| ModelBenchmarkBackgroundProcess;
 
@@ -161,10 +161,15 @@ export interface ImproveQuestionsBatchConfig {
 	maxWorkers: number;
 }
 
+export interface ExplainQuestionsBatchConfig {
+	maxWorkers: number;
+}
+
 export interface BackgroundProcessStoreState {
 	processes: BackgroundProcess[];
 	focusedProcessId: string | null;
 	improveQuestionsBatchByExam: Record<number, ImproveQuestionsBatchConfig>;
+	explainQuestionsBatchByExam: Record<number, ExplainQuestionsBatchConfig>;
 }
 
 export interface PersistedIngestProcess
@@ -172,8 +177,17 @@ export interface PersistedIngestProcess
 	buffer?: number[];
 }
 
+export type PersistedConnectionTestProcess = ConnectionTestBackgroundProcess;
+
+export type PersistedModelBenchmarkProcess = ModelBenchmarkBackgroundProcess;
+
+export type PersistedBackgroundProcess =
+	| PersistedIngestProcess
+	| PersistedConnectionTestProcess
+	| PersistedModelBenchmarkProcess;
+
 export interface PersistedBackgroundProcessState {
-	processes: PersistedIngestProcess[];
+	processes: PersistedBackgroundProcess[];
 	focusedProcessId: string | null;
 }
 
@@ -202,8 +216,8 @@ export function improveQuestionsProcessId(questionId: number): string {
 	return `improve-questions:${questionId}`;
 }
 
-export function explanationGenerationProcessId(examId: number): string {
-	return `explanation-generation:${examId}`;
+export function explainQuestionProcessId(questionId: number): string {
+	return `explain-question:${questionId}`;
 }
 
 export function connectionTestProcessId(modelId: number): string {
@@ -224,10 +238,10 @@ export function parseImproveQuestionsProcessId(id: string): number | null {
 	return Number.isFinite(questionId) ? questionId : null;
 }
 
-export function parseExplanationGenerationProcessId(id: string): number | null {
-	if (!id.startsWith("explanation-generation:")) return null;
-	const examId = Number(id.slice("explanation-generation:".length));
-	return Number.isFinite(examId) ? examId : null;
+export function parseExplainQuestionProcessId(id: string): number | null {
+	if (!id.startsWith("explain-question:")) return null;
+	const questionId = Number(id.slice("explain-question:".length));
+	return Number.isFinite(questionId) ? questionId : null;
 }
 
 export function parseConnectionTestProcessId(id: string): number | null {
@@ -254,10 +268,10 @@ export function isImproveQuestionsProcess(
 	return process.kind === "improve-questions";
 }
 
-export function isExplanationGenerationProcess(
+export function isExplainQuestionProcess(
 	process: BackgroundProcess,
-): process is ExplanationGenerationBackgroundProcess {
-	return process.kind === "explanation-generation";
+): process is ExplainQuestionBackgroundProcess {
+	return process.kind === "explain-question";
 }
 
 export function isConnectionTestProcess(
@@ -293,15 +307,21 @@ export function getRecentProcesses(
 	const active = getActiveProcesses(processes);
 	const completed = processes
 		.filter(isCompletedProcess)
-		.sort((left, right) => getProcessFinishedAt(right) - getProcessFinishedAt(left))
+		.sort(
+			(left, right) => getProcessFinishedAt(right) - getProcessFinishedAt(left),
+		)
 		.slice(0, limit);
 	return [...active, ...completed];
 }
 
 function getProcessFinishedAt(process: BackgroundProcess): number {
+	if (process.kind === "ingest") {
+		return process.finishedAt ?? process.createdAt;
+	}
+	if (process.kind === "explain-question") {
+		return process.finishedAt ?? process.createdAt;
+	}
 	if (
-		process.kind === "ingest" ||
-		process.kind === "explanation-generation" ||
 		process.kind === "connection-test" ||
 		process.kind === "model-benchmark"
 	) {
@@ -318,7 +338,9 @@ export function ingestJobToProcess(job: IngestJob): IngestBackgroundProcess {
 	};
 }
 
-export function ingestProcessToJob(process: IngestBackgroundProcess): IngestJob {
+export function ingestProcessToJob(
+	process: IngestBackgroundProcess,
+): IngestJob {
 	const { kind: _kind, ...job } = process;
 	const rawId = parseIngestProcessId(process.id) ?? process.id;
 	return { ...job, id: rawId };

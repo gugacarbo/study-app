@@ -14,31 +14,36 @@ import { canStart, runNextQueued } from "@/features/background-processes/store/s
 import { backgroundProcessStore } from "@/features/background-processes/store/store";
 import type {
 	BackgroundProcessStoreState,
-	ExplanationGenerationBackgroundProcess,
+	ConnectionTestBackgroundProcess,
+	ExplainQuestionBackgroundProcess,
 	ImproveQuestionsBackgroundProcess,
 	IngestBackgroundProcess,
+	ModelBenchmarkBackgroundProcess,
 } from "@/features/background-processes/store/types";
 import {
 	BACKGROUND_PROCESS_STORAGE_KEY,
-	explanationGenerationProcessId,
+	connectionTestProcessId,
+	explainQuestionProcessId,
 	getActiveProcesses,
 	improveQuestionsProcessId,
 	ingestJobToProcess,
 	ingestProcessId,
 	isActiveProcess,
 	isIngestProcess,
+	modelBenchmarkProcessId,
 } from "@/features/background-processes/store/types";
+import type { UIMessage } from "ai";
 import type { IngestAgentRun, IngestJob } from "@/features/ingest/store/types";
 import type {
 	IngestAgentEvent,
 	IngestTokenEvent,
 } from "@/features/ingest/store/types";
 
-const { startQueuedIngest, startQueuedImproveQuestions, startQueuedExplanationGeneration } =
+const { startQueuedIngest, startQueuedImproveQuestions, startQueuedExplainQuestion } =
 	vi.hoisted(() => ({
 		startQueuedIngest: vi.fn(),
 		startQueuedImproveQuestions: vi.fn(),
-		startQueuedExplanationGeneration: vi.fn(),
+		startQueuedExplainQuestion: vi.fn(),
 	}));
 
 vi.mock("@/features/background-processes/kinds/ingest/actions", () => ({
@@ -49,8 +54,8 @@ vi.mock("@/features/background-processes/kinds/improve-questions/actions", () =>
 	startQueuedImproveQuestions,
 }));
 
-vi.mock("@/features/background-processes/kinds/explanation-generation/actions", () => ({
-	startQueuedExplanationGeneration,
+vi.mock("@/features/background-processes/kinds/explain-question/actions", () => ({
+	startQueuedExplainQuestion,
 }));
 
 function createJob(overrides?: Partial<IngestJob>): IngestJob {
@@ -99,6 +104,7 @@ function createState(
 		processes: [],
 		focusedProcessId: null,
 		improveQuestionsBatchByExam: {},
+		explainQuestionsBatchByExam: {},
 		...overrides,
 	};
 }
@@ -188,31 +194,141 @@ function createImproveQuestionsProcess(
 	};
 }
 
-function createExplanationProcess(
-	overrides?: Partial<ExplanationGenerationBackgroundProcess>,
-): ExplanationGenerationBackgroundProcess {
-	const examId = overrides?.examId ?? 1;
+function createExplainQuestionProcess(
+	overrides?: Partial<ExplainQuestionBackgroundProcess>,
+): ExplainQuestionBackgroundProcess {
+	const questionId = overrides?.questionId ?? 1;
 	return {
-		kind: "explanation-generation",
-		id: explanationGenerationProcessId(examId),
-		examId,
+		kind: "explain-question",
+		id: explainQuestionProcessId(questionId),
+		questionId,
+		examId: overrides?.examId ?? 10,
 		status: "queued",
+		originalSnapshot: {
+			id: questionId,
+			exam_id: overrides?.examId ?? 10,
+			question: "Question 1",
+			options: ["A", "B"],
+			answers: ["A"],
+			scoringMode: "exact",
+			explanation: "",
+			deepExplanation: "",
+			topic: "General",
+		},
+		explanation: "",
+		deepExplanation: "",
+		overwrite: false,
+		agentRunState: null,
+		isStreaming: false,
+		streamError: null,
+		phase: "idle",
 		createdAt: 1,
-		startedAt: null,
 		finishedAt: null,
-		progressItems: [],
-		agentRuns: [],
-		batchSize: 8,
-		overwriteExplanations: false,
-		generationMessage: null,
-		questions: [
+		...overrides,
+	};
+}
+
+function createConnectionTestProcess(
+	overrides?: Partial<ConnectionTestBackgroundProcess>,
+): ConnectionTestBackgroundProcess {
+	const modelId = overrides?.modelId ?? 1;
+	return {
+		kind: "connection-test",
+		id: connectionTestProcessId(modelId),
+		modelId,
+		modelDisplayName: "Test model",
+		providerName: "LiteLLM",
+		status: "success",
+		createdAt: 1,
+		startedAt: 2,
+		finishedAt: 3,
+		progress: 100,
+		step: "Completed",
+		prompt: "Say hello",
+		response: "Hello",
+		error: null,
+		tokenTotals: { prompt: 10, completion: 5, total: 15 },
+		streamMetrics: {
+			ttftMs: 120,
+			tokensPerSecond: 25,
+			totalRequestMs: 800,
+		},
+		...overrides,
+	};
+}
+
+function createBenchmarkMessages(): UIMessage[] {
+	return [
+		{
+			id: "system-1",
+			role: "system",
+			parts: [{ type: "text", text: "system prompt" }],
+		},
+		{
+			id: "assistant-1",
+			role: "assistant",
+			parts: [{ type: "text", text: "benchmark response" }],
+		},
+	];
+}
+
+function createModelBenchmarkProcess(
+	overrides?: Partial<ModelBenchmarkBackgroundProcess>,
+): ModelBenchmarkBackgroundProcess {
+	const modelId = overrides?.modelId ?? 1;
+	return {
+		kind: "model-benchmark",
+		id: modelBenchmarkProcessId(modelId),
+		modelId,
+		modelDisplayName: "Benchmark model",
+		providerName: "LiteLLM",
+		testMode: "benchmark",
+		status: "success",
+		createdAt: 1,
+		startedAt: 2,
+		finishedAt: 4,
+		progress: 100,
+		step: "All phases passed",
+		error: null,
+		tokenTotals: { prompt: 40, completion: 20, total: 60 },
+		streamMetrics: {
+			ttftMs: 300,
+			tokensPerSecond: 18,
+			totalRequestMs: 2200,
+		},
+		benchmarkMetrics: {
+			aggregate: {
+				ttftMs: 300,
+				tokensPerSecond: 18,
+				totalRequestMs: 2200,
+			},
+			phases: [
+				{
+					phaseId: "text",
+					label: "Text baseline",
+					passed: true,
+					phaseDurationMs: 1200,
+					ttftMs: 300,
+					ttftToolMs: null,
+					toolRoundTripMs: null,
+					tokensPerSecond: 18,
+				},
+			],
+		},
+		phases: [
 			{
-				id: 1,
-				question: "Question 1",
-				explanation: "",
-				deepExplanation: "",
+				phaseId: "text",
+				label: "Text baseline",
+				passed: true,
+				phaseDurationMs: 1200,
+				ttftMs: 300,
+				ttftToolMs: null,
+				toolRoundTripMs: null,
+				tokensPerSecond: 18,
 			},
 		],
+		allPhasesPassed: true,
+		messages: createBenchmarkMessages(),
 		...overrides,
 	};
 }
@@ -305,6 +421,40 @@ describe("background process persistence", () => {
 		expect(parsed.processes[0]?.kind).toBe("ingest");
 	});
 
+	it("serializes connection tests and benchmarks alongside ingest", () => {
+		const state = createState({
+			processes: [
+				createIngestProcess({
+					id: ingestProcessId("job-persisted"),
+					buffer: [1, 2, 3],
+					status: "success",
+				}),
+				createConnectionTestProcess({ modelId: 7 }),
+				createModelBenchmarkProcess({ modelId: 8 }),
+			],
+			focusedProcessId: modelBenchmarkProcessId(8),
+		});
+
+		const serialized = serializeBackgroundProcessStateForStorage(state);
+		const parsed = JSON.parse(serialized) as BackgroundProcessStoreState;
+
+		expect(parsed.focusedProcessId).toBe(modelBenchmarkProcessId(8));
+		expect(parsed.processes.map((process) => process.kind)).toEqual([
+			"ingest",
+			"connection-test",
+			"model-benchmark",
+		]);
+		expect(parsed.processes[0]).not.toHaveProperty("buffer");
+		expect(parsed.processes[1]).toMatchObject({
+			kind: "connection-test",
+			id: connectionTestProcessId(7),
+		});
+		expect(parsed.processes[2]).toMatchObject({
+			kind: "model-benchmark",
+			id: modelBenchmarkProcessId(8),
+		});
+	});
+
 	it("hydrates queued and running ingest processes as canceled after reload", () => {
 		const saved = JSON.stringify({
 			processes: [
@@ -350,6 +500,91 @@ describe("background process persistence", () => {
 			buffer: [],
 		});
 		expect(hydrated.focusedProcessId).toBe(ingestProcessId("job-running"));
+	});
+
+	it("hydrates running model tests as canceled after reload and preserves completed ones", () => {
+		const saved = JSON.stringify({
+			processes: [
+				createConnectionTestProcess({
+					modelId: 11,
+					status: "running",
+					finishedAt: null,
+					step: "Streaming",
+					error: null,
+					streamMetrics: {
+						ttftMs: 100,
+						tokensPerSecond: null,
+						totalRequestMs: null,
+					},
+				}),
+				createModelBenchmarkProcess({
+					modelId: 12,
+					status: "queued",
+					finishedAt: null,
+					step: "Queued",
+					error: null,
+					streamMetrics: {
+						ttftMs: null,
+						tokensPerSecond: null,
+						totalRequestMs: null,
+					},
+					benchmarkMetrics: {
+						aggregate: {
+							ttftMs: null,
+							tokensPerSecond: null,
+							totalRequestMs: null,
+						},
+						phases: [],
+					},
+				}),
+				createConnectionTestProcess({
+					modelId: 13,
+					status: "success",
+					finishedAt: 20,
+					response: "Still saved",
+				}),
+				createModelBenchmarkProcess({
+					modelId: 14,
+					status: "error",
+					finishedAt: 30,
+					error: "One or more benchmark phases failed",
+					allPhasesPassed: false,
+				}),
+			],
+			focusedProcessId: modelBenchmarkProcessId(12),
+		});
+
+		const hydrated = hydrateBackgroundProcessStateFromStorage(saved);
+
+		expect(hydrated.processes).toHaveLength(4);
+		expect(hydrated.processes[0]).toMatchObject({
+			id: connectionTestProcessId(11),
+			kind: "connection-test",
+			status: "canceled",
+			step: "Interrupted after reload",
+			error: "Connection test interrupted after page reload",
+		});
+		expect(hydrated.processes[1]).toMatchObject({
+			id: modelBenchmarkProcessId(12),
+			kind: "model-benchmark",
+			status: "canceled",
+			step: "Interrupted after reload",
+			error: "Model benchmark interrupted after page reload",
+		});
+		expect(hydrated.processes[2]).toMatchObject({
+			id: connectionTestProcessId(13),
+			kind: "connection-test",
+			status: "success",
+			response: "Still saved",
+		});
+		expect(hydrated.processes[3]).toMatchObject({
+			id: modelBenchmarkProcessId(14),
+			kind: "model-benchmark",
+			status: "error",
+			error: "One or more benchmark phases failed",
+			allPhasesPassed: false,
+		});
+		expect(hydrated.focusedProcessId).toBe(modelBenchmarkProcessId(12));
 	});
 
 	it("hydrates legacy agent runs without messages using prompt/output fallback", () => {
@@ -584,30 +819,61 @@ describe("background process scheduler", () => {
 		expect(canStart(queued, [awaitingReview])).toBe(true);
 	});
 
-	it("blocks explanation-generation for the same exam while one is running", () => {
-		const running = createExplanationProcess({ examId: 1, status: "running" });
-		const queued = createExplanationProcess({ examId: 1, status: "queued" });
+	it("blocks explain-question for the same question while one is running", () => {
+		const running = createExplainQuestionProcess({
+			questionId: 1,
+			status: "running",
+		});
+		const queued = createExplainQuestionProcess({
+			questionId: 1,
+			status: "queued",
+		});
 
 		expect(canStart(queued, [running])).toBe(false);
 	});
 
-	it("allows explanation-generation for different exams concurrently", () => {
-		const running = createExplanationProcess({ examId: 1, status: "running" });
-		const queued = createExplanationProcess({ examId: 2, status: "queued" });
+	it("limits explain-question concurrency per exam when max-workers config is set", () => {
+		const queuedA = createExplainQuestionProcess({
+			questionId: 1,
+			examId: 10,
+			status: "queued",
+		});
+		const queuedB = createExplainQuestionProcess({
+			questionId: 2,
+			examId: 10,
+			status: "queued",
+		});
+		const queuedC = createExplainQuestionProcess({
+			questionId: 3,
+			examId: 10,
+			status: "queued",
+		});
 
-		expect(canStart(queued, [running])).toBe(true);
+		backgroundProcessStore.setState(() =>
+			createState({
+				processes: [queuedA, queuedB, queuedC],
+				explainQuestionsBatchByExam: { 10: { maxWorkers: 2 } },
+			}),
+		);
+
+		runNextQueued();
+
+		expect(startQueuedExplainQuestion).toHaveBeenCalledTimes(2);
 	});
 
-	it("starts queued explanation-generation when slot is available", () => {
-		const queued = createExplanationProcess({ examId: 3, status: "queued" });
+	it("starts queued explain-question when slot is available", () => {
+		const queued = createExplainQuestionProcess({
+			questionId: 3,
+			status: "queued",
+		});
 
 		backgroundProcessStore.setState(() => createState({ processes: [queued] }));
 
 		runNextQueued();
 
-		expect(startQueuedExplanationGeneration).toHaveBeenCalledTimes(1);
-		expect(startQueuedExplanationGeneration).toHaveBeenCalledWith(
-			explanationGenerationProcessId(3),
+		expect(startQueuedExplainQuestion).toHaveBeenCalledTimes(1);
+		expect(startQueuedExplainQuestion).toHaveBeenCalledWith(
+			explainQuestionProcessId(3),
 		);
 	});
 });

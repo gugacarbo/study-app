@@ -1,4 +1,9 @@
 export {
+	EXPLAIN_QUESTION_STAGE_ID,
+	type ExplainQuestionAgentEvent,
+	type ExplainQuestionJobResult,
+} from "./contracts";
+export {
 	EXPLANATION_CONCURRENCY,
 	type ExplanationAgentRunEvent,
 	type ExplanationAgentRunSummary,

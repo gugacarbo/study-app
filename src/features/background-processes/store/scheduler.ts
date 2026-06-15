@@ -1,13 +1,13 @@
 import { startQueuedConnectionTest } from "../kinds/connection-test/actions";
 import { startQueuedModelBenchmark } from "../kinds/model-benchmark/actions";
-import { startQueuedExplanationGeneration } from "../kinds/explanation-generation/actions";
+import { startQueuedExplainQuestion } from "../kinds/explain-question/actions";
 import { startQueuedIngest } from "../kinds/ingest/actions";
 import { startQueuedImproveQuestions } from "../kinds/improve-questions/actions";
 import { backgroundProcessStore } from "./store";
 import type { BackgroundProcess } from "./types";
 import {
 	isConnectionTestProcess,
-	isExplanationGenerationProcess,
+	isExplainQuestionProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 	isModelBenchmarkProcess,
@@ -20,6 +20,13 @@ function getImproveQuestionsMaxWorkers(examId: number): number | null {
 	);
 }
 
+function getExplainQuestionsMaxWorkers(examId: number): number | null {
+	return (
+		backgroundProcessStore.state.explainQuestionsBatchByExam[examId]
+			?.maxWorkers ?? null
+	);
+}
+
 function countRunningImproveQuestionsForExam(
 	examId: number,
 	runningProcesses: BackgroundProcess[],
@@ -27,6 +34,16 @@ function countRunningImproveQuestionsForExam(
 	return runningProcesses.filter(
 		(candidate) =>
 			isImproveQuestionsProcess(candidate) && candidate.examId === examId,
+	).length;
+}
+
+function countRunningExplainQuestionsForExam(
+	examId: number,
+	runningProcesses: BackgroundProcess[],
+): number {
+	return runningProcesses.filter(
+		(candidate) =>
+			isExplainQuestionProcess(candidate) && candidate.examId === examId,
 	).length;
 }
 
@@ -64,13 +81,25 @@ export function canStart(
 		return true;
 	}
 
-	if (isExplanationGenerationProcess(process)) {
-		return !runningProcesses.some(
+	if (isExplainQuestionProcess(process)) {
+		const sameQuestionRunning = runningProcesses.some(
 			(candidate) =>
-				isExplanationGenerationProcess(candidate) &&
+				isExplainQuestionProcess(candidate) &&
 				candidate.status === "running" &&
-				candidate.examId === process.examId,
+				candidate.questionId === process.questionId,
 		);
+		if (sameQuestionRunning) return false;
+
+		const maxWorkers = getExplainQuestionsMaxWorkers(process.examId);
+		if (maxWorkers !== null) {
+			const runningForExam = countRunningExplainQuestionsForExam(
+				process.examId,
+				runningProcesses,
+			);
+			if (runningForExam >= maxWorkers) return false;
+		}
+
+		return true;
 	}
 
 	if (isConnectionTestProcess(process)) {
@@ -117,9 +146,10 @@ export function runNextQueued(): void {
 		}
 	}
 
-	for (const process of queued.filter(isExplanationGenerationProcess)) {
+	for (const process of queued.filter(isExplainQuestionProcess)) {
 		if (canStart(process, running)) {
-			startQueuedExplanationGeneration(process.id);
+			startQueuedExplainQuestion(process.id);
+			running.push({ ...process, status: "running" });
 		}
 	}
 

@@ -11,7 +11,7 @@ import {
 	getActiveProcesses,
 	getRecentProcesses,
 	isConnectionTestProcess,
-	isExplanationGenerationProcess,
+	isExplainQuestionProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 } from "../store/types";
@@ -53,7 +53,7 @@ export function BackgroundProcessProvider({
 				return;
 			}
 
-			if (isExplanationGenerationProcess(process)) {
+			if (isExplainQuestionProcess(process)) {
 				navigate({
 					to: "/exams/$id",
 					params: { id: String(process.examId) },

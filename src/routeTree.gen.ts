@@ -30,6 +30,7 @@ import { Route as ExamsUploadIndexRouteImport } from './routes/exams.upload/inde
 import { Route as ExamsExplanationsIndexRouteImport } from './routes/exams.explanations/index'
 import { Route as ApiIngestIndexRouteImport } from './routes/api/ingest/index'
 import { Route as ApiImproveQuestionsIndexRouteImport } from './routes/api/improve-questions/index'
+import { Route as ApiExplainQuestionIndexRouteImport } from './routes/api/explain-question/index'
 import { Route as ApiChatIndexRouteImport } from './routes/api/chat/index'
 
 const MemoryRoute = MemoryRouteImport.update({
@@ -138,6 +139,11 @@ const ApiImproveQuestionsIndexRoute =
     path: '/api/improve-questions/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiExplainQuestionIndexRoute = ApiExplainQuestionIndexRouteImport.update({
+  id: '/api/explain-question/',
+  path: '/api/explain-question/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatIndexRoute = ApiChatIndexRouteImport.update({
   id: '/api/chat/',
   path: '/api/chat/',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/exams/': typeof ExamsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
+  '/api/explain-question/': typeof ApiExplainQuestionIndexRoute
   '/api/improve-questions/': typeof ApiImproveQuestionsIndexRoute
   '/api/ingest/': typeof ApiIngestIndexRoute
   '/exams/explanations/': typeof ExamsExplanationsIndexRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/exams': typeof ExamsIndexRoute
   '/api/chat': typeof ApiChatIndexRoute
+  '/api/explain-question': typeof ApiExplainQuestionIndexRoute
   '/api/improve-questions': typeof ApiImproveQuestionsIndexRoute
   '/api/ingest': typeof ApiIngestIndexRoute
   '/exams/explanations': typeof ExamsExplanationsIndexRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/exams/': typeof ExamsIndexRoute
   '/api/chat/': typeof ApiChatIndexRoute
+  '/api/explain-question/': typeof ApiExplainQuestionIndexRoute
   '/api/improve-questions/': typeof ApiImproveQuestionsIndexRoute
   '/api/ingest/': typeof ApiIngestIndexRoute
   '/exams/explanations/': typeof ExamsExplanationsIndexRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/exams/'
     | '/api/chat/'
+    | '/api/explain-question/'
     | '/api/improve-questions/'
     | '/api/ingest/'
     | '/exams/explanations/'
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/exams'
     | '/api/chat'
+    | '/api/explain-question'
     | '/api/improve-questions'
     | '/api/ingest'
     | '/exams/explanations'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/exams/'
     | '/api/chat/'
+    | '/api/explain-question/'
     | '/api/improve-questions/'
     | '/api/ingest/'
     | '/exams/explanations/'
@@ -300,6 +312,7 @@ export interface RootRouteChildren {
   ApiTestModelBenchmarkRoute: typeof ApiTestModelBenchmarkRoute
   QuizIdRoute: typeof QuizIdRoute
   ApiChatIndexRoute: typeof ApiChatIndexRoute
+  ApiExplainQuestionIndexRoute: typeof ApiExplainQuestionIndexRoute
   ApiImproveQuestionsIndexRoute: typeof ApiImproveQuestionsIndexRoute
   ApiIngestIndexRoute: typeof ApiIngestIndexRoute
 }
@@ -453,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiImproveQuestionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/explain-question/': {
+      id: '/api/explain-question/'
+      path: '/api/explain-question'
+      fullPath: '/api/explain-question/'
+      preLoaderRoute: typeof ApiExplainQuestionIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat/': {
       id: '/api/chat/'
       path: '/api/chat'
@@ -509,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTestModelBenchmarkRoute: ApiTestModelBenchmarkRoute,
   QuizIdRoute: QuizIdRoute,
   ApiChatIndexRoute: ApiChatIndexRoute,
+  ApiExplainQuestionIndexRoute: ApiExplainQuestionIndexRoute,
   ApiImproveQuestionsIndexRoute: ApiImproveQuestionsIndexRoute,
   ApiIngestIndexRoute: ApiIngestIndexRoute,
 }

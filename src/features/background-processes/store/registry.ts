@@ -1,12 +1,12 @@
 import { cancelConnectionTest } from "../kinds/connection-test/actions";
 import { cancelModelBenchmark } from "../kinds/model-benchmark/actions";
-import { cancelExplanationGeneration } from "../kinds/explanation-generation/actions";
+import { cancelExplainQuestionRun } from "../kinds/explain-question/actions";
 import { cancelJob } from "../kinds/ingest/actions";
 import { cancelImproveQuestionsRun } from "../kinds/improve-questions/actions";
 import { getProcessById } from "./store";
 import {
 	isConnectionTestProcess,
-	isExplanationGenerationProcess,
+	isExplainQuestionProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 	isModelBenchmarkProcess,
@@ -54,8 +54,8 @@ export function cancelProcess(id: string): void {
 		return;
 	}
 
-	if (isExplanationGenerationProcess(process)) {
-		cancelExplanationGeneration(process.examId);
+	if (isExplainQuestionProcess(process)) {
+		cancelExplainQuestionRun(process.questionId);
 		return;
 	}
 

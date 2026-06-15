@@ -1,102 +1,146 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { Sparkles, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
+import { Input } from "@/components/ui/input";
 import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
-import { useExplanationGeneration } from "@/features/ai/components/exam-detail/explanation-generation";
-import type { ExplanationProgressItem } from "./exam-utils";
-import { ExplanationResults } from "./explanation-results";
-import { PipelineControls } from "./pipeline-controls";
+import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
+import { QuestionSelection } from "./improve-questions-batch-dialog/question-selection";
+import { ExplainQuestionsAgentList } from "./explain-questions-batch/agent-list";
+import { useExplainQuestionsBatch } from "./explain-questions-batch/use-explain-questions-batch";
+import type { QuestionData } from "./exam-utils";
 
 interface ExplanationPipelineTabProps {
 	examId: number;
-	questions: Array<{
-		id: number;
-		question: string;
-		explanation: string;
-		deepExplanation: string;
-	}>;
+	questions: QuestionData[];
 }
 
 export function ExplanationPipelineTab({
 	examId,
 	questions,
 }: ExplanationPipelineTabProps) {
-	const gen = useExplanationGeneration({ examId, questions, open: true });
-	const [selectedAgentRun, setSelectedAgentRun] =
-		useState<ExplanationAgentRunSummary | null>(null);
+	const batch = useExplainQuestionsBatch({ examId, questions });
+	const [selectedAgentRun, setSelectedAgentRun] = useState<AgentRunState | null>(
+		null,
+	);
 
-	function handleProgressItemClick(item: ExplanationProgressItem) {
-		const agentRun =
-			item.response?.agentRun ?? gen.findAgentRunForQuestionId(item.id);
-		if (!agentRun) return;
-		setSelectedAgentRun(agentRun);
+	function handleAgentClick(questionId: number) {
+		const run = batch.getAgentRunForQuestion(questionId);
+		if (run) setSelectedAgentRun(run);
 	}
-
-	function handleAgentRunClick(agentRunId: string) {
-		const agentRun = gen.agentRuns.find((ar) => ar.agentRunId === agentRunId);
-		if (agentRun) setSelectedAgentRun(agentRun);
-	}
-
-	function handleSelectedResponseAgentRunClick() {
-		const agentRun = gen.selectedResponseItem?.response?.agentRun;
-		if (agentRun) setSelectedAgentRun(agentRun);
-	}
-
-	const buildSummary = useMemo(() => {
-		const questionCount = selectedAgentRun?.meta?.questionCount;
-		if (!questionCount) return "Inspect prompts, response, and agent state.";
-		return `Inspect prompts, response, and agent state for this batch of ${questionCount} question${questionCount === 1 ? "" : "s"}.`;
-	}, [selectedAgentRun]);
 
 	return (
-		<div className="flex flex-col gap-3 text-sm">
+		<div className="flex min-h-[420px] flex-col gap-3 text-sm">
 			<Card size="sm">
 				<CardContent>
 					<h2 className="mb-1 text-lg font-semibold">
 						Gerar explicacoes por agente
 					</h2>
 					<p className="text-xs text-muted-foreground">
-						O agente preenche `explanation` e `deepExplanation` das questoes
-						deste exame.
+						Cada questao roda em um agente proprio com streaming, em paralelo.
+						A execucao continua em background pelo gerenciador de processos do
+						app.
 					</p>
 				</CardContent>
 			</Card>
 
-			<PipelineControls
-				generatingExplanations={gen.generatingExplanations}
-				batchSize={gen.batchSize}
-				overwriteExplanations={gen.overwriteExplanations}
-				generationMessage={gen.generationMessage}
-				questionCount={questions.length}
-				pendingCount={gen.pendingExplanationCount}
-				onBatchSizeChange={gen.setBatchSize}
-				onOverwriteChange={gen.setOverwriteExplanations}
-				onGenerate={gen.handleGenerateExplanations}
-			/>
+			<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+				{batch.showAgentPanel ? (
+					<ExplainQuestionsAgentList
+						agentItems={batch.agentItems}
+						finishedCount={batch.finishedCount}
+						processingCount={batch.processingCount}
+						errorCount={batch.errorCount}
+						progressPercent={batch.progressPercent}
+						onAgentClick={handleAgentClick}
+						onContinue={batch.handleContinue}
+					/>
+				) : (
+					<>
+						<div className="rounded-lg border border-border bg-muted p-3">
+							<p className="font-medium">Pendentes</p>
+							<p className="text-muted-foreground">
+								{batch.pendingExplanationCount} de {questions.length} perguntas
+								sem explicacao completa.
+							</p>
+						</div>
 
-			<ExplanationResults
-				progressItems={gen.progressItems}
-				agentRuns={gen.agentRuns}
-				selectedResponseItemId={gen.selectedResponseItemId}
-				selectedResponseItem={gen.selectedResponseItem}
-				questionOrder={gen.questionOrder}
-				processingCount={gen.processingCount}
-				errorCount={gen.errorCount}
-				finishedCount={gen.finishedCount}
-				progressPercent={gen.progressPercent}
-				findAgentRunForQuestionId={gen.findAgentRunForQuestionId}
-				setSelectedResponseItemId={gen.setSelectedResponseItemId}
-				onProgressItemClick={handleProgressItemClick}
-				onAgentRunClick={handleAgentRunClick}
-				onSelectedResponseAgentRunClick={handleSelectedResponseAgentRunClick}
-			/>
+						<QuestionSelection
+							questions={questions}
+							selectAll={batch.selectAll}
+							selectedIds={batch.selectedIds}
+							disabled={false}
+							onSelectAll={batch.handleSelectAll}
+							onToggleQuestion={batch.toggleQuestion}
+						/>
+
+						<div className="shrink-0">
+							<span className="text-xs font-semibold text-muted-foreground">
+								Agentes em paralelo (1-20)
+							</span>
+							<Input
+								type="number"
+								min={1}
+								max={20}
+								value={batch.maxWorkers}
+								onChange={(e) => {
+									const value = Number(e.target.value);
+									if (Number.isNaN(value)) return;
+									batch.setMaxWorkers(Math.max(1, Math.min(20, value)));
+								}}
+								className="mt-1"
+							/>
+						</div>
+
+						<label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2.5">
+							<input
+								type="checkbox"
+								checked={batch.overwriteExplanations}
+								onChange={(e) =>
+									batch.setOverwriteExplanations(e.target.checked)
+								}
+								className="accent-primary"
+							/>
+							<span>Sobrescrever explicacoes ja existentes</span>
+						</label>
+					</>
+				)}
+			</div>
+
+			<div className="flex flex-wrap gap-2">
+				{!batch.showAgentPanel ? (
+					<Button
+						type="button"
+						onClick={batch.handleStart}
+						disabled={
+							batch.selectedCount === 0 ||
+							questions.length === 0 ||
+							batch.isBatchRunning
+						}
+					>
+						<Sparkles data-icon="inline-start" />
+						Gerar agora
+					</Button>
+				) : null}
+				{batch.isBatchRunning ? (
+					<Button type="button" variant="outline" onClick={batch.handleCancel}>
+						<Square data-icon="inline-start" />
+						Cancelar
+					</Button>
+				) : null}
+			</div>
 
 			<AgentRunDetailDialog
 				name={selectedAgentRun?.label ?? ""}
-				summary={buildSummary}
+				summary="Inspect prompts, response, and agent state for this explanation run."
 				systemPrompt={selectedAgentRun?.systemPrompt}
 				userPrompt={selectedAgentRun?.userPrompt}
-				response={selectedAgentRun?.rawText ?? selectedAgentRun?.error}
+				response={
+					selectedAgentRun?.outputText ??
+					selectedAgentRun?.error ??
+					undefined
+				}
+				messages={selectedAgentRun?.messages}
 				open={selectedAgentRun != null}
 				onOpenChange={(nextOpen) => {
 					if (!nextOpen) setSelectedAgentRun(null);

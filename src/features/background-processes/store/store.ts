@@ -5,13 +5,13 @@ import type {
 	BackgroundProcessKind,
 	BackgroundProcessStoreState,
 	ConnectionTestBackgroundProcess,
-	ExplanationGenerationBackgroundProcess,
+	ExplainQuestionBackgroundProcess,
 	ImproveQuestionsBackgroundProcess,
 	IngestBackgroundProcess,
 } from "./types";
 import {
 	isConnectionTestProcess,
-	isExplanationGenerationProcess,
+	isExplainQuestionProcess,
 	isImproveQuestionsProcess,
 	isIngestProcess,
 } from "./types";
@@ -95,10 +95,8 @@ export function getImproveQuestionsProcesses(): ImproveQuestionsBackgroundProces
 	return backgroundProcessStore.state.processes.filter(isImproveQuestionsProcess);
 }
 
-export function getExplanationProcesses(): ExplanationGenerationBackgroundProcess[] {
-	return backgroundProcessStore.state.processes.filter(
-		isExplanationGenerationProcess,
-	);
+export function getExplainQuestionProcesses(): ExplainQuestionBackgroundProcess[] {
+	return backgroundProcessStore.state.processes.filter(isExplainQuestionProcess);
 }
 
 export function getConnectionTestProcesses(): ConnectionTestBackgroundProcess[] {

@@ -1,17 +1,20 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+	areExplainQuestionsExamViewsEqual,
 	areImproveQuestionsExamViewsEqual,
 	backgroundProcessStore,
+	getExplainQuestionRun,
 	getImproveQuestionsRun,
 	getRunPreviewQuestion,
 	type ImproveQuestionsRunPhase,
-	parseExplanationGenerationProcessId,
+	parseExplainQuestionProcessId,
 	parseImproveQuestionsProcessId,
+	selectExplainQuestionsExamViews,
 	selectImproveQuestionsExamViews,
 } from "@/features/background-processes";
 import { getExamDetail } from "@/server-functions/exams";
@@ -45,6 +48,17 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	const focusedProcessId = useStore(
 		backgroundProcessStore,
 		(state) => state.focusedProcessId,
+	);
+	const explainQuestionsExamViews = useStore(
+		backgroundProcessStore,
+		(state) => selectExplainQuestionsExamViews(state, examId),
+		areExplainQuestionsExamViewsEqual,
+	);
+	const explanationProcessActive = explainQuestionsExamViews.some(
+		(view) =>
+			view.isStreaming ||
+			view.status === "running" ||
+			view.status === "queued",
 	);
 
 	const { data: exam } = useSuspenseQuery({
@@ -96,12 +110,12 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		};
 
 		try {
-			const focusedExplanationExamId =
-				parseExplanationGenerationProcessId(focusedProcessId);
-			if (focusedExplanationExamId !== null) {
-				if (focusedExplanationExamId !== examId) return;
-
-				setActiveTab("explanations");
+			const explainQuestionId = parseExplainQuestionProcessId(focusedProcessId);
+			if (explainQuestionId !== null) {
+				const run = getExplainQuestionRun(explainQuestionId);
+				if (run?.examId === examId) {
+					setActiveTab("explanations");
+				}
 				return;
 			}
 
@@ -122,13 +136,13 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	}, [focusedProcessId, examId, exam.questions]);
 
 	return (
-		<div>
+		<div className="flex flex-col gap-3 pb-4 sm:gap-4 sm:pb-5">
 			<Link
 				from="/exams/$id"
 				to="/exams"
-				className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
+				className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
 			>
-				<ArrowLeft className="h-4 w-4" />
+				<ArrowLeft className="size-4 shrink-0" />
 				Back to exams
 			</Link>
 
@@ -140,14 +154,21 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				handleDelete={handleDelete}
 			/>
 
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
-				<TabsList>
-					<TabsTrigger value="details">Detalhes</TabsTrigger>
-					<TabsTrigger value="explanations">Explicacoes</TabsTrigger>
+			<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:inline-flex sm:h-8 sm:w-fit">
+					<TabsTrigger value="details" className="px-3 py-2 sm:py-0.5">
+						Detalhes
+					</TabsTrigger>
+					<TabsTrigger value="explanations" className="px-3 py-2 sm:py-0.5">
+						{explanationProcessActive ? (
+							<Loader2 className="size-3.5 animate-spin" />
+						) : null}
+						Explicacoes
+					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value="details" className="mt-3">
-					<div className="flex flex-col gap-3">
+				<TabsContent value="details" className="mt-3 sm:mt-4">
+					<div className="flex flex-col gap-3 sm:gap-4">
 						<ExamInfoPanel exam={exam} stats={stats} />
 
 						<QuestionsCard
@@ -178,7 +199,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 					</div>
 				</TabsContent>
 
-				<TabsContent value="explanations" className="mt-3">
+				<TabsContent value="explanations" className="mt-3 sm:mt-4">
 					<ExplanationPipelineTab examId={examId} questions={exam.questions} />
 				</TabsContent>
 			</Tabs>
