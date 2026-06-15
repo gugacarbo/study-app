@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin/")({
 	beforeLoad: () => {
-		throw redirect({ to: "/admin/llm-logs" });
+		throw redirect({ to: "/admin/config" });
 	},
 	component: () => null,
 });
