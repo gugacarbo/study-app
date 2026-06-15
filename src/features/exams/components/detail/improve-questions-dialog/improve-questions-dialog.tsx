@@ -42,6 +42,9 @@ export function ImproveQuestionsDialog({
 	onCancel,
 	onContinue,
 	canContinue,
+	canSendFollowUp,
+	onSendFollowUp,
+	streamError,
 	applying,
 }: ImproveQuestionsDialogProps) {
 	const [panelLayout, setPanelLayout] = useState<PanelLayout>("balanced");
@@ -131,6 +134,15 @@ export function ImproveQuestionsDialog({
 					</DialogDescription>
 				</DialogHeader>
 
+				{streamError ? (
+					<div
+						role="alert"
+						className="shrink-0 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+					>
+						{streamError}
+					</div>
+				) : null}
+
 				<div className={splitGridClass}>
 					<div
 						className={cn(
@@ -166,6 +178,8 @@ export function ImproveQuestionsDialog({
 							messages={messages}
 							isStreaming={isStreaming}
 							agentStatus={agentStatus}
+							composerEnabled={canSendFollowUp}
+							onSendFollowUp={onSendFollowUp}
 						/>
 					</div>
 				</div>

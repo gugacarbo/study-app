@@ -47,6 +47,20 @@ export function draftToQuestionData(
 	};
 }
 
+export function questionDataToDraft(question: QuestionData): DraftQuestion {
+	return {
+		id: question.id,
+		exam_id: question.exam_id,
+		question: question.question,
+		options: [...question.options],
+		answers: [...question.answers],
+		scoringMode: question.scoringMode,
+		explanation: question.explanation,
+		deepExplanation: question.deepExplanation,
+		topic: question.topic,
+	};
+}
+
 export function getRunPreviewQuestion(
 	run: ImproveQuestionsPreviewSource,
 	question: QuestionData,

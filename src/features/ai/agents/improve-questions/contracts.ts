@@ -67,11 +67,17 @@ export type ImproveQuestionsSSEEvent =
 	| { event: "done"; data: ImproveQuestionsJobResult }
 	| { event: "error"; data: ImproveQuestionsErrorEvent };
 
+export interface ImproveQuestionsFollowUpRequest {
+	message: string;
+	history: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
 export interface ImproveSingleQuestionOptions {
 	tools?: ToolSet;
 	onAgentEvent?: (event: ImproveQuestionsAgentEvent) => void;
 	onWorkspaceUpdate?: (event: WorkspaceUpdateEvent) => void;
 	createAgentRunId?: (label: string) => string;
+	followUp?: ImproveQuestionsFollowUpRequest;
 }
 
 export function emitAgentEvent(

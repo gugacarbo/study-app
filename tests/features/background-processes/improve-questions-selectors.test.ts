@@ -13,6 +13,7 @@ function createState(
 		processes,
 		focusedProcessId: null,
 		improveQuestionsBatchByExam: {},
+		explainQuestionsBatchByExam: {},
 	};
 }
 

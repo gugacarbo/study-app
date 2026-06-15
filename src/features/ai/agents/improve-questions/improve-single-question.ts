@@ -5,6 +5,7 @@ import {
 	createAiStreamState,
 	createToolResultEmitter,
 	isAiStreamRunErrorChunk,
+	payloadFromToolExecuteResult,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
@@ -49,14 +50,11 @@ export async function improveSingleQuestion(
 	const label = `Improve Question Q${question.id}`;
 	const agentRunId =
 		options.createAgentRunId?.(label) ?? `improve-questions-${question.id}`;
+	const isFollowUp = options.followUp != null;
+	const followUp = options.followUp;
 	const systemPrompt = buildImproveQuestionsSystemPrompt(question);
-	const userPrompt = buildUserPrompt(question);
+	const userPrompt = followUp?.message ?? buildUserPrompt(question);
 	const workspace = createImproveQuestionsWorkspace({ questions: [question] });
-	const workspaceTools = createImproveQuestionsTools(workspace);
-	const combinedTools: ToolSet = {
-		...workspaceTools,
-		...(options.tools ?? {}),
-	};
 	const streamState = createAiStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
@@ -65,14 +63,72 @@ export async function improveSingleQuestion(
 	const baseMeta = { questionId: question.id };
 	const providerConfig = toProviderConfig(config);
 
+	const handleToolResult = (toolResult: {
+		toolCallId: string;
+		content?: unknown;
+		error?: string;
+		state: "streaming" | "complete" | "error";
+	}) => {
+		const toolName =
+			toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+		emitAgentEvent(options, {
+			eventType: "tool-result",
+			stageId: IMPROVE_QUESTIONS_STAGE_ID,
+			agentRunId,
+			label,
+			name: toolName,
+			content: toolResult.content,
+			error: toolResult.error,
+			state: toolResult.state,
+			meta: {
+				...baseMeta,
+				toolCallId: toolResult.toolCallId,
+			},
+		});
+
+		const toolFailure = readToolFailureMessage(toolResult.content);
+		if (toolFailure) {
+			toolFailureMessages.push(toolFailure);
+		}
+
+		if (isSuccessfulUpdateToolResult(toolName, toolResult.content)) {
+			hasSuccessfulUpdate = true;
+			const content = toolResult.content as {
+				ok: true;
+				id: number;
+				updatedFields: string[];
+			};
+			options.onWorkspaceUpdate?.({
+				question: workspace.getQuestion(content.id),
+				updatedFields: content.updatedFields,
+			});
+		}
+	};
+	const emitToolResult = createToolResultEmitter(handleToolResult, streamState);
+
+	const workspaceTools = createImproveQuestionsTools(workspace, {
+		onToolExecuted: async ({ toolCallId, toolName, output }) => {
+			toolNamesById.set(toolCallId, toolName);
+			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+		},
+	});
+	const combinedTools: ToolSet = {
+		...workspaceTools,
+		...(options.tools ?? {}),
+	};
+
 	emitAgentEvent(options, {
 		eventType: "lifecycle",
 		stageId: IMPROVE_QUESTIONS_STAGE_ID,
 		agentRunId,
 		label,
 		status: "pending",
-		systemPrompt,
-		userPrompt,
+		...(isFollowUp
+			? {}
+			: {
+					systemPrompt,
+					userPrompt,
+				}),
 		meta: baseMeta,
 	});
 	emitAgentEvent(options, {
@@ -92,7 +148,10 @@ export async function improveSingleQuestion(
 			input?: unknown;
 			state: "awaiting-input" | "input-streaming" | "input-complete";
 		}) => {
-			if (toolCall.state === "input-streaming") {
+			if (
+				toolCall.state === "input-streaming" ||
+				toolCall.state === "awaiting-input"
+			) {
 				if (toolCall.name) {
 					toolNamesById.set(toolCall.toolCallId, toolCall.name);
 				}
@@ -118,62 +177,29 @@ export async function improveSingleQuestion(
 			});
 		};
 
-		const handleToolResult = (toolResult: {
-			toolCallId: string;
-			content?: unknown;
-			error?: string;
-			state: "streaming" | "complete" | "error";
-		}) => {
-			emitAgentEvent(options, {
-				eventType: "tool-result",
-				stageId: IMPROVE_QUESTIONS_STAGE_ID,
-				agentRunId,
-				label,
-				content: toolResult.content,
-				error: toolResult.error,
-				state: toolResult.state,
-				meta: {
-					...baseMeta,
-					toolCallId: toolResult.toolCallId,
-				},
-			});
-
-			const toolFailure = readToolFailureMessage(toolResult.content);
-			if (toolFailure) {
-				toolFailureMessages.push(toolFailure);
-			}
-
-			const toolName =
-				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-			if (isSuccessfulUpdateToolResult(toolName, toolResult.content)) {
-				hasSuccessfulUpdate = true;
-				const content = toolResult.content as {
-					ok: true;
-					id: number;
-					updatedFields: string[];
-				};
-				options.onWorkspaceUpdate?.({
-					question: workspace.getQuestion(content.id),
-					updatedFields: content.updatedFields,
-				});
-			}
-		};
-		const emitToolResult = createToolResultEmitter(
-			handleToolResult,
-			streamState,
-		);
+		const conversationMessages = followUp
+			? [
+					...followUp.history.map((entry) => ({
+						role: entry.role,
+						content: entry.content,
+					})),
+					{ role: "user" as const, content: followUp.message },
+				]
+			: [{ role: "user" as const, content: userPrompt }];
 
 		const result = loggedStreamText(
 			createLlmLogContext("improve-questions", providerConfig, {
 				callId: agentRunId,
 				systemPrompt,
-				requestSummary: `questionId=${question.id}`,
+				requestSummary: isFollowUp
+					? `questionId=${question.id} followUp`
+					: `questionId=${question.id}`,
 				metadata: baseMeta,
 			}),
 			{
 				model: getAiModel(providerConfig),
 				system: systemPrompt,
-				messages: [{ role: "user", content: userPrompt }],
+				messages: conversationMessages,
 				tools: combinedTools,
 				stopWhen: stepCountIs(10),
 				providerOptions: buildProviderOptions(providerConfig),
@@ -192,6 +218,26 @@ export async function improveSingleQuestion(
 			processAiStreamPart(
 				chunk,
 				{
+					onTextDelta: (delta) => {
+						emitAgentEvent(options, {
+							eventType: "token",
+							stageId: IMPROVE_QUESTIONS_STAGE_ID,
+							agentRunId,
+							label,
+							rawText: delta,
+							meta: baseMeta,
+						});
+					},
+					onReasoningDelta: (delta) => {
+						emitAgentEvent(options, {
+							eventType: "token",
+							stageId: IMPROVE_QUESTIONS_STAGE_ID,
+							agentRunId,
+							label,
+							rawText: delta,
+							meta: { ...baseMeta, kind: "reasoning" },
+						});
+					},
 					onUsage: (usage) => {
 						emitAgentEvent(options, {
 							eventType: "token",

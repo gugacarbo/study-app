@@ -25,5 +25,8 @@ export interface ImproveQuestionsDialogProps {
 	onCancel: () => void;
 	onContinue: () => void;
 	canContinue: boolean;
+	canSendFollowUp: boolean;
+	onSendFollowUp: (message: string) => void;
+	streamError: string | null;
 	applying: boolean;
 }

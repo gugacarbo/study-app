@@ -45,7 +45,10 @@ import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contr
 import { improveSingleQuestion } from "@/features/ai/agents/improve-questions/improve-single-question";
 
 type ExecutableTool = {
-	execute: (input: Record<string, unknown>) => Promise<unknown>;
+	execute: (
+		input: Record<string, unknown>,
+		context?: { toolCallId?: string },
+	) => Promise<unknown>;
 };
 
 function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
@@ -332,6 +335,68 @@ describe("improveSingleQuestion", () => {
 				stageId: "improve-questions",
 				status: "done",
 				agentRunId: "improve-q7",
+			}),
+		);
+	});
+
+	it("emits tool results from onToolExecuted when the stream payload is empty", async () => {
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const getQuestion = getTool(options?.tools, "get_question");
+
+			return {
+				fullStream: (async function* () {
+					await getQuestion.execute({ id: 7 }, { toolCallId: "tool-1" });
+					yield {
+						type: "tool-call",
+						toolCallId: "tool-1",
+						toolName: "get_question",
+						input: { id: 7 },
+					} as TextStreamPart<ToolSet>;
+					yield {
+						type: "tool-result",
+						toolCallId: "tool-1",
+						toolName: "get_question",
+						input: { id: 7 },
+						output: undefined,
+					} as TextStreamPart<ToolSet>;
+					yield {
+						type: "finish-step",
+						usage: {
+							inputTokens: 1,
+							outputTokens: 1,
+							totalTokens: 2,
+						},
+					} as TextStreamPart<ToolSet>;
+				})(),
+			};
+		});
+
+		const onAgentEvent = vi.fn();
+
+		const result = await improveSingleQuestion(
+			{
+				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
+				apiKey: "test-key",
+			},
+			baseQuestion,
+			{
+				onAgentEvent,
+				createAgentRunId: () => "improve-q7",
+			},
+		);
+
+		expect(result.success).toBe(false);
+		expect(onAgentEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				eventType: "tool-result",
+				name: "get_question",
+				content: {
+					ok: true,
+					data: expect.objectContaining({ id: 7 }),
+				},
+				state: "complete",
+				meta: expect.objectContaining({ toolCallId: "tool-1" }),
 			}),
 		);
 	});

@@ -11,6 +11,10 @@ import type {
 	WorkspaceUpdateDataPart,
 } from "@/features/ai/types/ui-message-data-parts";
 import {
+	agentRunDataPartToReducerEvent,
+	appendFollowUpUserMessage,
+	beginFollowUpAssistantTurn,
+	buildTextConversationHistory,
 	createAgentRunState,
 	reduceAgentEvent,
 	type AgentRunState,
@@ -46,7 +50,7 @@ import {
 	improveQuestionsProcessId,
 	isImproveQuestionsProcess,
 } from "../../store/types";
-import { cloneQuestion, draftToQuestionData } from "./question-helpers";
+import { cloneQuestion, draftToQuestionData, questionDataToDraft } from "./question-helpers";
 import { createImproveQuestionsStoreBatcher } from "./store-sync";
 
 export const MIN_IMPROVE_QUESTIONS_MAX_WORKERS = 1;
@@ -67,12 +71,13 @@ function syncAgentRunId(
 	event: ImproveQuestionsAgentEvent,
 ): AgentRunState {
 	if (state.agentRunId === event.agentRunId) return state;
-	return createAgentRunState({
+	return {
+		...state,
 		agentRunId: event.agentRunId,
-		label: event.label,
-		systemPrompt: event.systemPrompt,
-		userPrompt: event.userPrompt,
-	});
+		label: event.label || state.label,
+		systemPrompt: event.systemPrompt ?? state.systemPrompt,
+		userPrompt: event.userPrompt ?? state.userPrompt,
+	};
 }
 
 function phaseToStatus(
@@ -376,6 +381,181 @@ export function canContinueImproveQuestionsRun(
 	);
 }
 
+export function canSendImproveQuestionsFollowUp(questionId: number): boolean {
+	const process = getImproveQuestionsProcess(questionId);
+	if (!process) return false;
+	if (
+		process.isStreaming ||
+		process.status === "running" ||
+		process.status === "queued"
+	) {
+		return false;
+	}
+	return process.status === "awaiting_review" || process.phase === "done";
+}
+
+export function sendImproveQuestionsFollowUp(
+	questionId: number,
+	message: string,
+): boolean {
+	const trimmed = message.trim();
+	if (!trimmed) return false;
+
+	const process = getImproveQuestionsProcess(questionId);
+	if (!process || !canSendImproveQuestionsFollowUp(questionId)) {
+		return false;
+	}
+
+	const conversationHistory = buildTextConversationHistory(
+		process.agentRunState?.messages ?? [],
+	);
+	const baseRunState =
+		process.agentRunState ??
+		createAgentRunState({
+			agentRunId: `improve-questions-${questionId}`,
+			label: "Improve question",
+		});
+	let runState = beginFollowUpAssistantTurn(
+		appendFollowUpUserMessage(baseRunState, trimmed),
+	);
+
+	updateImproveQuestionsProcess(questionId, (run) =>
+		patchImproveQuestionsProcess(run, {
+			agentRunState: runState,
+			isStreaming: true,
+			phase: "running",
+			streamError: null,
+			finishedAt: null,
+		}),
+	);
+
+	runImproveQuestionsFollowUpStream(questionId, trimmed, conversationHistory, runState);
+	return true;
+}
+
+function runImproveQuestionsFollowUpStream(
+	questionId: number,
+	followUpMessage: string,
+	conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+	initialRunState: AgentRunState,
+): void {
+	const processId = improveQuestionsProcessId(questionId);
+	const controller = new AbortController();
+	registerAbort(processId, controller);
+
+	void (async () => {
+		const batcher = createImproveQuestionsStoreBatcher(questionId);
+		let runState = initialRunState;
+
+		try {
+			let jobCompleted = false;
+
+			const finishJob = (finalQuestion: DraftQuestion) => {
+				jobCompleted = true;
+				batcher.dispose();
+				updateImproveQuestionsProcess(questionId, (run) => {
+					const finalDraft = draftToQuestionData(
+						finalQuestion,
+						run.originalSnapshot,
+					);
+					return patchImproveQuestionsProcess(run, {
+						draftQuestion: finalDraft,
+						changes: computeQuestionChanges(
+							run.originalSnapshot,
+							finalDraft,
+						),
+						agentRunState: { ...runState, status: "done" },
+						isStreaming: false,
+						phase: "done",
+					});
+				});
+				runNextQueued();
+			};
+
+			const current = getImproveQuestionsProcess(questionId);
+			if (!current) {
+				throw new Error("Improve question run disappeared before follow-up");
+			}
+
+			await consumeJobStream(
+				{
+					url: "/api/improve-questions",
+					init: {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							questionId,
+							followUpMessage,
+							draftQuestion: questionDataToDraft(current.draftQuestion),
+							conversationHistory,
+						}),
+					},
+					signal: controller.signal,
+				},
+				{
+					onData: (part) => {
+						if (part.type === "data-agent-run") {
+							const event = part.data as ImproveQuestionsAgentEvent;
+							runState = syncAgentRunId(runState, event);
+							const reducerEvent =
+								agentRunDataPartToReducerEvent(event) ?? event;
+							runState = reduceAgentEvent(runState, reducerEvent);
+							batcher.queue({ agentRunState: { ...runState } });
+							return;
+						}
+
+						if (part.type === "data-workspace-update") {
+							const active = getImproveQuestionsProcess(questionId);
+							if (!active) return;
+							batcher.queue({
+								draftQuestion: draftToQuestionData(
+									workspaceUpdateToDraft(part.data),
+									active.originalSnapshot,
+								),
+							});
+							return;
+						}
+
+						if (part.type === "data-job-result") {
+							const jobResult = normalizeJobResult(part.data);
+							if (!jobResult) return;
+							finishJob(jobResult.finalQuestion);
+						}
+					},
+				},
+			);
+
+			if (!jobCompleted) {
+				throw new Error(
+					"Improve question follow-up stream finished without a job result",
+				);
+			}
+		} catch (error) {
+			if (controller.signal.aborted || isAbortError(error)) {
+				return;
+			}
+
+			const message = getErrorMessage(error);
+			updateImproveQuestionsProcess(questionId, (run) =>
+				patchImproveQuestionsProcess(run, {
+					streamError: message,
+					isStreaming: false,
+					phase: "done",
+					agentRunState: {
+						...runState,
+						status: "error",
+						error: message,
+					},
+				}),
+			);
+			runNextQueued();
+		} finally {
+			batcher.dispose();
+			unregisterAbort(processId);
+		}
+	})();
+}
+
 export function continueImproveQuestionsRun(questionId: number): boolean {
 	if (!canContinueImproveQuestionsRun(questionId)) return false;
 
@@ -508,7 +688,9 @@ export function startQueuedImproveQuestions(processId: string): void {
 								if (part.type === "data-agent-run") {
 									const event = part.data as ImproveQuestionsAgentEvent;
 									runState = syncAgentRunId(runState, event);
-									runState = reduceAgentEvent(runState, event);
+									const reducerEvent =
+										agentRunDataPartToReducerEvent(event) ?? event;
+									runState = reduceAgentEvent(runState, reducerEvent);
 									batcher.queue({ agentRunState: { ...runState } });
 									return;
 								}

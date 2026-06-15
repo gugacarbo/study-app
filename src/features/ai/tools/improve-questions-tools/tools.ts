@@ -113,7 +113,7 @@ export function createImproveQuestionsTools(
 	return {
 		[GET_QUESTION_TOOL]: tool({
 			description:
-				"Read the current improve-questions workspace question snapshot by database id.",
+				"Read the current improve-questions workspace question snapshot by numeric question id.",
 			inputSchema: zodSchema(getQuestionInputSchema),
 			execute: async (input: GetQuestionInput, context) => {
 				let output:

@@ -43,6 +43,9 @@ export function ImproveQuestionsDialog({
 			onCancel={state.onCancel}
 			onContinue={state.onContinue}
 			canContinue={state.canContinue}
+			canSendFollowUp={state.canSendFollowUp}
+			onSendFollowUp={state.onSendFollowUp}
+			streamError={state.streamError}
 			applying={state.applying}
 		/>
 	);

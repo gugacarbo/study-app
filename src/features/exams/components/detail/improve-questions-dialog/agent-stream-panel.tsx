@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
-import { IMPROVE_QUESTIONS_STAGE_ID } from "@/features/ai/agents/improve-questions/contracts";
-import { AgentRunThread } from "@/features/ai/components/assistant-ui/agent-run-thread";
-import type { IngestAgentRunViewModel } from "@/features/ingest/components/types";
+import { Loader2 } from "lucide-react";
+import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
+import { Thread } from "@/features/ai/components/assistant-ui/thread";
+import { useFollowUpAssistantRuntime } from "@/features/ai/hooks/use-follow-up-assistant-runtime";
 import type {
 	ImproveQuestionsAgentStatus,
 	ImproveQuestionsUIMessage,
@@ -11,104 +11,50 @@ interface AgentStreamPanelProps {
 	messages: ImproveQuestionsUIMessage[];
 	isStreaming: boolean;
 	agentStatus: ImproveQuestionsAgentStatus;
-}
-
-interface ImproveQuestionsStreamBubble {
-	id: string;
-	agentRunId: string;
-	agentName: string;
-	agentState: IngestAgentRunViewModel["state"];
-	stageId: typeof IMPROVE_QUESTIONS_STAGE_ID;
-	message: ImproveQuestionsUIMessage;
-	isStreaming: boolean;
-}
-
-function mapAgentState(
-	status: ImproveQuestionsAgentStatus,
-): ImproveQuestionsStreamBubble["agentState"] {
-	switch (status) {
-		case "running":
-			return "running";
-		case "done":
-			return "success";
-		case "error":
-			return "error";
-		default:
-			return "pending";
-	}
-}
-
-function toChatBubbles(
-	messages: ImproveQuestionsUIMessage[],
-	isStreaming: boolean,
-	agentStatus: ImproveQuestionsAgentStatus,
-): ImproveQuestionsStreamBubble[] {
-	const visibleMessages = messages.filter(
-		(message) => message.parts.length > 0,
-	);
-	const agentState = mapAgentState(agentStatus);
-	const lastAssistantId = [...visibleMessages]
-		.reverse()
-		.find((message) => message.role === "assistant")?.id;
-
-	return visibleMessages.map((message) => ({
-		id: message.id,
-		agentRunId: "improve-questions",
-		agentName: "Improve Question",
-		agentState,
-		stageId: IMPROVE_QUESTIONS_STAGE_ID,
-		message,
-		isStreaming:
-			isStreaming &&
-			message.role === "assistant" &&
-			message.id === lastAssistantId,
-	}));
+	composerEnabled?: boolean;
+	onSendFollowUp?: (message: string) => void;
 }
 
 export function AgentStreamPanel({
 	messages,
 	isStreaming,
 	agentStatus,
+	composerEnabled = false,
+	onSendFollowUp,
 }: AgentStreamPanelProps) {
-	const scrollRef = useRef<HTMLDivElement | null>(null);
-	const bubbles = useMemo(
-		() => toChatBubbles(messages, isStreaming, agentStatus),
-		[messages, isStreaming, agentStatus],
-	);
+	const visibleMessages = messages.filter((message) => message.parts.length > 0);
+	const runtime = useFollowUpAssistantRuntime({
+		messages: visibleMessages,
+		isRunning: isStreaming,
+		composerEnabled,
+		onSend: onSendFollowUp,
+	});
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when stream bubbles update
-	useEffect(() => {
-		scrollRef.current?.scrollTo({
-			top: scrollRef.current.scrollHeight,
-			behavior: "smooth",
-		});
-	}, [bubbles]);
+	if (visibleMessages.length === 0) {
+		const waiting =
+			agentStatus === "running" || isStreaming ? (
+				<span className="inline-flex items-center gap-2">
+					<Loader2 className="size-4 animate-spin" />
+					Waiting for agent output...
+				</span>
+			) : agentStatus === "idle" ? (
+				"Waiting to start…"
+			) : (
+				"No messages yet."
+			);
+
+		return (
+			<div className="flex min-h-0 flex-1 items-center justify-center rounded-md border border-border bg-muted p-3 text-sm text-muted-foreground">
+				{waiting}
+			</div>
+		);
+	}
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-			<p className="shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-				Agent stream
-			</p>
-			<div
-				ref={scrollRef}
-				className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-md border border-border bg-muted p-3"
-			>
-				{bubbles.length === 0 ? (
-					<p className="text-sm text-muted-foreground">
-						{agentStatus === "idle" ? "Waiting to start…" : "No messages yet."}
-					</p>
-				) : (
-					bubbles.map((bubble) => (
-						<AgentRunThread
-							key={bubble.id}
-							agentName={bubble.agentName}
-							agentState={bubble.agentState}
-							messages={[bubble.message]}
-							isStreaming={bubble.isStreaming}
-						/>
-					))
-				)}
-			</div>
+		<div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-muted">
+			<StudyAssistantRuntimeProvider runtime={runtime}>
+				<Thread showComposer={composerEnabled} collapsiblePrompts />
+			</StudyAssistantRuntimeProvider>
 		</div>
 	);
 }

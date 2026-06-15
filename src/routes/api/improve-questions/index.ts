@@ -23,9 +23,51 @@ import {
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { env } from "@/env";
 
-const improveQuestionsRequestSchema = z.object({
-	questionId: z.number().int().positive(),
+const draftQuestionSchema = z.object({
+	id: z.number().int().positive(),
+	exam_id: z.number().int().positive().nullable().optional(),
+	question: z.string(),
+	options: z.array(z.string()),
+	answers: z.array(z.string()),
+	scoringMode: z.enum(["exact", "partial"]),
+	explanation: z.string(),
+	deepExplanation: z.string().optional(),
+	topic: z.string().optional(),
 });
+
+const conversationHistorySchema = z.array(
+	z.object({
+		role: z.enum(["user", "assistant"]),
+		content: z.string(),
+	}),
+);
+
+const improveQuestionsRequestSchema = z
+	.object({
+		questionId: z.number().int().positive(),
+		followUpMessage: z.string().trim().min(1).optional(),
+		draftQuestion: draftQuestionSchema.optional(),
+		conversationHistory: conversationHistorySchema.optional(),
+	})
+	.superRefine((value, ctx) => {
+		if (!value.followUpMessage) return;
+
+		if (!value.draftQuestion) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "draftQuestion is required for follow-up requests",
+				path: ["draftQuestion"],
+			});
+		}
+
+		if (!value.conversationHistory) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "conversationHistory is required for follow-up requests",
+				path: ["conversationHistory"],
+			});
+		}
+	});
 
 function toDraftQuestion(question: {
 	id: number;
@@ -72,6 +114,14 @@ function emitImproveAgentEvent(
 			agentRuns.warning(run, event.warning ?? "Warning", event.meta);
 			return;
 		case "token":
+			if (typeof event.rawText === "string" && event.rawText.length > 0) {
+				if (event.meta?.kind === "reasoning") {
+					agentRuns.reasoningDelta(run, event.rawText);
+				} else {
+					agentRuns.textDelta(run, event.rawText);
+				}
+				return;
+			}
 			agentRuns.token(run, event.tokens, event.meta);
 			return;
 		case "tool-call":
@@ -103,6 +153,14 @@ function emitImproveAgentEvent(
 async function runImproveQuestions(
 	questionId: number,
 	writer: JobUIMessageStreamWriter,
+	options?: {
+		followUpMessage?: string;
+		draftQuestion?: DraftQuestion;
+		conversationHistory?: Array<{
+			role: "user" | "assistant";
+			content: string;
+		}>;
+	},
 ): Promise<void> {
 	const { getDB } = await import("@/server-functions/db");
 	const db = await getDB();
@@ -120,7 +178,8 @@ async function runImproveQuestions(
 	const { requireModelConfig } = await import("@/lib/ai-config");
 	const providerConfig = await requireModelConfig(queries, "improve_questions");
 
-	const draftQuestion = toDraftQuestion(questionRow);
+	const draftQuestion =
+		options?.draftQuestion ?? toDraftQuestion(questionRow);
 	const agentRuns = createAgentRunWriter(writer);
 	const run = agentRuns.createRun(IMPROVE_QUESTIONS_STAGE_ID, "Improve Question");
 
@@ -146,6 +205,14 @@ async function runImproveQuestions(
 		onWorkspaceUpdate: (update) => {
 			writeWorkspaceUpdate(writer, toWorkspaceUpdateDataPart(update));
 		},
+		...(options?.followUpMessage && options.conversationHistory
+			? {
+					followUp: {
+						message: options.followUpMessage,
+						history: options.conversationHistory,
+					},
+				}
+			: {}),
 	});
 
 	if (!result.success) {
@@ -181,7 +248,11 @@ export const Route = createFileRoute("/api/improve-questions/")({
 				const stream = createJobUIMessageStream({
 					execute: async ({ writer }) => {
 						try {
-							await runImproveQuestions(parsed.data.questionId, writer);
+							await runImproveQuestions(parsed.data.questionId, writer, {
+								followUpMessage: parsed.data.followUpMessage,
+								draftQuestion: parsed.data.draftQuestion,
+								conversationHistory: parsed.data.conversationHistory,
+							});
 						} catch (error) {
 							console.error(
 								`[${new Date().toISOString()} ERROR improve-questions-handler] Improve question failed:`,

@@ -3,7 +3,26 @@ import { z } from "zod";
 export const IMPROVE_QUESTIONS_TOOL_ERROR_CODE = "IMPROVE_QUESTIONS_TOOL_ERROR";
 export const QUESTION_NOT_FOUND_ERROR_CODE = "QUESTION_NOT_FOUND";
 
-export const questionIdSchema = z.number().int().positive();
+export const questionIdSchema = z.coerce.number().int().positive();
+
+function preprocessQuestionIdInput(input: unknown): unknown {
+	if (typeof input !== "object" || input === null) return input;
+
+	const obj = input as Record<string, unknown>;
+	if (!("id" in obj)) return input;
+
+	const rawId = obj.id;
+	if (typeof rawId === "string") {
+		const trimmed = rawId.trim();
+		if (trimmed.length === 0) return input;
+		const parsed = Number(trimmed);
+		if (!Number.isNaN(parsed)) {
+			return { ...obj, id: parsed };
+		}
+	}
+
+	return input;
+}
 
 const optionalNullableStringSchema = z
 	.string()
@@ -82,9 +101,12 @@ function preprocessImproveQuestionsPatch(input: unknown): unknown {
 	return { ...rest, answers };
 }
 
-export const getQuestionInputSchema = z.object({
-	id: questionIdSchema,
-});
+export const getQuestionInputSchema = z.preprocess(
+	preprocessQuestionIdInput,
+	z.object({
+		id: questionIdSchema,
+	}),
+);
 
 const optionalNullableQuestionSchema = z
 	.string()
@@ -95,7 +117,7 @@ const optionalNullableQuestionSchema = z
 	.transform((value) => value ?? undefined);
 
 export const updateQuestionOptionsPatchSchema = z.preprocess(
-	preprocessImproveQuestionsPatch,
+	(input) => preprocessImproveQuestionsPatch(preprocessQuestionIdInput(input)),
 	z
 		.object({
 			id: questionIdSchema,

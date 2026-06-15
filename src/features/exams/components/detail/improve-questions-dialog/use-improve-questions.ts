@@ -7,6 +7,7 @@ import {
 	backgroundProcessStore,
 	cancelImproveQuestionsRun,
 	canContinueImproveQuestionsRun,
+	canSendImproveQuestionsFollowUp,
 	continueImproveQuestionsRun,
 	getImproveQuestionsRun,
 	getRunPreviewQuestion,
@@ -15,6 +16,7 @@ import {
 	keepAllImproveQuestionsChanges,
 	revertAllImproveQuestionsChanges,
 	setImproveQuestionsDecision,
+	sendImproveQuestionsFollowUp,
 	startImproveQuestionsRun,
 } from "@/features/background-processes";
 import type { QuestionData } from "../exam-utils";
@@ -77,6 +79,17 @@ export function useImproveQuestions({
 		[questionId, run],
 	);
 
+	const canSendFollowUp = useMemo(
+		() => canSendImproveQuestionsFollowUp(questionId),
+		[questionId, run],
+	);
+
+	const streamError = useMemo(() => {
+		if (run?.streamError) return run.streamError;
+		if (run?.agentRunState?.error) return run.agentRunState.error;
+		return null;
+	}, [run?.streamError, run?.agentRunState?.error]);
+
 	const handleDecision = useCallback(
 		(id: string, decision: ChangeDecision) => {
 			setImproveQuestionsDecision(questionId, id, decision);
@@ -100,6 +113,13 @@ export function useImproveQuestions({
 	const handleContinue = useCallback(() => {
 		continueImproveQuestionsRun(questionId);
 	}, [questionId]);
+
+	const handleSendFollowUp = useCallback(
+		(message: string) => {
+			sendImproveQuestionsFollowUp(questionId, message);
+		},
+		[questionId],
+	);
 
 	const handleApply = useCallback(async () => {
 		setApplying(true);
@@ -127,15 +147,17 @@ export function useImproveQuestions({
 		isStreaming: run?.isStreaming ?? false,
 		agentStatus,
 		changes: run?.changes ?? [],
-		streamError: run?.streamError ?? null,
+		streamError,
 		onDecision: handleDecision,
 		onKeepAll: handleKeepAll,
 		onRevertAll: handleRevertAll,
 		onApply: handleApply,
 		onCancel: handleCancel,
 		onContinue: handleContinue,
+		onSendFollowUp: handleSendFollowUp,
 		onOpenChange: handleOpenChange,
 		canContinue,
+		canSendFollowUp,
 		applying,
 	};
 }
