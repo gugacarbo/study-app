@@ -1,11 +1,11 @@
 import type { DBQueries } from "@/db/queries/base";
 import { env } from "@/env";
-import { encryptSecret, decryptSecret } from "@/lib/config-encryption";
+import { decryptSecret, encryptSecret } from "@/lib/config-encryption";
 import {
 	AI_AGENT_TASKS,
 	type AiAgentTask,
-	agentModelConfigKey,
 	type AiSettings,
+	agentModelConfigKey,
 	type ResolvedModelConfig,
 } from "@/lib/validation";
 
@@ -61,6 +61,8 @@ async function resolvedFromModelRow(
 		outputCostPerMillion: row.outputCostPerMillion,
 		thinkingEffortLevels: row.thinkingEffortLevels,
 		defaultThinkingEffort: row.defaultThinkingEffort,
+		thinkingEnabled: row.thinkingEnabled,
+		requestParams: row.requestParams,
 	};
 }
 
@@ -83,6 +85,8 @@ async function legacyProviderConfig(
 		providerName: "legacy",
 		thinkingEffortLevels: [],
 		defaultThinkingEffort: null,
+		thinkingEnabled: undefined,
+		requestParams: {},
 	};
 }
 

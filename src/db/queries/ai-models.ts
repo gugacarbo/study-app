@@ -1,6 +1,10 @@
-import type { ThinkingEffortLevel } from "@/lib/validation";
 import { and, eq } from "drizzle-orm";
+import type { RequestParams, ThinkingEffortLevel } from "@/lib/validation";
 import * as schema from "../schema";
+import {
+	parseRequestParams,
+	serializeRequestParams,
+} from "./ai-model-request-params";
 import {
 	parseDefaultThinkingEffort,
 	parseThinkingEffortLevels,
@@ -34,8 +38,10 @@ function toPublicModel(row: AiModelWithProvider): AiModelPublic {
 			row.default_thinking_effort,
 			thinkingEffortLevels,
 		),
+		thinkingEnabled: row.thinking_enabled,
 		enabled: row.enabled,
 		metadata: row.metadata,
+		requestParams: parseRequestParams(row.request_params),
 	};
 }
 
@@ -52,8 +58,10 @@ function modelWithProviderSelect(db: DBQueries["db"]) {
 			output_cost_per_million: schema.aiModels.output_cost_per_million,
 			thinking_effort_levels: schema.aiModels.thinking_effort_levels,
 			default_thinking_effort: schema.aiModels.default_thinking_effort,
+			thinking_enabled: schema.aiModels.thinking_enabled,
 			enabled: schema.aiModels.enabled,
 			metadata: schema.aiModels.metadata,
+			request_params: schema.aiModels.request_params,
 			created_at: schema.aiModels.created_at,
 			updated_at: schema.aiModels.updated_at,
 			provider_name: schema.aiProviders.name,
@@ -134,8 +142,10 @@ export function insertAiModel(
 		outputCostPerMillion?: number | null;
 		thinkingEffortLevels?: ThinkingEffortLevel[];
 		defaultThinkingEffort?: ThinkingEffortLevel | null;
+		thinkingEnabled?: boolean | null;
 		enabled?: boolean;
 		metadata?: string | null;
+		requestParams?: RequestParams;
 	},
 ): Promise<number> {
 	return this.db
@@ -152,8 +162,10 @@ export function insertAiModel(
 				data.thinkingEffortLevels ?? [],
 			),
 			default_thinking_effort: data.defaultThinkingEffort ?? null,
+			thinking_enabled: data.thinkingEnabled ?? null,
 			enabled: data.enabled ?? true,
 			metadata: data.metadata ?? null,
+			request_params: serializeRequestParams(data.requestParams),
 		})
 		.returning({ id: schema.aiModels.id })
 		.get()
@@ -172,8 +184,10 @@ export function updateAiModel(
 		outputCostPerMillion?: number | null;
 		thinkingEffortLevels?: ThinkingEffortLevel[];
 		defaultThinkingEffort?: ThinkingEffortLevel | null;
+		thinkingEnabled?: boolean | null;
 		enabled?: boolean;
 		metadata?: string | null;
+		requestParams?: RequestParams;
 	},
 ): Promise<void> {
 	const values: Partial<typeof schema.aiModels.$inferInsert> = {
@@ -181,7 +195,8 @@ export function updateAiModel(
 	};
 	if (data.modelId !== undefined) values.model_id = data.modelId;
 	if (data.displayName !== undefined) values.display_name = data.displayName;
-	if (data.contextWindow !== undefined) values.context_window = data.contextWindow;
+	if (data.contextWindow !== undefined)
+		values.context_window = data.contextWindow;
 	if (data.maxOutputTokens !== undefined) {
 		values.max_output_tokens = data.maxOutputTokens;
 	}
@@ -199,8 +214,14 @@ export function updateAiModel(
 	if (data.defaultThinkingEffort !== undefined) {
 		values.default_thinking_effort = data.defaultThinkingEffort;
 	}
+	if (data.thinkingEnabled !== undefined) {
+		values.thinking_enabled = data.thinkingEnabled;
+	}
 	if (data.enabled !== undefined) values.enabled = data.enabled;
 	if (data.metadata !== undefined) values.metadata = data.metadata;
+	if (data.requestParams !== undefined) {
+		values.request_params = serializeRequestParams(data.requestParams);
+	}
 
 	return this.db
 		.update(schema.aiModels)

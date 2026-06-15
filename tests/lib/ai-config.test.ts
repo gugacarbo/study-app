@@ -32,8 +32,10 @@ describe("resolveModelConfig", () => {
 						outputCostPerMillion: 0,
 						enabled: true,
 						metadata: null,
+						requestParams: {},
 						thinkingEffortLevels: [],
 						defaultThinkingEffort: null,
+						thinkingEnabled: null,
 						providerBaseUrl: "https://openrouter.ai/api/v1",
 						providerApiKey: encryptedKey,
 					};
@@ -52,6 +54,7 @@ describe("resolveModelConfig", () => {
 					metadata: null,
 					thinkingEffortLevels: ["medium"],
 					defaultThinkingEffort: "medium",
+					thinkingEnabled: null,
 					providerBaseUrl: "https://openrouter.ai/api/v1",
 					providerApiKey: encryptedKey,
 				};

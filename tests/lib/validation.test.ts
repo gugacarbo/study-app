@@ -184,6 +184,7 @@ describe('toProviderConfig', () => {
       apiKey: 'ollama',
       baseUrl: 'http://localhost:11434/v1',
       thinkingEffort: undefined,
+      thinkingEnabled: undefined,
     });
   });
 
@@ -203,6 +204,28 @@ describe('toProviderConfig', () => {
       apiKey: 'sk-test',
       baseUrl: 'https://openrouter.ai/api/v1',
       thinkingEffort: 'medium',
+      thinkingEnabled: undefined,
+    });
+  });
+
+  it('preserves boolean thinking when configured', () => {
+    expect(
+      toProviderConfig({
+        modelId: 1,
+        providerName: 'LiteLLM',
+        model: 'MiniMax-M2.7-highspeed',
+        apiKey: 'sk-test',
+        baseUrl: 'https://litellm.example.com/v1',
+        thinkingEffortLevels: [],
+        defaultThinkingEffort: null,
+        thinkingEnabled: false,
+      }),
+    ).toEqual({
+      model: 'MiniMax-M2.7-highspeed',
+      apiKey: 'sk-test',
+      baseUrl: 'https://litellm.example.com/v1',
+      thinkingEffort: undefined,
+      thinkingEnabled: false,
     });
   });
 });
@@ -240,6 +263,18 @@ describe('createAiModelSchema', () => {
       displayName: 'GPT-5',
       thinkingEffortLevels: ['low'],
       defaultThinkingEffort: 'high',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects mixing effort levels with boolean thinking', () => {
+    const result = createAiModelSchema.safeParse({
+      providerId: 1,
+      modelId: 'minimax/m2',
+      displayName: 'MiniMax M2',
+      thinkingEffortLevels: ['low'],
+      defaultThinkingEffort: 'low',
+      thinkingEnabled: true,
     });
     expect(result.success).toBe(false);
   });
@@ -398,6 +433,7 @@ describe('examIngestResponseSchema', () => {
           topic: 'Math',
         },
       ],
+      examName: 'Math Exam',
       topics: ['Math'],
     };
     const result = examIngestResponseSchema.safeParse(valid);
@@ -415,6 +451,7 @@ describe('examIngestResponseSchema', () => {
           topic: 'Math',
         },
       ],
+      examName: 'Math Exam',
       topics: ['Math'],
     };
     const result = examIngestResponseSchema.safeParse(valid);
@@ -433,6 +470,7 @@ describe('examIngestResponseSchema', () => {
           answers: [],
         },
       ],
+      examName: 'Invalid Exam',
       topics: [],
     };
     const result = examIngestResponseSchema.safeParse(invalid);
@@ -464,6 +502,7 @@ describe('examIngestResponseSchema', () => {
           topic: 'Redes',
         },
       ],
+      examName: 'Redes Exam',
       topics: ['Redes'],
     };
 
@@ -524,6 +563,7 @@ describe('examIngestResponseSchema', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     examIngestResponseSchema.safeParse({
+      examName: 'Redes Exam',
       questions: [
         {
           question: 'Pergunta valida',

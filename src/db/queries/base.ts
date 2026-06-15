@@ -146,9 +146,13 @@ export interface DBQueries {
 		inputCostPerMillion?: number | null;
 		outputCostPerMillion?: number | null;
 		thinkingEffortLevels?: import("@/lib/validation").ThinkingEffortLevel[];
-		defaultThinkingEffort?: import("@/lib/validation").ThinkingEffortLevel | null;
+		defaultThinkingEffort?:
+			| import("@/lib/validation").ThinkingEffortLevel
+			| null;
+		thinkingEnabled?: boolean | null;
 		enabled?: boolean;
 		metadata?: string | null;
+		requestParams?: import("@/lib/validation").RequestParams;
 	}): Promise<number>;
 	updateAiModel(
 		id: number,
@@ -160,9 +164,13 @@ export interface DBQueries {
 			inputCostPerMillion?: number | null;
 			outputCostPerMillion?: number | null;
 			thinkingEffortLevels?: import("@/lib/validation").ThinkingEffortLevel[];
-			defaultThinkingEffort?: import("@/lib/validation").ThinkingEffortLevel | null;
+			defaultThinkingEffort?:
+				| import("@/lib/validation").ThinkingEffortLevel
+				| null;
+			thinkingEnabled?: boolean | null;
 			enabled?: boolean;
 			metadata?: string | null;
+			requestParams?: import("@/lib/validation").RequestParams;
 		},
 	): Promise<void>;
 	deleteAiModel(id: number): Promise<void>;

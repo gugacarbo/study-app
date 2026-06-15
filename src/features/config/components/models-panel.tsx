@@ -1,15 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
 	Dialog,
 	DialogContent,
@@ -17,6 +11,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,6 +28,14 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { AiProviderPublic } from "@/db/queries/types";
+import { backgroundProcessStore } from "@/features/background-processes";
+import { getModelTestProcessForModel } from "@/features/config/lib/model-test-process";
+import {
+	THINKING_EFFORT_LEVELS,
+	type ThinkingEffortLevel,
+} from "@/lib/validation";
 import {
 	createModel,
 	deleteModel,
@@ -35,15 +43,15 @@ import {
 	updateModel,
 } from "@/server-functions/ai-models";
 import { listProviders } from "@/server-functions/ai-providers";
-import {
-	THINKING_EFFORT_LEVELS,
-	type ThinkingEffortLevel,
-} from "@/lib/validation";
-import { backgroundProcessStore } from "@/features/background-processes";
-import { getModelTestProcessForModel } from "@/features/config/lib/model-test-process";
-import { ModelConnectionTestBadge } from "./model-connection-test-badge";
 import { useConnectionTestDialog } from "./connection-test-dialog-provider";
+import { ModelConnectionTestBadge } from "./model-connection-test-badge";
 import { ProviderDialog } from "./provider-dialog";
+
+type RequestParamRow = {
+	id: string;
+	key: string;
+	value: string;
+};
 
 type ModelFormState = {
 	id?: number;
@@ -56,8 +64,73 @@ type ModelFormState = {
 	outputCostPerMillion: string;
 	thinkingEffortLevels: ThinkingEffortLevel[];
 	defaultThinkingEffort: ThinkingEffortLevel | null;
+	thinkingEnabled: boolean | null;
 	enabled: boolean;
+	requestParamRows: RequestParamRow[];
 };
+
+function createRequestParamRow(
+	key = "",
+	value = "",
+): RequestParamRow {
+	return {
+		id: crypto.randomUUID(),
+		key,
+		value,
+	};
+}
+
+function requestParamRowsFromRecord(
+	params: import("@/lib/validation").RequestParams,
+): RequestParamRow[] {
+	const entries = Object.entries(params);
+	if (entries.length === 0) {
+		return [createRequestParamRow()];
+	}
+
+	return entries.map(([key, value]) =>
+		createRequestParamRow(key, formatRequestParamValue(value)),
+	);
+}
+
+function formatRequestParamValue(value: unknown): string {
+	if (typeof value === "string") return value;
+	return JSON.stringify(value);
+}
+
+function parseRequestParamValue(
+	raw: string,
+): import("@/lib/validation").RequestParamValue {
+	const trimmed = raw.trim();
+	if (trimmed === "true") return true;
+	if (trimmed === "false") return false;
+	if (trimmed === "null") return null;
+	if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+	if (
+		trimmed.startsWith("{") ||
+		trimmed.startsWith("[") ||
+		trimmed.startsWith('"')
+	) {
+		try {
+			return JSON.parse(trimmed);
+		} catch {
+			return raw;
+		}
+	}
+	return raw;
+}
+
+function recordFromRequestParamRows(
+	rows: RequestParamRow[],
+): import("@/lib/validation").RequestParams {
+	const result: import("@/lib/validation").RequestParams = {};
+	for (const row of rows) {
+		const key = row.key.trim();
+		if (!key) continue;
+		result[key] = parseRequestParamValue(row.value);
+	}
+	return result;
+}
 
 const emptyForm = (providerId = ""): ModelFormState => ({
 	providerId,
@@ -69,7 +142,9 @@ const emptyForm = (providerId = ""): ModelFormState => ({
 	outputCostPerMillion: "0",
 	thinkingEffortLevels: [],
 	defaultThinkingEffort: null,
+	thinkingEnabled: null,
 	enabled: true,
+	requestParamRows: [createRequestParamRow()],
 });
 
 function formatEffortLabel(level: ThinkingEffortLevel): string {
@@ -119,7 +194,10 @@ export function ModelsPanel() {
 	const [filterProviderId, setFilterProviderId] = useState<string>("all");
 	const [providerFilterOpen, setProviderFilterOpen] = useState(false);
 	const [providerDialogOpen, setProviderDialogOpen] = useState(false);
+	const [editingProvider, setEditingProvider] =
+		useState<AiProviderPublic | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
+	const [dialogTab, setDialogTab] = useState("general");
 	const [form, setForm] = useState<ModelFormState>(emptyForm());
 	const [message, setMessage] = useState("");
 
@@ -142,11 +220,13 @@ export function ModelsPanel() {
 
 	const resetDialog = () => {
 		setDialogOpen(false);
+		setDialogTab("general");
 		setForm(emptyForm(filterProviderId === "all" ? "" : filterProviderId));
 	};
 
 	const openCreateDialog = () => {
 		setForm(emptyForm(filterProviderId === "all" ? "" : filterProviderId));
+		setDialogTab("general");
 		setMessage("");
 		setDialogOpen(true);
 	};
@@ -163,8 +243,11 @@ export function ModelsPanel() {
 			outputCostPerMillion: String(model.outputCostPerMillion ?? 0),
 			thinkingEffortLevels: model.thinkingEffortLevels,
 			defaultThinkingEffort: model.defaultThinkingEffort,
+			thinkingEnabled: model.thinkingEnabled,
 			enabled: model.enabled,
+			requestParamRows: requestParamRowsFromRecord(model.requestParams),
 		});
+		setDialogTab("general");
 		setMessage("");
 		setDialogOpen(true);
 	};
@@ -183,7 +266,9 @@ export function ModelsPanel() {
 				outputCostPerMillion: parseOptionalFloat(form.outputCostPerMillion),
 				thinkingEffortLevels: form.thinkingEffortLevels,
 				defaultThinkingEffort: form.defaultThinkingEffort,
+				thinkingEnabled: form.thinkingEnabled,
 				enabled: form.enabled,
+				requestParams: recordFromRequestParamRows(form.requestParamRows),
 			};
 
 			if (form.id) {
@@ -252,6 +337,7 @@ export function ModelsPanel() {
 										onPointerDown={(event) => {
 											event.preventDefault();
 											setProviderFilterOpen(false);
+											setEditingProvider(null);
 											setProviderDialogOpen(true);
 										}}
 									>
@@ -261,6 +347,23 @@ export function ModelsPanel() {
 								</div>
 							</SelectContent>
 						</Select>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							disabled={filterProviderId === "all"}
+							onClick={() => {
+								const provider = providers.find(
+									(item) => String(item.id) === filterProviderId,
+								);
+								if (!provider) return;
+								setEditingProvider(provider);
+								setProviderDialogOpen(true);
+							}}
+						>
+							<Pencil className="size-3.5" />
+							Edit
+						</Button>
 						<Button type="button" size="sm" onClick={openCreateDialog}>
 							<Plus className="size-3.5" />
 							Add model
@@ -311,7 +414,9 @@ export function ModelsPanel() {
 											{model.outputCostPerMillion ?? 0}/M
 											{model.thinkingEffortLevels.length > 0
 												? ` · Thinking: ${model.defaultThinkingEffort ?? "—"} (${model.thinkingEffortLevels.join(", ")})`
-												: ""}
+												: model.thinkingEnabled !== null
+													? ` · Thinking: ${String(model.thinkingEnabled)} (boolean)`
+													: ""}
 										</p>
 									</div>
 									<div className="flex shrink-0 gap-2">
@@ -407,7 +512,20 @@ export function ModelsPanel() {
 						</div>
 					</DialogHeader>
 
-					<div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+					<Tabs
+						value={dialogTab}
+						onValueChange={setDialogTab}
+						className="flex min-h-0 flex-1 flex-col gap-3"
+					>
+						<TabsList className="shrink-0">
+							<TabsTrigger value="general">General</TabsTrigger>
+							<TabsTrigger value="request-params">Request params</TabsTrigger>
+						</TabsList>
+
+						<TabsContent
+							value="general"
+							className="mt-0 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
+						>
 						<div className="space-y-1.5">
 							<Label>Provider</Label>
 							<Select
@@ -488,69 +606,144 @@ export function ModelsPanel() {
 						</div>
 						<div className="space-y-2 rounded-md border border-border/60 p-3">
 							<div className="space-y-1">
-								<Label>Thinking effort levels</Label>
+								<Label>Thinking configuration</Label>
 								<p className="text-[0.6875rem] text-muted-foreground">
-									Select which effort levels this model supports.
+									Choose either effort levels or a boolean <code>thinking</code>{" "}
+									request flag.
 								</p>
 							</div>
-							<div className="flex flex-wrap gap-2">
-								{THINKING_EFFORT_LEVELS.map((level) => {
-									const selected = form.thinkingEffortLevels.includes(level);
-									return (
-										<Button
-											key={level}
-											type="button"
-											size="sm"
-											variant={selected ? "default" : "outline"}
-											onClick={() =>
-												setForm((current) => {
-													const thinkingEffortLevels = toggleThinkingEffortLevel(
-														current.thinkingEffortLevels,
-														level,
-													);
-													return {
-														...current,
-														thinkingEffortLevels,
-														defaultThinkingEffort: resolveDefaultThinkingEffort(
-															thinkingEffortLevels,
-															current.defaultThinkingEffort,
-														),
-													};
-												})
-											}
-										>
-											{formatEffortLabel(level)}
-										</Button>
-									);
-								})}
-							</div>
-							{form.thinkingEffortLevels.length > 0 ? (
-								<div className="space-y-1.5">
-									<Label htmlFor="default-thinking-effort">
-										Default thinking effort
-									</Label>
-									<Select
-										value={form.defaultThinkingEffort ?? undefined}
-										onValueChange={(value) =>
+							<div className="space-y-2 rounded-md border border-dashed border-border/60 p-3">
+								<div className="flex items-center justify-between gap-3">
+									<div className="space-y-1">
+										<Label htmlFor="thinking-boolean-enabled">
+											Boolean <code>thinking</code>
+										</Label>
+										<p className="text-[0.6875rem] text-muted-foreground">
+											Send a boolean <code>thinking</code> field for providers
+											that expect it.
+										</p>
+									</div>
+									<Switch
+										id="thinking-boolean-enabled"
+										checked={form.thinkingEnabled !== null}
+										onCheckedChange={(checked) =>
 											setForm((current) => ({
 												...current,
-												defaultThinkingEffort: value as ThinkingEffortLevel,
+												thinkingEnabled: checked
+													? (current.thinkingEnabled ?? true)
+													: null,
+												thinkingEffortLevels: checked
+													? []
+													: current.thinkingEffortLevels,
+												defaultThinkingEffort: checked
+													? null
+													: current.defaultThinkingEffort,
 											}))
 										}
-									>
-										<SelectTrigger id="default-thinking-effort">
-											<SelectValue placeholder="Select default" />
-										</SelectTrigger>
-										<SelectContent>
-											{form.thinkingEffortLevels.map((level) => (
-												<SelectItem key={level} value={level}>
-													{formatEffortLabel(level)}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+									/>
 								</div>
-							) : null}
+								{form.thinkingEnabled !== null ? (
+									<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+										<div className="space-y-1">
+											<Label htmlFor="thinking-boolean-value">
+												Default value
+											</Label>
+											<p className="text-[0.6875rem] text-muted-foreground">
+												Controls whether requests send{" "}
+												<code>thinking: true</code> or{" "}
+												<code>thinking: false</code>.
+											</p>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="text-xs text-muted-foreground">
+												{String(form.thinkingEnabled)}
+											</span>
+											<Switch
+												id="thinking-boolean-value"
+												checked={form.thinkingEnabled}
+												onCheckedChange={(thinkingEnabled) =>
+													setForm((current) => ({
+														...current,
+														thinkingEnabled,
+													}))
+												}
+											/>
+										</div>
+									</div>
+								) : null}
+							</div>
+							<div className="space-y-2 rounded-md border border-dashed border-border/60 p-3">
+								<div className="space-y-1">
+									<Label>Thinking effort levels</Label>
+									<p className="text-[0.6875rem] text-muted-foreground">
+										Select which effort levels this model supports.
+									</p>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									{THINKING_EFFORT_LEVELS.map((level) => {
+										const selected = form.thinkingEffortLevels.includes(level);
+										return (
+											<Button
+												key={level}
+												type="button"
+												size="sm"
+												variant={selected ? "default" : "outline"}
+												onClick={() =>
+													setForm((current) => {
+														const thinkingEffortLevels =
+															toggleThinkingEffortLevel(
+																current.thinkingEffortLevels,
+																level,
+															);
+														return {
+															...current,
+															thinkingEffortLevels,
+															defaultThinkingEffort:
+																resolveDefaultThinkingEffort(
+																	thinkingEffortLevels,
+																	current.defaultThinkingEffort,
+																),
+															thinkingEnabled:
+																thinkingEffortLevels.length > 0
+																	? null
+																	: current.thinkingEnabled,
+														};
+													})
+												}
+											>
+												{formatEffortLabel(level)}
+											</Button>
+										);
+									})}
+								</div>
+								{form.thinkingEffortLevels.length > 0 ? (
+									<div className="space-y-1.5">
+										<Label htmlFor="default-thinking-effort">
+											Default thinking effort
+										</Label>
+										<Select
+											value={form.defaultThinkingEffort ?? undefined}
+											onValueChange={(value) =>
+												setForm((current) => ({
+													...current,
+													defaultThinkingEffort: value as ThinkingEffortLevel,
+												}))
+											}
+										>
+											<SelectTrigger id="default-thinking-effort">
+												<SelectValue placeholder="Select default" />
+											</SelectTrigger>
+											<SelectContent>
+												{form.thinkingEffortLevels.map((level) => (
+													<SelectItem key={level} value={level}>
+														{formatEffortLabel(level)}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								) : null}
+							</div>
 						</div>
 						<div className="grid grid-cols-2 gap-3">
 							<div className="space-y-1.5">
@@ -580,7 +773,93 @@ export function ModelsPanel() {
 								/>
 							</div>
 						</div>
-					</div>
+						</TabsContent>
+
+						<TabsContent
+							value="request-params"
+							className="mt-0 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
+						>
+							<div className="space-y-1">
+								<Label>Request params</Label>
+								<p className="text-[0.6875rem] text-muted-foreground">
+									Key-value pairs merged into every API request body for this
+									model. Values support booleans, numbers, and JSON objects.
+								</p>
+							</div>
+							<div className="space-y-2">
+								{form.requestParamRows.map((row, index) => (
+									<div key={row.id} className="flex items-start gap-2">
+										<div className="grid flex-1 gap-2 sm:grid-cols-2">
+											<Input
+												value={row.key}
+												onChange={(event) =>
+													setForm((current) => ({
+														...current,
+														requestParamRows: current.requestParamRows.map(
+															(item, itemIndex) =>
+																itemIndex === index
+																	? { ...item, key: event.target.value }
+																	: item,
+														),
+													}))
+												}
+												placeholder="temperature"
+											/>
+											<Input
+												value={row.value}
+												onChange={(event) =>
+													setForm((current) => ({
+														...current,
+														requestParamRows: current.requestParamRows.map(
+															(item, itemIndex) =>
+																itemIndex === index
+																	? { ...item, value: event.target.value }
+																	: item,
+														),
+													}))
+												}
+												placeholder="0.7"
+											/>
+										</div>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											className="shrink-0"
+											disabled={form.requestParamRows.length === 1}
+											onClick={() =>
+												setForm((current) => ({
+													...current,
+													requestParamRows: current.requestParamRows.filter(
+														(_, itemIndex) => itemIndex !== index,
+													),
+												}))
+											}
+										>
+											<Trash2 className="size-4" />
+										</Button>
+									</div>
+								))}
+							</div>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() =>
+									setForm((current) => ({
+										...current,
+										requestParamRows: [
+											...current.requestParamRows,
+											createRequestParamRow(),
+										],
+									}))
+								}
+							>
+								<Plus className="size-4" />
+								Add param
+							</Button>
+						</TabsContent>
+					</Tabs>
 
 					<DialogFooter className="shrink-0 border-t pt-4 sm:justify-between">
 						{message ? (
@@ -606,7 +885,11 @@ export function ModelsPanel() {
 
 			<ProviderDialog
 				open={providerDialogOpen}
-				onOpenChange={setProviderDialogOpen}
+				onOpenChange={(open) => {
+					setProviderDialogOpen(open);
+					if (!open) setEditingProvider(null);
+				}}
+				provider={editingProvider}
 			/>
 		</>
 	);

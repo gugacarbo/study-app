@@ -278,15 +278,37 @@ export const thinkingEffortLevelSchema = z.enum(THINKING_EFFORT_LEVELS);
 
 export const thinkingEffortLevelsSchema = z.array(thinkingEffortLevelSchema);
 
+export type RequestParamValue =
+	| string
+	| number
+	| boolean
+	| null
+	| RequestParamValue[]
+	| { [key: string]: RequestParamValue };
+
+export const requestParamValueSchema: z.ZodType<RequestParamValue> = z.lazy(
+	() =>
+		z.union([
+			z.string(),
+			z.number(),
+			z.boolean(),
+			z.null(),
+			z.array(requestParamValueSchema),
+			z.record(z.string(), requestParamValueSchema),
+		]),
+);
+
+export const requestParamsSchema = z.record(z.string(), requestParamValueSchema);
+
+export type RequestParams = z.infer<typeof requestParamsSchema>;
+
 function refineThinkingEffortDefault<
 	T extends {
 		thinkingEffortLevels?: ThinkingEffortLevel[];
 		defaultThinkingEffort?: ThinkingEffortLevel | null;
+		thinkingEnabled?: boolean | null;
 	},
->(
-	data: T,
-	ctx: z.RefinementCtx,
-): void {
+>(data: T, ctx: z.RefinementCtx): void {
 	const levels = data.thinkingEffortLevels ?? [];
 	if (
 		data.defaultThinkingEffort &&
@@ -298,6 +320,19 @@ function refineThinkingEffortDefault<
 			path: ["defaultThinkingEffort"],
 		});
 	}
+
+	if (
+		levels.length > 0 &&
+		data.thinkingEnabled !== null &&
+		data.thinkingEnabled !== undefined
+	) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message:
+				"Choose either thinking effort levels or boolean thinking, not both",
+			path: ["thinkingEnabled"],
+		});
+	}
 }
 
 export const providerConfigSchema = z.object({
@@ -305,6 +340,8 @@ export const providerConfigSchema = z.object({
 	baseUrl: z.string().url("Base URL must be a valid URL"),
 	apiKey: z.string(),
 	thinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+	thinkingEnabled: z.boolean().nullable().optional(),
+	requestParams: requestParamsSchema.optional(),
 });
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
@@ -319,6 +356,8 @@ export const resolvedModelConfigSchema = providerConfigSchema
 		outputCostPerMillion: z.number().nonnegative().nullable().optional(),
 		thinkingEffortLevels: thinkingEffortLevelsSchema.default([]),
 		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+		thinkingEnabled: z.boolean().nullable().optional(),
+		requestParams: requestParamsSchema.default({}),
 	});
 
 export type ResolvedModelConfig = z.infer<typeof resolvedModelConfigSchema>;
@@ -349,8 +388,10 @@ export const createAiModelSchema = z
 		outputCostPerMillion: z.number().nonnegative().nullable().optional(),
 		thinkingEffortLevels: thinkingEffortLevelsSchema.optional(),
 		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+		thinkingEnabled: z.boolean().nullable().optional(),
 		enabled: z.boolean().optional(),
 		metadata: z.string().nullable().optional(),
+		requestParams: requestParamsSchema.optional(),
 	})
 	.superRefine(refineThinkingEffortDefault);
 
@@ -385,8 +426,10 @@ export const updateAiModelSchema = z
 		outputCostPerMillion: z.number().nonnegative().nullable().optional(),
 		thinkingEffortLevels: thinkingEffortLevelsSchema.optional(),
 		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
+		thinkingEnabled: z.boolean().nullable().optional(),
 		enabled: z.boolean().optional(),
 		metadata: z.string().nullable().optional(),
+		requestParams: requestParamsSchema.optional(),
 	})
 	.superRefine(refineThinkingEffortDefault);
 
@@ -448,6 +491,14 @@ export function toProviderConfig(
 		baseUrl: config.baseUrl,
 		apiKey: config.apiKey,
 		thinkingEffort,
+		thinkingEnabled:
+			"thinkingEnabled" in config
+				? (config.thinkingEnabled ?? undefined)
+				: undefined,
+		requestParams:
+			"requestParams" in config && config.requestParams
+				? config.requestParams
+				: undefined,
 	};
 }
 
@@ -472,6 +523,7 @@ export const ingestQuestionSchema = z.preprocess((input) => {
 export const examIngestResponseSchema = z.preprocess(
 	normalizeExamIngestResponse,
 	z.object({
+		examName: z.string().min(1, "Exam name is required"),
 		questions: z.array(ingestQuestionSchema),
 		topics: z.array(z.string()),
 	}),

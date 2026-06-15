@@ -113,6 +113,20 @@
       "when": 1780900000000,
       "tag": "0016_chat_conversations",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1781560899280,
+      "tag": "0017_ai_models_thinking_boolean",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1781650000000,
+      "tag": "0018_ai_models_request_params",
+      "breakpoints": true
     }
   ]
 }

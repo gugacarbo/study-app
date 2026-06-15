@@ -1,4 +1,4 @@
-import type { ThinkingEffortLevel } from "@/lib/validation";
+import type { RequestParams, ThinkingEffortLevel } from "@/lib/validation";
 
 export interface ExamRecord {
 	id: number;
@@ -102,8 +102,10 @@ export interface AiModelRecord {
 	output_cost_per_million: number | null;
 	thinking_effort_levels: string | null;
 	default_thinking_effort: string | null;
+	thinking_enabled: boolean | null;
 	enabled: boolean;
 	metadata: string | null;
+	request_params: string | null;
 	created_at: string | null;
 	updated_at: string | null;
 }
@@ -126,8 +128,10 @@ export interface AiModelPublic {
 	outputCostPerMillion: number | null;
 	thinkingEffortLevels: ThinkingEffortLevel[];
 	defaultThinkingEffort: ThinkingEffortLevel | null;
+	thinkingEnabled: boolean | null;
 	enabled: boolean;
 	metadata: string | null;
+	requestParams: RequestParams;
 }
 
 export interface AiModelResolved extends AiModelPublic {

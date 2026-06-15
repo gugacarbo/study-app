@@ -41,8 +41,10 @@ export const createModel = createServerFn({ method: "POST" })
 			outputCostPerMillion: data.outputCostPerMillion,
 			thinkingEffortLevels: data.thinkingEffortLevels,
 			defaultThinkingEffort: data.defaultThinkingEffort,
+			thinkingEnabled: data.thinkingEnabled,
 			enabled: data.enabled,
 			metadata: data.metadata,
+			requestParams: data.requestParams,
 		});
 		return { id };
 	});
@@ -66,8 +68,10 @@ export const updateModel = createServerFn({ method: "POST" })
 			outputCostPerMillion: data.outputCostPerMillion,
 			thinkingEffortLevels: data.thinkingEffortLevels,
 			defaultThinkingEffort: data.defaultThinkingEffort,
+			thinkingEnabled: data.thinkingEnabled,
 			enabled: data.enabled,
 			metadata: data.metadata,
+			requestParams: data.requestParams,
 		});
 		return { success: true };
 	});
