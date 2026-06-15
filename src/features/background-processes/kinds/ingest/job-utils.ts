@@ -799,6 +799,10 @@ export function upsertAgentRun(
 	job: IngestJob,
 	event: IngestAgentEvent,
 ): IngestJob {
+	if (!event.agentRunId) {
+		return job;
+	}
+
 	const timestamp = event.timestamp ?? Date.now();
 	const existingIndex = job.agentRuns.findIndex(
 		(agentRun) => agentRun.id === event.agentRunId,
@@ -817,7 +821,9 @@ export function upsertAgentRun(
 		return {
 			...job,
 			agentRuns: [
-				...job.agentRuns,
+				...job.agentRuns.filter(
+					(agentRun) => agentRun.id !== event.agentRunId,
+				),
 				{
 					id: event.agentRunId,
 					stageId: event.stageId,
@@ -1287,15 +1293,31 @@ async function dispatchIngestDataPart(
 		}
 		callbacks.onAgent?.(agentEvent);
 
-		if (agentEvent.eventType === "token" && agentEvent.tokens) {
-			const totals = extractTokenTotalsFromUsage(agentEvent.tokens);
-			if (totals) {
-				callbacks.onToken(totals.prompt, totals.completion, totals.total, {
-					...totals,
-					stageId: agentEvent.stageId,
+		if (agentEvent.eventType === "token") {
+			if (
+				typeof agentEvent.rawText === "string" &&
+				agentEvent.rawText.length > 0
+			) {
+				const kind =
+					agentEvent.meta?.kind === "reasoning" ? "reasoning" : "text";
+				callbacks.onChunk?.(agentEvent.rawText, {
+					text: agentEvent.rawText,
+					kind,
 					agentRunId: agentEvent.agentRunId,
-					timestamp: agentEvent.timestamp,
+					timestamp: agentEvent.timestamp ?? Date.now(),
 				});
+			}
+
+			if (agentEvent.tokens) {
+				const totals = extractTokenTotalsFromUsage(agentEvent.tokens);
+				if (totals) {
+					callbacks.onToken(totals.prompt, totals.completion, totals.total, {
+						...totals,
+						stageId: agentEvent.stageId,
+						agentRunId: agentEvent.agentRunId,
+						timestamp: agentEvent.timestamp,
+					});
+				}
 			}
 		}
 

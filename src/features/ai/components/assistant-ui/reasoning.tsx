@@ -17,6 +17,8 @@ import {
 	useLayoutEffect,
 	useRef,
 	useState,
+	type FC,
+	type PropsWithChildren,
 } from "react";
 import {
 	Collapsible,
@@ -298,6 +300,112 @@ function ReasoningText({
 		</div>
 	);
 }
+
+function CollapsibleReasoningFade({
+	className,
+	...props
+}: React.ComponentProps<"div">) {
+	return (
+		<div
+			data-slot="collapsible-reasoning-fade"
+			className={cn(
+				"aui-collapsible-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10",
+				"fade-in-0 animate-in",
+				"group-data-[state=open]/collapsible-content:animate-out",
+				"group-data-[state=open]/collapsible-content:fade-out-0",
+				"group-data-[state=open]/collapsible-content:fill-mode-forwards",
+				"duration-(--animation-duration)",
+				className,
+			)}
+			style={{
+				backgroundImage:
+					"linear-gradient(to top, var(--color-background), transparent)",
+			}}
+			{...props}
+		/>
+	);
+}
+
+/** Agent-run surfaces: collapsed-by-default thinking, like collapsible prompts. */
+export const CollapsibleReasoningGroup: FC<
+	PropsWithChildren<{ active?: boolean }>
+> = ({ active = false, children }) => {
+	const collapsibleRef = useRef<HTMLDivElement>(null);
+	const [open, setOpen] = useState(false);
+	const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
+
+	const handleOpenChange = useCallback(
+		(nextOpen: boolean) => {
+			lockScroll();
+			setOpen(nextOpen);
+		},
+		[lockScroll],
+	);
+
+	return (
+		<Collapsible
+			ref={collapsibleRef}
+			data-slot="collapsible-reasoning-root"
+			open={open}
+			onOpenChange={handleOpenChange}
+			className="aui-collapsible-reasoning-root group/collapsible-reasoning-root mb-2 w-full rounded-xl border border-border/40 bg-background px-4 py-2 shadow-sm"
+			style={
+				{
+					"--animation-duration": `${ANIMATION_DURATION}ms`,
+				} as React.CSSProperties
+			}
+		>
+			<CollapsibleTrigger
+				data-slot="collapsible-reasoning-trigger"
+				className="aui-collapsible-reasoning-trigger group/trigger flex w-full items-center gap-2 text-left text-xs font-medium text-foreground/80 transition-colors hover:text-foreground"
+			>
+				<ChevronDownIcon
+					data-slot="collapsible-reasoning-trigger-chevron"
+					className={cn(
+						"size-3.5 shrink-0",
+						"transition-transform duration-(--animation-duration) ease-out",
+						"group-data-[state=closed]/trigger:-rotate-90",
+						"group-data-[state=open]/trigger:rotate-0",
+					)}
+				/>
+				<BrainIcon
+					data-slot="collapsible-reasoning-trigger-icon"
+					className="size-3.5 shrink-0 text-foreground/70"
+				/>
+				<span
+					data-slot="collapsible-reasoning-trigger-label"
+					className="relative inline-block leading-none"
+				>
+					<span>Thinking</span>
+					{active ? (
+						<span
+							aria-hidden
+							data-slot="collapsible-reasoning-trigger-shimmer"
+							className="aui-collapsible-reasoning-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
+						>
+							Thinking
+						</span>
+					) : null}
+				</span>
+			</CollapsibleTrigger>
+			<CollapsibleContent
+				forceMount
+				data-slot="collapsible-reasoning-content"
+				className={cn(
+					"aui-collapsible-reasoning-content group/collapsible-content relative overflow-hidden text-sm leading-relaxed text-muted-foreground outline-none",
+					"ease-out transition-[max-height] duration-(--animation-duration)",
+					"data-[state=closed]:max-h-18",
+					"data-[state=open]:max-h-[min(200vh,5000px)]",
+				)}
+			>
+				<div className="aui-collapsible-reasoning-text space-y-4 pt-2 wrap-break-word">
+					{children}
+				</div>
+				<CollapsibleReasoningFade />
+			</CollapsibleContent>
+		</Collapsible>
+	);
+};
 
 const ReasoningImpl: ReasoningMessagePartComponent = () => <MarkdownText />;
 

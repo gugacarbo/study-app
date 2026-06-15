@@ -31,7 +31,7 @@ function stringifyToolArgs(value: unknown): string {
  * Chat auto-continuation creates a new assistant UIMessage per tool iteration.
  * Merge those into one virtual message for assistant-ui rendering.
  */
-function mergeAssistantTurnMessages(messages: UIMessage[]): UIMessage[] {
+export function mergeAssistantTurnMessages(messages: UIMessage[]): UIMessage[] {
 	const merged: UIMessage[] = [];
 
 	for (const message of messages) {

@@ -137,6 +137,10 @@ export function createAgentRunWriter(writer: JobUIMessageStreamWriter) {
 	};
 
 	return {
+		allocateAgentRunId(stageId: string): string {
+			runCounter += 1;
+			return `${stageId}-${runCounter}`;
+		},
 		createRun(stageId: string, label: string): AgentRunDescriptor {
 			runCounter += 1;
 			return { stageId, label, agentRunId: `${stageId}-${runCounter}` };
@@ -204,6 +208,18 @@ export function createAgentRunWriter(writer: JobUIMessageStreamWriter) {
 				agentRunId: run.agentRunId,
 				label: run.label,
 				rawText: delta,
+				timestamp: Date.now(),
+			});
+		},
+		reasoningDelta(run: AgentRunDescriptor, delta: string) {
+			if (!delta) return;
+			emit({
+				eventType: "token",
+				stageId: run.stageId,
+				agentRunId: run.agentRunId,
+				label: run.label,
+				rawText: delta,
+				meta: { kind: "reasoning" },
 				timestamp: Date.now(),
 			});
 		},

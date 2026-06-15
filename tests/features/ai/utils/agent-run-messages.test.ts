@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
 import {
+	agentRunDataPartToReducerEvent,
 	createAgentRunState,
 	reduceAgentEvent,
 } from "@/features/ai/utils/agent-run-messages";
@@ -45,6 +46,43 @@ describe("agent-run-messages", () => {
 				parts: [{ type: "text", text: "" }],
 			},
 		]);
+	});
+
+	it("converts streamed token events into text-chunk reducer events", () => {
+		expect(
+			agentRunDataPartToReducerEvent({
+				eventType: "token",
+				stageId: "improve-questions",
+				agentRunId: "run-1",
+				label: "Improve question",
+				timestamp: 1,
+				rawText: "Hello",
+			}),
+		).toEqual({
+			eventType: "text-chunk",
+			agentRunId: "run-1",
+			text: "Hello",
+			kind: "text",
+			timestamp: 1,
+		});
+
+		expect(
+			agentRunDataPartToReducerEvent({
+				eventType: "token",
+				stageId: "improve-questions",
+				agentRunId: "run-1",
+				label: "Improve question",
+				timestamp: 2,
+				rawText: "Thinking",
+				meta: { kind: "reasoning" },
+			}),
+		).toEqual({
+			eventType: "text-chunk",
+			agentRunId: "run-1",
+			text: "Thinking",
+			kind: "reasoning",
+			timestamp: 2,
+		});
 	});
 
 	it("appends text and reasoning chunks into assistant parts", () => {
@@ -96,6 +134,7 @@ describe("agent-run-messages", () => {
 				name: "get_question",
 				arguments: "{}",
 				state: "input-complete",
+				meta: { toolCallId: "call-1" },
 			}),
 		);
 		state = reduceAgentEvent(
@@ -104,6 +143,7 @@ describe("agent-run-messages", () => {
 				eventType: "tool-result",
 				content: { ok: true },
 				state: "complete",
+				meta: { toolCallId: "call-1" },
 			}),
 		);
 
@@ -114,14 +154,54 @@ describe("agent-run-messages", () => {
 		expect(assistant?.parts).toEqual([
 			{
 				type: "dynamic-tool",
-				toolCallId: "run-1:tool-call:0",
-				toolName: "unknown_tool",
+				toolCallId: "call-1",
+				toolName: "get_question",
 				state: "output-available",
 				input: {},
 				output: { ok: true },
 				errorText: undefined,
 			},
 		]);
+	});
+
+	it("preserves tool name on tool-result events", () => {
+		let state = createAgentRunState({
+			agentRunId: "run-1",
+			label: "Improve question",
+		});
+
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "tool-call",
+				name: "get_question",
+				arguments: '{"id":715}',
+				input: { id: 715 },
+				state: "input-complete",
+				meta: { toolCallId: "call-1" },
+			}),
+		);
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "tool-result",
+				name: "get_question",
+				content: { ok: true, data: { id: 715 } },
+				state: "complete",
+				meta: { toolCallId: "call-1" },
+			}),
+		);
+
+		const assistant = state.messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(assistant?.parts[0]).toMatchObject({
+			type: "dynamic-tool",
+			toolCallId: "call-1",
+			toolName: "get_question",
+			output: { ok: true, data: { id: 715 } },
+		});
 	});
 
 	it("syncs lifecycle prompts into messages", () => {

@@ -160,7 +160,11 @@ function readToolResultError(result: unknown): string | undefined {
 		}
 	}
 	if (typeof result !== "object" || result === null) return undefined;
-	const errorValue = (result as { error?: unknown }).error;
+
+	const record = result as { ok?: unknown; error?: unknown };
+	if (record.ok === true) return undefined;
+
+	const errorValue = record.error;
 	if (typeof errorValue === "string" && errorValue.length > 0) {
 		return errorValue;
 	}

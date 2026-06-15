@@ -42,6 +42,7 @@ import {
 } from "@/features/ai/components/assistant-ui/attachment";
 import { MarkdownText } from "@/features/ai/components/assistant-ui/markdown-text";
 import {
+	CollapsibleReasoningGroup,
 	Reasoning,
 	ReasoningContent,
 	ReasoningRoot,
@@ -368,6 +369,7 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
+	const { collapsiblePrompts } = useContext(ThreadLayoutContext);
 	const {
 		ToolFallback: ToolFallbackComponent = ToolFallback,
 		ToolGroup,
@@ -422,8 +424,15 @@ const AssistantMessage: FC = () => {
 									);
 								}
 								const running = part.status.type === "running";
+								if (collapsiblePrompts) {
+									return (
+										<CollapsibleReasoningGroup active={running}>
+											{children}
+										</CollapsibleReasoningGroup>
+									);
+								}
 								return (
-									<ReasoningRoot streaming={running}>
+									<ReasoningRoot defaultOpen={running}>
 										<ReasoningTrigger active={running} />
 										<ReasoningContent aria-busy={running}>
 											<ReasoningText>{children}</ReasoningText>

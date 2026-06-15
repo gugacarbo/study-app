@@ -1,5 +1,10 @@
 import type { UIMessage } from "ai";
+import type { ExplainQuestionAgentEvent } from "@/features/ai/agents/explanations/contracts";
 import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
+import type {
+	AgentRunDataPart,
+	AgentRunEventType,
+} from "@/features/ai/types/ui-message-data-parts";
 import type { ImproveQuestionsAgentRunStatus } from "@/features/ai/agents/improve-questions/contracts";
 import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
 
@@ -25,6 +30,7 @@ export interface AgentRunTextChunkEvent {
 
 export type AgentRunReducerEvent =
 	| ImproveQuestionsAgentEvent
+	| ExplainQuestionAgentEvent
 	| AgentRunTextChunkEvent;
 
 type AgentRole = "system" | "user" | "assistant";
@@ -71,7 +77,12 @@ function createAgentMessages(
 }
 
 function getAssistantMessageIndex(messages: UIMessage[]): number {
-	return messages.findIndex((message) => message.role === "assistant");
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		if (messages[index]?.role === "assistant") {
+			return index;
+		}
+	}
+	return -1;
 }
 
 function stripStructuredToolTranscript(text: string): string {
@@ -365,9 +376,9 @@ function normalizeDynamicToolOutputState(
 
 function readLatestToolCallId(state: AgentRunState): string | undefined {
 	const normalizedState = ensureAgentRunMessages(state);
-	const assistant = normalizedState.messages.find(
-		(message) => message.role === "assistant",
-	);
+	const assistantIndex = getAssistantMessageIndex(normalizedState.messages);
+	if (assistantIndex === -1) return undefined;
+	const assistant = normalizedState.messages[assistantIndex];
 	if (!assistant) return undefined;
 
 	for (let index = assistant.parts.length - 1; index >= 0; index -= 1) {
@@ -380,9 +391,32 @@ function readLatestToolCallId(state: AgentRunState): string | undefined {
 	return undefined;
 }
 
+function readToolNameForCallId(
+	state: AgentRunState,
+	toolCallId: string,
+): string | undefined {
+	const normalizedState = ensureAgentRunMessages(state);
+	const assistantIndex = getAssistantMessageIndex(normalizedState.messages);
+	if (assistantIndex === -1) return undefined;
+	const assistant = normalizedState.messages[assistantIndex];
+	if (!assistant) return undefined;
+
+	for (const part of assistant.parts) {
+		if (
+			part.type === "dynamic-tool" &&
+			part.toolCallId === toolCallId &&
+			part.toolName.length > 0 &&
+			part.toolName !== "unknown_tool"
+		) {
+			return part.toolName;
+		}
+	}
+	return undefined;
+}
+
 function createToolCallId(
 	state: AgentRunState,
-	event: ImproveQuestionsAgentEvent,
+	event: AgentRunDataPart,
 ): string {
 	const meta = event.meta as Record<string, unknown> | undefined;
 	const candidate = meta?.toolCallId ?? meta?.id;
@@ -421,8 +455,8 @@ function isMeaningfulToolValue(value: unknown): boolean {
 	return true;
 }
 
-function readToolResultOutput(event: ImproveQuestionsAgentEvent): unknown {
-	const eventRecord = event as ImproveQuestionsAgentEvent & { result?: unknown };
+function readToolResultOutput(event: AgentRunDataPart): unknown {
+	const eventRecord = event as AgentRunDataPart & { result?: unknown };
 	return event.content ?? event.output ?? eventRecord.result ?? "";
 }
 
@@ -454,7 +488,7 @@ function mergeDynamicToolOutput(
 
 function createDynamicToolFromCallEvent(
 	state: AgentRunState,
-	event: ImproveQuestionsAgentEvent,
+	event: AgentRunDataPart,
 ): DynamicToolPart {
 	return {
 		type: "dynamic-tool",
@@ -469,7 +503,7 @@ function createDynamicToolFromCallEvent(
 
 function createDynamicToolFromResultEvent(
 	state: AgentRunState,
-	event: ImproveQuestionsAgentEvent,
+	event: AgentRunDataPart,
 ): DynamicToolPart {
 	const meta = event.meta as Record<string, unknown> | undefined;
 	const candidate = meta?.toolCallId;
@@ -479,11 +513,15 @@ function createDynamicToolFromResultEvent(
 			: (readLatestToolCallId(state) ?? `${state.agentRunId}:tool-call:0`);
 	const output = readToolResultOutput(event);
 	const errorText = typeof event.error === "string" ? event.error : undefined;
+	const toolName =
+		typeof event.name === "string" && event.name.length > 0
+			? event.name
+			: (readToolNameForCallId(state, toolCallId) ?? "unknown_tool");
 
 	return {
 		type: "dynamic-tool",
 		toolCallId,
-		toolName: typeof event.name === "string" ? event.name : "unknown_tool",
+		toolName,
 		state: normalizeDynamicToolOutputState(event.state, errorText),
 		input: event.input ?? {},
 		output: isMeaningfulToolResultOutput(output) ? output : undefined,
@@ -596,7 +634,7 @@ function resolveNextAgentStatus(
 
 function applyAgentMetadata(
 	state: AgentRunState,
-	event: ImproveQuestionsAgentEvent,
+	event: ImproveQuestionsAgentEvent | ExplainQuestionAgentEvent,
 ): AgentRunState {
 	const nextWarnings = event.warning
 		? [...state.warnings, event.warning]
@@ -624,6 +662,68 @@ function applyAgentMetadata(
 	});
 }
 
+export function buildTextConversationHistory(
+	messages: UIMessage[],
+): Array<{ role: "user" | "assistant"; content: string }> {
+	const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+
+	for (const message of messages) {
+		if (message.role !== "user" && message.role !== "assistant") {
+			continue;
+		}
+
+		const content = message.parts
+			.filter((part) => part.type === "text")
+			.map((part) => part.text)
+			.join("\n")
+			.trim();
+
+		if (content.length === 0) {
+			continue;
+		}
+
+		history.push({ role: message.role, content });
+	}
+
+	return history;
+}
+
+export function appendFollowUpUserMessage(
+	state: AgentRunState,
+	text: string,
+): AgentRunState {
+	const trimmed = text.trim();
+	if (!trimmed) return state;
+
+	return {
+		...state,
+		messages: [
+			...state.messages,
+			{
+				id: `${state.agentRunId}:user:${Date.now()}`,
+				role: "user",
+				parts: [createTextPart(trimmed)],
+			},
+		],
+	};
+}
+
+export function beginFollowUpAssistantTurn(state: AgentRunState): AgentRunState {
+	return {
+		...state,
+		status: "running",
+		outputText: "",
+		messages: [
+			...state.messages,
+			{
+				id: `${state.agentRunId}:assistant:${Date.now()}`,
+				role: "assistant",
+				parts: [],
+			},
+		],
+	};
+}
+
 export function createAgentRunState(input: {
 	agentRunId: string;
 	label: string;
@@ -648,6 +748,38 @@ export function createAgentRunState(input: {
 		error: null,
 		warnings: [],
 	};
+}
+
+const PASSTHROUGH_AGENT_RUN_EVENTS = new Set<AgentRunEventType>([
+	"lifecycle",
+	"result",
+	"warning",
+	"tool-call",
+	"tool-result",
+]);
+
+export function agentRunDataPartToReducerEvent(
+	event: AgentRunDataPart,
+): AgentRunReducerEvent | null {
+	if (
+		event.eventType === "token" &&
+		typeof event.rawText === "string" &&
+		event.rawText.length > 0
+	) {
+		return {
+			eventType: "text-chunk",
+			agentRunId: event.agentRunId,
+			text: event.rawText,
+			kind: event.meta?.kind === "reasoning" ? "reasoning" : "text",
+			timestamp: event.timestamp,
+		};
+	}
+
+	if (PASSTHROUGH_AGENT_RUN_EVENTS.has(event.eventType)) {
+		return event as AgentRunReducerEvent;
+	}
+
+	return null;
 }
 
 export function reduceAgentEvent(
