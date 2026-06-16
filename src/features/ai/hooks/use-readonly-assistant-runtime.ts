@@ -112,14 +112,27 @@ function mapMessageParts(parts: UIMessage["parts"]): ThreadContentPart[] {
 	return content;
 }
 
+function getSystemMessageContent(parts: UIMessage["parts"]): string {
+	return parts
+		.filter((part): part is { type: "text"; text: string } => part.type === "text")
+		.map((part) => part.text)
+		.join("\n")
+		.trim();
+}
+
 function convertUIMessageToThreadMessageLike(
 	message: UIMessage,
 	options?: { isPending?: boolean },
 ): ThreadMessageLike {
+	const content =
+		message.role === "system"
+			? getSystemMessageContent(message.parts)
+				: mapMessageParts(message.parts);
+
 	return {
 		id: message.id,
 		role: message.role,
-		content: mapMessageParts(message.parts),
+		content,
 		...(message.role === "assistant" && {
 			status: options?.isPending
 				? ({ type: "running" } as const)
