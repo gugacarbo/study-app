@@ -4,10 +4,11 @@ import { TavilyWebContentProvider } from "@/features/ai/providers/web/tavily-con
 import { TavilyWebSearchProvider } from "@/features/ai/providers/web/tavily-search";
 import type { ProviderConfig } from "@/lib/validation";
 import { createChatDbTools } from "./db-tools";
+import { createSpellTools } from "./spell-tools";
 import { createChatWebTools, type WebToolsObserver } from "./web-tools";
 
-export type AgentName = "chat" | "reviewer" | "ingest" | "improve_questions";
-export type BaseToolName = "db_tools" | "web_tools";
+export type AgentName = "chat" | "reviewer" | "ingest" | "improve_questions" | "explanations";
+export type BaseToolName = "db_tools" | "web_tools" | "spell_tools";
 export type AgentToolName = BaseToolName | "parallel_review";
 
 export type AgentToolSet = ToolSet;
@@ -45,14 +46,18 @@ const createWebToolSet: BaseToolFactory = (context) => {
 	);
 };
 
+const createSpellToolSet: BaseToolFactory = () => createSpellTools();
+
 export const BASE_TOOL_REGISTRY: Record<BaseToolName, BaseToolFactory> = {
 	db_tools: createDbToolSet,
 	web_tools: createWebToolSet,
+	spell_tools: createSpellToolSet,
 };
 
 export const DEFAULT_AGENT_BASE_TOOLS: Record<AgentName, BaseToolName[]> = {
 	chat: ["db_tools", "web_tools"],
 	reviewer: ["web_tools"],
 	ingest: ["web_tools"],
-	improve_questions: ["web_tools"],
+	improve_questions: ["web_tools", "spell_tools"],
+	explanations: ["web_tools"],
 };

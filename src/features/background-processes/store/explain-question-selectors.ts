@@ -1,3 +1,4 @@
+import type { ExplanationChange } from "@/features/ai/agents/explanations/explain-question/contracts";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import type {
 	BackgroundProcessStatus,
@@ -9,6 +10,7 @@ import { isExplainQuestionProcess } from "./types";
 
 export const DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI: ExplainQuestionsExamUiState = {
 	batchDialogOpen: false,
+	questionDialogQuestionId: null,
 };
 
 export function selectExplainQuestionsExamUi(
@@ -24,7 +26,10 @@ export function areExplainQuestionsExamUiEqual(
 	left: ExplainQuestionsExamUiState,
 	right: ExplainQuestionsExamUiState,
 ): boolean {
-	return left.batchDialogOpen === right.batchDialogOpen;
+	return (
+		left.batchDialogOpen === right.batchDialogOpen &&
+		left.questionDialogQuestionId === right.questionDialogQuestionId
+	);
 }
 
 export type ExplainQuestionsExamProcessView = {
@@ -35,6 +40,7 @@ export type ExplainQuestionsExamProcessView = {
 	explanation: string;
 	deepExplanation: string;
 	originalSnapshot: QuestionData;
+	changes: ExplanationChange[];
 	agentLabel: string;
 	streamError: string | null;
 };
@@ -58,6 +64,7 @@ export function selectExplainQuestionsExamViews(
 			explanation: process.explanation,
 			deepExplanation: process.deepExplanation,
 			originalSnapshot: process.originalSnapshot,
+			changes: process.changes,
 			agentLabel: process.agentRunState?.label ?? "Explain question",
 			streamError: process.streamError,
 		});
@@ -85,6 +92,7 @@ export function areExplainQuestionsExamViewsEqual(
 			leftView.explanation !== rightView.explanation ||
 			leftView.deepExplanation !== rightView.deepExplanation ||
 			leftView.originalSnapshot !== rightView.originalSnapshot ||
+			leftView.changes !== rightView.changes ||
 			leftView.agentLabel !== rightView.agentLabel ||
 			leftView.streamError !== rightView.streamError
 		) {

@@ -1,18 +1,28 @@
 export {
+	applyAllReadyExplainQuestionRuns,
+	applyExplainQuestionRun,
 	cancelExplainQuestionRun,
 	cancelExplainQuestionsBatch,
+	canApplyExplainQuestionRun,
 	canContinueExplainQuestionRun,
+	clearExplainQuestionsBatch,
+	dismissExplainQuestionRun,
 	continueExplainQuestionRun,
 	DEFAULT_EXPLAIN_QUESTIONS_MAX_WORKERS,
 	getExplainQuestionRun,
+	keepAllExplainQuestionChanges,
 	MAX_EXPLAIN_QUESTION_ATTEMPTS,
 	MAX_EXPLAIN_QUESTIONS_MAX_WORKERS,
 	MIN_EXPLAIN_QUESTIONS_MAX_WORKERS,
 	maybeClearExplainQuestionsBatchConfig,
+	revertAllExplainQuestionChanges,
+	setExplainQuestionDecision,
 	setExplainQuestionsBatchConfig,
 	setExplainQuestionsBatchDialogOpen,
+	setExplainQuestionsQuestionDialogOpen,
 	startExplainQuestionRun,
 	startExplainQuestionsBatch,
 	startQueuedExplainQuestion,
 } from "./actions";
 export { questionNeedsExplanation } from "./question-helpers";
+export { getRunPreviewExplanations } from "@/features/exams/components/detail/explain-questions-dialog/diff-changes";

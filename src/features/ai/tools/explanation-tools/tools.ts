@@ -8,12 +8,17 @@ import type { ExplanationWorkspaceQuestion } from "./workspace";
 import { ExplanationWorkspaceError } from "./workspace";
 
 interface ExplanationWorkspaceApi {
+	getQuestion: (questionId: number) => ExplanationWorkspaceQuestion;
 	updateQuestionExplanation: (
 		questionId: number,
 		patch: { explanation?: string; deepExplanation?: string },
 	) => ExplanationWorkspaceQuestion;
 	listQuestions: () => ExplanationWorkspaceQuestion[];
 }
+
+const getExplanationQuestionInputSchema = z.object({
+	id: explanationQuestionIdSchema,
+});
 
 const listExplanationQuestionsInputSchema = z.object({});
 
@@ -77,6 +82,58 @@ export function createExplanationTools(
 	},
 ): ToolSet {
 	return {
+		get_question: tool({
+			description:
+				"Load one question from the explanation workspace by id, including stem, options, answers, scoring mode, and any existing explanations.",
+			inputSchema: zodSchema(getExplanationQuestionInputSchema),
+			execute: async (input, context) => {
+				let output:
+					| Awaited<ReturnType<typeof toToolFailure>>
+					| {
+							ok: true;
+							data: {
+								id: number;
+								question: string;
+								options: string[];
+								answers: string[];
+								scoringMode: "exact" | "partial";
+								topic: string;
+								explanation: string;
+								deepExplanation: string;
+								hasExplanation: boolean;
+								hasDeepExplanation: boolean;
+							};
+					  };
+				try {
+					const question = workspace.getQuestion(input.id);
+					output = {
+						ok: true as const,
+						data: {
+							id: question.id,
+							question: question.question,
+							options: [...question.options],
+							answers: [...question.answers],
+							scoringMode: question.scoringMode ?? "exact",
+							topic: question.topic ?? "General",
+							explanation: question.explanation ?? "",
+							deepExplanation: question.deepExplanation ?? "",
+							hasExplanation: Boolean(question.explanation?.trim()),
+							hasDeepExplanation: Boolean(question.deepExplanation?.trim()),
+						},
+					};
+				} catch (error) {
+					output = toToolFailure(error);
+				}
+				await notifyToolExecuted(
+					options,
+					"get_question",
+					input,
+					output,
+					context,
+				);
+				return output;
+			},
+		}),
 		update_question_explanation: tool({
 			description:
 				"Write explanation and deepExplanation for one question. questionId, explanation, and deepExplanation are all required.",
@@ -148,5 +205,6 @@ export function createExplanationTools(
 export {
 	explanationPatchSchema,
 	explanationQuestionIdSchema,
+	getExplanationQuestionInputSchema,
 	listExplanationQuestionsInputSchema,
 };

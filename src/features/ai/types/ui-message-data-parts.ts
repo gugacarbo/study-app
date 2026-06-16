@@ -84,6 +84,14 @@ export interface WorkspaceUpdateDataPart {
 	updatedFields: string[];
 }
 
+/** `data-explanation-update` — explain-question draft mutation (persistent). */
+export interface ExplanationUpdateDataPart {
+	questionId: number;
+	explanation: string;
+	deepExplanation: string;
+	updatedFields: Array<"explanation" | "deepExplanation">;
+}
+
 /** `data-job-progress` — step / percent updates (transient). */
 export interface JobProgressDataPart {
 	step?: string;
@@ -109,6 +117,7 @@ export type StudyAppUIDataParts = {
 	stage: StageDataPart;
 	"agent-run": AgentRunDataPart;
 	"workspace-update": WorkspaceUpdateDataPart;
+	"explanation-update": ExplanationUpdateDataPart;
 	"job-progress": JobProgressDataPart;
 	"job-result": JobResultDataPart;
 	"job-error": JobErrorDataPart;

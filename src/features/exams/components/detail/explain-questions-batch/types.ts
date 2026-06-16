@@ -22,7 +22,7 @@ export function mapProcessViewToDisplayStatus(
 	if (view.isStreaming || view.status === "running" || view.phase === "running") {
 		return "running";
 	}
-	if (view.status === "success" || view.phase === "done") {
+	if (view.status === "awaiting_review" || view.phase === "done") {
 		return "done";
 	}
 	if (view.status === "error" || view.phase === "error") return "error";

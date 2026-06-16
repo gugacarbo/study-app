@@ -20,6 +20,7 @@ import {
 	selectImproveQuestionsExamUi,
 	selectImproveQuestionsExamViews,
 	setExplainQuestionsBatchDialogOpen,
+	setExplainQuestionsQuestionDialogOpen,
 	setImproveQuestionsBatchDialogOpen,
 	setImproveQuestionsQuestionDialogOpen,
 } from "@/features/background-processes";
@@ -27,6 +28,7 @@ import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExamInfoPanel } from "./exam-info-panel";
 import { ExplainQuestionsBatchDialog } from "./explain-questions-batch-dialog";
+import { ExplainQuestionsDialogContainer } from "./explain-questions-dialog";
 import { ImproveQuestionsBatchDialog } from "./improve-questions-batch-dialog";
 import { ImproveQuestionsDialog } from "./improve-questions-dialog";
 import { QuestionsCard } from "./questions-card";
@@ -52,6 +54,8 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	);
 	const improveQuestionsBatchOpen = improveQuestionsUi.batchDialogOpen;
 	const explainQuestionsBatchOpen = explainQuestionsUi.batchDialogOpen;
+	const explainQuestionsOpen =
+		explainQuestionsUi.questionDialogQuestionId !== null;
 	const improveQuestionsOpen =
 		improveQuestionsUi.questionDialogQuestionId !== null;
 	const improveQuestionsExamViews = useStore(
@@ -101,6 +105,12 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 		return exam.questions.find((question) => question.id === questionId) ?? null;
 	}, [exam.questions, improveQuestionsUi.questionDialogQuestionId]);
 
+	const explainQuestionsQuestion = useMemo(() => {
+		const questionId = explainQuestionsUi.questionDialogQuestionId;
+		if (questionId === null) return null;
+		return exam.questions.find((question) => question.id === questionId) ?? null;
+	}, [exam.questions, explainQuestionsUi.questionDialogQuestionId]);
+
 	const improveQuestionsByQuestionId = useMemo(() => {
 		const statusById = new Map<number, ImproveQuestionsRunPhase>();
 		const draftById = new Map<number, QuestionData>();
@@ -134,7 +144,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 			if (explainQuestionId !== null) {
 				const run = getExplainQuestionRun(explainQuestionId);
 				if (run?.examId === examId) {
-					setExplainQuestionsBatchDialogOpen(examId, true);
+					setExplainQuestionsQuestionDialogOpen(examId, explainQuestionId);
 				}
 				return;
 			}
@@ -211,6 +221,9 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 				onOpenChange={(open) => setExplainQuestionsBatchDialogOpen(examId, open)}
 				examId={examId}
 				questions={exam.questions}
+				onOpenQuestion={(question) => {
+					setExplainQuestionsQuestionDialogOpen(examId, question.id);
+				}}
 			/>
 
 			<ImproveQuestionsBatchDialog
@@ -222,6 +235,20 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 					setImproveQuestionsQuestionDialogOpen(examId, question.id);
 				}}
 			/>
+
+			{explainQuestionsQuestion && (
+				<ExplainQuestionsDialogContainer
+					open={explainQuestionsOpen}
+					onOpenChange={(open) => {
+						if (!open) {
+							setExplainQuestionsQuestionDialogOpen(examId, null);
+						}
+					}}
+					questionId={explainQuestionsQuestion.id}
+					examId={examId}
+					question={explainQuestionsQuestion}
+				/>
+			)}
 
 			{improveQuestionsQuestion && (
 				<ImproveQuestionsDialog

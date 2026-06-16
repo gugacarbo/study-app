@@ -16,6 +16,7 @@ interface ExplainQuestionsAgentListProps {
 	processingCount: number;
 	errorCount: number;
 	progressPercent: number;
+	complete?: boolean;
 	onAgentClick: (questionId: number) => void;
 	onContinue: (questionId: number) => void;
 }
@@ -26,6 +27,7 @@ export function ExplainQuestionsAgentList({
 	processingCount,
 	errorCount,
 	progressPercent,
+	complete = false,
 	onAgentClick,
 	onContinue,
 }: ExplainQuestionsAgentListProps) {
@@ -35,7 +37,7 @@ export function ExplainQuestionsAgentList({
 		<div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-card p-3">
 			<div className="mb-2 flex shrink-0 items-center justify-between text-xs">
 				<span className="font-semibold text-muted-foreground">
-					Agentes em execucao
+					{complete ? "Resultados para revisao" : "Agentes em execucao"}
 				</span>
 				<span className="text-muted-foreground">
 					{finishedCount}/{agentItems.length} ({progressPercent}%)

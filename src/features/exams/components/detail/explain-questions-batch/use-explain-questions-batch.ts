@@ -1,9 +1,12 @@
 import { useStore } from "@tanstack/react-store";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+	applyAllReadyExplainQuestionRuns,
 	areExplainQuestionsExamViewsEqual,
 	backgroundProcessStore,
+	canApplyExplainQuestionRun,
 	cancelExplainQuestionsBatch,
+	clearExplainQuestionsBatch,
 	continueExplainQuestionRun,
 	getExplainQuestionRun,
 	questionNeedsExplanation,
@@ -34,6 +37,7 @@ export function useExplainQuestionsBatch({
 	});
 	const [maxWorkers, setMaxWorkers] = useState(3);
 	const [overwriteExplanations, setOverwriteExplanations] = useState(false);
+	const [applyingAll, setApplyingAll] = useState(false);
 
 	const examProcessViews = useStore(
 		backgroundProcessStore,
@@ -76,11 +80,11 @@ export function useExplainQuestionsBatch({
 		[examProcessViews],
 	);
 
-	const showAgentPanel = useMemo(
-		() =>
-			isBatchRunning ||
-			agentItems.some((item) => item.displayStatus !== "done"),
-		[isBatchRunning, agentItems],
+	const showAgentPanel = agentItems.length > 0;
+
+	const isBatchComplete = useMemo(
+		() => showAgentPanel && !isBatchRunning,
+		[showAgentPanel, isBatchRunning],
 	);
 
 	const finishedCount = useMemo(
@@ -108,6 +112,13 @@ export function useExplainQuestionsBatch({
 		agentItems.length === 0
 			? 0
 			: Math.round((finishedCount / agentItems.length) * 100);
+
+	const readyToApplyCount = useMemo(
+		() =>
+			agentItems.filter((item) => canApplyExplainQuestionRun(item.question.id))
+				.length,
+		[agentItems],
+	);
 
 	useEffect(() => {
 		if (!open) return;
@@ -180,6 +191,22 @@ export function useExplainQuestionsBatch({
 		cancelExplainQuestionsBatch(examId);
 	}, [examId]);
 
+	const handleClear = useCallback(() => {
+		clearExplainQuestionsBatch(examId);
+	}, [examId]);
+
+	const handleApplyAll = useCallback(async () => {
+		if (applyingAll || readyToApplyCount === 0) return;
+		setApplyingAll(true);
+		try {
+			await applyAllReadyExplainQuestionRuns(
+				agentItems.map((item) => item.question.id),
+			);
+		} finally {
+			setApplyingAll(false);
+		}
+	}, [agentItems, applyingAll, readyToApplyCount]);
+
 	const getAgentRunForQuestion = useCallback((questionId: number) => {
 		return getExplainQuestionRun(questionId)?.agentRunState ?? null;
 	}, []);
@@ -197,14 +224,19 @@ export function useExplainQuestionsBatch({
 		handleStart,
 		handleContinue,
 		handleCancel,
+		handleClear,
+		handleApplyAll,
 		getAgentRunForQuestion,
 		agentItems,
 		isBatchRunning,
+		isBatchComplete,
 		showAgentPanel,
 		finishedCount,
 		processingCount,
 		errorCount,
 		progressPercent,
 		pendingExplanationCount,
+		readyToApplyCount,
+		applyingAll,
 	};
 }

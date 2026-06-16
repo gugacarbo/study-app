@@ -1,7 +1,11 @@
 import type { ExplainQuestionJobResult } from "@/features/ai/agents/explanations/contracts";
 import type { ExplainQuestionAgentEvent } from "@/features/ai/agents/explanations/contracts";
+import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
 import { consumeJobStream } from "@/features/ai/lib/read-job-ui-message-stream";
-import type { JobResultDataPart } from "@/features/ai/types/ui-message-data-parts";
+import type {
+	ExplanationUpdateDataPart,
+	JobResultDataPart,
+} from "@/features/ai/types/ui-message-data-parts";
 import {
 	createAgentRunState,
 	reduceAgentEvent,
@@ -9,7 +13,13 @@ import {
 } from "@/features/ai/utils/agent-run-messages";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import { getErrorMessage } from "@/features/exams/components/detail/exam-utils";
+import {
+	applyExplanationDecisions,
+	computeExplanationChanges,
+	resolveExplanations,
+} from "@/features/exams/components/detail/explain-questions-dialog/diff-changes";
 import { queryClient } from "@/routes/__root";
+import { updateQuestion } from "@/server-functions/exams";
 import {
 	getAbortController,
 	registerAbort,
@@ -77,6 +87,17 @@ function updateExplainQuestionProcess(
 	});
 }
 
+function phaseToStatus(
+	phase: ExplainQuestionBackgroundProcess["phase"],
+	isStreaming: boolean,
+): ExplainQuestionBackgroundProcess["status"] {
+	if (isStreaming || phase === "running") return "running";
+	if (phase === "done") return "awaiting_review";
+	if (phase === "error") return "error";
+	if (phase === "canceled") return "canceled";
+	return "queued";
+}
+
 function patchExplainQuestionProcess(
 	process: ExplainQuestionBackgroundProcess,
 	patch: Partial<
@@ -85,6 +106,7 @@ function patchExplainQuestionProcess(
 			| "explanation"
 			| "deepExplanation"
 			| "agentRunState"
+			| "changes"
 			| "isStreaming"
 			| "streamError"
 			| "phase"
@@ -94,20 +116,13 @@ function patchExplainQuestionProcess(
 ): ExplainQuestionBackgroundProcess {
 	const nextPhase = patch.phase ?? process.phase;
 	const nextStreaming = patch.isStreaming ?? process.isStreaming;
-	const status =
-		nextStreaming || nextPhase === "running"
-			? "running"
-			: nextPhase === "done"
-				? "success"
-				: nextPhase === "error"
-					? "error"
-					: nextPhase === "canceled"
-						? "canceled"
-						: "queued";
+	const status = phaseToStatus(nextPhase, nextStreaming);
 	const finishedAt =
 		patch.finishedAt !== undefined
 			? patch.finishedAt
-			: status === "success" || status === "error" || status === "canceled"
+			: status === "awaiting_review" ||
+					status === "error" ||
+					status === "canceled"
 				? (process.finishedAt ?? Date.now())
 				: process.finishedAt;
 
@@ -181,6 +196,7 @@ function createInitialProcess(
 			agentRunId: `explain-question-${questionId}`,
 			label: "Explain question",
 		}),
+		changes: [],
 		isStreaming: false,
 		streamError: null,
 		phase: "idle",
@@ -232,6 +248,13 @@ export function setExplainQuestionsBatchDialogOpen(
 	open: boolean,
 ): void {
 	patchExplainQuestionsExamUi(examId, { batchDialogOpen: open });
+}
+
+export function setExplainQuestionsQuestionDialogOpen(
+	examId: number,
+	questionId: number | null,
+): void {
+	patchExplainQuestionsExamUi(examId, { questionDialogQuestionId: questionId });
 }
 
 export function maybeClearExplainQuestionsBatchConfig(examId: number): void {
@@ -306,7 +329,7 @@ export function canContinueExplainQuestionRun(questionId: number): boolean {
 	) {
 		return false;
 	}
-	if (process.phase === "done" || process.status === "success") {
+	if (process.phase === "done" || process.status === "awaiting_review") {
 		return false;
 	}
 	return (
@@ -378,17 +401,25 @@ export function startQueuedExplainQuestion(processId: string): void {
 					const finishJob = (result: ExplainQuestionJobResult) => {
 						jobCompleted = true;
 						batcher.dispose();
-						updateExplainQuestionProcess(questionId, (run) =>
-							patchExplainQuestionProcess(run, {
+						updateExplainQuestionProcess(questionId, (run) => {
+							const draft = {
 								explanation: result.explanation,
 								deepExplanation: result.deepExplanation,
+							};
+							return patchExplainQuestionProcess(run, {
+								explanation: draft.explanation,
+								deepExplanation: draft.deepExplanation,
+								changes: computeExplanationChanges(
+									{
+										explanation: run.originalSnapshot.explanation,
+										deepExplanation: run.originalSnapshot.deepExplanation,
+									},
+									draft,
+								),
 								agentRunState: { ...runState, status: "done" },
 								isStreaming: false,
 								phase: "done",
-							}),
-						);
-						void queryClient.invalidateQueries({
-							queryKey: ["exam-detail", examId],
+							});
 						});
 						maybeClearExplainQuestionsBatchConfig(examId);
 						runNextQueued();
@@ -411,6 +442,16 @@ export function startQueuedExplainQuestion(processId: string): void {
 									runState = syncAgentRunId(runState, event);
 									runState = reduceAgentEvent(runState, event);
 									batcher.queue({ agentRunState: { ...runState } });
+									return;
+								}
+
+								if (part.type === "data-explanation-update") {
+									const update = part.data as ExplanationUpdateDataPart;
+									batcher.queue({
+										explanation: update.explanation,
+										deepExplanation: update.deepExplanation,
+									});
+									return;
 								}
 
 								if (part.type === "data-job-result") {
@@ -514,4 +555,203 @@ export function cancelExplainQuestionsBatch(examId: number): void {
 			cancelExplainQuestionRun(process.questionId);
 		}
 	}
+}
+
+export function dismissExplainQuestionRun(questionId: number): void {
+	const process = getExplainQuestionProcess(questionId);
+	if (!process) return;
+
+	if (
+		process.isStreaming ||
+		process.status === "running" ||
+		process.status === "queued"
+	) {
+		cancelExplainQuestionRun(questionId);
+		return;
+	}
+
+	const { examId } = process;
+	removeProcess(explainQuestionProcessId(questionId));
+	maybeClearExplainQuestionsBatchConfig(examId);
+	const ui = backgroundProcessStore.state.explainQuestionsUiByExam[examId];
+	if (ui?.questionDialogQuestionId === questionId) {
+		patchExplainQuestionsExamUi(examId, { questionDialogQuestionId: null });
+	}
+	runNextQueued();
+}
+
+export function clearExplainQuestionsBatch(examId: number): void {
+	const targets = backgroundProcessStore.state.processes.filter(
+		(process): process is ExplainQuestionBackgroundProcess =>
+			isExplainQuestionProcess(process) && process.examId === examId,
+	);
+
+	for (const process of targets) {
+		if (
+			process.isStreaming ||
+			process.status === "running" ||
+			process.status === "queued"
+		) {
+			cancelExplainQuestionRun(process.questionId);
+			continue;
+		}
+		removeProcess(process.id);
+	}
+
+	maybeClearExplainQuestionsBatchConfig(examId);
+	patchExplainQuestionsExamUi(examId, { questionDialogQuestionId: null });
+	runNextQueued();
+}
+
+export function setExplainQuestionDecision(
+	questionId: number,
+	changeId: string,
+	decision: ChangeDecision,
+): void {
+	updateExplainQuestionProcess(questionId, (run) =>
+		patchExplainQuestionProcess(run, {
+			changes: run.changes.map((change) =>
+				change.id === changeId ? { ...change, decision } : change,
+			),
+		}),
+	);
+}
+
+export function keepAllExplainQuestionChanges(questionId: number): void {
+	updateExplainQuestionProcess(questionId, (run) =>
+		patchExplainQuestionProcess(run, {
+			changes: applyExplanationDecisions(run.changes, "keep"),
+		}),
+	);
+}
+
+export function revertAllExplainQuestionChanges(questionId: number): void {
+	updateExplainQuestionProcess(questionId, (run) =>
+		patchExplainQuestionProcess(run, {
+			changes: applyExplanationDecisions(run.changes, "revert"),
+		}),
+	);
+}
+
+function buildExplainQuestionApplyPayload(
+	run: ExplainQuestionBackgroundProcess,
+) {
+	const resolved = resolveExplanations(
+		{
+			explanation: run.originalSnapshot.explanation,
+			deepExplanation: run.originalSnapshot.deepExplanation,
+		},
+		{
+			explanation: run.explanation,
+			deepExplanation: run.deepExplanation,
+		},
+		run.changes,
+	);
+
+	const payload: {
+		explanation?: string;
+		deepExplanation?: string;
+	} = {};
+
+	if (resolved.explanation !== run.originalSnapshot.explanation) {
+		payload.explanation = resolved.explanation;
+	}
+	if (resolved.deepExplanation !== run.originalSnapshot.deepExplanation) {
+		payload.deepExplanation = resolved.deepExplanation;
+	}
+
+	return payload;
+}
+
+export function canApplyExplainQuestionRun(questionId: number): boolean {
+	const run = getExplainQuestionProcess(questionId);
+	if (!run) return false;
+	if (run.isStreaming || run.status === "running" || run.status === "queued") {
+		return false;
+	}
+	if (run.status !== "awaiting_review" && run.phase !== "done") return false;
+	const payload = buildExplainQuestionApplyPayload(run);
+	return (
+		payload.explanation !== undefined || payload.deepExplanation !== undefined
+	);
+}
+
+export async function applyExplainQuestionRun(
+	questionId: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const run = getExplainQuestionProcess(questionId);
+	if (!run) {
+		return { ok: false, error: "No explain-question run found." };
+	}
+
+	const payload = buildExplainQuestionApplyPayload(run);
+	if (
+		payload.explanation === undefined &&
+		payload.deepExplanation === undefined
+	) {
+		return { ok: false, error: "No applicable changes to save." };
+	}
+
+	try {
+		await updateQuestion({
+			data: {
+				id: questionId,
+				...payload,
+			},
+		});
+		await queryClient.invalidateQueries({
+			queryKey: ["exam-detail", run.examId],
+		});
+		const appliedExamId = run.examId;
+		removeProcess(explainQuestionProcessId(questionId));
+		maybeClearExplainQuestionsBatchConfig(appliedExamId);
+		const ui =
+			backgroundProcessStore.state.explainQuestionsUiByExam[appliedExamId];
+		if (ui?.questionDialogQuestionId === questionId) {
+			patchExplainQuestionsExamUi(appliedExamId, {
+				questionDialogQuestionId: null,
+			});
+		}
+		runNextQueued();
+		return { ok: true };
+	} catch (error) {
+		const message = getErrorMessage(error);
+		console.error("Failed to apply explain question:", error);
+		updateExplainQuestionProcess(questionId, (current) =>
+			patchExplainQuestionProcess(current, {
+				streamError: message,
+			}),
+		);
+		return { ok: false, error: message };
+	}
+}
+
+export type ApplyAllReadyExplainQuestionsResult = {
+	applied: number;
+	failed: number;
+	errors: string[];
+};
+
+export async function applyAllReadyExplainQuestionRuns(
+	questionIds: number[],
+): Promise<ApplyAllReadyExplainQuestionsResult> {
+	const readyQuestionIds = questionIds.filter((questionId) =>
+		canApplyExplainQuestionRun(questionId),
+	);
+
+	let applied = 0;
+	let failed = 0;
+	const errors: string[] = [];
+
+	for (const questionId of readyQuestionIds) {
+		const result = await applyExplainQuestionRun(questionId);
+		if (result.ok) {
+			applied += 1;
+			continue;
+		}
+		failed += 1;
+		errors.push(`Q${questionId}: ${result.error}`);
+	}
+
+	return { applied, failed, errors };
 }

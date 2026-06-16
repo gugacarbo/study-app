@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-15 (agent stage status + stop-when helpers) -->
+<!-- Last updated: 2026-06-15 (explain-question review agent + spell tools) -->
 
 Domain-driven AI integration layer. 60+ files across 12 subdirectories.
 
@@ -11,7 +11,8 @@ features/ai/
 ├── agents/          # Domain agents with system prompts + logic
 │   ├── chat/        # Chat agent (conversational AI assistant)
 │   ├── ingest/      # Ingest agent (PDF → structured questions)
-│   ├── explanations/ # Per-question explanation agent (explain-question jobs)
+│   ├── explanations/ # Per-question explanation agent (explain-question jobs + ingest batch)
+│   │   └── explain-question/ # Standalone explain-question job agent (review + apply)
 │   ├── quiz/        # Quiz agent (question generation)
 │   └── reviewer/    # Reviewer agent (critical-topic verification)
 ├── core/            # Core generation + UI Message Stream helpers
@@ -36,7 +37,8 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | `chat/`         | Conversational AI assistant                                      | DB tools, web tools               |
 | `ingest/`       | PDF → structured questions extraction (tool-based via workspace) | DB tools, ingest extraction tools |
 | `ingest/review-extraction/` | Per-question review in the ingest pipeline (not `reviewer/`) | Ingest tools + web tools (via `agent.reviewer` resolver) |
-| `explanations/` | Per-question deep explanations via explain-question background jobs | DB tools                          |
+| `explanations/explain-question/` | Per-question explanations via explain-question background jobs (review before apply) | Explanation workspace tools + web tools |
+| `explanations/` (ingest batch) | Batch explanations during ingest pipeline | Explanation workspace tools |
 | `quiz/`         | Question generation from topics                                  | DB tools                          |
 | `reviewer/`     | Critical-topic verification in **chat** (`parallel_review` tool) | Web tools (search, fetch)         |
 
@@ -46,6 +48,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`tool-resolver.ts`** — `resolveToolsForAgent()` assembles per-agent tool sets
 - **`db-tools.ts`** — Database query tools (exposed to agents via MCP-like interface)
 - **`web-tools.ts`** — Web search + content fetch tools (Tavily provider)
+- **`spell-tools/`** — Portuguese spell-check tool (`check_spelling`) for `improve_questions`
 - **`reviewer-tool.ts`** — Specialized tool for reviewer agent
 - **`ingest-stage-status.ts`** — `report_agent_stage_status` tool + status resolution for ingest pipeline stages
 - **`ingest-tools/`** — Ingest extraction workspace + tools (`add_extracted_question`, `update_extracted_question`, `report_agent_stage_status`)

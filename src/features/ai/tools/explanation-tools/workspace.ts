@@ -60,10 +60,25 @@ export function createExplanationWorkspace(questions: ExplanationBatchInput[]) {
 		...question,
 		scoringMode: question.scoringMode ?? "exact",
 		explanation: question.explanation ?? "",
-		deepExplanation: "",
+		deepExplanation:
+			"deepExplanation" in question &&
+			typeof question.deepExplanation === "string"
+				? question.deepExplanation
+				: "",
 	}));
 
 	return {
+		getQuestion(questionId: number) {
+			const question = state.find((item) => item.id === questionId);
+			if (!question) {
+				throw new ExplanationWorkspaceError(
+					QUESTION_NOT_FOUND_ERROR_CODE,
+					`Question ${questionId} was not found in the current explanation workspace.`,
+				);
+			}
+			return { ...question };
+		},
+
 		updateQuestionExplanation(
 			questionId: number,
 			patch: { explanation?: string; deepExplanation?: string },

@@ -8,6 +8,7 @@ import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-he
 import {
 	TRANSIENT_UI_DATA_PARTS,
 	type AgentRunDataPart,
+	type ExplanationUpdateDataPart,
 	type JobErrorDataPart,
 	type JobProgressDataPart,
 	type JobResultDataPart,
@@ -56,8 +57,10 @@ function writeStudyDataPart<NAME extends DataPartName>(
 		? StageDataPart
 		: NAME extends "agent-run"
 			? AgentRunDataPart
-			: NAME extends "workspace-update"
-				? WorkspaceUpdateDataPart
+		: NAME extends "workspace-update"
+			? WorkspaceUpdateDataPart
+			: NAME extends "explanation-update"
+				? ExplanationUpdateDataPart
 				: NAME extends "job-progress"
 					? JobProgressDataPart
 					: NAME extends "job-result"
@@ -98,6 +101,14 @@ export function writeWorkspaceUpdate(
 	options?: { id?: string },
 ): void {
 	writeStudyDataPart(writer, "workspace-update", data, options);
+}
+
+export function writeExplanationUpdate(
+	writer: JobUIMessageStreamWriter,
+	data: ExplanationUpdateDataPart,
+	options?: { id?: string },
+): void {
+	writeStudyDataPart(writer, "explanation-update", data, options);
 }
 
 export function writeJobProgress(

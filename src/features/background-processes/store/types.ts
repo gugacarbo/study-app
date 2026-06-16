@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { ExplanationChange } from "@/features/ai/agents/explanations/explain-question/contracts";
 import type { QuestionChange } from "@/features/ai/agents/improve-questions/contracts";
 import type {
 	BenchmarkPerfMetrics,
@@ -102,6 +103,7 @@ export interface ExplainQuestionBackgroundProcess {
 	deepExplanation: string;
 	overwrite: boolean;
 	agentRunState: AgentRunState | null;
+	changes: ExplanationChange[];
 	isStreaming: boolean;
 	streamError: string | null;
 	phase: ExplainQuestionRunPhase;
@@ -172,6 +174,7 @@ export interface ExplainQuestionsBatchConfig {
 
 export interface ExplainQuestionsExamUiState {
 	batchDialogOpen: boolean;
+	questionDialogQuestionId: number | null;
 }
 
 export interface BackgroundProcessStoreState {

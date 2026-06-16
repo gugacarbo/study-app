@@ -8,6 +8,7 @@ type ExplainQuestionStorePatch = Partial<
 		| "explanation"
 		| "deepExplanation"
 		| "agentRunState"
+		| "changes"
 		| "isStreaming"
 		| "streamError"
 		| "phase"
@@ -19,7 +20,7 @@ function phaseToStatus(
 	isStreaming: boolean,
 ): ExplainQuestionBackgroundProcess["status"] {
 	if (isStreaming || phase === "running") return "running";
-	if (phase === "done") return "success";
+	if (phase === "done") return "awaiting_review";
 	if (phase === "error") return "error";
 	if (phase === "canceled") return "canceled";
 	return "queued";

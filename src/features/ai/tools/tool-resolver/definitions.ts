@@ -12,7 +12,8 @@ const DEFAULT_AGENT_TOOL_NAMES: Record<AgentName, AgentToolName[]> = {
 	chat: ["db_tools", "web_tools", "parallel_review"],
 	reviewer: ["web_tools"],
 	ingest: ["web_tools"],
-	improve_questions: ["web_tools"],
+	improve_questions: ["web_tools", "spell_tools"],
+	explanations: ["web_tools"],
 };
 
 interface ParsedToolNames {

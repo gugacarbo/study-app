@@ -1,5 +1,4 @@
 import { Loader2, Sparkles, Square } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -10,8 +9,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AgentRunDetailDialog } from "@/features/ai/components/agent-run-detail-dialog";
-import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
 import { ExplainQuestionsAgentList } from "../explain-questions-batch/agent-list";
 import { useExplainQuestionsBatch } from "../explain-questions-batch/use-explain-questions-batch";
 import type { QuestionData } from "../exam-utils";
@@ -22,6 +19,7 @@ interface ExplainQuestionsBatchDialogProps {
 	onOpenChange: (open: boolean) => void;
 	examId: number;
 	questions: QuestionData[];
+	onOpenQuestion: (question: QuestionData) => void;
 }
 
 export function ExplainQuestionsBatchDialog({
@@ -29,27 +27,21 @@ export function ExplainQuestionsBatchDialog({
 	onOpenChange,
 	examId,
 	questions,
+	onOpenQuestion,
 }: ExplainQuestionsBatchDialogProps) {
 	const batch = useExplainQuestionsBatch({ examId, questions, open });
-	const [selectedAgentRun, setSelectedAgentRun] = useState<AgentRunState | null>(
-		null,
-	);
-
-	function handleAgentClick(questionId: number) {
-		const run = batch.getAgentRunForQuestion(questionId);
-		if (run) setSelectedAgentRun(run);
-	}
 
 	return (
-		<>
-			<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={onOpenChange}>
 				<DialogContent className="flex h-[600px] w-[calc(100vw-2rem)] flex-col gap-4 sm:max-w-4xl">
 					<DialogHeader className="shrink-0">
 						<DialogTitle>Gerar explicacoes com agente</DialogTitle>
 						<DialogDescription>
-							{batch.showAgentPanel
-								? "Acompanhe o progresso dos agentes. Clique em um agente para inspecionar a execucao."
-								: "Selecione as questoes e defina quantos agentes rodam em paralelo. A execucao continua em background ao fechar."}
+							{batch.isBatchComplete
+								? "Execucao concluida. Clique em um agente para revisar as explicacoes geradas."
+								: batch.showAgentPanel
+									? "Acompanhe o progresso dos agentes. Clique em um agente para inspecionar a execucao."
+									: "Selecione as questoes e defina quantos agentes rodam em paralelo. A execucao continua em background ao fechar."}
 						</DialogDescription>
 					</DialogHeader>
 
@@ -61,7 +53,11 @@ export function ExplainQuestionsBatchDialog({
 								processingCount={batch.processingCount}
 								errorCount={batch.errorCount}
 								progressPercent={batch.progressPercent}
-								onAgentClick={handleAgentClick}
+								complete={batch.isBatchComplete}
+								onAgentClick={(questionId) => {
+									const question = questions.find((q) => q.id === questionId);
+									if (question) onOpenQuestion(question);
+								}}
 								onContinue={batch.handleContinue}
 							/>
 						) : (
@@ -128,7 +124,12 @@ export function ExplainQuestionsBatchDialog({
 					</div>
 
 					<DialogFooter className="shrink-0 gap-2 sm:justify-end">
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => onOpenChange(false)}
+							disabled={batch.applyingAll}
+						>
 							Fechar
 						</Button>
 						{batch.isBatchRunning ? (
@@ -136,7 +137,32 @@ export function ExplainQuestionsBatchDialog({
 								<Square data-icon="inline-start" />
 								Cancelar
 							</Button>
+						) : batch.isBatchComplete ? (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={batch.handleClear}
+								disabled={batch.applyingAll}
+							>
+								Limpar execucao
+							</Button>
 						) : null}
+						{batch.showAgentPanel && batch.readyToApplyCount > 0 && (
+							<Button
+								type="button"
+								onClick={batch.handleApplyAll}
+								disabled={batch.applyingAll}
+							>
+								{batch.applyingAll ? (
+									<>
+										<Loader2 className="size-4 animate-spin" />
+										Aplicando…
+									</>
+								) : (
+									`Aplicar todos (${batch.readyToApplyCount})`
+								)}
+							</Button>
+						)}
 						{!batch.showAgentPanel ? (
 							<Button
 								type="button"
@@ -155,23 +181,5 @@ export function ExplainQuestionsBatchDialog({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-
-			<AgentRunDetailDialog
-				name={selectedAgentRun?.label ?? ""}
-				summary="Inspect prompts, response, and agent state for this explanation run."
-				systemPrompt={selectedAgentRun?.systemPrompt}
-				userPrompt={selectedAgentRun?.userPrompt}
-				response={
-					selectedAgentRun?.outputText ??
-					selectedAgentRun?.error ??
-					undefined
-				}
-				messages={selectedAgentRun?.messages}
-				open={selectedAgentRun != null}
-				onOpenChange={(nextOpen) => {
-					if (!nextOpen) setSelectedAgentRun(null);
-				}}
-			/>
-		</>
 	);
 }

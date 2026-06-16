@@ -221,6 +221,7 @@ function createExplainQuestionProcess(
 		deepExplanation: "",
 		overwrite: false,
 		agentRunState: null,
+		changes: [],
 		isStreaming: false,
 		streamError: null,
 		phase: "idle",
