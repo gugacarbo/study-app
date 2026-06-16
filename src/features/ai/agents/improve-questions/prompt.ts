@@ -23,6 +23,8 @@ export function buildUserPrompt(question: DraftQuestion): string {
 		"Workflow:",
 		"- The snapshot below already has the current stem, options, answers, and explanation.",
 		"- Improve unclear stems, weak distractors, option count below 5, and explanation/answers when needed.",
+		"- For Portuguese text with missing accents or typos, prefer one update_question_options with all fixes. Use check_spelling at most once if unsure.",
+		"- When accents change in options, update answers in the same call so they still match options exactly.",
 		"- Call update_question_options only for fields that need improvement. Omit unchanged fields; never pass null.",
 		"- Call update_question_options at most once with real changes, then stop.",
 		"- Use get_question only if you truly need to re-read the workspace.",

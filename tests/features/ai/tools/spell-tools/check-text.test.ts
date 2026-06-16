@@ -15,6 +15,7 @@ describe("checkTextWithSpellChecker", () => {
 
 		expect(result.language).toBe("pt-BR");
 		expect(result.checkedWordCount).toBe(1);
+		expect(result.truncated).toBe(false);
 		expect(result.issues).toHaveLength(1);
 		expect(result.issues[0]?.word).toBe("ortogafia");
 		expect(result.issues[0]?.suggestions).toContain("ortografia");
@@ -24,5 +25,19 @@ describe("checkTextWithSpellChecker", () => {
 		const result = checkTextWithSpellChecker(spellChecker, "ortografia");
 
 		expect(result.issues).toEqual([]);
+	});
+
+	it("flags unaccented words common in exam stems", () => {
+		const result = checkTextWithSpellChecker(
+			spellChecker,
+			"Uma arvore vermelho-preto e rotacoes",
+		);
+
+		const flaggedWords = result.issues.map((issue) => issue.word);
+		expect(flaggedWords).toContain("arvore");
+		expect(flaggedWords).toContain("rotacoes");
+
+		const arvoreIssue = result.issues.find((issue) => issue.word === "arvore");
+		expect(arvoreIssue?.suggestions[0]).toMatch(/árvore/i);
 	});
 });

@@ -4,7 +4,7 @@ import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { IMPROVE_QUESTIONS_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import {
 	buildImproveQuestionsStopWhen,
-	buildPostUpdatePrepareStep,
+	buildImproveQuestionsPrepareStep,
 } from "@/features/ai/core/tool-agent-stop-when";
 import {
 	createAiStreamState,
@@ -19,6 +19,7 @@ import {
 	createImproveQuestionsTools,
 	createImproveQuestionsWorkspace,
 } from "@/features/ai/tools/improve-questions-tools";
+import { wrapToolSetWithExecutionHook } from "@/features/ai/tools/wrap-tool-set";
 import {
 	type ProviderConfig,
 	type ResolvedModelConfig,
@@ -119,9 +120,17 @@ export async function improveSingleQuestion(
 			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
 		},
 	});
+	const externalTools = wrapToolSetWithExecutionHook(options.tools ?? {}, async ({
+		toolCallId,
+		toolName,
+		output,
+	}) => {
+		toolNamesById.set(toolCallId, toolName);
+		emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+	});
 	const combinedTools: ToolSet = {
 		...workspaceTools,
-		...(options.tools ?? {}),
+		...externalTools,
 	};
 
 	emitAgentEvent(options, {
@@ -209,7 +218,7 @@ export async function improveSingleQuestion(
 				messages: conversationMessages,
 				tools: combinedTools,
 				stopWhen: buildImproveQuestionsStopWhen(IMPROVE_QUESTIONS_MAX_STEPS),
-				prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
+				prepareStep: buildImproveQuestionsPrepareStep(() => toolsComplete),
 				providerOptions: buildProviderOptions(providerConfig),
 			},
 		);

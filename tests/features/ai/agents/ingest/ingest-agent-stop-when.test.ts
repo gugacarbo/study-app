@@ -1,6 +1,7 @@
 import type { StepResult, ToolSet } from "ai";
 import { describe, expect, it } from "vitest";
 import {
+	buildImproveQuestionsPrepareStep,
 	buildImproveQuestionsStopWhen,
 	buildIngestExplanationStopWhen,
 	buildIngestExtractionStopWhen,
@@ -169,6 +170,42 @@ describe("ingest agent stopWhen builders", () => {
 		).toHaveLength(5);
 		expect(buildIngestReviewStopWhen(12)).toHaveLength(4);
 		expect(buildIngestExplanationStopWhen(12)).toHaveLength(2);
-		expect(buildImproveQuestionsStopWhen(12)).toHaveLength(5);
+		expect(buildImproveQuestionsStopWhen(12)).toHaveLength(7);
+	});
+
+	it("disables check_spelling for the rest of the run after it succeeds once", () => {
+		const prepareStep = buildImproveQuestionsPrepareStep(() => false);
+		const next = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "get_question",
+						output: { ok: true, data: { id: 807 } },
+					},
+				]),
+				createStep([
+					{
+						toolName: "check_spelling",
+						output: {
+							ok: true,
+							language: "pt-BR",
+							checkedWordCount: 2,
+							issues: [{ word: "arvore", suggestions: ["árvore"] }],
+							truncated: false,
+						},
+					},
+				]),
+			],
+		} as Parameters<typeof prepareStep>[0]) as {
+			activeTools?: string[];
+		};
+
+		expect(next.activeTools).toEqual([
+			"update_question_options",
+			"get_question",
+			"web_search",
+			"web_fetch",
+		]);
+		expect(next.activeTools).not.toContain("check_spelling");
 	});
 });

@@ -196,6 +196,21 @@ async function runImproveQuestions(
 		},
 	});
 
+	if (resolvedTools.tools.check_spelling) {
+		const { warmPtBrSpellChecker } = await import(
+			"@/features/ai/tools/spell-tools"
+		);
+		try {
+			await warmPtBrSpellChecker();
+		} catch (error) {
+			console.warn("Spell checker warmup failed:", error);
+			agentRuns.warning(
+				run,
+				"Spell checker warmup failed. check_spelling may be unavailable.",
+			);
+		}
+	}
+
 	const result = await improveSingleQuestion(providerConfig, draftQuestion, {
 		tools: resolvedTools.tools,
 		createAgentRunId: () => run.agentRunId,

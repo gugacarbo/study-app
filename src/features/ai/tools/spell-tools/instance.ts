@@ -9,6 +9,9 @@ export function getPtBrSpellChecker(): Promise<Espells> {
 	return spellCheckerPromise;
 }
 
+/** Preloads the pt-BR dictionary so the first tool call is fast. */
+export const warmPtBrSpellChecker = getPtBrSpellChecker;
+
 async function loadPtBrSpellChecker(): Promise<Espells> {
 	const [{ Espells }, affModule, dicModule] = await Promise.all([
 		import("espells"),

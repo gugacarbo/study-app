@@ -30,6 +30,7 @@ describe("spell tools", () => {
 			language: "pt-BR",
 			checkedWordCount: 1,
 			issues: [{ word: "ortogafia", suggestions: ["ortografia"] }],
+			truncated: false,
 		});
 
 		const tools = createSpellTools();
@@ -41,6 +42,7 @@ describe("spell tools", () => {
 			language: "pt-BR",
 			checkedWordCount: 1,
 			issues: [{ word: "ortogafia", suggestions: ["ortografia"] }],
+			truncated: false,
 		});
 	});
 
@@ -49,6 +51,7 @@ describe("spell tools", () => {
 			language: "pt-BR",
 			checkedWordCount: 1,
 			issues: [],
+			truncated: false,
 		});
 
 		const tools = createSpellTools();
@@ -60,6 +63,7 @@ describe("spell tools", () => {
 			language: "pt-BR",
 			checkedWordCount: 1,
 			issues: [],
+			truncated: false,
 		});
 	});
 
