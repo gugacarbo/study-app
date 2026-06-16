@@ -23,7 +23,8 @@ import {
 	updateConversationTitle,
 } from "@/features/ai/stores/conversations-store";
 import {
-	chatUIStore,
+	hydrateLayoutUIStore,
+	getLayoutUIStore,
 	setChatSidebarOpen,
 } from "@/features/ai/stores/ui-store";
 import { CHAT_RUNTIME_MESSAGE_LIMIT } from "@/lib/chat-conversations/constants";
@@ -55,7 +56,7 @@ export function Chat() {
 		conversationsStore,
 		(s) => s.loadingConversationId,
 	);
-	const chatSidebarOpen = useSelector(chatUIStore, (s) => s.chatSidebarOpen);
+	const chatSidebarOpen = useSelector(getLayoutUIStore(), (s) => s.chatSidebarOpen);
 	const activeConversation = conversations.find((c) => c.id === activeId);
 	const isTruncated =
 		(activeConversation?.messageCount ?? 0) > CHAT_RUNTIME_MESSAGE_LIMIT;
@@ -66,6 +67,7 @@ export function Chat() {
 	const [chatError, setChatError] = useState<Error | undefined>();
 
 	useEffect(() => {
+		hydrateLayoutUIStore();
 		void (async () => {
 			await hydrateConversationsFromServer();
 			await ensureActiveConversation();
