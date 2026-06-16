@@ -1,4 +1,10 @@
 import type { LanguageModelUsage, TextStreamPart, ToolSet } from "ai";
+import {
+	createThinkTagParserState,
+	flushThinkTagParserState,
+	parseThinkTagTextDelta,
+	type ThinkTagParserState,
+} from "@/features/ai/lib/think-tag-stream-parser";
 
 type ToolCallState = "awaiting-input" | "input-streaming" | "input-complete";
 
@@ -36,6 +42,7 @@ export interface AiStreamState {
 	emittedToolResultIds: Set<string>;
 	emittedToolResultScores: Map<string, number>;
 	rawText: string;
+	thinkTagParser: ThinkTagParserState;
 }
 
 export function createAiStreamState(): AiStreamState {
@@ -45,7 +52,47 @@ export function createAiStreamState(): AiStreamState {
 		emittedToolResultIds: new Set(),
 		emittedToolResultScores: new Map(),
 		rawText: "",
+		thinkTagParser: createThinkTagParserState(),
 	};
+}
+
+export function emitThinkTagSplitTextDelta(
+	delta: string,
+	handlers: AiStreamHandlers,
+	state: AiStreamState,
+): void {
+	const segments = parseThinkTagTextDelta(delta, state.thinkTagParser);
+	for (const segment of segments) {
+		if (segment.kind === "reasoning") {
+			if (segment.content.length > 0) {
+				handlers.onReasoningDelta?.(segment.content);
+			}
+			continue;
+		}
+
+		if (segment.content.length === 0) continue;
+		state.rawText += segment.content;
+		handlers.onTextDelta?.(segment.content);
+	}
+}
+
+export function flushAiStreamThinkTagDeltas(
+	handlers: AiStreamHandlers,
+	state: AiStreamState,
+): void {
+	const segments = flushThinkTagParserState(state.thinkTagParser);
+	for (const segment of segments) {
+		if (segment.kind === "reasoning") {
+			if (segment.content.length > 0) {
+				handlers.onReasoningDelta?.(segment.content);
+			}
+			continue;
+		}
+
+		if (segment.content.length === 0) continue;
+		state.rawText += segment.content;
+		handlers.onTextDelta?.(segment.content);
+	}
 }
 
 function normalizeToolResultContent(content: unknown): unknown {
@@ -285,8 +332,7 @@ export function processAiStreamPart<TOOLS extends ToolSet>(
 	},
 ): void {
 	if (chunk.type === "text-delta" && chunk.text.length > 0) {
-		state.rawText += chunk.text;
-		handlers.onTextDelta?.(chunk.text);
+		emitThinkTagSplitTextDelta(chunk.text, handlers, state);
 		return;
 	}
 

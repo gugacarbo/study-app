@@ -9,6 +9,27 @@ import {
 } from "@/features/ai/core/ai-stream-handler";
 
 describe("processAiStreamPart", () => {
+	it("splits embedded think tags into reasoning and text deltas", () => {
+		const state = createAiStreamState();
+		const onTextDelta = vi.fn();
+		const onReasoningDelta = vi.fn();
+		const thinkOpen = ["<", "think", ">"].join("");
+		const thinkClose = ["<", "/", "think", ">"].join("");
+
+		processAiStreamPart(
+			{
+				type: "text-delta",
+				text: `${thinkOpen}internal thought${thinkClose}Visible answer`,
+			} as TextStreamPart<ToolSet>,
+			{ onTextDelta, onReasoningDelta },
+			state,
+		);
+
+		expect(onReasoningDelta).toHaveBeenCalledWith("internal thought");
+		expect(onTextDelta).toHaveBeenCalledWith("Visible answer");
+		expect(state.rawText).toBe("Visible answer");
+	});
+
 	it("forwards reasoning deltas without mutating rawText", () => {
 		const state = createAiStreamState();
 		const onReasoningDelta = vi.fn();
