@@ -1,14 +1,14 @@
 import { stepCountIs, type ToolSet } from "ai";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
-import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
-	isAiStreamRunErrorChunk,
-	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
-import { createLlmLogContext } from "@/lib/llm-logging";
+import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
+import {
+	isSuccessfulNamedToolResult,
+	readToolFailureMessage,
+	runToolAgentStream,
+} from "@/features/ai/core/tool-agent-run";
 import {
 	createExplanationTools,
 	createExplanationWorkspace,
@@ -22,6 +22,8 @@ import type {
 	ExplanationQuestionResult,
 	RunQuestionExplanationsOptions,
 } from "./types";
+
+const UPDATE_QUESTION_EXPLANATION_TOOL = "update_question_explanation";
 
 export async function explainSingleQuestion(
 	config: ProviderConfig,
@@ -50,6 +52,10 @@ export async function explainSingleQuestion(
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
+	const questionMeta = {
+		questionIndex: index,
+		questionNumber: index + 1,
+	};
 
 	emitAgentEvent(options, {
 		eventType: "lifecycle",
@@ -60,8 +66,7 @@ export async function explainSingleQuestion(
 		systemPrompt,
 		userPrompt,
 		meta: {
-			questionIndex: index,
-			questionNumber: index + 1,
+			...questionMeta,
 			questionCount: 1,
 			questionIds: [question.id],
 			topic: question.topic ?? "General",
@@ -73,7 +78,7 @@ export async function explainSingleQuestion(
 		agentRunId,
 		label,
 		status: "running",
-		meta: { questionIndex: index, questionNumber: index + 1 },
+		meta: questionMeta,
 	});
 
 	try {
@@ -104,8 +109,7 @@ export async function explainSingleQuestion(
 				input: toolCall.input,
 				state: toolCall.state,
 				meta: {
-					questionIndex: index,
-					questionNumber: index + 1,
+					...questionMeta,
 					toolCallId: toolCall.toolCallId,
 				},
 			});
@@ -126,8 +130,7 @@ export async function explainSingleQuestion(
 				error: toolResult.error,
 				state: toolResult.state,
 				meta: {
-					questionIndex: index,
-					questionNumber: index + 1,
+					...questionMeta,
 					toolCallId: toolResult.toolCallId,
 				},
 			});
@@ -138,7 +141,13 @@ export async function explainSingleQuestion(
 			}
 			const toolName =
 				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-			if (isSuccessfulUpdateToolResult(toolName, toolResult.content)) {
+			if (
+				isSuccessfulNamedToolResult(
+					toolName,
+					toolResult.content,
+					UPDATE_QUESTION_EXPLANATION_TOOL,
+				)
+			) {
 				hasSuccessfulUpdate = true;
 			}
 		};
@@ -147,55 +156,66 @@ export async function explainSingleQuestion(
 			streamState,
 		);
 
-		const result = loggedStreamText(
-			createLlmLogContext("explanations.generate", config, {
-				callId: agentRunId,
-				systemPrompt,
-				requestSummary: `question ${index + 1}/${totalQuestions}`,
-				metadata: {
-					questionId: question.id,
-					questionIndex: index + 1,
-					totalQuestions,
-				},
-			}),
-			{
-				model: getAiModel(config),
-				system: systemPrompt,
-				messages: [{ role: "user", content: userPrompt }],
-				tools: combinedTools,
-				stopWhen: stepCountIs(10),
-				providerOptions: buildProviderOptions(config),
+		await runToolAgentStream({
+			scope: "explanations.generate",
+			config,
+			callId: agentRunId,
+			requestSummary: `question ${index + 1}/${totalQuestions}`,
+			metadata: {
+				questionId: question.id,
+				questionIndex: index + 1,
+				totalQuestions,
 			},
-		);
-
-		for await (const chunk of result.fullStream) {
-			if (isAiStreamRunErrorChunk(chunk)) {
-				const message =
-					chunk.error instanceof Error
-						? chunk.error.message
-						: String(chunk.error);
-				throw new Error(`AI provider returned error: ${message}`);
-			}
-
-			processAiStreamPart(
-				chunk,
-				{
-					onUsage: (usage) => {
-						emitAgentEvent(options, {
-							eventType: "token",
-							stageId: "explanations",
-							agentRunId,
-							label,
-							tokens: usage,
-							meta: { questionIndex: index, questionNumber: index + 1 },
-						});
-					},
-					onToolCall: handleToolCall,
-					onToolResult: emitToolResult,
+			systemPrompt,
+			messages: [{ role: "user", content: userPrompt }],
+			tools: combinedTools,
+			stopWhen: stepCountIs(INGEST_PER_QUESTION_MAX_STEPS),
+			streamState,
+			onRecoverableError: (message) => {
+				emitAgentEvent(options, {
+					eventType: "warning",
+					stageId: "explanations",
+					agentRunId,
+					label,
+					warning: `Provider dropped a stream chunk after a tool call (${message}); continuing explanation generation.`,
+					meta: questionMeta,
+				});
+			},
+			handlers: {
+				onTextDelta: (delta) => {
+					emitAgentEvent(options, {
+						eventType: "token",
+						stageId: "explanations",
+						agentRunId,
+						label,
+						rawText: delta,
+						meta: questionMeta,
+					});
 				},
-				streamState,
-			);
-		}
+				onReasoningDelta: (delta) => {
+					emitAgentEvent(options, {
+						eventType: "token",
+						stageId: "explanations",
+						agentRunId,
+						label,
+						rawText: delta,
+						meta: { ...questionMeta, kind: "reasoning" },
+					});
+				},
+				onUsage: (usage) => {
+					emitAgentEvent(options, {
+						eventType: "token",
+						stageId: "explanations",
+						agentRunId,
+						label,
+						tokens: usage,
+						meta: questionMeta,
+					});
+				},
+				onToolCall: handleToolCall,
+				onToolResult: emitToolResult,
+			},
+		});
 
 		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
 			throw new Error(
@@ -213,7 +233,7 @@ export async function explainSingleQuestion(
 			label,
 			finalObject: generated,
 			rawText: streamState.rawText,
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 		emitAgentEvent(options, {
 			eventType: "lifecycle",
@@ -221,7 +241,7 @@ export async function explainSingleQuestion(
 			agentRunId,
 			label,
 			status: "done",
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 
 		return { result: generated, success: true };
@@ -241,7 +261,7 @@ export async function explainSingleQuestion(
 			label,
 			status: "error",
 			error: message,
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 		emitAgentEvent(options, {
 			eventType: "warning",
@@ -249,7 +269,7 @@ export async function explainSingleQuestion(
 			agentRunId,
 			label,
 			warning: `Explanation generation failed for question #${index + 1}. Keeping the original question.`,
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 
 		return { question, success: false, reason: message };
@@ -269,32 +289,4 @@ function readGeneratedExplanation(
 	}
 
 	return generated;
-}
-
-function readToolFailureMessage(result: unknown): string | undefined {
-	if (typeof result === "string") {
-		try {
-			return readToolFailureMessage(JSON.parse(result));
-		} catch {
-			return result.length > 0 ? result : undefined;
-		}
-	}
-	if (typeof result !== "object" || result === null) return undefined;
-	const errorValue = (result as { error?: unknown }).error;
-	if (typeof errorValue === "string" && errorValue.length > 0) {
-		return errorValue;
-	}
-	if (typeof errorValue !== "object" || errorValue === null) return undefined;
-	return typeof (errorValue as { message?: unknown }).message === "string"
-		? (errorValue as { message: string }).message
-		: undefined;
-}
-
-function isSuccessfulUpdateToolResult(
-	toolName: string,
-	result: unknown,
-): boolean {
-	if (toolName !== "update_question_explanation") return false;
-	if (typeof result !== "object" || result === null) return false;
-	return (result as { ok?: unknown }).ok === true;
 }

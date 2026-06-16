@@ -255,6 +255,15 @@ describe("improveSingleQuestion", () => {
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
 			3,
 			expect.objectContaining({
+				eventType: "token",
+				stageId: "improve-questions",
+				agentRunId: "improve-q7",
+				rawText: "Melhorando os distratores...",
+			}),
+		);
+		expect(onAgentEvent).toHaveBeenNthCalledWith(
+			4,
+			expect.objectContaining({
 				eventType: "tool-call",
 				stageId: "improve-questions",
 				agentRunId: "improve-q7",
@@ -263,7 +272,7 @@ describe("improveSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			4,
+			5,
 			expect.objectContaining({
 				eventType: "tool-result",
 				stageId: "improve-questions",
@@ -283,7 +292,7 @@ describe("improveSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			5,
+			6,
 			expect.objectContaining({
 				eventType: "tool-call",
 				stageId: "improve-questions",
@@ -293,7 +302,7 @@ describe("improveSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			6,
+			7,
 			expect.objectContaining({
 				eventType: "tool-result",
 				stageId: "improve-questions",
@@ -307,7 +316,7 @@ describe("improveSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			7,
+			8,
 			expect.objectContaining({
 				eventType: "token",
 				stageId: "improve-questions",
@@ -320,7 +329,7 @@ describe("improveSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			8,
+			9,
 			expect.objectContaining({
 				eventType: "result",
 				stageId: "improve-questions",
@@ -329,7 +338,7 @@ describe("improveSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			9,
+			10,
 			expect.objectContaining({
 				eventType: "lifecycle",
 				stageId: "improve-questions",
@@ -386,7 +395,7 @@ describe("improveSingleQuestion", () => {
 			},
 		);
 
-		expect(result.success).toBe(false);
+		expect(result.success).toBe(true);
 		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "tool-result",

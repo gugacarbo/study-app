@@ -258,6 +258,42 @@ describe("reviewExtraction", () => {
 		);
 	});
 
+	it("forwards text-delta token events through onAgentEvent", async () => {
+		const onAgentEvent = vi.fn();
+
+		reviewSingleQuestionMock.mockImplementation(
+			async (_config, _text, _question, index, _total, options) => {
+				options.onAgentEvent?.({
+					eventType: "token",
+					stageId: "review",
+					agentRunId: "review-q1",
+					label: "Reviewer Q1",
+					rawText: "Checking extracted question...",
+					meta: { questionIndex: index, questionNumber: index + 1 },
+				});
+				return successResult(index);
+			},
+		);
+
+		await reviewExtraction(
+			config,
+			"source text",
+			{
+				examName: "General Exam",
+				questions: [makeQuestion(0)],
+				topics: ["General"],
+			},
+			{ reviewTopics: ["General"], onAgentEvent },
+		);
+
+		expect(onAgentEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				eventType: "token",
+				rawText: "Checking extracted question...",
+			}),
+		);
+	});
+
 	it("retries questions that fail later in the cycle without aborting", async () => {
 		const failingStart = REVIEW_CONCURRENCY;
 		const questions = Array.from({ length: REVIEW_CONCURRENCY + 2 }, (_, index) =>

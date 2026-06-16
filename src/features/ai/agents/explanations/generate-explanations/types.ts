@@ -37,6 +37,7 @@ interface ExplanationAgentRunMeta {
 	questionIds?: number[];
 	topic?: string;
 	toolCallId?: string;
+	kind?: "reasoning";
 }
 
 export interface ExplanationAgentRunEvent {

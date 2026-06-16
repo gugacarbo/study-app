@@ -1,6 +1,7 @@
 import { stepCountIs, type ToolSet } from "ai";
 import { parseExamNameFromFileName } from "@/features/ai/agents/ingest/parse-exam-name";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
+import { INGEST_EXTRACTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
@@ -26,7 +27,6 @@ interface ExtractionPassParams {
 	text: string;
 	fileName: string;
 	config: ProviderConfig;
-	criticalTopics: string[];
 	agentRuns: {
 		createRun(stageId: string, label: string): AgentRunDescriptor;
 		lifecycle(
@@ -83,7 +83,6 @@ export async function runExtractionPass(
 		text,
 		fileName,
 		config,
-		criticalTopics,
 		agentRuns,
 		onWarning,
 		log,
@@ -92,10 +91,7 @@ export async function runExtractionPass(
 	} = params;
 
 	const examName = parseExamNameFromFileName(fileName);
-	const systemPrompt = buildSystemPrompt({
-		criticalTopics,
-		enableWebVerification: false,
-	});
+	const systemPrompt = buildSystemPrompt({ enableWebVerification: false });
 	const userPrompt = buildExtractionUserPrompt(text, { fileName, examName });
 	const run = agentRuns.createRun(stageId, stageLabel);
 	const workspace = createExtractionWorkspace({ examName });
@@ -133,7 +129,7 @@ export async function runExtractionPass(
 				system: systemPrompt,
 				messages: [{ role: "user", content: userPrompt }],
 				tools: tools as ToolSet,
-				stopWhen: stepCountIs(10),
+				stopWhen: stepCountIs(INGEST_EXTRACTION_MAX_STEPS),
 				providerOptions: buildProviderOptions(config),
 			},
 		);

@@ -1,14 +1,14 @@
 import { stepCountIs, type ToolSet } from "ai";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
-import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
-	isAiStreamRunErrorChunk,
-	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
-import { createLlmLogContext } from "@/lib/llm-logging";
+import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
+import {
+	isSuccessfulNamedToolResult,
+	readToolFailureMessage,
+	runToolAgentStream,
+} from "@/features/ai/core/tool-agent-run";
 import type {
 	ExtractionWorkspaceQuestion,
 	ExtractionWorkspaceState,
@@ -21,6 +21,8 @@ import type { ProviderConfig, Question } from "@/lib/validation";
 import { emitAgentEvent } from "./execute-helpers";
 import { buildReviewerSystemPrompt, buildReviewerUserPrompt } from "./prompt";
 import type { ReviewExtractionOptions } from "./types";
+
+const UPDATE_EXTRACTED_QUESTION_TOOL = "update_extracted_question";
 
 export async function reviewSingleQuestion(
 	config: ProviderConfig,
@@ -50,6 +52,10 @@ export async function reviewSingleQuestion(
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
+	const questionMeta = {
+		questionIndex: index,
+		questionNumber: index + 1,
+	};
 
 	emitAgentEvent(options, {
 		eventType: "lifecycle",
@@ -60,8 +66,7 @@ export async function reviewSingleQuestion(
 		systemPrompt,
 		userPrompt,
 		meta: {
-			questionIndex: index,
-			questionNumber: index + 1,
+			...questionMeta,
 			topic: question.topic ?? "General",
 		},
 	});
@@ -71,7 +76,7 @@ export async function reviewSingleQuestion(
 		agentRunId,
 		label,
 		status: "running",
-		meta: { questionIndex: index, questionNumber: index + 1 },
+		meta: questionMeta,
 	});
 
 	try {
@@ -102,8 +107,7 @@ export async function reviewSingleQuestion(
 				input: toolCall.input,
 				state: toolCall.state,
 				meta: {
-					questionIndex: index,
-					questionNumber: index + 1,
+					...questionMeta,
 					toolCallId: toolCall.toolCallId,
 				},
 			});
@@ -124,8 +128,7 @@ export async function reviewSingleQuestion(
 				error: toolResult.error,
 				state: toolResult.state,
 				meta: {
-					questionIndex: index,
-					questionNumber: index + 1,
+					...questionMeta,
 					toolCallId: toolResult.toolCallId,
 				},
 			});
@@ -136,7 +139,13 @@ export async function reviewSingleQuestion(
 			}
 			const toolName =
 				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-			if (isSuccessfulUpdateToolResult(toolName, toolResult.content)) {
+			if (
+				isSuccessfulNamedToolResult(
+					toolName,
+					toolResult.content,
+					UPDATE_EXTRACTED_QUESTION_TOOL,
+				)
+			) {
 				hasSuccessfulUpdate = true;
 			}
 		};
@@ -145,51 +154,62 @@ export async function reviewSingleQuestion(
 			streamState,
 		);
 
-		const result = loggedStreamText(
-			createLlmLogContext("ingest.review", config, {
-				callId: agentRunId,
-				systemPrompt,
-				requestSummary: `question ${index + 1}/${totalQuestions}`,
-				metadata: { questionIndex: index + 1, totalQuestions },
-			}),
-			{
-				model: getAiModel(config),
-				system: systemPrompt,
-				messages: [{ role: "user", content: userPrompt }],
-				tools: combinedTools,
-				stopWhen: stepCountIs(10),
-				providerOptions: buildProviderOptions(config),
+		await runToolAgentStream({
+			scope: "ingest.review",
+			config,
+			callId: agentRunId,
+			requestSummary: `question ${index + 1}/${totalQuestions}`,
+			metadata: { questionIndex: index + 1, totalQuestions },
+			systemPrompt,
+			messages: [{ role: "user", content: userPrompt }],
+			tools: combinedTools,
+			stopWhen: stepCountIs(INGEST_PER_QUESTION_MAX_STEPS),
+			streamState,
+			onRecoverableError: (message) => {
+				emitAgentEvent(options, {
+					eventType: "warning",
+					stageId: "review",
+					agentRunId,
+					label,
+					warning: `Provider dropped a stream chunk after a tool call (${message}); continuing review.`,
+					meta: questionMeta,
+				});
 			},
-		);
-
-		for await (const chunk of result.fullStream) {
-			if (isAiStreamRunErrorChunk(chunk)) {
-				const message =
-					chunk.error instanceof Error
-						? chunk.error.message
-						: String(chunk.error);
-				throw new Error(`AI provider returned error: ${message}`);
-			}
-
-			processAiStreamPart(
-				chunk,
-				{
-					onUsage: (usage) => {
-						emitAgentEvent(options, {
-							eventType: "token",
-							stageId: "review",
-							agentRunId,
-							label,
-							tokens: usage,
-							meta: { questionIndex: index, questionNumber: index + 1 },
-						});
-					},
-					onToolCall: handleToolCall,
-					onToolResult: emitToolResult,
+			handlers: {
+				onTextDelta: (delta) => {
+					emitAgentEvent(options, {
+						eventType: "token",
+						stageId: "review",
+						agentRunId,
+						label,
+						rawText: delta,
+						meta: questionMeta,
+					});
 				},
-				streamState,
-			);
-		}
+				onReasoningDelta: (delta) => {
+					emitAgentEvent(options, {
+						eventType: "token",
+						stageId: "review",
+						agentRunId,
+						label,
+						rawText: delta,
+						meta: { ...questionMeta, kind: "reasoning" },
+					});
+				},
+				onUsage: (usage) => {
+					emitAgentEvent(options, {
+						eventType: "token",
+						stageId: "review",
+						agentRunId,
+						label,
+						tokens: usage,
+						meta: questionMeta,
+					});
+				},
+				onToolCall: handleToolCall,
+				onToolResult: emitToolResult,
+			},
+		});
 
 		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
 			throw new Error(
@@ -206,7 +226,7 @@ export async function reviewSingleQuestion(
 			label,
 			finalObject: reviewedQuestion,
 			rawText: streamState.rawText,
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 		emitAgentEvent(options, {
 			eventType: "lifecycle",
@@ -214,7 +234,7 @@ export async function reviewSingleQuestion(
 			agentRunId,
 			label,
 			status: "done",
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 
 		return { question: reviewedQuestion, success: true };
@@ -234,7 +254,7 @@ export async function reviewSingleQuestion(
 			label,
 			status: "error",
 			error: message,
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 		emitAgentEvent(options, {
 			eventType: "warning",
@@ -242,7 +262,7 @@ export async function reviewSingleQuestion(
 			agentRunId,
 			label,
 			warning: `Review failed for question #${index + 1}. Keeping the original extracted question.`,
-			meta: { questionIndex: index, questionNumber: index + 1 },
+			meta: questionMeta,
 		});
 
 		return { question, success: false, reason: message };
@@ -281,32 +301,4 @@ function readReviewedQuestion(
 
 	const { questionId: _questionId, ...question } = reviewed;
 	return question;
-}
-
-function readToolFailureMessage(result: unknown): string | undefined {
-	if (typeof result === "string") {
-		try {
-			return readToolFailureMessage(JSON.parse(result));
-		} catch {
-			return result.length > 0 ? result : undefined;
-		}
-	}
-	if (typeof result !== "object" || result === null) return undefined;
-	const errorValue = (result as { error?: unknown }).error;
-	if (typeof errorValue === "string" && errorValue.length > 0) {
-		return errorValue;
-	}
-	if (typeof errorValue !== "object" || errorValue === null) return undefined;
-	return typeof (errorValue as { message?: unknown }).message === "string"
-		? (errorValue as { message: string }).message
-		: undefined;
-}
-
-function isSuccessfulUpdateToolResult(
-	toolName: string,
-	result: unknown,
-): boolean {
-	if (toolName !== "update_extracted_question") return false;
-	if (typeof result !== "object" || result === null) return false;
-	return (result as { ok?: unknown }).ok === true;
 }

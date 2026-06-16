@@ -35,9 +35,10 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 | --------------- | ---------------------------------------------------------------- | --------------------------------- |
 | `chat/`         | Conversational AI assistant                                      | DB tools, web tools               |
 | `ingest/`       | PDF → structured questions extraction (tool-based via workspace) | DB tools, ingest extraction tools |
+| `ingest/review-extraction/` | Per-question review in the ingest pipeline (not `reviewer/`) | Ingest tools + web tools (via `agent.reviewer` resolver) |
 | `explanations/` | Per-question deep explanations via explain-question background jobs | DB tools                          |
 | `quiz/`         | Question generation from topics                                  | DB tools                          |
-| `reviewer/`     | Critical-topic verification with web research                    | Web tools (search, fetch)         |
+| `reviewer/`     | Critical-topic verification in **chat** (`parallel_review` tool) | Web tools (search, fetch)         |
 
 ## Tool System
 
@@ -55,6 +56,10 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 - **`core/generate/`** — `generateObject` / `streamObject` structured output
 - **`core/ai-stream-handler.ts`** — Stream chunk processing for agent runs
+- **`core/agent-limits.ts`** — Named `stopWhen` step limits for ingest (`INGEST_EXTRACTION_MAX_STEPS=15`, `INGEST_PER_QUESTION_MAX_STEPS=12`)
+- **`core/bridge-agent-run-event.ts`** — Bridges per-question agent events to UI Message Stream writers (lifecycle, tokens, tool calls)
+- **`core/tool-agent-run.ts`** — Shared stream loop for single-question tool agents (review, explanations)
+- **`core/map-with-concurrency.ts`** — Parallel mapper used by review/explanation batches
 - **`core/ui-message-job-stream.ts`** — `createJobUIMessageStream` + data-part writers for jobs
 - **`core/stream-text-compat.ts`** — `streamTextWithCompatibilityFallback` for providers missing text stream parts
 - **`lib/read-job-ui-message-stream.ts`** — `consumeJobStream()` client for UI Message Stream jobs

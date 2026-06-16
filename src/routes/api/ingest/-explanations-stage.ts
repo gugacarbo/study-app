@@ -1,7 +1,5 @@
-import {
-	type ExplanationAgentRunEvent,
-	runQuestionExplanations,
-} from "@/features/ai/agents/explanations";
+import { runQuestionExplanations } from "@/features/ai/agents/explanations";
+import { bridgeAgentRunEvent } from "@/features/ai/core/bridge-agent-run-event";
 import {
 	writeStage,
 	type AgentRunDescriptor,
@@ -56,6 +54,8 @@ interface AgentRunsHelper {
 		},
 		meta?: Record<string, unknown>,
 	): void;
+	textDelta(run: AgentRunDescriptor, delta: string): void;
+	reasoningDelta(run: AgentRunDescriptor, delta: string): void;
 }
 
 interface RunExplanationsStageParams {
@@ -71,76 +71,6 @@ interface RunExplanationsStageParams {
 	log: {
 		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
 	};
-}
-
-function bridgeExplanationAgentEvent(
-	event: ExplanationAgentRunEvent,
-	agentRuns: AgentRunsHelper,
-	onWarning: (message: string, meta?: Record<string, unknown>) => void,
-) {
-	const run = {
-		stageId: event.stageId,
-		agentRunId: event.agentRunId,
-		label: event.label,
-	};
-	const meta = event.meta as Record<string, unknown> | undefined;
-
-	if (event.eventType === "lifecycle") {
-		agentRuns.lifecycle(run, normalizeAgentStatus(event.status), {
-			systemPrompt: event.systemPrompt,
-			userPrompt: event.userPrompt,
-			rawText: event.rawText,
-			finalObject: event.finalObject,
-			error: event.error,
-			meta,
-		});
-		return;
-	}
-
-	if (event.eventType === "warning" && event.warning) {
-		onWarning(event.warning, {
-			stageId: event.stageId,
-			agentRunId: event.agentRunId,
-		});
-		agentRuns.warning(run, event.warning, meta);
-		return;
-	}
-
-	if (event.eventType === "result") {
-		agentRuns.result(run, event.finalObject, event.rawText, meta);
-		return;
-	}
-
-	if (event.eventType === "token" && event.tokens) {
-		agentRuns.token(run, event.tokens, meta);
-		return;
-	}
-
-	if (event.eventType === "tool-call") {
-		agentRuns.toolCall(
-			run,
-			{
-				name: event.name,
-				arguments: event.arguments,
-				input: event.input,
-				state: event.state,
-			},
-			meta,
-		);
-		return;
-	}
-
-	if (event.eventType === "tool-result") {
-		agentRuns.toolResult(
-			run,
-			{
-				content: event.content,
-				error: event.error,
-				state: event.state,
-			},
-			meta,
-		);
-	}
 }
 
 export async function runExplanationsStage(
@@ -173,6 +103,11 @@ export async function runExplanationsStage(
 			"Explanation generation disabled",
 		);
 		agentRuns.lifecycle(skippedRun, "skipped", { meta: { disabled: true } });
+		agentRuns.warning(
+			skippedRun,
+			"Explanation generation disabled for this ingest.",
+			{ disabled: true },
+		);
 		return null;
 	}
 
@@ -223,7 +158,11 @@ export async function runExplanationsStage(
 					topicMemory.resolveMemoryContext(question.topic),
 				onProgress: ({ message }) => onProgress(message),
 				onAgentEvent: (event) =>
-					bridgeExplanationAgentEvent(event, agentRuns, onWarning),
+					bridgeAgentRunEvent(
+						event as Parameters<typeof bridgeAgentRunEvent>[0],
+						agentRuns,
+						(message, meta) => onWarning(message, meta),
+					),
 				createAgentRunId: (label) => {
 					const cached = agentRunIdsByLabel.get(label);
 					if (cached) return cached;
@@ -281,14 +220,4 @@ export async function runExplanationsStage(
 		});
 		throw err;
 	}
-}
-
-function normalizeAgentStatus(status?: string): AgentRunStatus {
-	return status === "pending" ||
-		status === "running" ||
-		status === "done" ||
-		status === "error" ||
-		status === "skipped"
-		? status
-		: "running";
 }

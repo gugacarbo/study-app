@@ -26,6 +26,8 @@ function createAgentRunsMock() {
 		result: vi.fn(),
 		warning: vi.fn(),
 		token: vi.fn(),
+		textDelta: vi.fn(),
+		reasoningDelta: vi.fn(),
 		toolCall: vi.fn(),
 		toolResult: vi.fn(),
 	};
@@ -80,6 +82,14 @@ describe("runExplanationsStage", () => {
 
 		expect(result).toBeNull();
 		expect(runQuestionExplanationsMock).not.toHaveBeenCalled();
+		expect(agentRuns.warning).toHaveBeenCalledWith(
+			expect.objectContaining({
+				stageId: "explanations",
+				label: "Explanation generation disabled",
+			}),
+			"Explanation generation disabled for this ingest.",
+			{ disabled: true },
+		);
 		expect(writer.write).toHaveBeenCalledWith(
 			expect.objectContaining({
 				type: "data-stage",

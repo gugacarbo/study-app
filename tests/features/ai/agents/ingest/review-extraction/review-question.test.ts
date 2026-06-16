@@ -212,6 +212,14 @@ describe("reviewSingleQuestion", () => {
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
 			3,
 			expect.objectContaining({
+				eventType: "token",
+				agentRunId: "review-q1",
+				rawText: "Conferindo a questao extraida...",
+			}),
+		);
+		expect(onAgentEvent).toHaveBeenNthCalledWith(
+			4,
+			expect.objectContaining({
 				eventType: "tool-call",
 				agentRunId: "review-q1",
 				name: "list_extracted_questions",
@@ -221,7 +229,7 @@ describe("reviewSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			4,
+			5,
 			expect.objectContaining({
 				eventType: "tool-result",
 				agentRunId: "review-q1",
@@ -243,7 +251,7 @@ describe("reviewSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			5,
+			6,
 			expect.objectContaining({
 				eventType: "tool-call",
 				agentRunId: "review-q1",
@@ -257,7 +265,7 @@ describe("reviewSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			6,
+			7,
 			expect.objectContaining({
 				eventType: "tool-result",
 				agentRunId: "review-q1",
@@ -270,7 +278,7 @@ describe("reviewSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			7,
+			8,
 			expect.objectContaining({
 				eventType: "token",
 				agentRunId: "review-q1",
@@ -282,7 +290,7 @@ describe("reviewSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			8,
+			9,
 			expect.objectContaining({
 				eventType: "result",
 				agentRunId: "review-q1",
@@ -290,7 +298,7 @@ describe("reviewSingleQuestion", () => {
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			9,
+			10,
 			expect.objectContaining({
 				eventType: "lifecycle",
 				status: "done",

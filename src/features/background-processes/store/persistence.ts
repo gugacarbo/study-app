@@ -3,7 +3,7 @@ import {
 	appendLogEntry,
 	createEmptyJob,
 	ensureAgentRunMessages,
-} from "@/features/ingest/store/job-utils";
+} from "@/features/background-processes/kinds/ingest/job-utils";
 import { hydrateIngestStateFromStorage } from "@/features/ingest/store/persistence";
 import type { IngestJob } from "@/features/ingest/store/types";
 import type {

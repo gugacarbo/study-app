@@ -1,3 +1,4 @@
+import type { ToolSet } from "ai";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import type { ProviderConfig } from "@/lib/validation";
 import type { DBQueries } from "../../../db/queries";
@@ -17,8 +18,7 @@ interface MemorySetupParams {
 interface MemorySetupResult {
 	memory: MemoryManager;
 	criticalTopics: string[];
-	// biome-ignore lint/suspicious/noExplicitAny: tool type from AI SDK ToolSet
-	webTools?: any;
+	reviewerTools?: ToolSet;
 }
 
 export async function setupMemory(
@@ -44,7 +44,7 @@ export async function setupMemory(
 	);
 
 	const resolvedTools = resolveToolsForAgent({
-		agent: "ingest",
+		agent: "reviewer",
 		config,
 		context: {
 			queries,
@@ -98,16 +98,16 @@ export async function setupMemory(
 		},
 	});
 
-	const hasWebTools = Object.keys(resolvedTools.tools).length > 0;
-	const webTools = hasWebTools ? resolvedTools.tools : undefined;
+	const hasReviewerTools = Object.keys(resolvedTools.tools).length > 0;
+	const reviewerTools = hasReviewerTools ? resolvedTools.tools : undefined;
 
-	if (!hasWebTools && criticalTopics.length > 0) {
+	if (!hasReviewerTools && criticalTopics.length > 0) {
 		onWarning(
 			"Web tools are unavailable. Review will proceed without web verification.",
 		);
 	}
 
-	return { memory, criticalTopics, webTools };
+	return { memory, criticalTopics, reviewerTools };
 }
 
 function getCriticalTopics(value: string | null): string[] {

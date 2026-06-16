@@ -134,7 +134,6 @@ describe("runExtractionPass", () => {
 				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
-			criticalTopics: [],
 			agentRuns,
 			onWarning,
 			log,
@@ -231,7 +230,6 @@ describe("runExtractionPass", () => {
 				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
-			criticalTopics: [],
 			agentRuns: createAgentRunsMock(),
 			onWarning: vi.fn(),
 			log: { error: vi.fn() },
@@ -306,7 +304,6 @@ describe("runExtractionPass", () => {
 				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
-			criticalTopics: [],
 			agentRuns,
 			onWarning: vi.fn(),
 			log: { error: vi.fn() },
@@ -352,7 +349,6 @@ describe("runExtractionPass", () => {
 				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
-			criticalTopics: [],
 			agentRuns: createAgentRunsMock(),
 			onWarning,
 			log: { error: vi.fn() },
@@ -363,6 +359,38 @@ describe("runExtractionPass", () => {
 		expect(onWarning).toHaveBeenCalledWith(
 			"Extracted 2 questions — verify the count matches the source exam.",
 		);
+	});
+
+	it("does not mention web_search in the extraction system prompt", async () => {
+		mockStreamParts([]);
+
+		const onWarning = vi.fn();
+		const agentRuns = createAgentRunsMock();
+
+		await expect(
+			runExtractionPass({
+				text: "Sem questoes",
+				fileName: "exam.txt",
+				config: {
+					model: "openai/gpt-4o-mini",
+					baseUrl: "https://openrouter.ai/api/v1",
+					apiKey: "test-key",
+				},
+				agentRuns,
+				onWarning,
+				log: { error: vi.fn() },
+				stageId: "initial_extraction",
+				stageLabel: "Initial extraction agent",
+			}),
+		).rejects.toThrow();
+
+		const pendingCall = agentRuns.lifecycle.mock.calls.find(
+			(call) => call[1] === "pending",
+		);
+		const systemPrompt = pendingCall?.[2]?.systemPrompt as string | undefined;
+		expect(systemPrompt).toBeDefined();
+		expect(systemPrompt).not.toContain("web_search");
+		expect(systemPrompt).not.toContain("web_fetch");
 	});
 
 	it("throws and warns when no question is added", async () => {
@@ -379,7 +407,6 @@ describe("runExtractionPass", () => {
 					baseUrl: "https://openrouter.ai/api/v1",
 					apiKey: "test-key",
 				},
-				criticalTopics: [],
 				agentRuns: createAgentRunsMock(),
 				onWarning,
 				log: { error: vi.fn() },
@@ -441,7 +468,6 @@ describe("runExtractionPass", () => {
 				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
-			criticalTopics: [],
 			agentRuns,
 			onWarning,
 			log,
@@ -520,7 +546,6 @@ describe("runExtractionPass", () => {
 				baseUrl: "https://openrouter.ai/api/v1",
 				apiKey: "test-key",
 			},
-			criticalTopics: [],
 			agentRuns,
 			onWarning: vi.fn(),
 			log: { error: vi.fn() },

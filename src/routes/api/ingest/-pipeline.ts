@@ -69,13 +69,47 @@ export async function runIngestWithProgress(
 	const log = createIngestLogger("ingest-pipeline", db);
 	const ingestConfig = await requireModelConfig(queries, "ingest");
 
-	const { memory, criticalTopics, webTools } = await setupMemory({
-		db,
-		queries,
-		providerConfig: ingestConfig,
-		onProgress,
-		onWarning,
+	onProgress("Preparing memory & tools...");
+	writeStage(writer, {
+		stageId: "memory_setup",
+		label: "Preparing memory & tools",
+		status: "running",
+		timestamp: Date.now(),
 	});
+
+	let memory: Awaited<ReturnType<typeof setupMemory>>["memory"];
+	let criticalTopics: string[];
+	let reviewerTools: Awaited<ReturnType<typeof setupMemory>>["reviewerTools"];
+
+	try {
+		const memorySetup = await setupMemory({
+			db,
+			queries,
+			providerConfig: ingestConfig,
+			onProgress,
+			onWarning: (message, meta) =>
+				onWarning(message, { stageId: "memory_setup", ...meta }),
+		});
+		memory = memorySetup.memory;
+		criticalTopics = memorySetup.criticalTopics;
+		reviewerTools = memorySetup.reviewerTools;
+		writeStage(writer, {
+			stageId: "memory_setup",
+			label: "Preparing memory & tools",
+			status: "done",
+			timestamp: Date.now(),
+		});
+	} catch (err) {
+		log.error("Memory setup failed", err, { stage: "memory_setup" });
+		writeStage(writer, {
+			stageId: "memory_setup",
+			label: "Preparing memory & tools",
+			status: "warning",
+			timestamp: Date.now(),
+			meta: { error: err instanceof Error ? err.message : "unknown" },
+		});
+		throw err;
+	}
 
 	const filesBucket = await getFilesBucket();
 	if (!filesBucket) {
@@ -120,7 +154,6 @@ export async function runIngestWithProgress(
 			text,
 			fileName: payload.fileName,
 			config: ingestConfig,
-			criticalTopics,
 			agentRuns,
 			onWarning,
 			log,
@@ -161,7 +194,7 @@ export async function runIngestWithProgress(
 		text,
 		extracted: finalExtracted,
 		criticalTopics,
-		tools: webTools,
+		tools: reviewerTools,
 		agentRuns,
 		writer,
 		onProgress,

@@ -1,3 +1,4 @@
+import type { ToolSet } from "ai";
 import type { IngestAgentEvent } from "@/features/ingest/store/types";
 import type { ExamIngestResponse } from "@/lib/validation";
 
@@ -21,9 +22,7 @@ export interface IngestReviewResult {
 export interface ReviewExtractionOptions {
 	reviewTopics: string[];
 	concurrency?: number;
-	tools?: NonNullable<
-		Parameters<typeof import("@/features/ai/core/generate").generateJson>[3]
-	>["tools"];
+	tools?: ToolSet;
 	onEvent?: (event: IngestReviewEvent) => void;
 	onAgentEvent?: (event: IngestReviewAgentEvent) => void;
 	createAgentRunId?: (label: string) => string;

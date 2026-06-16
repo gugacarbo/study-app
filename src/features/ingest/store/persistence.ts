@@ -2,7 +2,7 @@ import {
 	appendLogEntry,
 	createEmptyJob,
 	ensureAgentRunMessages,
-} from "./job-utils";
+} from "@/features/background-processes/kinds/ingest/job-utils";
 import type {
 	IngestJob,
 	IngestStoreState,
