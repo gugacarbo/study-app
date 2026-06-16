@@ -307,7 +307,7 @@ describe("upsertAgentRun", () => {
 			{
 				type: "dynamic-tool",
 				toolCallId: "agent-1:tool-call:0",
-				toolName: "unknown_tool",
+				toolName: "search_docs",
 				state: "output-available",
 				input: { query: "ingest" },
 				output: { ok: true },
@@ -366,7 +366,7 @@ describe("upsertAgentRun", () => {
 			{
 				type: "dynamic-tool",
 				toolCallId: "tool-1",
-				toolName: "unknown_tool",
+				toolName: "update_extracted_question",
 				state: "output-available",
 				input: { questionId: "q1" },
 				output: { ok: true, questionId: "q1" },
@@ -441,7 +441,7 @@ describe("upsertAgentRun", () => {
 		expect(assistant?.parts).toContainEqual({
 			type: "dynamic-tool",
 			toolCallId: "tool-structured-1",
-			toolName: "unknown_tool",
+			toolName: "add_extracted_question",
 			state: "output-available",
 			input: { question: "Qual e a derivada de f(x) = x^2?" },
 			output: { ok: true },
@@ -553,7 +553,7 @@ describe("upsertAgentRun", () => {
 			{
 				type: "dynamic-tool",
 				toolCallId: "tool-order-1",
-				toolName: "unknown_tool",
+				toolName: "list_extracted_questions",
 				state: "output-available",
 				input: {},
 				output: { ok: true },
@@ -688,7 +688,7 @@ describe("upsertAgentRun", () => {
 			{
 				type: "dynamic-tool",
 				toolCallId: "tool-dedupe-1",
-				toolName: "unknown_tool",
+				toolName: "add_extracted_question",
 				state: "output-available",
 				input: { question: "Q1", topic: "General" },
 				output: '{\n  "ok": true,\n  "questionId": "q1"\n}',

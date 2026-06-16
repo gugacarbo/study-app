@@ -110,11 +110,15 @@ export function createIngestExtractionTools(
 							totalQuestions: number;
 					  };
 				try {
+					const existingCount = workspace.listQuestions().length;
 					const question = workspace.addQuestion(parsedInput);
 					output = {
 						ok: true as const,
 						questionId: question.questionId,
 						totalQuestions: workspace.listQuestions().length,
+						...(workspace.listQuestions().length === existingCount
+							? { alreadyExists: true as const }
+							: {}),
 					};
 				} catch (error) {
 					output = toToolFailure(error);

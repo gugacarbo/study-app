@@ -322,7 +322,13 @@ describe("OutputPanel", () => {
 		expect(document.body.textContent).toContain("TOOL RESULT (tc-1):");
 	});
 
-	it("shows debug json from the raw tab inside the agent dialog", () => {
+	it("copies full agent debug json from the raw tab inside the agent dialog", async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText },
+		});
+
 		render(
 			<OutputPanel
 				jobId="job-1"
@@ -361,7 +367,22 @@ describe("OutputPanel", () => {
 		fireEvent.click(within(dialog).getByRole("tab", { name: "Raw" }));
 		fireEvent.click(within(dialog).getByRole("button", { name: "Debug JSON" }));
 
-		expect(document.body.textContent).toContain('"source": "ingest"');
+		await waitFor(() => {
+			expect(writeText).toHaveBeenCalledTimes(1);
+		});
+
+		const copied = JSON.parse(writeText.mock.calls[0][0] as string) as {
+			messages: Array<{ role: string }>;
+			raw: { meta: { source: string } };
+		};
+		expect(copied.messages).toHaveLength(3);
+		expect(copied.messages.map((message) => message.role)).toEqual([
+			"system",
+			"user",
+			"assistant",
+		]);
+		expect(copied.raw.meta.source).toBe("ingest");
+		expect(document.body.textContent).toContain("[ASSISTANT]");
 	});
 
 	it("shows input and output token breakdown on badge hover in the Agents header", async () => {

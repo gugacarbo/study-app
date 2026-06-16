@@ -56,6 +56,32 @@ export function mergeAssistantTurnMessages(messages: UIMessage[]): UIMessage[] {
 	return merged;
 }
 
+function readToolResultFromPart(part: {
+	state: string;
+	output?: unknown;
+	errorText?: string;
+}): {
+	result: unknown;
+	isError: boolean;
+} {
+	if (part.state === "output-available") {
+		return { result: part.output, isError: false };
+	}
+	if (part.state === "output-error") {
+		return { result: { error: part.errorText }, isError: true };
+	}
+	if (part.state === "output-denied") {
+		return {
+			result: { error: part.errorText ?? "Tool approval denied" },
+			isError: true,
+		};
+	}
+	if (part.output != null) {
+		return { result: part.output, isError: false };
+	}
+	return { result: undefined, isError: false };
+}
+
 function mapMessageParts(parts: UIMessage["parts"]): ThreadContentPart[] {
 	const content: ThreadContentPart[] = [];
 
@@ -79,18 +105,7 @@ function mapMessageParts(parts: UIMessage["parts"]): ThreadContentPart[] {
 		if (isToolUIPart(part)) {
 			const toolName = getToolName(part);
 			const argsText = stringifyToolArgs(part.input);
-			let result: unknown;
-			let isError = false;
-
-			if (part.state === "output-available") {
-				result = part.output;
-			} else if (part.state === "output-error") {
-				isError = true;
-				result = { error: part.errorText };
-			} else if (part.state === "output-denied") {
-				isError = true;
-				result = { error: part.errorText ?? "Tool approval denied" };
-			}
+			const { result, isError } = readToolResultFromPart(part);
 
 			content.push({
 				type: "tool-call",

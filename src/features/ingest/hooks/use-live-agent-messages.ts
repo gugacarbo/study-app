@@ -6,7 +6,38 @@ import {
 	isIngestProcess,
 	type IngestBackgroundProcess,
 } from "@/features/background-processes";
-import { ensureAgentRunMessages } from "@/features/ingest/store";
+import {
+	ensureAgentRunMessages,
+	type IngestAgentRun,
+} from "@/features/ingest/store";
+
+function findLiveAgentRun(
+	state: typeof backgroundProcessStore.state,
+	jobId: string | undefined,
+	agentRunId: string | undefined,
+): IngestAgentRun | undefined {
+	if (!jobId || !agentRunId) {
+		return undefined;
+	}
+
+	const process = state.processes.find(
+		(candidate): candidate is IngestBackgroundProcess =>
+			candidate.id === ingestProcessId(jobId) && isIngestProcess(candidate),
+	);
+	const agentRun = process?.agentRuns.find(
+		(candidate) => candidate.id === agentRunId,
+	);
+	return agentRun ? ensureAgentRunMessages(agentRun) : undefined;
+}
+
+export function useLiveAgentRun(
+	jobId: string | undefined,
+	agentRunId: string | undefined,
+): IngestAgentRun | undefined {
+	return useStore(backgroundProcessStore, (state) =>
+		findLiveAgentRun(state, jobId, agentRunId),
+	);
+}
 
 export function useLiveAgentMessages(
 	jobId: string | undefined,

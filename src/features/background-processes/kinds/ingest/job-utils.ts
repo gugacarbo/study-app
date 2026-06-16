@@ -485,6 +485,42 @@ function normalizeDynamicToolOutputState(
 	}
 }
 
+function isKnownToolName(toolName: string | undefined): toolName is string {
+	return typeof toolName === "string" && toolName.length > 0 && toolName !== "unknown_tool";
+}
+
+function readToolNameForCallId(
+	agentRun: IngestAgentRun,
+	toolCallId: string,
+): string | undefined {
+	const normalizedAgentRun = ensureAgentRunMessages(agentRun);
+	const assistant = normalizedAgentRun.messages.find(
+		(message) => message.role === "assistant",
+	);
+	if (!assistant) return undefined;
+
+	for (const part of assistant.parts) {
+		if (
+			part.type === "dynamic-tool" &&
+			part.toolCallId === toolCallId &&
+			isKnownToolName(part.toolName)
+		) {
+			return part.toolName;
+		}
+	}
+
+	return undefined;
+}
+
+function resolveMergedToolName(
+	existing: string | undefined,
+	incoming: string | undefined,
+): string {
+	if (isKnownToolName(incoming)) return incoming;
+	if (isKnownToolName(existing)) return existing;
+	return incoming ?? existing ?? "unknown_tool";
+}
+
 function readLatestToolCallId(agentRun: IngestAgentRun): string | undefined {
 	const normalizedAgentRun = ensureAgentRunMessages(agentRun);
 	const assistant = normalizedAgentRun.messages.find(
@@ -601,11 +637,13 @@ function createDynamicToolFromResultEvent(
 			: (readLatestToolCallId(agentRun) ?? `${agentRun.id}:tool-call:0`);
 	const output = readToolResultOutput(event);
 	const errorText = typeof event.error === "string" ? event.error : undefined;
+	const toolName =
+		isKnownToolName(event.name) ? event.name : readToolNameForCallId(agentRun, toolCallId) ?? "unknown_tool";
 
 	return {
 		type: "dynamic-tool",
 		toolCallId,
-		toolName: typeof event.name === "string" ? event.name : "unknown_tool",
+		toolName,
 		state: normalizeDynamicToolOutputState(event.state, errorText),
 		input: event.input ?? {},
 		output: isMeaningfulToolResultOutput(output) ? output : undefined,
@@ -632,8 +670,7 @@ function mergeDynamicToolPart(
 	return {
 		...existing,
 		...incoming,
-		toolName:
-			incoming.toolName.length > 0 ? incoming.toolName : existing.toolName,
+		toolName: resolveMergedToolName(existing.toolName, incoming.toolName),
 		input: isMeaningfulToolValue(incoming.input)
 			? incoming.input
 			: existing.input,

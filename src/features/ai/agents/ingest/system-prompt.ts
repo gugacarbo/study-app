@@ -28,7 +28,12 @@ Extraction rules:
 
 Fallback behavior:
 - If no valid questions are found, do not invent any question.
-- It is valid to finish without calling any add tool if the source contains no extractable questions.`;
+- It is valid to finish without calling any add tool if the source contains no extractable questions.
+
+Completion behavior:
+- After registering every question from the source text, call list_extracted_questions once to verify the workspace, then stop.
+- Never call add_extracted_question for a question that is already present in the workspace.
+- If add_extracted_question returns alreadyExists: true, do not retry that question; finish extraction instead.`;
 
 interface BuildSystemPromptOptions {
 	criticalTopics?: string[];

@@ -59,6 +59,7 @@ interface ExtractionPassParams {
 		toolResult(
 			run: AgentRunDescriptor,
 			result: {
+				name?: string;
 				content?: unknown;
 				error?: string;
 				state?: string;
@@ -97,9 +98,11 @@ export async function runExtractionPass(
 	const workspace = createExtractionWorkspace({ examName });
 	const streamState = createAiStreamState();
 	const emitToolResult = createToolResultEmitter((toolResult) => {
+		const tracked = streamState.toolCalls.get(toolResult.toolCallId);
 		agentRuns.toolResult(
 			run,
 			{
+				name: tracked?.name,
 				content: toolResult.content,
 				error: toolResult.error,
 				state: toolResult.state,

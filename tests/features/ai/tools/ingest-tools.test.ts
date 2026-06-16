@@ -55,6 +55,38 @@ describe("ingest extraction tools", () => {
 		);
 	});
 
+	it("returns alreadyExists when add_extracted_question receives a duplicate question", async () => {
+		const workspace = createExtractionWorkspace();
+		const tools = createIngestExtractionTools(workspace);
+		const addQuestion = getTool(tools, "add_extracted_question");
+
+		await addQuestion.execute({
+			question: "Q1",
+			options: ["A", "B"],
+			answer: "A",
+			topic: "Topico",
+		});
+		const duplicate = (await addQuestion.execute({
+			question: "Q1",
+			options: ["A", "B"],
+			answer: "A",
+			topic: "Topico",
+		})) as {
+			ok: boolean;
+			questionId: string;
+			totalQuestions: number;
+			alreadyExists?: boolean;
+		};
+
+		expect(duplicate).toEqual({
+			ok: true,
+			questionId: "q1",
+			totalQuestions: 1,
+			alreadyExists: true,
+		});
+		expect(workspace.listQuestions()).toHaveLength(1);
+	});
+
 	it("adds questions through add_extracted_question", async () => {
 		const workspace = createExtractionWorkspace();
 		const tools = createIngestExtractionTools(workspace);

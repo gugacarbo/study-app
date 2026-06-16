@@ -106,6 +106,13 @@ export function createExtractionWorkspace(
 			input: Partial<Question> & Pick<Question, "question" | "answers">,
 		) {
 			const question = normalizeQuestion(input);
+			const duplicate = state.questions.find(
+				(existing) => existing.question.trim() === question.question.trim(),
+			);
+			if (duplicate) {
+				return duplicate;
+			}
+
 			const questionId = `q${state.nextQuestionNumber}` as ExtractionQuestionId;
 			state.nextQuestionNumber += 1;
 

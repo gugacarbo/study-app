@@ -374,6 +374,19 @@ function normalizeDynamicToolOutputState(
 	}
 }
 
+function isKnownToolName(toolName: string | undefined): toolName is string {
+	return typeof toolName === "string" && toolName.length > 0 && toolName !== "unknown_tool";
+}
+
+function resolveMergedToolName(
+	existing: string | undefined,
+	incoming: string | undefined,
+): string {
+	if (isKnownToolName(incoming)) return incoming;
+	if (isKnownToolName(existing)) return existing;
+	return incoming ?? existing ?? "unknown_tool";
+}
+
 function readLatestToolCallId(state: AgentRunState): string | undefined {
 	const normalizedState = ensureAgentRunMessages(state);
 	const assistantIndex = getAssistantMessageIndex(normalizedState.messages);
@@ -405,8 +418,7 @@ function readToolNameForCallId(
 		if (
 			part.type === "dynamic-tool" &&
 			part.toolCallId === toolCallId &&
-			part.toolName.length > 0 &&
-			part.toolName !== "unknown_tool"
+			isKnownToolName(part.toolName)
 		) {
 			return part.toolName;
 		}
@@ -513,10 +525,9 @@ function createDynamicToolFromResultEvent(
 			: (readLatestToolCallId(state) ?? `${state.agentRunId}:tool-call:0`);
 	const output = readToolResultOutput(event);
 	const errorText = typeof event.error === "string" ? event.error : undefined;
-	const toolName =
-		typeof event.name === "string" && event.name.length > 0
-			? event.name
-			: (readToolNameForCallId(state, toolCallId) ?? "unknown_tool");
+	const toolName = isKnownToolName(event.name)
+		? event.name
+		: (readToolNameForCallId(state, toolCallId) ?? "unknown_tool");
 
 	return {
 		type: "dynamic-tool",
@@ -548,8 +559,7 @@ function mergeDynamicToolPart(
 	return {
 		...existing,
 		...incoming,
-		toolName:
-			incoming.toolName.length > 0 ? incoming.toolName : existing.toolName,
+		toolName: resolveMergedToolName(existing.toolName, incoming.toolName),
 		input: isMeaningfulToolValue(incoming.input)
 			? incoming.input
 			: existing.input,

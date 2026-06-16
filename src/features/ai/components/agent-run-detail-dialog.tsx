@@ -6,7 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
-import { useLiveAgentMessages } from "@/features/ingest/hooks/use-live-agent-messages";
+import {
+	useLiveAgentMessages,
+	useLiveAgentRun,
+} from "@/features/ingest/hooks/use-live-agent-messages";
 import {
 	normalizeTokenTotals,
 	type TokenTotals,
@@ -45,9 +48,10 @@ export function AgentRunDetailDialog({
 }: AgentRunDetailDialogProps) {
 	const resolvedTokenTotals = normalizeTokenTotals(tokenTotals);
 	const [mode, setMode] = useState<"treated" | "raw">("treated");
-	const [showDebug, setShowDebug] = useState(false);
+	const [isCopied, setIsCopied] = useState(false);
 	const treatedScrollRef = useRef<HTMLDivElement | null>(null);
 	const rawScrollRef = useRef<HTMLPreElement | null>(null);
+	const liveAgentRun = useLiveAgentRun(jobId, agentRunId);
 	const liveMessages = useLiveAgentMessages(jobId, agentRunId, messages);
 	const renderedMessages =
 		liveMessages && liveMessages.length > 0
@@ -73,9 +77,40 @@ export function AgentRunDetailDialog({
 	useEffect(() => {
 		if (open) {
 			setMode("treated");
-			setShowDebug(false);
+			setIsCopied(false);
 		}
 	}, [open]);
+
+	const debugPayload = buildAgentRunDebugPayload({
+		jobId,
+		agentRunId,
+		name,
+		messages: visibleMessages,
+		liveAgentRun,
+		systemPrompt,
+		userPrompt,
+		response,
+		rawData,
+		tokenTotals: resolvedTokenTotals,
+	});
+
+	const copyDebugJson = () => {
+		if (
+			typeof navigator === "undefined" ||
+			!navigator.clipboard ||
+			isCopied
+		) {
+			return;
+		}
+
+		navigator.clipboard.writeText(safeJson(debugPayload)).then(
+			() => {
+				setIsCopied(true);
+				window.setTimeout(() => setIsCopied(false), 2500);
+			},
+			() => {},
+		);
+	};
 
 	useEffect(() => {
 		if (!open || mode !== "treated") return;
@@ -136,9 +171,9 @@ export function AgentRunDetailDialog({
 										variant="ghost"
 										size="sm"
 										className="h-6 px-2 text-[0.625rem] text-muted-foreground hover:bg-accent hover:text-foreground"
-										onClick={() => setShowDebug((value) => !value)}
+										onClick={copyDebugJson}
 									>
-										{showDebug ? "Back to raw" : "Debug JSON"}
+										{isCopied ? "Copied!" : "Debug JSON"}
 									</Button>
 								) : null}
 							</div>
@@ -158,7 +193,7 @@ export function AgentRunDetailDialog({
 								ref={rawScrollRef}
 								className="min-h-0 text-[0.7rem] leading-relaxed whitespace-pre-wrap text-foreground/80"
 							>
-								{showDebug ? safeJson(rawData) : rawTranscript}
+								{rawTranscript}
 							</pre>
 						</TabsContent>
 					</Tabs>
@@ -185,6 +220,75 @@ function safeJson(value: unknown): string {
 	} catch {
 		return String(value);
 	}
+}
+
+interface AgentRunDebugPayloadInput {
+	jobId?: string;
+	agentRunId?: string;
+	name: string;
+	messages: UIMessage[];
+	liveAgentRun?: {
+		stageId: string;
+		label: string;
+		status: string;
+		systemPrompt: string;
+		userPrompt: string;
+		outputText: string;
+		rawOutput: unknown;
+		error: string | null;
+		warnings: string[];
+		meta?: Record<string, unknown>;
+		tokenTotals: { prompt: number; completion: number; total: number };
+	};
+	systemPrompt?: string;
+	userPrompt?: string;
+	response?: string;
+	rawData?: unknown;
+	tokenTotals: TokenTotals | null;
+}
+
+function buildAgentRunDebugPayload({
+	jobId,
+	agentRunId,
+	name,
+	messages,
+	liveAgentRun,
+	systemPrompt,
+	userPrompt,
+	response,
+	rawData,
+	tokenTotals,
+}: AgentRunDebugPayloadInput): Record<string, unknown> {
+	if (liveAgentRun) {
+		return {
+			jobId,
+			agentRunId,
+			name,
+			stageId: liveAgentRun.stageId,
+			status: liveAgentRun.status,
+			systemPrompt: liveAgentRun.systemPrompt,
+			userPrompt: liveAgentRun.userPrompt,
+			outputText: liveAgentRun.outputText,
+			messages,
+			rawOutput: liveAgentRun.rawOutput,
+			error: liveAgentRun.error,
+			warnings: liveAgentRun.warnings,
+			meta: liveAgentRun.meta,
+			tokenTotals: tokenTotals ?? liveAgentRun.tokenTotals,
+		};
+	}
+
+	return {
+		jobId,
+		agentRunId,
+		name,
+		systemPrompt,
+		userPrompt,
+		response,
+		messages,
+		raw: rawData,
+		tokenTotals,
+	};
 }
 
 function stringifyToolOutput(output: unknown): string {
