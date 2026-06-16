@@ -126,7 +126,9 @@ describe("startQueuedImproveQuestions retries", () => {
 			processes: [createQueuedProcess()],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+			explainQuestionsUiByExam: {},
 		}));
 	});
 
@@ -222,7 +224,9 @@ describe("continueImproveQuestionsRun", () => {
 			],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+			explainQuestionsUiByExam: {},
 		}));
 
 		expect(canContinueImproveQuestionsRun(1)).toBe(true);
@@ -246,7 +250,9 @@ describe("continueImproveQuestionsRun", () => {
 			],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+			explainQuestionsUiByExam: {},
 		}));
 
 		expect(canContinueImproveQuestionsRun(1)).toBe(false);
@@ -304,7 +310,9 @@ describe("applyAllReadyImproveQuestionsRuns", () => {
 			],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+			explainQuestionsUiByExam: {},
 		}));
 
 		expect(canApplyImproveQuestionsRun(1, question)).toBe(true);

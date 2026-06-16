@@ -12,13 +12,19 @@ export {
 	getFocusedProcess,
 } from "./store/actions";
 export {
+	areExplainQuestionsExamUiEqual,
 	areExplainQuestionsExamViewsEqual,
+	DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI,
 	type ExplainQuestionsExamProcessView,
+	selectExplainQuestionsExamUi,
 	selectExplainQuestionsExamViews,
 } from "./store/explain-question-selectors";
 export {
+	areImproveQuestionsExamUiEqual,
 	areImproveQuestionsExamViewsEqual,
+	DEFAULT_IMPROVE_QUESTIONS_EXAM_UI,
 	type ImproveQuestionsExamProcessView,
+	selectImproveQuestionsExamUi,
 	selectImproveQuestionsExamViews,
 } from "./store/improve-questions-selectors";
 export { destroyLifecycle, initLifecycle } from "./store/lifecycle";
@@ -57,7 +63,9 @@ export type {
 	ExplainQuestionBackgroundProcess,
 	ExplainQuestionRunPhase,
 	ExplainQuestionsBatchConfig,
+	ExplainQuestionsExamUiState,
 	ImproveQuestionsBackgroundProcess,
+	ImproveQuestionsExamUiState,
 	ImproveQuestionsRunPhase,
 	IngestBackgroundProcess,
 	IngestProcessStatus,

@@ -55,39 +55,51 @@ export function ImproveQuestionsBatchDialog({
 							onContinue={batch.handleContinue}
 						/>
 					) : (
-						<>
-							<QuestionSelection
-								questions={questions}
-								selectAll={batch.selectAll}
-								selectedIds={batch.selectedIds}
-								disabled={false}
-								onSelectAll={batch.handleSelectAll}
-								onToggleQuestion={batch.toggleQuestion}
-							/>
+						<QuestionSelection
+							questions={questions}
+							selectAll={batch.selectAll}
+							selectedIds={batch.selectedIds}
+							disabled={false}
+							onSelectAll={batch.handleSelectAll}
+							onToggleQuestion={batch.toggleQuestion}
+							toolbar={
+								<div className="flex shrink-0 items-center gap-1.5">
+									<label className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5">
+										<input
+											type="checkbox"
+											checked={batch.selectAll}
+											onChange={(e) => batch.handleSelectAll(e.target.checked)}
+											className="accent-primary"
+										/>
+										<span className="truncate text-xs font-medium">
+											Selecionar todas
+										</span>
+									</label>
 
-							<div className="shrink-0">
-								<span className="text-xs font-semibold text-muted-foreground">
-									Agentes em paralelo (1-20)
-								</span>
-								<Input
-									type="number"
-									min={1}
-									max={20}
-									value={batch.maxWorkers}
-									onChange={(e) => {
-										const value = Number(e.target.value);
-										if (Number.isNaN(value)) return;
-										batch.setMaxWorkers(Math.max(1, Math.min(20, value)));
-									}}
-									className="mt-1"
-								/>
-								<p className="mt-1 text-xs text-muted-foreground">
-									{batch.selectedCount} questão
-									{batch.selectedCount === 1 ? "" : "ões"} selecionada
-									{batch.selectedCount === 1 ? "" : "s"}
-								</p>
-							</div>
-						</>
+									<div className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5">
+										<span className="whitespace-nowrap text-xs text-muted-foreground">
+											Agentes (1-20)
+										</span>
+										<Input
+											type="number"
+											min={1}
+											max={20}
+											value={batch.maxWorkers}
+											onChange={(e) => {
+												const value = Number(e.target.value);
+												if (Number.isNaN(value)) return;
+												batch.setMaxWorkers(Math.max(1, Math.min(20, value)));
+											}}
+											className="h-7 w-12 px-2"
+										/>
+										<span className="whitespace-nowrap text-xs text-muted-foreground">
+											{batch.selectedCount} selecionada
+											{batch.selectedCount === 1 ? "" : "s"}
+										</span>
+									</div>
+								</div>
+							}
+						/>
 					)}
 				</div>
 

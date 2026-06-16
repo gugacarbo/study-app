@@ -34,6 +34,10 @@ import {
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
+import {
+	areImproveQuestionsExamUiEqual,
+	DEFAULT_IMPROVE_QUESTIONS_EXAM_UI,
+} from "../../store/improve-questions-selectors";
 import { isActiveProcess } from "../../store/types";
 import {
 	backgroundProcessStore,
@@ -44,6 +48,7 @@ import {
 } from "../../store/store";
 import type {
 	ImproveQuestionsBackgroundProcess,
+	ImproveQuestionsExamUiState,
 	ImproveQuestionsRunPhase,
 } from "../../store/types";
 import {
@@ -328,6 +333,39 @@ export function setImproveQuestionsBatchConfig(
 	}));
 }
 
+function patchImproveQuestionsExamUi(
+	examId: number,
+	patch: Partial<ImproveQuestionsExamUiState>,
+): void {
+	backgroundProcessStore.setState((state) => {
+		const current =
+			state.improveQuestionsUiByExam[examId] ?? DEFAULT_IMPROVE_QUESTIONS_EXAM_UI;
+		const next: ImproveQuestionsExamUiState = { ...current, ...patch };
+		if (areImproveQuestionsExamUiEqual(current, next)) return state;
+		return {
+			...state,
+			improveQuestionsUiByExam: {
+				...state.improveQuestionsUiByExam,
+				[examId]: next,
+			},
+		};
+	});
+}
+
+export function setImproveQuestionsBatchDialogOpen(
+	examId: number,
+	open: boolean,
+): void {
+	patchImproveQuestionsExamUi(examId, { batchDialogOpen: open });
+}
+
+export function setImproveQuestionsQuestionDialogOpen(
+	examId: number,
+	questionId: number | null,
+): void {
+	patchImproveQuestionsExamUi(examId, { questionDialogQuestionId: questionId });
+}
+
 export function maybeClearImproveQuestionsBatchConfig(examId: number): void {
 	const hasActive = backgroundProcessStore.state.processes.some(
 		(process) =>
@@ -350,6 +388,7 @@ export function startImproveQuestionsBatch(
 	maxWorkers: number,
 ): void {
 	setImproveQuestionsBatchConfig(examId, maxWorkers);
+	setImproveQuestionsBatchDialogOpen(examId, true);
 
 	for (const question of questions) {
 		startImproveQuestionsRun(question.id, examId, question);

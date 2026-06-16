@@ -3,8 +3,29 @@ import type {
 	BackgroundProcessStatus,
 	BackgroundProcessStoreState,
 	ExplainQuestionRunPhase,
+	ExplainQuestionsExamUiState,
 } from "./types";
 import { isExplainQuestionProcess } from "./types";
+
+export const DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI: ExplainQuestionsExamUiState = {
+	batchDialogOpen: false,
+};
+
+export function selectExplainQuestionsExamUi(
+	state: BackgroundProcessStoreState,
+	examId: number,
+): ExplainQuestionsExamUiState {
+	return (
+		state.explainQuestionsUiByExam[examId] ?? DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI
+	);
+}
+
+export function areExplainQuestionsExamUiEqual(
+	left: ExplainQuestionsExamUiState,
+	right: ExplainQuestionsExamUiState,
+): boolean {
+	return left.batchDialogOpen === right.batchDialogOpen;
+}
 
 export type ExplainQuestionsExamProcessView = {
 	questionId: number;

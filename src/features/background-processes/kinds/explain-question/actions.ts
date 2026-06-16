@@ -16,6 +16,10 @@ import {
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
+import {
+	areExplainQuestionsExamUiEqual,
+	DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI,
+} from "../../store/explain-question-selectors";
 import { isActiveProcess } from "../../store/types";
 import {
 	backgroundProcessStore,
@@ -24,7 +28,10 @@ import {
 	updateProcess,
 	upsertProcess,
 } from "../../store/store";
-import type { ExplainQuestionBackgroundProcess } from "../../store/types";
+import type {
+	ExplainQuestionBackgroundProcess,
+	ExplainQuestionsExamUiState,
+} from "../../store/types";
 import {
 	explainQuestionProcessId,
 	isExplainQuestionProcess,
@@ -201,6 +208,32 @@ export function setExplainQuestionsBatchConfig(
 	}));
 }
 
+function patchExplainQuestionsExamUi(
+	examId: number,
+	patch: Partial<ExplainQuestionsExamUiState>,
+): void {
+	backgroundProcessStore.setState((state) => {
+		const current =
+			state.explainQuestionsUiByExam[examId] ?? DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI;
+		const next: ExplainQuestionsExamUiState = { ...current, ...patch };
+		if (areExplainQuestionsExamUiEqual(current, next)) return state;
+		return {
+			...state,
+			explainQuestionsUiByExam: {
+				...state.explainQuestionsUiByExam,
+				[examId]: next,
+			},
+		};
+	});
+}
+
+export function setExplainQuestionsBatchDialogOpen(
+	examId: number,
+	open: boolean,
+): void {
+	patchExplainQuestionsExamUi(examId, { batchDialogOpen: open });
+}
+
 export function maybeClearExplainQuestionsBatchConfig(examId: number): void {
 	const hasActive = backgroundProcessStore.state.processes.some(
 		(process) =>
@@ -224,6 +257,7 @@ export function startExplainQuestionsBatch(
 	overwrite: boolean,
 ): void {
 	setExplainQuestionsBatchConfig(examId, maxWorkers);
+	setExplainQuestionsBatchDialogOpen(examId, true);
 
 	for (const question of questions) {
 		startExplainQuestionRun(question.id, examId, question, { overwrite });

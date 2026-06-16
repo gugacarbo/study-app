@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { QuestionData } from "../exam-utils";
 
 interface QuestionSelectionProps {
@@ -7,6 +8,8 @@ interface QuestionSelectionProps {
 	disabled: boolean;
 	onSelectAll: (checked: boolean) => void;
 	onToggleQuestion: (questionId: number, checked: boolean) => void;
+	toolbar?: ReactNode;
+	footer?: ReactNode;
 }
 
 export function QuestionSelection({
@@ -16,19 +19,23 @@ export function QuestionSelection({
 	disabled,
 	onSelectAll,
 	onToggleQuestion,
+	toolbar,
+	footer,
 }: QuestionSelectionProps) {
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-2">
-			<label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2.5">
-				<input
-					type="checkbox"
-					checked={selectAll}
-					onChange={(e) => onSelectAll(e.target.checked)}
-					disabled={disabled}
-					className="accent-primary"
-				/>
-				<span className="font-medium">Selecionar todas as questões</span>
-			</label>
+			{toolbar ?? (
+				<label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2.5">
+					<input
+						type="checkbox"
+						checked={selectAll}
+						onChange={(e) => onSelectAll(e.target.checked)}
+						disabled={disabled}
+						className="accent-primary"
+					/>
+					<span className="font-medium">Selecionar todas as questões</span>
+				</label>
+			)}
 			<div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-muted p-2">
 				<div className="grid grid-cols-3 gap-1.5">
 					{questions.map((question, index) => (
@@ -55,6 +62,7 @@ export function QuestionSelection({
 					))}
 				</div>
 			</div>
+			{footer}
 		</div>
 	);
 }

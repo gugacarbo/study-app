@@ -13,7 +13,9 @@ function createState(
 		processes,
 		focusedProcessId: null,
 		improveQuestionsBatchByExam: {},
+		improveQuestionsUiByExam: {},
 		explainQuestionsBatchByExam: {},
+		explainQuestionsUiByExam: {},
 	};
 }
 

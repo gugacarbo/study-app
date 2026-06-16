@@ -3,6 +3,7 @@ import type { QuestionData } from "@/features/exams/components/detail/exam-utils
 import type {
 	BackgroundProcessStatus,
 	BackgroundProcessStoreState,
+	ImproveQuestionsExamUiState,
 	ImproveQuestionsRunPhase,
 } from "./types";
 import { isImproveQuestionsProcess } from "./types";
@@ -18,6 +19,28 @@ export type ImproveQuestionsExamProcessView = {
 	agentLabel: string;
 	streamError: string | null;
 };
+
+export const DEFAULT_IMPROVE_QUESTIONS_EXAM_UI: ImproveQuestionsExamUiState = {
+	batchDialogOpen: false,
+	questionDialogQuestionId: null,
+};
+
+export function selectImproveQuestionsExamUi(
+	state: BackgroundProcessStoreState,
+	examId: number,
+): ImproveQuestionsExamUiState {
+	return state.improveQuestionsUiByExam[examId] ?? DEFAULT_IMPROVE_QUESTIONS_EXAM_UI;
+}
+
+export function areImproveQuestionsExamUiEqual(
+	left: ImproveQuestionsExamUiState,
+	right: ImproveQuestionsExamUiState,
+): boolean {
+	return (
+		left.batchDialogOpen === right.batchDialogOpen &&
+		left.questionDialogQuestionId === right.questionDialogQuestionId
+	);
+}
 
 export function selectImproveQuestionsExamViews(
 	state: BackgroundProcessStoreState,

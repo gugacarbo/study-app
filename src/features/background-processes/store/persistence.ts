@@ -106,7 +106,9 @@ export function clearCompletedIngestProcessesFromState(
 		processes,
 		focusedProcessId,
 		improveQuestionsBatchByExam: state.improveQuestionsBatchByExam,
+		improveQuestionsUiByExam: state.improveQuestionsUiByExam,
 		explainQuestionsBatchByExam: state.explainQuestionsBatchByExam,
+		explainQuestionsUiByExam: state.explainQuestionsUiByExam,
 	};
 }
 
@@ -348,7 +350,9 @@ function migrateLegacyIngestState(
 				? focusedProcessId
 				: null,
 		improveQuestionsBatchByExam: {},
+		improveQuestionsUiByExam: {},
 		explainQuestionsBatchByExam: {},
+		explainQuestionsUiByExam: {},
 	};
 }
 
@@ -359,7 +363,9 @@ export function hydrateBackgroundProcessStateFromStorage(
 		processes: [],
 		focusedProcessId: null,
 		improveQuestionsBatchByExam: {},
+		improveQuestionsUiByExam: {},
 		explainQuestionsBatchByExam: {},
+		explainQuestionsUiByExam: {},
 	};
 	if (!raw) return initialState;
 
@@ -409,7 +415,9 @@ export function hydrateBackgroundProcessStateFromStorage(
 			processes: trimmedProcesses,
 			focusedProcessId,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+		explainQuestionsUiByExam: {},
 		};
 	} catch {
 		return initialState;
@@ -422,7 +430,9 @@ function migrateLegacyStorageIfNeeded(): BackgroundProcessStoreState {
 			processes: [],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+		explainQuestionsUiByExam: {},
 		};
 	}
 
@@ -457,7 +467,9 @@ export function loadInitialState(): BackgroundProcessStoreState {
 			processes: [],
 			focusedProcessId: null,
 			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
+		explainQuestionsUiByExam: {},
 		};
 	}
 	return migrateLegacyStorageIfNeeded();

@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ interface QuestionsCardProps {
 	editForm: EditFormData | null;
 	onStartEdit: (q: QuestionData) => void;
 	onOpenImproveQuestionsBatch?: () => void;
+	onOpenExplainQuestionsBatch?: () => void;
+	explanationProcessActive?: boolean;
 	onImproveQuestions?: (q: QuestionData) => void;
 	improveQuestionsStatusByQuestionId?: Map<number, ImproveQuestionsRunPhase>;
 	draftOverrideByQuestionId?: Map<number, QuestionData>;
@@ -31,6 +33,8 @@ export function QuestionsCard({
 	editForm,
 	onStartEdit,
 	onOpenImproveQuestionsBatch,
+	onOpenExplainQuestionsBatch,
+	explanationProcessActive = false,
 	onImproveQuestions = () => {},
 	improveQuestionsStatusByQuestionId = new Map(),
 	draftOverrideByQuestionId = new Map(),
@@ -45,17 +49,38 @@ export function QuestionsCard({
 				<CardTitle className="text-sm font-semibold">
 					Questions ({questions.length})
 				</CardTitle>
-				{onOpenImproveQuestionsBatch && questions.length > 0 && (
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						className="min-h-10 w-full sm:min-h-8 sm:w-auto"
-						onClick={onOpenImproveQuestionsBatch}
-					>
-						<Sparkles data-icon="inline-start" />
-						Melhorar questões
-					</Button>
+				{(onOpenImproveQuestionsBatch || onOpenExplainQuestionsBatch) &&
+					questions.length > 0 && (
+					<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+						{onOpenExplainQuestionsBatch && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="min-h-10 w-full sm:min-h-8 sm:w-auto"
+								onClick={onOpenExplainQuestionsBatch}
+							>
+								{explanationProcessActive ? (
+									<Loader2 className="size-3.5 animate-spin" />
+								) : (
+									<Sparkles data-icon="inline-start" />
+								)}
+								Gerar explicacoes
+							</Button>
+						)}
+						{onOpenImproveQuestionsBatch && (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="min-h-10 w-full sm:min-h-8 sm:w-auto"
+								onClick={onOpenImproveQuestionsBatch}
+							>
+								<Sparkles data-icon="inline-start" />
+								Melhorar questões
+							</Button>
+						)}
+					</div>
 				)}
 			</CardHeader>
 			<CardContent className="px-3 sm:px-4">

@@ -161,15 +161,26 @@ export interface ImproveQuestionsBatchConfig {
 	maxWorkers: number;
 }
 
+export interface ImproveQuestionsExamUiState {
+	batchDialogOpen: boolean;
+	questionDialogQuestionId: number | null;
+}
+
 export interface ExplainQuestionsBatchConfig {
 	maxWorkers: number;
+}
+
+export interface ExplainQuestionsExamUiState {
+	batchDialogOpen: boolean;
 }
 
 export interface BackgroundProcessStoreState {
 	processes: BackgroundProcess[];
 	focusedProcessId: string | null;
 	improveQuestionsBatchByExam: Record<number, ImproveQuestionsBatchConfig>;
+	improveQuestionsUiByExam: Record<number, ImproveQuestionsExamUiState>;
 	explainQuestionsBatchByExam: Record<number, ExplainQuestionsBatchConfig>;
+	explainQuestionsUiByExam: Record<number, ExplainQuestionsExamUiState>;
 }
 
 export interface PersistedIngestProcess

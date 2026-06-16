@@ -10,6 +10,7 @@ export {
 	MIN_EXPLAIN_QUESTIONS_MAX_WORKERS,
 	maybeClearExplainQuestionsBatchConfig,
 	setExplainQuestionsBatchConfig,
+	setExplainQuestionsBatchDialogOpen,
 	startExplainQuestionRun,
 	startExplainQuestionsBatch,
 	startQueuedExplainQuestion,

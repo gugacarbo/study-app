@@ -1,5 +1,5 @@
 import { useStore } from "@tanstack/react-store";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	areExplainQuestionsExamViewsEqual,
 	backgroundProcessStore,
@@ -19,11 +19,13 @@ import {
 export interface UseExplainQuestionsBatchParams {
 	examId: number;
 	questions: QuestionData[];
+	open: boolean;
 }
 
 export function useExplainQuestionsBatch({
 	examId,
 	questions,
+	open,
 }: UseExplainQuestionsBatchParams) {
 	const [selectAll, setSelectAll] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
@@ -106,6 +108,13 @@ export function useExplainQuestionsBatch({
 		agentItems.length === 0
 			? 0
 			: Math.round((finishedCount / agentItems.length) * 100);
+
+	useEffect(() => {
+		if (!open) return;
+		const eligible = questions.filter((q) => questionNeedsExplanation(q, false));
+		setSelectAll(true);
+		setSelectedIds(new Set(eligible.map((q) => q.id)));
+	}, [open, questions]);
 
 	const pendingExplanationCount = useMemo(
 		() =>
