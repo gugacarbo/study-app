@@ -11,11 +11,19 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { AiModelPublic } from "@/db/queries/types";
 import {
 	ComposerAddAttachment,
 	ComposerAttachments,
@@ -28,6 +36,9 @@ interface StudyChatComposerProps {
 	inputTokens: number;
 	outputTokens: number;
 	contextTokens: number;
+	models: AiModelPublic[];
+	selectedModelId: number | null;
+	onSelectedModelChange: (modelId: number) => void;
 }
 
 export function StudyChatComposer({
@@ -36,6 +47,9 @@ export function StudyChatComposer({
 	inputTokens,
 	outputTokens,
 	contextTokens,
+	models,
+	selectedModelId,
+	onSelectedModelChange,
 }: StudyChatComposerProps) {
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
@@ -58,6 +72,9 @@ export function StudyChatComposer({
 						inputTokens={inputTokens}
 						outputTokens={outputTokens}
 						contextTokens={contextTokens}
+						models={models}
+						selectedModelId={selectedModelId}
+						onSelectedModelChange={onSelectedModelChange}
 					/>
 				</div>
 			</ComposerPrimitive.AttachmentDropzone>
@@ -71,11 +88,47 @@ function StudyChatComposerAction({
 	inputTokens,
 	outputTokens,
 	contextTokens,
+	models,
+	selectedModelId,
+	onSelectedModelChange,
 }: StudyChatComposerProps) {
+	const hasModels = models.length > 0;
+	const selectedModel = models.find((model) => model.id === selectedModelId);
+	const selectValue = selectedModel ? String(selectedModel.id) : "";
+
 	return (
 		<div className="aui-composer-action-wrapper relative flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<ComposerAddAttachment />
+				<Select
+					value={selectValue}
+					disabled={!hasModels}
+					onValueChange={(value) => {
+						const modelId = Number.parseInt(value, 10);
+						if (Number.isFinite(modelId) && modelId > 0) {
+							onSelectedModelChange(modelId);
+						}
+					}}
+				>
+					<SelectTrigger
+						size="sm"
+						className="h-8 max-w-48 text-xs"
+						aria-label="Select model"
+					>
+						<SelectValue
+							placeholder={
+								hasModels ? "Select model" : "No models available"
+							}
+						/>
+					</SelectTrigger>
+					<SelectContent align="start" side="top">
+						{models.map((model) => (
+							<SelectItem key={model.id} value={String(model.id)}>
+								{model.displayName} ({model.providerName})
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button
@@ -139,6 +192,7 @@ function StudyChatComposerAction({
 							size="icon"
 							className="aui-composer-send size-7 rounded-full"
 							aria-label="Send message"
+							disabled={!hasModels || !selectedModelId}
 						>
 							<ArrowUpIcon className="aui-composer-send-icon size-4.5" />
 						</TooltipIconButton>

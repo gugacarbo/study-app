@@ -3,14 +3,17 @@ import {
 	useChatRuntime,
 	useThreadTokenUsage,
 } from "@assistant-ui/react-ai-sdk";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import type { AiModelPublic } from "@/db/queries/types";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { createStudyChatComposer } from "@/features/ai/components/assistant-ui/study-chat-composer";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { WELCOME } from "@/features/ai/components/chat/chat-utils";
 import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
+import { useEnabledAiModels } from "@/features/ai/hooks/use-enabled-models";
 import {
 	conversationsStore,
 	createConversationHistoryAdapter,
@@ -19,9 +22,27 @@ import {
 	hydrateConversationsFromServer,
 	updateConversationTitle,
 } from "@/features/ai/stores/conversations-store";
+import {
+	chatUIStore,
+	setChatSidebarOpen,
+} from "@/features/ai/stores/ui-store";
 import { CHAT_RUNTIME_MESSAGE_LIMIT } from "@/lib/chat-conversations/constants";
+import { getAiSettings } from "@/server-functions/ai-settings";
 import { ChatHeader } from "./chat-header";
 import { ChatSidebar } from "./chat-sidebar";
+
+function resolveInitialModelId(
+	models: AiModelPublic[],
+	settings: {
+		defaultModelId: number | null;
+		agentModels: Record<string, number | null>;
+	},
+): number | undefined {
+	if (models.length === 0) return undefined;
+	const preferred = settings.agentModels.chat ?? settings.defaultModelId;
+	if (preferred && models.some((m) => m.id === preferred)) return preferred;
+	return models[0]?.id;
+}
 
 export function Chat() {
 	const activeId = useSelector(conversationsStore, (s) => s.activeId);
@@ -34,6 +55,7 @@ export function Chat() {
 		conversationsStore,
 		(s) => s.loadingConversationId,
 	);
+	const chatSidebarOpen = useSelector(chatUIStore, (s) => s.chatSidebarOpen);
 	const activeConversation = conversations.find((c) => c.id === activeId);
 	const isTruncated =
 		(activeConversation?.messageCount ?? 0) > CHAT_RUNTIME_MESSAGE_LIMIT;
@@ -68,7 +90,11 @@ export function Chat() {
 
 	return (
 		<div data-fullwidth className="flex h-full overflow-hidden">
-			<SidebarProvider className="flex min-h-0 h-full">
+			<SidebarProvider
+				open={chatSidebarOpen}
+				onOpenChange={setChatSidebarOpen}
+				className="flex min-h-0 h-full"
+			>
 				<ChatSidebar />
 				<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 					<header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
@@ -134,6 +160,19 @@ function ChatConversation({
 	const conversationIdRef = useRef(conversationId);
 	conversationIdRef.current = conversationId;
 
+	const { data: models = [] } = useEnabledAiModels();
+	const { data: settings } = useSuspenseQuery({
+		queryKey: ["ai-settings"],
+		queryFn: () => getAiSettings(),
+	});
+
+	const [selectedModelId, setSelectedModelId] = useState<number | undefined>(() =>
+		resolveInitialModelId(models, settings),
+	);
+
+	const selectedModelIdRef = useRef(selectedModelId);
+	selectedModelIdRef.current = selectedModelId;
+
 	const transport = useMemo(
 		() =>
 			new AssistantChatTransport({
@@ -144,6 +183,7 @@ function ChatConversation({
 						messages: options.messages,
 						reviewMode: reviewModeRef.current,
 						conversationId: conversationIdRef.current,
+						modelId: selectedModelIdRef.current,
 					},
 				}),
 			}),
@@ -169,6 +209,9 @@ function ChatConversation({
 			<ChatThread
 				reviewMode={reviewMode}
 				onReviewModeChange={onReviewModeChange}
+				models={models}
+				selectedModelId={selectedModelId}
+				onSelectedModelChange={setSelectedModelId}
 			/>
 		</StudyAssistantRuntimeProvider>
 	);
@@ -177,9 +220,18 @@ function ChatConversation({
 interface ChatThreadProps {
 	reviewMode: boolean;
 	onReviewModeChange: (value: boolean) => void;
+	models: AiModelPublic[];
+	selectedModelId: number | undefined;
+	onSelectedModelChange: (modelId: number) => void;
 }
 
-function ChatThread({ reviewMode, onReviewModeChange }: ChatThreadProps) {
+function ChatThread({
+	reviewMode,
+	onReviewModeChange,
+	models,
+	selectedModelId,
+	onSelectedModelChange,
+}: ChatThreadProps) {
 	const tokenUsage = useThreadTokenUsage();
 	const inputTokens = tokenUsage?.inputTokens ?? 0;
 	const outputTokens = tokenUsage?.outputTokens ?? 0;
@@ -193,10 +245,22 @@ function ChatThread({ reviewMode, onReviewModeChange }: ChatThreadProps) {
 				inputTokens,
 				outputTokens,
 				contextTokens,
+				models,
+				selectedModelId: selectedModelId ?? null,
+				onSelectedModelChange,
 			}),
 			Welcome: StudyWelcome,
 		}),
-		[reviewMode, onReviewModeChange, inputTokens, outputTokens, contextTokens],
+		[
+			reviewMode,
+			onReviewModeChange,
+			inputTokens,
+			outputTokens,
+			contextTokens,
+			models,
+			selectedModelId,
+			onSelectedModelChange,
+		],
 	);
 
 	return <Thread components={threadComponents} />;

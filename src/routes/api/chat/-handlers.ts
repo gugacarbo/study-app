@@ -15,7 +15,7 @@ import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-he
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
-import { requireModelConfig } from "../../../lib/ai-config";
+import { requireModelConfig, resolveModelConfigById } from "../../../lib/ai-config";
 import { MemoryManager } from "../../../lib/memory";
 import { summarizeSearchResultSnippets, toBoolean } from "./-tools";
 
@@ -32,6 +32,7 @@ interface ChatRequestBody {
 		  }>;
 	forwardedProps?: Record<string, unknown>;
 	reviewMode?: unknown;
+	modelId?: unknown;
 	metadata?: Record<string, unknown>;
 }
 
@@ -70,6 +71,13 @@ function readReviewMode(body: ChatRequestBody): boolean {
 	);
 }
 
+export function readModelId(body: ChatRequestBody): number | null {
+	const value = body.modelId ?? body.forwardedProps?.modelId ?? body.metadata?.modelId;
+	if (typeof value !== "number") return null;
+	if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) return null;
+	return value;
+}
+
 function mergeChatTools(
 	serverTools: ToolSet,
 	clientTools: Record<string, ToolJSONSchema>,
@@ -105,9 +113,13 @@ export async function handleChatPost(request: Request): Promise<Response> {
 
 	const queries = new DBQueries(db);
 	const config = await queries.getAllConfig();
+
 	let providerConfig: Awaited<ReturnType<typeof requireModelConfig>>;
+	const requestedModelId = readModelId(body);
 	try {
-		providerConfig = await requireModelConfig(queries, "chat");
+		providerConfig = requestedModelId
+			? await resolveModelConfigById(queries, requestedModelId)
+			: await requireModelConfig(queries, "chat");
 	} catch {
 		return new Response("AI provider not configured", { status: 400 });
 	}
