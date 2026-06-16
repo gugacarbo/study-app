@@ -71,6 +71,8 @@ function SidebarProvider({
 	// We use openProp and setOpenProp for control from outside the component.
 	const [_open, _setOpen] = React.useState(defaultOpen);
 	const open = openProp ?? _open;
+	const isControlled = openProp !== undefined;
+
 	const setOpen = React.useCallback(
 		(value: boolean | ((value: boolean) => boolean)) => {
 			const openState = typeof value === "function" ? value(open) : value;
@@ -80,11 +82,12 @@ function SidebarProvider({
 				_setOpen(openState);
 			}
 
-			// This sets the cookie to keep the sidebar state.
+			// Only write the cookie when the component manages its own state.
 			// biome-ignore lint/suspicious/noDocumentCookie: front-end cookie
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+			if (!isControlled)
+				document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
 		},
-		[setOpenProp, open],
+		[setOpenProp, open, isControlled],
 	);
 
 	// Helper to toggle the sidebar.
