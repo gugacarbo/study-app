@@ -42,92 +42,11 @@ import {
 	toProviderConfig,
 	type ResolvedModelConfig,
 } from "@/lib/validation";
-
-const BENCHMARK_STAGE_ID = "model-benchmark";
-
-type PhaseDefinition = {
-	id: BenchmarkPhaseId;
-	label: string;
-	system: string;
-	userMsg: string;
-	useTools: boolean;
-	progressStart: number;
-	progressEnd: number;
-};
-
-const BENCHMARK_TEXT_SYSTEM = `You are a model benchmark assistant.
-
-Rules:
-- Reply in plain text only.
-- Be concise: no preamble, no closing remark, no markdown code fences.
-- Do not emit reasoning or thinking tags in the visible answer.`;
-
-const BENCHMARK_TOOL_SYSTEM = `You are a model benchmark assistant.
-
-When a task requires a tool:
-1. Call the named tool exactly once with the arguments given in the user message.
-2. Wait for the tool result before sending your final answer.
-3. Do not call the same tool again.
-4. Follow the user's output format exactly (plain text only, no markdown fences, no reasoning tags).`;
-
-const BENCHMARK_PHASES: PhaseDefinition[] = [
-	{
-		id: "text_baseline",
-		label: "Text baseline",
-		system: BENCHMARK_TEXT_SYSTEM,
-		userMsg:
-			'Write exactly one short English sentence. The sentence must contain the word "ready" (any capitalization). Example: I am ready.',
-		useTools: false,
-		progressStart: 10,
-		progressEnd: 25,
-	},
-	{
-		id: "tool_math",
-		label: "Tool math",
-		system: BENCHMARK_TOOL_SYSTEM,
-		userMsg: `Task:
-1. Call add_numbers once with a=17 and b=25.
-2. After the tool returns, reply with only the numeric sum.
-
-Required final answer (exactly this, no other characters):
-42`,
-		useTools: true,
-		progressStart: 30,
-		progressEnd: 50,
-	},
-	{
-		id: "tool_echo",
-		label: "Tool echo",
-		system: BENCHMARK_TOOL_SYSTEM,
-		userMsg: `Task:
-1. Call echo once with message exactly: benchmark
-2. After the tool returns, reply with one short sentence that includes the word benchmark.
-
-Example final answer: The tool echoed benchmark.`,
-		useTools: true,
-		progressStart: 55,
-		progressEnd: 75,
-	},
-	{
-		id: "sustained_text",
-		label: "Sustained text",
-		system: `${BENCHMARK_TEXT_SYSTEM}
-
-When asked for a list, use markdown bullets (- ) with one bullet per line. No title or summary before or after the list.`,
-		userMsg: `Write exactly 4 bullet points about LLM latency and throughput.
-
-Format (4 lines, each starting with "- "):
-- first point
-- second point
-- third point
-- fourth point
-
-Do not add any other lines.`,
-		useTools: false,
-		progressStart: 80,
-		progressEnd: 95,
-	},
-];
+import {
+	BENCHMARK_PHASES,
+	BENCHMARK_STAGE_ID,
+	type PhaseDefinition,
+} from "./test-model-benchmark/-phases";
 
 type PhaseRunResult = {
 	phaseId: BenchmarkPhaseId;
@@ -201,7 +120,7 @@ async function runBenchmarkPhase(
 
 	agentRuns.lifecycle(run, "pending", {
 		systemPrompt: phase.system,
-		userPrompt: `[System]\n${phase.system}\n\n[User]\n${phase.userMsg}`,
+		userPrompt: phase.userMsg,
 	});
 	agentRuns.lifecycle(run, "running");
 
@@ -216,7 +135,7 @@ async function runBenchmarkPhase(
 		system: phase.system,
 		messages: [{ role: "user" as const, content: phase.userMsg }],
 		tools,
-		stopWhen: phase.useTools ? stepCountIs(5) : undefined,
+		stopWhen: phase.useTools ? stepCountIs(2) : undefined,
 		providerOptions: buildProviderOptions(providerConfig),
 		abortSignal,
 	};
@@ -360,12 +279,15 @@ async function runBenchmarkPhase(
 	);
 
 	const passed = validateBenchmarkPhase(phase.id, response, toolCalls);
-	const metrics = buildBenchmarkPhaseMetrics(
-		phase.id,
-		phase.label,
-		phaseTiming,
-		passed,
-	);
+	const metrics = {
+		...buildBenchmarkPhaseMetrics(
+			phase.id,
+			phase.label,
+			phaseTiming,
+			passed,
+		),
+		agentRunId: run.agentRunId,
+	};
 
 	agentRuns.result(run, { response, passed, metrics }, response, {
 		benchmarkPhase: metrics,

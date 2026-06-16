@@ -95,6 +95,7 @@ export function formatTokensPerSecond(tokensPerSecond: number): string {
 
 export type BenchmarkPhaseMetrics = {
 	phaseId: string;
+	agentRunId?: string;
 	label: string;
 	ttftMs: number | null;
 	ttftToolMs: number | null;

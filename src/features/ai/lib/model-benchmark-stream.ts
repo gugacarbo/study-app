@@ -189,13 +189,17 @@ export async function consumeModelBenchmarkStream(
 					);
 					if (phaseMetrics) {
 						const phases = [...state.phases];
+						const enrichedPhaseMetrics = data.agentRunId
+							? { ...phaseMetrics, agentRunId: data.agentRunId }
+							: phaseMetrics;
 						const index = phases.findIndex(
-							(candidate) => candidate.phaseId === phaseMetrics.phaseId,
+							(candidate) =>
+								candidate.phaseId === enrichedPhaseMetrics.phaseId,
 						);
 						if (index === -1) {
-							phases.push(phaseMetrics);
+							phases.push(enrichedPhaseMetrics);
 						} else {
-							phases[index] = phaseMetrics;
+							phases[index] = enrichedPhaseMetrics;
 						}
 						patch.phases = phases;
 					}
@@ -289,14 +293,19 @@ export async function consumeModelBenchmarkStream(
 							data.meta.benchmarkPhase,
 						);
 						if (phaseMetrics) {
+							const enrichedPhaseMetrics = {
+								...phaseMetrics,
+								agentRunId: phaseMetrics.agentRunId ?? data.agentRunId,
+							};
 							const phases = [...state.phases];
 							const index = phases.findIndex(
-								(candidate) => candidate.phaseId === phaseMetrics.phaseId,
+								(candidate) =>
+									candidate.phaseId === enrichedPhaseMetrics.phaseId,
 							);
 							if (index === -1) {
-								phases.push(phaseMetrics);
+								phases.push(enrichedPhaseMetrics);
 							} else {
-								phases[index] = phaseMetrics;
+								phases[index] = enrichedPhaseMetrics;
 							}
 							publish({ phases });
 							publishBenchmarkMetrics();
