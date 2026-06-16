@@ -167,7 +167,7 @@ describe("ingest agent stopWhen builders", () => {
 		expect(
 			buildIngestExtractionStopWhen(15, { expectedQuestionCount: 3 }),
 		).toHaveLength(5);
-		expect(buildIngestReviewStopWhen(12)).toHaveLength(2);
+		expect(buildIngestReviewStopWhen(12)).toHaveLength(4);
 		expect(buildIngestExplanationStopWhen(12)).toHaveLength(2);
 		expect(buildImproveQuestionsStopWhen(12)).toHaveLength(5);
 	});

@@ -32,6 +32,16 @@ const optionalNullableScoringModeSchema = z
 	.optional()
 	.transform((value) => value ?? undefined);
 
+function stripNullObjectFields(input: unknown): unknown {
+	if (typeof input !== "object" || input === null || Array.isArray(input)) {
+		return input;
+	}
+
+	return Object.fromEntries(
+		Object.entries(input).filter(([, value]) => value !== null),
+	);
+}
+
 function readExtractionAnswers(input: unknown): string[] {
 	if (typeof input !== "object" || input === null) return [];
 
@@ -90,7 +100,8 @@ const optionalNullableAnswersSchema = z
 	.transform((value) => value ?? undefined);
 
 export const extractionQuestionFieldsSchema = z.preprocess(
-	preprocessExtractionQuestionFields,
+	(input) =>
+		preprocessExtractionQuestionFields(stripNullObjectFields(input)),
 	z
 		.object({
 			question: z.string().trim().min(1),
@@ -105,7 +116,8 @@ export const extractionQuestionFieldsSchema = z.preprocess(
 );
 
 export const extractionQuestionPatchSchema = z.preprocess(
-	preprocessExtractionQuestionPatch,
+	(input) =>
+		preprocessExtractionQuestionPatch(stripNullObjectFields(input)),
 	z
 		.object({
 			questionId: extractionQuestionIdSchema,

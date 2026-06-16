@@ -3,6 +3,7 @@ import type { ToolSet } from "ai";
 import {
 	createExtractionWorkspace,
 	createIngestExtractionTools,
+	createIngestReviewTools,
 } from "@/features/ai/tools/ingest-tools";
 import {
 	ExtractionWorkspaceError,
@@ -113,6 +114,29 @@ describe("ingest extraction tools", () => {
 		);
 	});
 
+	it("omits add and list tools from createIngestReviewTools", () => {
+		const workspace = createExtractionWorkspace({
+			questions: [
+				{
+					questionId: "q1",
+					question: "Q1",
+					options: ["A", "B"],
+					answers: ["A"],
+					scoringMode: "exact",
+					explanation: "",
+					topic: "General",
+				},
+			],
+			nextQuestionNumber: 2,
+		});
+		const tools = createIngestReviewTools(workspace);
+
+		expect(tools.add_extracted_question).toBeUndefined();
+		expect(tools.list_extracted_questions).toBeUndefined();
+		expect(tools.update_extracted_question).toBeDefined();
+		expect(tools.report_agent_stage_status).toBeDefined();
+	});
+
 	it("notifies onToolExecuted with toolCallId from execution context", async () => {
 		const workspace = createExtractionWorkspace();
 		const onToolExecuted = vi.fn();
@@ -188,6 +212,26 @@ describe("ingest extraction tools", () => {
 				"This question is already registered. Stop calling add_extracted_question. Use update_extracted_question only if a correction is needed.",
 		});
 		expect(workspace.listQuestions()).toHaveLength(1);
+	});
+
+	it("returns alreadyExists for the same stem with and without a leading number", async () => {
+		const workspace = createExtractionWorkspace();
+		const tools = createIngestExtractionTools(workspace);
+		const addQuestion = getTool(tools, "add_extracted_question");
+
+		await addQuestion.execute({
+			question: "7. Uma arvore binaria e um caso especial de arvore em que:",
+			options: ["A", "B"],
+			answer: "B",
+		});
+		const duplicate = (await addQuestion.execute({
+			question: "Uma arvore binaria e um caso especial de arvore em que:",
+			options: ["A", "B"],
+			answer: "B",
+		})) as { alreadyExists?: boolean; totalQuestions: number };
+
+		expect(duplicate.alreadyExists).toBe(true);
+		expect(duplicate.totalQuestions).toBe(1);
 	});
 
 	it("adds questions through add_extracted_question", async () => {

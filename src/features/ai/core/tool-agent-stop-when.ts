@@ -192,25 +192,30 @@ export function buildIngestReviewStopWhen(maxSteps: number) {
 	return [
 		stepCountIs(maxSteps),
 		ingestStageStatusReported,
+		ingestReviewUpdateNoOpDetected,
+		repeatedSuccessfulToolCallInLastSteps("update_extracted_question"),
 	] satisfies Array<StopCondition<ToolSet>>;
+}
+
+function stepUsedTool(
+	steps: Array<{ toolResults: Array<{ toolName: string }> }>,
+	toolName: string,
+): boolean {
+	return steps.some((step) =>
+		step.toolResults.some((result) => result.toolName === toolName),
+	);
 }
 
 export function buildIngestReviewPrepareStep(options: {
 	shouldFinalize: () => boolean;
-	listCallCount: () => number;
 }): PrepareStepFunction<ToolSet> {
-	return () => {
+	return ({ steps }) => {
 		if (options.shouldFinalize()) {
 			return { activeTools: [INGEST_STAGE_STATUS_TOOL] };
 		}
 
-		if (options.listCallCount() >= 1) {
-			return {
-				activeTools: [
-					"update_extracted_question",
-					INGEST_STAGE_STATUS_TOOL,
-				],
-			};
+		if (stepUsedTool(steps, "update_extracted_question")) {
+			return { activeTools: [INGEST_STAGE_STATUS_TOOL] };
 		}
 
 		return {};

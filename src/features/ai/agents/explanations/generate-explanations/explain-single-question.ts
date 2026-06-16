@@ -2,6 +2,7 @@ import type { ToolSet } from "ai";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
+	payloadFromToolExecuteResult,
 } from "@/features/ai/core/ai-stream-handler";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import { buildIngestExplanationStopWhen, buildPostUpdatePrepareStep } from "@/features/ai/core/tool-agent-stop-when";
@@ -48,7 +49,7 @@ export async function explainSingleQuestion(
 		options.createAgentRunId?.(label) ?? `explanation-question-${index + 1}`;
 	const memoryContext =
 		options.resolveMemoryContext?.(question) ?? options.memoryContext;
-	const systemPrompt = buildSystemPrompt(memoryContext);
+	const systemPrompt = buildSystemPrompt(memoryContext, question.id);
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
 	const streamState = createAiStreamState();
@@ -59,19 +60,6 @@ export async function explainSingleQuestion(
 	let hasSuccessfulUpdate = false;
 	let updateCallCount = 0;
 	let toolsComplete = false;
-	const explanationTools = createExplanationTools(workspace);
-	const stageStatusTools = createReportAgentStageStatusTool({
-		onToolExecuted: ({ output }) => {
-			const report = readIngestAgentStageStatusReport(output);
-			stageStatusReport = report;
-			reportedStageStatus = report?.status ?? null;
-		},
-	});
-	const combinedTools: ToolSet = {
-		...explanationTools,
-		...stageStatusTools,
-		...(options.tools as ToolSet | undefined),
-	};
 	const questionMeta = {
 		questionIndex: index,
 		questionNumber: index + 1,
@@ -186,6 +174,25 @@ export async function explainSingleQuestion(
 			handleToolResult,
 			streamState,
 		);
+		const explanationTools = createExplanationTools(workspace, {
+			onToolExecuted: async ({ toolName, toolCallId, output }) => {
+				toolNamesById.set(toolCallId, toolName);
+				emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+			},
+		});
+		const stageStatusTools = createReportAgentStageStatusTool({
+			onToolExecuted: async ({ toolCallId, output }) => {
+				const report = readIngestAgentStageStatusReport(output);
+				stageStatusReport = report;
+				reportedStageStatus = report?.status ?? null;
+				emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+			},
+		});
+		const combinedTools: ToolSet = {
+			...explanationTools,
+			...stageStatusTools,
+			...(options.tools as ToolSet | undefined),
+		};
 
 		await runToolAgentStream({
 			scope: "explanations.generate",

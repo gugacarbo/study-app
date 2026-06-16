@@ -24,8 +24,16 @@ Writing rules:
 - If the current explanation is already good, improve clarity instead of rewriting radically.
 - Do not invent facts not implied by the question/context.`;
 
-export function buildSystemPrompt(memoryContext?: string) {
-	const basePrompt = `${BASE_SYSTEM_PROMPT}
+export function buildSystemPrompt(
+	memoryContext?: string,
+	questionId?: number,
+) {
+	const questionIdSection =
+		questionId != null
+			? `\nQuestion context:\n- Question id in workspace: ${questionId}`
+			: "";
+
+	const basePrompt = `${BASE_SYSTEM_PROMPT}${questionIdSection}
 
 ${INGEST_STAGE_STATUS_COMPLETION_PROMPT}`;
 

@@ -12,20 +12,51 @@ export function extractTextFromBytes(bytes: Uint8Array): string {
 		.trim();
 }
 
+function isNumberedQuestionLine(line: string): boolean {
+	return /^\s*(?:\*{0,2})?\d+[\.\):\-]\s+\S/.test(line);
+}
+
+function countDistinctNumberedQuestions(lines: string[]): number | undefined {
+	const numbers = new Set<number>();
+	for (const line of lines) {
+		const match = line.match(/^\s*(?:\*{0,2})?(\d+)[\.\):\-]\s+\S/);
+		if (match) numbers.add(Number(match[1]));
+	}
+	return numbers.size > 0 ? numbers.size : undefined;
+}
+
+function countGabaritoEntries(text: string): number | undefined {
+	const gabaritoIndex = text.search(/(?:^|\n)#+\s*Gabarito\b/i);
+	if (gabaritoIndex === -1) return undefined;
+
+	const section = text.slice(gabaritoIndex);
+	const keys = section.match(/\b\d+\s*[-–]\s*[A-E]\b/g);
+	if (!keys || keys.length === 0) return undefined;
+
+	const numbers = new Set(
+		keys.map((key) => Number(key.match(/\d+/)?.[0])).filter(Number.isFinite),
+	);
+	return numbers.size > 0 ? numbers.size : undefined;
+}
+
 /** Best-effort count of distinct numbered questions in source text. */
 export function estimateSourceQuestionCount(text: string): number | undefined {
 	const trimmed = text.trim();
 	if (!trimmed) return undefined;
 
-	const numberedLines = trimmed
-		.split("\n")
-		.filter((line) => /^\s*\d+[\.\):\-]\s+\S/.test(line));
-	if (numberedLines.length > 0) return numberedLines.length;
+	const fromStems = countDistinctNumberedQuestions(
+		trimmed.split("\n").filter(isNumberedQuestionLine),
+	);
+	if (fromStems != null) return fromStems;
 
+	const fromGabarito = countGabaritoEntries(trimmed);
+	if (fromGabarito != null) return fromGabarito;
+
+	// Do not count paragraph blocks — headers and gabarito sections inflate the count.
 	const blocks = trimmed.split(/\n\s*\n/).filter((block) => block.trim());
-	if (blocks.length > 1) return blocks.length;
+	if (blocks.length === 1) return 1;
 
-	return 1;
+	return undefined;
 }
 
 export function buildExtractionUserPrompt(
@@ -39,7 +70,8 @@ export function buildExtractionUserPrompt(
 		"If the source text does not contain any valid question, finish without inventing one.",
 		...(source?.expectedQuestionCount != null
 			? [
-					`The source appears to contain ${source.expectedQuestionCount} question${source.expectedQuestionCount === 1 ? "" : "s"}. Register each distinct question exactly once, then stop.`,
+					`The source appears to contain about ${source.expectedQuestionCount} numbered question${source.expectedQuestionCount === 1 ? "" : "s"}. Register each distinct question exactly once, then stop.`,
+					"If every question from the source text is already registered, stop immediately — do not re-extract them with different wording or without number prefixes.",
 					"Do not call add_extracted_question again after every source question is already registered.",
 				]
 			: []),

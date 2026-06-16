@@ -5,6 +5,25 @@ import {
 } from "@/features/ai/tools/ingest-tools/workspace";
 
 describe("ingest extraction workspace", () => {
+	it("treats numbered and unnumbered question stems as duplicates", () => {
+		const workspace = createExtractionWorkspace();
+
+		const first = workspace.addQuestion({
+			question: "7. Uma arvore binaria e um caso especial de arvore em que:",
+			options: ["A", "B"],
+			answers: ["B"],
+		});
+		const duplicate = workspace.addQuestion({
+			question: "Uma arvore binaria e um caso especial de arvore em que:",
+			options: ["A", "B"],
+			answers: ["B"],
+		});
+
+		expect(first.questionId).toBe("q1");
+		expect(duplicate.questionId).toBe("q1");
+		expect(workspace.listQuestions()).toHaveLength(1);
+	});
+
 	it("assigns stable question ids and preserves insertion order", () => {
 		const workspace = createExtractionWorkspace();
 

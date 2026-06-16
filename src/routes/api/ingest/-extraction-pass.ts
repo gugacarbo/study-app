@@ -150,10 +150,11 @@ export async function runExtractionPass(
 			}
 			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
 		},
-		onStageStatusReported: ({ output }) => {
+		onStageStatusReported: async ({ toolCallId, output }) => {
 			const report = readIngestAgentStageStatusReport(output);
 			stageStatusReport = report;
 			reportedStageStatus = report?.status ?? null;
+			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
 		},
 	});
 

@@ -10,6 +10,12 @@ import {
 
 export type ExtractionQuestionId = `q${number}`;
 
+export function formatExtractionQuestionId(
+	questionNumber: number,
+): ExtractionQuestionId {
+	return `q${questionNumber}`;
+}
+
 export interface ExtractionWorkspaceQuestion extends Question {
 	questionId: ExtractionQuestionId;
 }
@@ -70,6 +76,17 @@ function omitUndefined<T extends Record<string, unknown>>(
 	) as Partial<T>;
 }
 
+function normalizeQuestionKey(text: string): string {
+	return text
+		.trim()
+		.replace(/^\*{0,2}\s*/, "")
+		.replace(/^\d+[\.\):\-]\s*/, "")
+		.replace(/\*{1,2}$/, "")
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, " ");
+}
+
 function normalizeQuestion(
 	input: Partial<Question> & Pick<Question, "question" | "answers">,
 ): Question {
@@ -106,14 +123,16 @@ export function createExtractionWorkspace(
 			input: Partial<Question> & Pick<Question, "question" | "answers">,
 		) {
 			const question = normalizeQuestion(input);
+			const questionKey = normalizeQuestionKey(question.question);
 			const duplicate = state.questions.find(
-				(existing) => existing.question.trim() === question.question.trim(),
+				(existing) =>
+					normalizeQuestionKey(existing.question) === questionKey,
 			);
 			if (duplicate) {
 				return duplicate;
 			}
 
-			const questionId = `q${state.nextQuestionNumber}` as ExtractionQuestionId;
+			const questionId = formatExtractionQuestionId(state.nextQuestionNumber);
 			state.nextQuestionNumber += 1;
 
 			const item: ExtractionWorkspaceQuestion = {

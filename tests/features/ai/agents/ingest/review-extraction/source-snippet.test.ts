@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractQuestionSourceSnippet } from "@/features/ai/agents/ingest/review-extraction/source-snippet";
-import { buildReviewerUserPrompt } from "@/features/ai/agents/ingest/review-extraction/prompt";
+import { buildReviewerSystemPrompt, buildReviewerUserPrompt } from "@/features/ai/agents/ingest/review-extraction/prompt";
 
 describe("extractQuestionSourceSnippet", () => {
 	it("returns only the matching excerpt instead of the full source text", () => {
@@ -80,11 +80,20 @@ describe("buildReviewerUserPrompt", () => {
 				explanation: "",
 				topic: "Topico B",
 			},
-			1,
+			2,
 		);
 
+		expect(promptA).toContain('questionId "q1"');
+		expect(promptB).toContain('questionId "q3"');
 		expect(promptA).toContain("Stem: Pergunta A?");
 		expect(promptB).toContain("Stem: Pergunta B totalmente diferente?");
 		expect(promptA).not.toEqual(promptB);
+	});
+
+	it("uses the matching workspace questionId in the system prompt", () => {
+		const systemPrompt = buildReviewerSystemPrompt(["Calculo"], "q3");
+
+		expect(systemPrompt).toContain('questionId "q3"');
+		expect(systemPrompt).not.toContain('questionId "q1"');
 	});
 });

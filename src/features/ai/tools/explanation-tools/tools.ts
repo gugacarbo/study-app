@@ -1,4 +1,4 @@
-import { tool, zodSchema, type ToolSet } from "ai";
+import { tool, zodSchema, type ToolExecutionOptions, type ToolSet } from "ai";
 import { z } from "zod";
 import {
 	explanationPatchSchema,
@@ -38,47 +38,109 @@ function toToolFailure(error: unknown) {
 	};
 }
 
-export function createExplanationTools(workspace: ExplanationWorkspaceApi): ToolSet {
+export type ExplanationToolExecutedEvent = {
+	toolCallId: string;
+	toolName: string;
+	input: unknown;
+	output: unknown;
+};
+
+async function notifyToolExecuted(
+	options:
+		| {
+				onToolExecuted?: (
+					event: ExplanationToolExecutedEvent,
+				) => void | Promise<void>;
+		  }
+		| undefined,
+	toolName: string,
+	input: unknown,
+	output: unknown,
+	context?: ToolExecutionOptions,
+) {
+	const toolCallId = context?.toolCallId;
+	if (!toolCallId) return;
+	await options?.onToolExecuted?.({
+		toolCallId,
+		toolName,
+		input,
+		output,
+	});
+}
+
+export function createExplanationTools(
+	workspace: ExplanationWorkspaceApi,
+	options?: {
+		onToolExecuted?: (
+			event: ExplanationToolExecutedEvent,
+		) => void | Promise<void>;
+	},
+): ToolSet {
 	return {
 		update_question_explanation: tool({
 			description:
 				"Write explanation and deepExplanation for one question. questionId, explanation, and deepExplanation are all required.",
 			inputSchema: zodSchema(explanationPatchSchema),
-			execute: async (input) => {
+			execute: async (input, context) => {
+				let output:
+					| Awaited<ReturnType<typeof toToolFailure>>
+					| {
+							ok: true;
+							questionId: number;
+							updatedFields: readonly ["explanation", "deepExplanation"];
+					  };
 				try {
 					workspace.updateQuestionExplanation(input.questionId, {
 						explanation: input.explanation,
 						deepExplanation: input.deepExplanation,
 					});
 
-					return {
+					output = {
 						ok: true as const,
 						questionId: input.questionId,
 						updatedFields: ["explanation", "deepExplanation"] as const,
 					};
 				} catch (error) {
-					return toToolFailure(error);
+					output = toToolFailure(error);
 				}
+				await notifyToolExecuted(
+					options,
+					"update_question_explanation",
+					input,
+					output,
+					context,
+				);
+				return output;
 			},
 		}),
 		list_explanation_questions: tool({
 			description:
 				"List the questions currently stored in the explanation workspace.",
 			inputSchema: zodSchema(listExplanationQuestionsInputSchema),
-			execute: async () => ({
-				ok: true as const,
-				data: workspace.listQuestions().map((question) => ({
-					id: question.id,
-					question: question.question,
-					options: [...question.options],
-					answers: [...question.answers],
-					scoringMode: question.scoringMode ?? "exact",
-					topic: question.topic ?? "General",
-					explanation: question.explanation ?? "",
-					hasExplanation: Boolean(question.explanation?.trim()),
-					hasDeepExplanation: Boolean(question.deepExplanation?.trim()),
-				})),
-			}),
+			execute: async (_input, context) => {
+				const output = {
+					ok: true as const,
+					data: workspace.listQuestions().map((question) => ({
+						id: question.id,
+						question: question.question,
+						options: [...question.options],
+						answers: [...question.answers],
+						scoringMode: question.scoringMode ?? "exact",
+						topic: question.topic ?? "General",
+						explanation: question.explanation ?? "",
+						hasExplanation: Boolean(question.explanation?.trim()),
+						hasDeepExplanation: Boolean(question.deepExplanation?.trim()),
+					})),
+				};
+				await notifyToolExecuted(
+					options,
+					"list_explanation_questions",
+					{},
+					output,
+					context,
+				);
+				return output;
+			},
 		}),
 	};
 }

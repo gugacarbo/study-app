@@ -5,6 +5,16 @@ export const QUESTION_NOT_FOUND_ERROR_CODE = "QUESTION_NOT_FOUND";
 
 export const questionIdSchema = z.coerce.number().int().positive();
 
+function stripNullObjectFields(input: unknown): unknown {
+	if (typeof input !== "object" || input === null || Array.isArray(input)) {
+		return input;
+	}
+
+	return Object.fromEntries(
+		Object.entries(input).filter(([, value]) => value !== null),
+	);
+}
+
 function preprocessQuestionIdInput(input: unknown): unknown {
 	if (typeof input !== "object" || input === null) return input;
 
@@ -117,7 +127,10 @@ const optionalNullableQuestionSchema = z
 	.transform((value) => value ?? undefined);
 
 export const updateQuestionOptionsPatchSchema = z.preprocess(
-	(input) => preprocessImproveQuestionsPatch(preprocessQuestionIdInput(input)),
+	(input) =>
+		preprocessImproveQuestionsPatch(
+			preprocessQuestionIdInput(stripNullObjectFields(input)),
+		),
 	z
 		.object({
 			id: questionIdSchema,

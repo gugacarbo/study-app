@@ -20,6 +20,42 @@ describe("estimateSourceQuestionCount", () => {
 			),
 		).toBe(3);
 	});
+
+	it("counts markdown bold numbered questions without counting paragraph blocks", () => {
+		const text = `# Arvores Binarias
+
+## Questoes
+
+**7. Uma arvore binaria e um caso especial de arvore em que:**
+A) Todo no possui grau maior que dois.
+B) Nenhum no possui grau maior que dois.
+
+**8. Em uma arvore binaria, as estruturas T1 e T2 associadas a raiz representam:**
+A) Pai e avo da raiz.
+B) Subarvore esquerda e subarvore direita.
+
+## Gabarito
+
+7-B, 8-B`;
+
+		expect(estimateSourceQuestionCount(text)).toBe(2);
+	});
+
+	it("falls back to gabarito entries when question stems are not numbered", () => {
+		expect(
+			estimateSourceQuestionCount(
+				"Questao sobre cache\n\n## Gabarito\n\n1-A, 2-B, 3-C",
+			),
+		).toBe(3);
+	});
+
+	it("returns undefined for multi-block text without numbered questions", () => {
+		expect(
+			estimateSourceQuestionCount(
+				"# Titulo\n\nParagrafo um.\n\nParagrafo dois.\n\n## Outra secao",
+			),
+		).toBeUndefined();
+	});
 });
 
 describe("buildExtractionUserPrompt", () => {
@@ -31,7 +67,7 @@ describe("buildExtractionUserPrompt", () => {
 		});
 
 		expect(prompt).toContain(
-			"The source appears to contain 1 question. Register each distinct question exactly once, then stop.",
+			"The source appears to contain about 1 numbered question. Register each distinct question exactly once, then stop.",
 		);
 	});
 });

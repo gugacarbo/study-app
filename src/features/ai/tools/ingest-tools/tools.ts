@@ -145,6 +145,24 @@ async function notifyToolExecuted(
 
 const listExtractedQuestionsInputSchema = z.object({});
 
+const REVIEW_OMITTED_TOOLS = [
+	"add_extracted_question",
+	"list_extracted_questions",
+] as const;
+
+export function createIngestReviewTools(
+	workspace: ExtractionWorkspaceApi,
+	options?: IngestExtractionToolsOptions,
+): ToolSet {
+	const tools = createIngestExtractionTools(workspace, options);
+	return Object.fromEntries(
+		Object.entries(tools).filter(
+			([name]) =>
+				!(REVIEW_OMITTED_TOOLS as readonly string[]).includes(name),
+		),
+	);
+}
+
 export function createIngestExtractionTools(
 	workspace: ExtractionWorkspaceApi,
 	options?: IngestExtractionToolsOptions,

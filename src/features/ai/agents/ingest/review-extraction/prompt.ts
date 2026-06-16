@@ -1,5 +1,7 @@
 import type { Question } from "@/lib/validation";
 import { INGEST_STAGE_STATUS_COMPLETION_PROMPT } from "@/features/ai/tools/ingest-stage-status";
+import type { ExtractionQuestionId } from "@/features/ai/tools/ingest-tools";
+import { formatExtractionQuestionId } from "@/features/ai/tools/ingest-tools";
 import { extractQuestionSourceSnippet } from "./source-snippet";
 
 function unique<T>(items: T[]): T[] {
@@ -21,24 +23,27 @@ export function deriveTopics(
 	);
 }
 
-const BASE_REVIEWER_SYSTEM_PROMPT = `You are a reviewer for a single extracted exam question.
+function buildReviewerSystemPromptBase(
+	workspaceQuestionId: ExtractionQuestionId,
+): string {
+	return `You are a reviewer for a single extracted exam question.
 Your only task is to verify and correct one question object while preserving the original language from the source text.
 
 Tool contract:
-- Use list_extracted_questions to inspect the current review workspace before making corrections.
+- The review workspace already contains this question as questionId "${workspaceQuestionId}". The user prompt includes a full snapshot — do not call list_extracted_questions.
 - Use update_extracted_question only when a field actually needs correction.
 - Use report_agent_stage_status once at the end to report the review outcome.
-- When calling update_extracted_question, include only the fields you are changing. Omit unchanged fields entirely — never send null.
+- When calling update_extracted_question, always pass questionId "${workspaceQuestionId}" and include only the fields you are changing. Omit unchanged fields entirely — never send null.
 - A call with only questionId and no field changes is a no-op.
 - Do not return a final JSON object yourself. The server will read the final reviewed question from the workspace.
 - Before calling report_agent_stage_status, reply with a brief plain-text summary (1–3 sentences) of what you checked and what you changed, or state that no changes were needed.
 - Do not output markdown, code fences, or JSON outside that final summary.
 
 Completion behavior:
-- Call list_extracted_questions at most once before deciding whether to update.
+- Compare the snapshot and source excerpt in the user prompt against the workspace question.
 - After one successful update_extracted_question call, stop calling workspace tools and report the stage status.
 - If the question is already correct, report the stage status without calling update_extracted_question.
-- Never call list_extracted_questions or update_extracted_question repeatedly in a loop.
+- Never call update_extracted_question repeatedly in a loop.
 
 ${INGEST_STAGE_STATUS_COMPLETION_PROMPT}
 
@@ -48,9 +53,13 @@ Review rules:
 - For somatória or multi-statement V-F (numbered statements 01/02/04/08/16), each statement is one option and "answers" lists every correct statement's full text.
 - When you update a question, set "explanation" to "".
 - Do not invent extra fields or speculative corrections.`;
+}
 
-export function buildReviewerSystemPrompt(reviewTopics: string[]): string {
-	const sections = [BASE_REVIEWER_SYSTEM_PROMPT];
+export function buildReviewerSystemPrompt(
+	reviewTopics: string[],
+	workspaceQuestionId: ExtractionQuestionId,
+): string {
+	const sections = [buildReviewerSystemPromptBase(workspaceQuestionId)];
 
 	if (reviewTopics.length > 0) {
 		sections.push(`
@@ -87,26 +96,24 @@ export function buildReviewerUserPrompt(
 	question: Question,
 	index: number,
 ): string {
+	const workspaceQuestionId = formatExtractionQuestionId(index + 1);
 	const sourceExcerpt = extractQuestionSourceSnippet(sourceText, question);
 	const sourceSection = sourceExcerpt
 		? ["Source excerpt for this question only:", sourceExcerpt]
 		: [
 				"No matching source excerpt was found for this question.",
-				"Use the snapshot below and list_extracted_questions for the workspace copy.",
+				"Use the snapshot below as the workspace copy.",
 				"Use web_search when a critical-topic check needs external verification.",
 			];
 
 	return [
 		`Review extracted question #${index + 1}.`,
-		`The question already exists in the workspace as questionId "q1".`,
+		`The question already exists in the workspace as questionId "${workspaceQuestionId}".`,
 		"",
 		"Workflow:",
-		"- Inspect the workspace with list_extracted_questions.",
-		"- Compare the workspace question against the snapshot and source excerpt below.",
-		"- Call update_extracted_question only for fields that need correction. Omit unchanged fields; never pass null.",
+		`- Compare the snapshot and source excerpt below against the workspace question (questionId "${workspaceQuestionId}").`,
+		`- Call update_extracted_question with questionId "${workspaceQuestionId}" only for fields that need correction. Omit unchanged fields; never pass null.`,
 		"- If the question is already correct, report the stage status without calling update_extracted_question.",
-		"- Call list_extracted_questions at most once, then either update once or report the stage status.",
-		"- Never call update_extracted_question or list_extracted_questions repeatedly.",
 		"- End with a brief plain-text summary, then call report_agent_stage_status.",
 		"",
 		...formatQuestionSnapshot(question),
