@@ -137,6 +137,20 @@ export async function resolveModelConfigById(
 	return resolved;
 }
 
+export async function resolveChatModelConfig(
+	queries: DBQueries,
+	requestedModelId: number | null,
+): Promise<ResolvedModelConfig | null> {
+	try {
+		if (requestedModelId) {
+			return await resolveModelConfigById(queries, requestedModelId);
+		}
+		return await requireModelConfig(queries, "chat");
+	} catch {
+		return null;
+	}
+}
+
 export async function loadAiSettings(queries: DBQueries): Promise<AiSettings> {
 	const config = await queries.getAllConfig();
 	const agentModels = Object.fromEntries(

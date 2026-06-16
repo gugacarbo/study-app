@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadAiSettings, resolveModelConfig } from "#/lib/ai-config";
+import {
+	loadAiSettings,
+	resolveChatModelConfig,
+	resolveModelConfig,
+} from "#/lib/ai-config";
 import { agentModelConfigKey } from "#/lib/validation";
 import { encryptSecret } from "#/lib/config-encryption";
 
@@ -80,5 +84,20 @@ describe("resolveModelConfig", () => {
 		expect(settings.defaultModelId).toBe(3);
 		expect(settings.agentModels.chat).toBe(4);
 		expect(settings.agentModels.quiz).toBeNull();
+	});
+});
+
+describe("resolveChatModelConfig", () => {
+	it("returns null when chat model cannot be resolved", async () => {
+		const queries = {
+			getAllConfig: vi.fn().mockResolvedValue({}),
+			getResolvedAiModelById: vi.fn().mockResolvedValue(null),
+			listAiProviders: vi.fn().mockResolvedValue([]),
+			listEnabledAiModels: vi.fn().mockResolvedValue([]),
+		};
+
+		await expect(
+			resolveChatModelConfig(queries as never, null),
+		).resolves.toBeNull();
 	});
 });

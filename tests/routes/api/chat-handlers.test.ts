@@ -1,43 +1,160 @@
-import { describe, expect, it } from "vitest";
-import { readModelId } from "@/routes/api/chat/-handlers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DBQueries } from "@/db/queries";
+import { handleChatPost } from "@/routes/api/chat/-handlers";
 
-describe("readModelId", () => {
-	it("returns null when modelId is missing", () => {
-		expect(readModelId({})).toBeNull();
+const {
+	getDBMock,
+	loggedStreamTextMock,
+	resolveToolsForAgentMock,
+	resolveChatModelConfigMock,
+	convertToModelMessagesMock,
+} = vi.hoisted(() => ({
+	getDBMock: vi.fn(),
+	loggedStreamTextMock: vi.fn(),
+	resolveToolsForAgentMock: vi.fn(),
+	resolveChatModelConfigMock: vi.fn(),
+	convertToModelMessagesMock: vi.fn(),
+}));
+
+vi.mock("@/server-functions/db", () => ({
+	getDB: getDBMock,
+}));
+
+vi.mock("@/features/ai/core/logged-stream-text", () => ({
+	loggedStreamText: loggedStreamTextMock,
+}));
+
+vi.mock("@/features/ai/tools/tool-resolver", () => ({
+	resolveToolsForAgent: resolveToolsForAgentMock,
+}));
+
+vi.mock("@/lib/ai-config", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@/lib/ai-config")>();
+	return {
+		...actual,
+		resolveChatModelConfig: resolveChatModelConfigMock,
+	};
+});
+
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		convertToModelMessages: convertToModelMessagesMock,
+	};
+});
+
+vi.mock("@/lib/memory", () => ({
+	MemoryManager: class {
+		ensureStructure = vi.fn().mockResolvedValue(undefined);
+		saveWebResearch = vi.fn().mockResolvedValue(undefined);
+	},
+}));
+
+function createChatRequest(body: unknown): Request {
+	return new Request("http://localhost/api/chat", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+}
+
+const validBody = {
+	messages: [
+		{
+			id: "msg-1",
+			role: "user",
+			parts: [{ type: "text", text: "Hello" }],
+		},
+	],
+};
+
+describe("handleChatPost", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		getDBMock.mockResolvedValue({});
+		vi.spyOn(DBQueries.prototype, "getAllConfig").mockResolvedValue({});
+		resolveChatModelConfigMock.mockResolvedValue({
+			modelId: 1,
+			model: "test-model",
+			baseUrl: "https://example.com",
+			apiKey: "secret",
+			providerName: "test",
+			thinkingEffortLevels: [],
+			defaultThinkingEffort: null,
+			requestParams: {},
+		});
+		resolveToolsForAgentMock.mockReturnValue({ tools: {} });
+		convertToModelMessagesMock.mockResolvedValue([
+			{ role: "user", content: "Hello" },
+		]);
+		loggedStreamTextMock.mockReturnValue({
+			toUIMessageStreamResponse: vi.fn(
+				() =>
+					new Response("stream", {
+						status: 200,
+						headers: { "Content-Type": "text/event-stream" },
+					}),
+			),
+		});
 	});
 
-	it("returns null for non-numeric values", () => {
-		expect(readModelId({ modelId: "1" })).toBeNull();
-		expect(readModelId({ modelId: null })).toBeNull();
-		expect(readModelId({ modelId: true })).toBeNull();
-	});
-
-	it("returns null for invalid numbers", () => {
-		expect(readModelId({ modelId: 0 })).toBeNull();
-		expect(readModelId({ modelId: -1 })).toBeNull();
-		expect(readModelId({ modelId: Number.NaN })).toBeNull();
-		expect(readModelId({ modelId: Number.POSITIVE_INFINITY })).toBeNull();
-	});
-
-	it("reads modelId from body", () => {
-		expect(readModelId({ modelId: 7 })).toBe(7);
-	});
-
-	it("reads modelId from forwardedProps when body is missing", () => {
-		expect(readModelId({ forwardedProps: { modelId: 12 } })).toBe(12);
-	});
-
-	it("reads modelId from metadata as fallback", () => {
-		expect(readModelId({ metadata: { modelId: 42 } })).toBe(42);
-	});
-
-	it("prefers body modelId over forwardedProps and metadata", () => {
-		expect(
-			readModelId({
-				modelId: 1,
-				forwardedProps: { modelId: 2 },
-				metadata: { modelId: 3 },
+	it("returns 400 for invalid JSON", async () => {
+		const response = await handleChatPost(
+			new Request("http://localhost/api/chat", {
+				method: "POST",
+				body: "not-json",
 			}),
-		).toBe(1);
+		);
+
+		expect(response.status).toBe(400);
+		expect(await response.text()).toBe("Invalid chat request body");
+	});
+
+	it("returns 400 when messages are missing", async () => {
+		const response = await handleChatPost(createChatRequest({ messages: [] }));
+		expect(response.status).toBe(400);
+		expect(await response.text()).toBe("messages are required");
+	});
+
+	it("returns 500 when D1 is unavailable", async () => {
+		getDBMock.mockResolvedValue(null);
+
+		const response = await handleChatPost(createChatRequest(validBody));
+		expect(response.status).toBe(500);
+		expect(await response.text()).toBe("D1 database not available");
+	});
+
+	it("returns 400 when AI is not configured", async () => {
+		resolveChatModelConfigMock.mockResolvedValue(null);
+
+		const response = await handleChatPost(createChatRequest(validBody));
+		expect(response.status).toBe(400);
+		expect(await response.text()).toBe("AI provider not configured");
+	});
+
+	it("streams a response when configuration is valid", async () => {
+		const response = await handleChatPost(createChatRequest(validBody));
+
+		expect(response.status).toBe(200);
+		expect(loggedStreamTextMock).toHaveBeenCalledTimes(1);
+		expect(resolveChatModelConfigMock).toHaveBeenCalledWith(
+			expect.any(DBQueries),
+			null,
+		);
+	});
+
+	it("passes requested modelId to resolveChatModelConfig", async () => {
+		await handleChatPost(
+			createChatRequest({
+				...validBody,
+				modelId: 9,
+			}),
+		);
+
+		expect(resolveChatModelConfigMock).toHaveBeenCalledWith(
+			expect.any(DBQueries),
+			9,
+		);
 	});
 });

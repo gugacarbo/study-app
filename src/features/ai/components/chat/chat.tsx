@@ -14,6 +14,9 @@ import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { WELCOME } from "@/features/ai/components/chat/chat-utils";
 import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
 import { useEnabledAiModels } from "@/features/ai/hooks/use-enabled-models";
+import { errorToPipelineErrorState } from "@/features/ai/pipeline/client";
+import { PipelineErrorBanner } from "@/features/ai/pipeline/ui";
+import type { PipelineErrorState } from "@/features/ai/pipeline/types";
 import {
 	conversationsStore,
 	createConversationHistoryAdapter,
@@ -64,7 +67,7 @@ export function Chat() {
 	const [editingTitle, setEditingTitle] = useState(false);
 	const [titleDraft, setTitleDraft] = useState("");
 	const [reviewMode, setReviewMode] = useState(false);
-	const [chatError, setChatError] = useState<Error | undefined>();
+	const [chatError, setChatError] = useState<PipelineErrorState | null>(null);
 
 	useEffect(() => {
 		hydrateLayoutUIStore();
@@ -133,9 +136,11 @@ export function Chat() {
 						) : null}
 					</div>
 					{chatError ? (
-						<div className="shrink-0 border-t border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-							{chatError.message}
-						</div>
+						<PipelineErrorBanner
+							error={chatError}
+							onDismiss={() => setChatError(null)}
+							className="rounded-none border-x-0 border-b-0"
+						/>
 					) : null}
 				</main>
 			</SidebarProvider>
@@ -147,7 +152,7 @@ interface ChatConversationProps {
 	conversationId: string;
 	reviewMode: boolean;
 	onReviewModeChange: (value: boolean) => void;
-	onError: (error: Error | undefined) => void;
+	onError: (error: PipelineErrorState | null) => void;
 }
 
 function ChatConversation({
@@ -175,19 +180,25 @@ function ChatConversation({
 	const selectedModelIdRef = useRef(selectedModelId);
 	selectedModelIdRef.current = selectedModelId;
 
+	const onErrorRef = useRef(onError);
+	onErrorRef.current = onError;
+
 	const transport = useMemo(
 		() =>
 			new AssistantChatTransport({
 				api: "/api/chat",
-				prepareSendMessagesRequest: async (options) => ({
-					body: {
-						...(options.body as Record<string, unknown>),
-						messages: options.messages,
-						reviewMode: reviewModeRef.current,
-						conversationId: conversationIdRef.current,
-						modelId: selectedModelIdRef.current,
-					},
-				}),
+				prepareSendMessagesRequest: async (options) => {
+					onErrorRef.current(null);
+					return {
+						body: {
+							...(options.body as Record<string, unknown>),
+							messages: options.messages,
+							reviewMode: reviewModeRef.current,
+							conversationId: conversationIdRef.current,
+							modelId: selectedModelIdRef.current,
+						},
+					};
+				},
 			}),
 		[],
 	);
@@ -200,7 +211,7 @@ function ChatConversation({
 	const runtime = useChatRuntime({
 		transport,
 		adapters: { history: historyAdapter },
-		onError: (error) => onError(error),
+		onError: (error) => onError(errorToPipelineErrorState(error)),
 		onFinish: () => {
 			void flushConversationSave(conversationIdRef.current);
 		},

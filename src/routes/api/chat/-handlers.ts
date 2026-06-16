@@ -1,10 +1,10 @@
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import type { ToolJSONSchema } from "assistant-stream";
+import type { D1Database } from "@cloudflare/workers-types";
 import {
 	convertToModelMessages,
 	stepCountIs,
 	type ToolSet,
-	type UIMessage,
 } from "ai";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import { createLlmLogCallId, createLlmLogContext } from "@/lib/llm-logging";
@@ -13,70 +13,23 @@ import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
 import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-headers";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
+import {
+	resolveChatModelConfig,
+	type ResolvedModelConfig,
+} from "@/lib/ai-config";
 import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
-import { requireModelConfig, resolveModelConfigById } from "../../../lib/ai-config";
 import { MemoryManager } from "../../../lib/memory";
-import { summarizeSearchResultSnippets, toBoolean } from "./-tools";
+import {
+	parseChatRequest,
+	parseClientToolsFromRequest,
+	type ChatRequest,
+} from "./-schema";
+import { summarizeSearchResultSnippets } from "./-tools";
+
+export { readModelId, resolveChatModelId } from "./-schema";
 
 const AI_TIMEOUT_MS = 60_000;
-
-interface ChatRequestBody {
-	messages?: UIMessage[];
-	tools?:
-		| Record<string, ToolJSONSchema>
-		| Array<{
-				name: string;
-				description?: string;
-				parameters: ToolJSONSchema["parameters"];
-		  }>;
-	forwardedProps?: Record<string, unknown>;
-	reviewMode?: unknown;
-	modelId?: unknown;
-	metadata?: Record<string, unknown>;
-}
-
-function parseChatRequestBody(body: unknown): ChatRequestBody {
-	if (!body || typeof body !== "object") {
-		throw new Response("Invalid chat request body", { status: 400 });
-	}
-	return body as ChatRequestBody;
-}
-
-function parseClientTools(
-	body: ChatRequestBody,
-): Record<string, ToolJSONSchema> {
-	if (!body.tools) return {};
-
-	if (Array.isArray(body.tools)) {
-		return Object.fromEntries(
-			body.tools.map((tool) => [
-				tool.name,
-				{
-					...(tool.description !== undefined
-						? { description: tool.description }
-						: {}),
-					parameters: tool.parameters,
-				},
-			]),
-		);
-	}
-
-	return body.tools;
-}
-
-function readReviewMode(body: ChatRequestBody): boolean {
-	return toBoolean(
-		body.forwardedProps?.reviewMode ?? body.reviewMode ?? body.metadata?.reviewMode,
-	);
-}
-
-export function readModelId(body: ChatRequestBody): number | null {
-	const value = body.modelId ?? body.forwardedProps?.modelId ?? body.metadata?.modelId;
-	if (typeof value !== "number") return null;
-	if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) return null;
-	return value;
-}
 
 function mergeChatTools(
 	serverTools: ToolSet,
@@ -90,45 +43,20 @@ function mergeChatTools(
 	};
 }
 
-export async function handleChatPost(request: Request): Promise<Response> {
-	const { getDB } = await import("../../../server-functions/db");
-
-	let body: ChatRequestBody;
-	try {
-		body = parseChatRequestBody(await request.json());
-	} catch (error) {
-		if (error instanceof Response) return error;
-		return new Response("Invalid chat request body", { status: 400 });
-	}
-
-	const messages = body.messages;
-	if (!Array.isArray(messages) || messages.length === 0) {
-		return new Response("messages are required", { status: 400 });
-	}
-
-	const db = await getDB();
-	if (!db) {
-		return new Response("D1 database not available", { status: 500 });
-	}
-
-	const queries = new DBQueries(db);
-	const config = await queries.getAllConfig();
-
-	let providerConfig: Awaited<ReturnType<typeof requireModelConfig>>;
-	const requestedModelId = readModelId(body);
-	try {
-		providerConfig = requestedModelId
-			? await resolveModelConfigById(queries, requestedModelId)
-			: await requireModelConfig(queries, "chat");
-	} catch {
-		return new Response("AI provider not configured", { status: 400 });
-	}
-
-	const reviewMode = readReviewMode(body);
-
-	console.log(
-		`[api.chat] POST model="${providerConfig.model}" baseUrl="${providerConfig.baseUrl}" messages=${messages.length} reviewMode=${reviewMode}`,
-	);
+async function runChatStream({
+	request,
+	body,
+	providerConfig,
+	queries,
+	db,
+}: {
+	request: Request;
+	body: ChatRequest;
+	providerConfig: ResolvedModelConfig;
+	queries: DBQueries;
+	db: D1Database;
+}): Promise<Response> {
+	const { messages, reviewMode, conversationId } = body;
 
 	const abortController = new AbortController();
 	const timeoutHandle = setTimeout(() => {
@@ -146,6 +74,7 @@ export async function handleChatPost(request: Request): Promise<Response> {
 	};
 	request.signal.addEventListener("abort", onAbort, { once: true });
 
+	const config = await queries.getAllConfig();
 	const memory = new MemoryManager(db);
 	void memory.ensureStructure().catch((error) => {
 		console.warn(
@@ -170,7 +99,8 @@ export async function handleChatPost(request: Request): Promise<Response> {
 							query: input.query,
 							summary: summarizeSearchResultSnippets(output.results),
 							sources: output.results.map((result) => result.url),
-							conclusion: "Search results collected for factual verification.",
+							conclusion:
+								"Search results collected for factual verification.",
 							context: "chat",
 						});
 					} catch (error) {
@@ -207,7 +137,7 @@ export async function handleChatPost(request: Request): Promise<Response> {
 
 	const tools = mergeChatTools(
 		resolvedTools.tools,
-		parseClientTools(body),
+		parseClientToolsFromRequest(body),
 	);
 
 	const chatSystemPrompt = buildChatSystemPrompt({ reviewMode });
@@ -220,6 +150,7 @@ export async function handleChatPost(request: Request): Promise<Response> {
 			requestSummary: `${messages.length} messages`,
 			metadata: {
 				reviewMode,
+				conversationId,
 				...(body.metadata ?? {}),
 			},
 		}),
@@ -239,5 +170,45 @@ export async function handleChatPost(request: Request): Promise<Response> {
 		originalMessages: messages,
 		headers: mergeStreamResponseHeaders(),
 		onFinish: cleanup,
+	});
+}
+
+export async function handleChatPost(request: Request): Promise<Response> {
+	const { getDB } = await import("../../../server-functions/db");
+
+	let payload: unknown;
+	try {
+		payload = await request.json();
+	} catch {
+		return new Response("Invalid chat request body", { status: 400 });
+	}
+
+	const parsed = parseChatRequest(payload);
+	if (!parsed.ok) return parsed.response;
+
+	const { data: body } = parsed;
+	const { messages, reviewMode, modelId, conversationId } = body;
+
+	const db = await getDB();
+	if (!db) {
+		return new Response("D1 database not available", { status: 500 });
+	}
+
+	const queries = new DBQueries(db);
+	const providerConfig = await resolveChatModelConfig(queries, modelId);
+	if (!providerConfig) {
+		return new Response("AI provider not configured", { status: 400 });
+	}
+
+	console.log(
+		`[api.chat] POST model="${providerConfig.model}" baseUrl="${providerConfig.baseUrl}" messages=${messages.length} reviewMode=${reviewMode}${conversationId ? ` conversationId=${conversationId}` : ""}`,
+	);
+
+	return runChatStream({
+		request,
+		body,
+		providerConfig,
+		queries,
+		db,
 	});
 }

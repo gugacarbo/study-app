@@ -5,12 +5,14 @@ import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 
 const logs: PipelineLogEntry[] = [
 	{
+		id: "log-1",
 		level: "info",
 		message: "Starting extraction",
 		timestamp: 1,
 		stageId: "extract",
 	},
 	{
+		id: "log-2",
 		level: "warning",
 		message: "Agent token stream",
 		timestamp: 2,
@@ -48,6 +50,7 @@ describe("PipelineLogsPanel", () => {
 				logs={[
 					...logs,
 					{
+						id: "log-3",
 						level: "info",
 						message: "Review pass started",
 						timestamp: 3,
