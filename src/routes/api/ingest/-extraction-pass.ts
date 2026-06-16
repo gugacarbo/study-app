@@ -173,7 +173,9 @@ export async function runExtractionPass(
 				system: systemPrompt,
 				messages: [{ role: "user", content: userPrompt }],
 				tools: tools as ToolSet,
-				stopWhen: buildIngestExtractionStopWhen(INGEST_EXTRACTION_MAX_STEPS),
+				stopWhen: buildIngestExtractionStopWhen(INGEST_EXTRACTION_MAX_STEPS, {
+					expectedQuestionCount,
+				}),
 				prepareStep: buildExtractionPrepareStep(workspace, {
 					expectedQuestionCount,
 					shouldFinalize: () => stoppedAfterDuplicateAdd,

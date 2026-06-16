@@ -168,11 +168,24 @@ export function buildExtractionPrepareStep(
 	};
 }
 
-export function buildIngestExtractionStopWhen(maxSteps: number) {
-	return [
+export function buildIngestExtractionStopWhen(
+	maxSteps: number,
+	options?: { expectedQuestionCount?: number },
+) {
+	const conditions: Array<StopCondition<ToolSet>> = [
 		stepCountIs(maxSteps),
 		ingestStageStatusReported,
-	] satisfies Array<StopCondition<ToolSet>>;
+		ingestExtractionDuplicateAddDetected,
+		repeatedToolCallInLastSteps("list_extracted_questions"),
+	];
+
+	if (options?.expectedQuestionCount != null) {
+		conditions.push(
+			ingestExtractionTargetReached(options.expectedQuestionCount),
+		);
+	}
+
+	return conditions;
 }
 
 export function buildIngestReviewStopWhen(maxSteps: number) {
