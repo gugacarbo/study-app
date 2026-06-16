@@ -7,6 +7,17 @@ import { defineConfig } from "vite";
 
 const config = defineConfig({
 	resolve: { tsconfigPaths: true },
+	server: {
+		watch: {
+			ignored: [
+				"**/.git/**",
+				"**/node_modules/**",
+				"**/dist/**",
+				"**/.agents/**",
+				"**/migrations/**",
+			],
+		},
+	},
 	plugins: [
 		devtools(),
 		cloudflare({ viteEnvironment: { name: "ssr" } }),
