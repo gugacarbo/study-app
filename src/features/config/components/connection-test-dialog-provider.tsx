@@ -10,7 +10,6 @@ import {
 } from "react";
 import { TestConnectionDialog } from "@/features/ai/components/config/test-connection-dialog";
 import type { TestStatus } from "@/features/ai/components/config/use-connection-test";
-import { buildConnectionTestMessages } from "@/features/ai/lib/connection-test-stream";
 import {
 	backgroundProcessStore,
 	isConnectionTestProcess,
@@ -192,11 +191,12 @@ export function ConnectionTestDialogProvider({
 
 	const testStatus = processToTestStatus(process);
 	const testMessages = useMemo(() => {
-		if (process && isModelBenchmarkProcess(process)) {
+		if (!process) return [];
+		if (isModelBenchmarkProcess(process)) {
 			return process.messages;
 		}
-		if (process && isConnectionTestProcess(process) && process.prompt.trim()) {
-			return buildConnectionTestMessages(process.prompt, process.response);
+		if (isConnectionTestProcess(process)) {
+			return process.messages;
 		}
 		return [];
 	}, [process]);
@@ -233,6 +233,8 @@ export function ConnectionTestDialogProvider({
 				testStatus={testStatus}
 				testProgress={process?.progress ?? 0}
 				testStep={process?.step ?? ""}
+				stepText={process?.stepText}
+				logs={process?.logs ?? []}
 				testMessages={testMessages}
 				tokenTotals={process?.tokenTotals ?? null}
 				streamMetrics={process?.streamMetrics ?? null}

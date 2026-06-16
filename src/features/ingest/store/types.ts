@@ -18,16 +18,9 @@ export interface FlowStage {
 	meta?: Record<string, unknown>;
 }
 
-export type IngestLogLevel = "info" | "warning" | "error";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 
-export interface IngestLogEntry {
-	id: string;
-	timestamp: number;
-	stageId: string | null;
-	agentRunId: string | null;
-	level: IngestLogLevel;
-	message: string;
-}
+export type { PipelineLogEntry };
 
 export interface IngestOutputEntry {
 	id: string;
@@ -154,7 +147,7 @@ export interface IngestJob {
 	startedAt: number | null;
 	finishedAt: number | null;
 	stepText: string;
-	logs: IngestLogEntry[];
+	logs: PipelineLogEntry[];
 	outputEntries: IngestOutputEntry[];
 	agentRuns: IngestAgentRun[];
 	tokenTotals: TokenTotals;
@@ -162,7 +155,7 @@ export interface IngestJob {
 	warnings: string[];
 	result: IngestResultEvent | null;
 	error: string | null;
-	flowStages: FlowStage[];
+	stages: FlowStage[];
 	buffer: number[];
 	enableReview: boolean;
 	enableExplanations: boolean;

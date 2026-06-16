@@ -6,13 +6,13 @@ import type {
 	BenchmarkPhaseMetrics,
 	StreamPerfMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
-import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
+import type { AgentRunState } from "@/features/ai/pipeline/client";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import type {
 	FlowStage,
 	IngestAgentRun,
 	IngestJob,
-	IngestLogEntry,
 	IngestOutputEntry,
 	IngestResultEvent,
 	TokenTotals,
@@ -54,7 +54,7 @@ export interface IngestBackgroundProcess {
 	startedAt: number | null;
 	finishedAt: number | null;
 	stepText: string;
-	logs: IngestLogEntry[];
+	logs: PipelineLogEntry[];
 	outputEntries: IngestOutputEntry[];
 	agentRuns: IngestAgentRun[];
 	tokenTotals: TokenTotals;
@@ -62,7 +62,7 @@ export interface IngestBackgroundProcess {
 	warnings: string[];
 	result: IngestResultEvent | null;
 	error: string | null;
-	flowStages: FlowStage[];
+	stages: FlowStage[];
 	buffer: number[];
 	enableReview: boolean;
 	enableExplanations: boolean;
@@ -83,6 +83,8 @@ export interface ImproveQuestionsBackgroundProcess {
 	isStreaming: boolean;
 	streamError: string | null;
 	phase: ImproveQuestionsRunPhase;
+	logs: PipelineLogEntry[];
+	stepText: string;
 }
 
 export type ExplainQuestionRunPhase =
@@ -109,6 +111,8 @@ export interface ExplainQuestionBackgroundProcess {
 	phase: ExplainQuestionRunPhase;
 	createdAt: number;
 	finishedAt: number | null;
+	logs: PipelineLogEntry[];
+	stepText: string;
 }
 
 export interface ConnectionTestBackgroundProcess {
@@ -123,8 +127,11 @@ export interface ConnectionTestBackgroundProcess {
 	finishedAt: number | null;
 	progress: number;
 	step: string;
+	stepText: string;
+	logs: PipelineLogEntry[];
 	prompt: string;
 	response: string;
+	messages: UIMessage[];
 	error: string | null;
 	tokenTotals: TokenTotals | null;
 	streamMetrics: StreamPerfMetrics;
@@ -143,6 +150,8 @@ export interface ModelBenchmarkBackgroundProcess {
 	finishedAt: number | null;
 	progress: number;
 	step: string;
+	stepText: string;
+	logs: PipelineLogEntry[];
 	error: string | null;
 	tokenTotals: TokenTotals | null;
 	streamMetrics: StreamPerfMetrics;

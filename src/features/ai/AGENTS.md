@@ -1,8 +1,8 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-15 (explain-question review agent + spell tools) -->
+<!-- Last updated: 2026-06-16 (pipeline module unification) -->
 
-Domain-driven AI integration layer. 60+ files across 12 subdirectories.
+Domain-driven AI integration layer. 60+ files across 13 subdirectories.
 
 ## Structure
 
@@ -15,13 +15,17 @@ features/ai/
 │   │   └── explain-question/ # Standalone explain-question job agent (review + apply)
 │   ├── quiz/        # Quiz agent (question generation)
 │   └── reviewer/    # Reviewer agent (critical-topic verification)
+├── pipeline/        # Unified job pipeline (server, client, UI) — see Pipeline cookbook
+│   ├── server/      # createJobApiRoute, runPipelineStage, runPipelineToolAgent, …
+│   ├── client/      # runJobPipeline, reducers, error helpers
+│   └── ui/          # PipelineThread, PipelineLogsPanel, PipelineErrorBanner, …
 ├── core/            # Core generation + UI Message Stream helpers
 ├── adapters/        # Provider model + provider options
 ├── providers/       # Web search/content providers (Tavily)
 ├── tools/           # Tool registry, resolver, DB + web, ingest extraction tools
-│   ├── ingest-tools/ # Ingest extraction workspace + tools (add_extracted_question, update_extracted_question)
+│   ├── ingest-tools/ # Ingest extraction workspace + tools
 ├── components/      # AI-related UI (chat, config, exam-detail)
-├── hooks/           # AI-specific hooks (readonly runtime, auto-title)
+├── hooks/           # AI-specific hooks (auto-title)
 ├── stores/          # Conversations store (TanStack Store)
 ├── lib/             # Job stream client, stream response headers
 ├── types/           # UI Message data parts
@@ -69,6 +73,81 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`core/stream-text-compat.ts`** — `streamTextWithCompatibilityFallback` for providers missing text stream parts
 - **`lib/read-job-ui-message-stream.ts`** — `consumeJobStream()` client for UI Message Stream jobs
 
+## Pipeline cookbook
+
+All long-running AI jobs (ingest, improve-questions, explain-question, test-connection, model-benchmark) use `src/features/ai/pipeline/`. Import from `@/features/ai/pipeline` (barrel) or subpaths `pipeline/server`, `pipeline/client`, `pipeline/ui`.
+
+### Server (minimal route)
+
+```typescript
+export const Route = createFileRoute("/api/my-job/")({
+  server: {
+    handlers: {
+      POST: createJobApiRoute({
+        schema: mySchema,
+        logTag: "my-job",
+        run: async ({ writer, data, agentRuns, log }) => {
+          await runPipelineStage(
+            writer,
+            { stageId: "my_stage", label: "My Agent" },
+            async () => {
+              const run = agentRuns.createRun("my_stage", "My Agent");
+              const emit = createAgentEventEmitter(agentRuns, run);
+              const { tools } = resolveToolsForAgent({ agent: "my_agent", /* … */ });
+              const result = await runPipelineToolAgent({
+                scope: "my-job",
+                stageId: "my_stage",
+                config,
+                run,
+                emit,
+                systemPrompt: buildSystemPrompt(data),
+                messages: [{ role: "user", content: buildUserPrompt(data) }],
+                tools,
+                stopWhen: stepCountIs(MY_MAX_STEPS),
+                isSuccess: ({ streamState }) => streamState.rawText.length > 0,
+              });
+              if (!result.success) throw new Error(result.reason ?? "Agent failed");
+              writeJobResult(writer, { /* domain payload */ });
+              return "done";
+            },
+          );
+        },
+      }),
+    },
+  },
+});
+```
+
+### Client
+
+```typescript
+await runJobPipeline({
+  request: { url: "/api/my-job", init: { method: "POST", body } },
+  handlers: createSingleAgentRunHandlers({
+    onStateChange: batcher.queue,
+    onResult: finishJob,
+  }),
+});
+```
+
+Multi-agent jobs use `multiAgentRunReducer`; ingest uses `ingestPipelineReducer` + `createIngestPipelineReducer`.
+
+### UI
+
+```tsx
+<PipelineErrorBanner error={resolvePipelineError(process)} />
+<PipelineStatusBar stepText={process.stepText} isRunning={isStreaming} />
+<PipelineThread
+  messages={state.messages}
+  isRunning={isStreaming}
+  mode="readonly"
+  layout="panel"
+/>
+<PipelineLogsPanel logs={process.logs} stepText={process.stepText} compact />
+```
+
+Use `usePipelineAssistantRuntime` when wiring assistant-ui thread state from pipeline messages.
+
 ## Providers
 
 - **`providers/web/tavily-search.ts`** — Tavily web search integration
@@ -88,7 +167,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 - **Agent isolation:** Each agent has its own system prompt + domain logic — don't mix
 - **Tool resolution:** `resolveToolsForAgent()` determines which tools each agent gets
-- **UI Message Stream:** Chat (`/api/chat`) and jobs (ingest, improve-questions, explain-question, test-connection, test-model-benchmark) use AI SDK v6 streams with typed `data-*` parts
+- **UI Message Stream:** Chat (`/api/chat`) and jobs use AI SDK v6 streams with typed `data-*` parts; job UIs consume via `pipeline/client` + `pipeline/ui`
 - **Benchmark tools:** `tools/benchmark-tools.ts` — synthetic tools for `/api/test-model-benchmark` (add_numbers, echo, delay_ms)
 - **Provider abstraction:** `getAiModel()` + `buildProviderOptions()` — swap providers without changing agents
 - **Store:** `conversations-store/` for multi-conversation chat; persisted server-side via `server-functions/chat-conversations` (D1 index + R2 `chats/{id}.json` in `MEMORY_BUCKET`); runtime loads last `CHAT_RUNTIME_MESSAGE_LIMIT` messages

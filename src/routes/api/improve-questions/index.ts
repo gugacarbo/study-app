@@ -5,21 +5,14 @@ import {
 	improveSingleQuestion,
 	IMPROVE_QUESTIONS_STAGE_ID,
 } from "@/features/ai/agents/improve-questions";
-import type {
-	DraftQuestion,
-	ImproveQuestionsAgentEvent,
-} from "@/features/ai/agents/improve-questions/contracts";
+import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
 import { toWorkspaceUpdateDataPart } from "@/features/ai/agents/improve-questions/contracts";
 import {
-	createAgentRunWriter,
-	createJobUIMessageStream,
-	createJobUIMessageStreamResponse,
-	writeJobError,
 	writeJobResult,
 	writeWorkspaceUpdate,
-	type AgentRunDescriptor,
-	type JobUIMessageStreamWriter,
 } from "@/features/ai/core/ui-message-job-stream";
+import { createAgentEventEmitter } from "@/features/ai/pipeline/server/agent-emitter";
+import { createJobApiRoute } from "@/features/ai/pipeline/server/create-job-api-route";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { env } from "@/env";
 
@@ -93,199 +86,109 @@ function toDraftQuestion(question: {
 	};
 }
 
-function emitImproveAgentEvent(
-	agentRuns: ReturnType<typeof createAgentRunWriter>,
-	run: AgentRunDescriptor,
-	event: ImproveQuestionsAgentEvent,
-): void {
-	switch (event.eventType) {
-		case "lifecycle":
-			agentRuns.lifecycle(run, event.status ?? "running", {
-				systemPrompt: event.systemPrompt,
-				userPrompt: event.userPrompt,
-				error: event.error,
-				meta: event.meta,
-			});
-			return;
-		case "result":
-			agentRuns.result(run, event.finalObject, event.rawText, event.meta);
-			return;
-		case "warning":
-			agentRuns.warning(run, event.warning ?? "Warning", event.meta);
-			return;
-		case "token":
-			if (typeof event.rawText === "string" && event.rawText.length > 0) {
-				if (event.meta?.kind === "reasoning") {
-					agentRuns.reasoningDelta(run, event.rawText);
-				} else {
-					agentRuns.textDelta(run, event.rawText);
-				}
-				return;
-			}
-			agentRuns.token(run, event.tokens, event.meta);
-			return;
-		case "tool-call":
-			agentRuns.toolCall(
-				run,
-				{
-					name: event.name,
-					arguments: event.arguments,
-					input: event.input,
-					output: event.output,
-					state: event.state,
-				},
-				event.meta,
-			);
-			return;
-		case "tool-result":
-			agentRuns.toolResult(
-				run,
-				{
-					content: event.content,
-					error: event.error,
-					state: event.state,
-				},
-				event.meta,
-			);
-	}
-}
-
-async function runImproveQuestions(
-	questionId: number,
-	writer: JobUIMessageStreamWriter,
-	options?: {
-		followUpMessage?: string;
-		draftQuestion?: DraftQuestion;
-		conversationHistory?: Array<{
-			role: "user" | "assistant";
-			content: string;
-		}>;
-	},
-): Promise<void> {
-	const { getDB } = await import("@/server-functions/db");
-	const db = await getDB();
-	if (!db) {
-		throw new Error("D1 database not available");
-	}
-
-	const queries = new DBQueries(db);
-	const questionRow = await queries.getQuestionById(questionId);
-	if (!questionRow) {
-		throw new Error(`Question ${questionId} was not found`);
-	}
-
-	const config = await queries.getAllConfig();
-	const { requireModelConfig } = await import("@/lib/ai-config");
-	const providerConfig = await requireModelConfig(queries, "improve_questions");
-
-	const draftQuestion =
-		options?.draftQuestion ?? toDraftQuestion(questionRow);
-	const agentRuns = createAgentRunWriter(writer);
-	const run = agentRuns.createRun(IMPROVE_QUESTIONS_STAGE_ID, "Improve Question");
-
-	const resolvedTools = resolveToolsForAgent({
-		agent: "improve_questions",
-		config,
-		context: {
-			queries,
-			providerConfig,
-			tavilyApiKey: env.TAVILY_API_KEY,
-			onWarning: (message) => {
-				agentRuns.warning(run, message);
-			},
-		},
-	});
-
-	if (resolvedTools.tools.check_spelling) {
-		const { warmPtBrSpellChecker } = await import(
-			"@/features/ai/tools/spell-tools"
-		);
-		try {
-			await warmPtBrSpellChecker();
-		} catch (error) {
-			console.warn("Spell checker warmup failed:", error);
-			agentRuns.warning(
-				run,
-				"Spell checker warmup failed. check_spelling may be unavailable.",
-			);
-		}
-	}
-
-	const result = await improveSingleQuestion(providerConfig, draftQuestion, {
-		tools: resolvedTools.tools,
-		createAgentRunId: () => run.agentRunId,
-		onAgentEvent: (event) => {
-			emitImproveAgentEvent(agentRuns, run, event);
-		},
-		onWorkspaceUpdate: (update) => {
-			writeWorkspaceUpdate(writer, toWorkspaceUpdateDataPart(update));
-		},
-		...(options?.followUpMessage && options.conversationHistory
-			? {
-					followUp: {
-						message: options.followUpMessage,
-						history: options.conversationHistory,
-					},
-				}
-			: {}),
-	});
-
-	if (!result.success) {
-		writeJobError(writer, { message: result.reason, agentRunId: run.agentRunId });
-		return;
-	}
-
-	writeJobResult(writer, {
-		finalQuestion: result.question,
-		agentRun: result.agentRun,
-	});
-}
-
 export const Route = createFileRoute("/api/improve-questions/")({
 	server: {
 		handlers: {
-			POST: async ({ request }: { request: Request }) => {
-				const payloadRaw = await request.json().catch(() => null);
-				const parsed = improveQuestionsRequestSchema.safeParse(payloadRaw);
-				if (!parsed.success) {
-					return new Response(
-						JSON.stringify({
-							error: "Invalid improve-questions payload",
-							details: parsed.error.issues,
-						}),
+			POST: createJobApiRoute({
+				schema: improveQuestionsRequestSchema,
+				logTag: "improve-questions-handler",
+				run: async ({ writer, data, agentRuns, ctx, log }) => {
+					const { getDB } = await import("@/server-functions/db");
+					const db = await getDB();
+					if (!db) {
+						throw new Error("D1 database not available");
+					}
+
+					const queries = new DBQueries(db);
+					const questionRow = await queries.getQuestionById(data.questionId);
+					if (!questionRow) {
+						throw new Error(`Question ${data.questionId} was not found`);
+					}
+
+					const config = await queries.getAllConfig();
+					const { requireModelConfig } = await import("@/lib/ai-config");
+					const providerConfig = await requireModelConfig(
+						queries,
+						"improve_questions",
+					);
+
+					const draftQuestion =
+						data.draftQuestion ?? toDraftQuestion(questionRow);
+					const run = agentRuns.createRun(
+						IMPROVE_QUESTIONS_STAGE_ID,
+						"Improve Question",
+					);
+					ctx.stageId = run.stageId;
+					ctx.agentRunId = run.agentRunId;
+
+					const emit = createAgentEventEmitter(agentRuns, run, {
+						onWarning: (message) => log.warning(message),
+					});
+
+					const resolvedTools = resolveToolsForAgent({
+						agent: "improve_questions",
+						config,
+						context: {
+							queries,
+							providerConfig,
+							tavilyApiKey: env.TAVILY_API_KEY,
+							onWarning: (message) => {
+								log.warning(message, { agentRunId: run.agentRunId });
+								agentRuns.warning(run, message);
+							},
+						},
+					});
+
+					if (resolvedTools.tools.check_spelling) {
+						const { warmPtBrSpellChecker } = await import(
+							"@/features/ai/tools/spell-tools"
+						);
+						try {
+							await warmPtBrSpellChecker();
+						} catch (error) {
+							console.warn("Spell checker warmup failed:", error);
+							const message =
+								"Spell checker warmup failed. check_spelling may be unavailable.";
+							log.warning(message, { agentRunId: run.agentRunId });
+							agentRuns.warning(run, message);
+						}
+					}
+
+					const result = await improveSingleQuestion(
+						providerConfig,
+						draftQuestion,
 						{
-							status: 400,
-							headers: { "Content-Type": "application/json" },
+							tools: resolvedTools.tools,
+							emit,
+							createAgentRunId: () => run.agentRunId,
+							onWorkspaceUpdate: (update) => {
+								writeWorkspaceUpdate(
+									writer,
+									toWorkspaceUpdateDataPart(update),
+								);
+							},
+							...(data.followUpMessage && data.conversationHistory
+								? {
+										followUp: {
+											message: data.followUpMessage,
+											history: data.conversationHistory,
+										},
+									}
+								: {}),
 						},
 					);
-				}
 
-				const stream = createJobUIMessageStream({
-					execute: async ({ writer }) => {
-						try {
-							await runImproveQuestions(parsed.data.questionId, writer, {
-								followUpMessage: parsed.data.followUpMessage,
-								draftQuestion: parsed.data.draftQuestion,
-								conversationHistory: parsed.data.conversationHistory,
-							});
-						} catch (error) {
-							console.error(
-								`[${new Date().toISOString()} ERROR improve-questions-handler] Improve question failed:`,
-								error,
-								`questionId=${parsed.data.questionId}`,
-							);
-							writeJobError(writer, {
-								message:
-									error instanceof Error
-										? error.message
-										: "Unknown improve-questions error",
-							});
-						}
-					},
-				});
+					if (!result.success) {
+						log.error(result.reason, { agentRunId: run.agentRunId });
+						throw new Error(result.reason);
+					}
 
-				return createJobUIMessageStreamResponse(stream);
-			},
+					writeJobResult(writer, {
+						finalQuestion: result.question,
+						agentRun: result.agentRun,
+					});
+				},
+			}),
 		},
 	},
 } as never);

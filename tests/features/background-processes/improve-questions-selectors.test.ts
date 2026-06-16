@@ -64,6 +64,8 @@ describe("improve-questions selectors", () => {
 			isStreaming: true,
 			streamError: null,
 			phase: "running" as const,
+			logs: [],
+			stepText: "",
 		};
 
 		const left = selectImproveQuestionsExamViews(createState([baseProcess]), 10);

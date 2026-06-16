@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
-import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
+import { usePipelineAssistantRuntime } from "@/features/ai/pipeline/ui";
 import {
 	useLiveAgentMessages,
 	useLiveAgentRun,
@@ -69,9 +69,10 @@ export function AgentRunDetailDialog({
 	);
 	const hasRawTab = rawData != null;
 	const rawTranscript = buildRawTranscript(visibleMessages, response);
-	const runtime = useReadOnlyAssistantRuntime({
+	const runtime = usePipelineAssistantRuntime({
 		messages: visibleMessages,
 		isRunning,
+		mode: "readonly",
 	});
 
 	useEffect(() => {

@@ -1,10 +1,16 @@
 import { flushSync } from "react-dom";
-import type {
-	IngestAgentEvent,
-	IngestStageEvent,
-} from "@/features/ingest/store/types";
-import { queryClient } from "@/routes/__root";
+import {
+	createIngestPipelineReducer,
+	createIngestPipelineState,
+	createRafProcessBatcher,
+	ingestPipelineReducerHandlers,
+	isAbortError,
+	runJobPipeline,
+	type IngestPipelineState,
+} from "@/features/ai/pipeline/client";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { IngestJob } from "@/features/ingest/store/types";
+import { queryClient } from "@/routes/__root";
 import {
 	clearCompletedIngestProcessesFromState,
 	trimCompletedIngestProcesses,
@@ -28,21 +34,25 @@ import {
 	ingestProcessToJob,
 	isIngestProcess,
 } from "../../store/types";
-import {
-	appendChunkToAgentRun,
-	appendLogEntry,
-	appendReasoningToAgentRun,
-	appendToolCallToAgentRun,
-	appendToolResultToAgentRun,
-	applyChunkEvent,
-	applyTokenEvent,
-	applyWarningEvent,
-	createEmptyJob,
-	syncJobTokenTotals,
-	updateFlowStages,
-	upsertAgentRun,
-	ingestJobStream,
-} from "./job-utils";
+import { createEmptyJob } from "./job-utils";
+
+type IngestStorePatch = Partial<
+	Pick<
+		IngestJob,
+		| "status"
+		| "startedAt"
+		| "finishedAt"
+		| "stepText"
+		| "logs"
+		| "agentRuns"
+		| "tokenTotals"
+		| "nonAgentTokenTotals"
+		| "warnings"
+		| "result"
+		| "error"
+		| "stages"
+	>
+>;
 
 function resolveProcessId(jobId: string): string {
 	return ingestProcessId(jobId);
@@ -50,10 +60,6 @@ function resolveProcessId(jobId: string): string {
 
 function generateId(): string {
 	return ingestProcessId(crypto.randomUUID());
-}
-
-function isAbortError(err: unknown): boolean {
-	return err instanceof DOMException && err.name === "AbortError";
 }
 
 function updateIngestProcess(
@@ -73,210 +79,181 @@ function getIngestProcess(processId: string): IngestBackgroundProcess | null {
 	return process && isIngestProcess(process) ? process : null;
 }
 
+function pipelineStateToPatch(
+	state: IngestPipelineState,
+): Omit<IngestStorePatch, "logs"> {
+	return {
+		stages: state.stages,
+		agentRuns: state.agentRuns,
+		stepText: state.stepText,
+		tokenTotals: state.tokenTotals,
+		nonAgentTokenTotals: state.nonAgentTokenTotals,
+		warnings: state.warnings,
+		result: state.result,
+	};
+}
+
+function applyProcessLog(
+	job: IngestJob,
+	entry: PipelineLogEntry,
+): Pick<IngestJob, "logs" | "stepText"> {
+	return {
+		logs: [...job.logs, entry],
+		stepText: entry.agentRunId ? job.stepText : entry.message,
+	};
+}
+
+function finalizeRunningStages(stages: IngestJob["stages"]) {
+	return stages.map((stage) =>
+		stage.status === "running"
+			? { ...stage, status: "done" as const, timestamp: Date.now() }
+			: stage,
+	);
+}
+
+function markRunningStagesError(stages: IngestJob["stages"]) {
+	return stages.map((stage) =>
+		stage.status === "running"
+			? { ...stage, status: "error" as const, timestamp: Date.now() }
+			: stage,
+	);
+}
+
+function createIngestBatcher(processId: string) {
+	return createRafProcessBatcher<IngestBackgroundProcess, IngestStorePatch>(
+		processId,
+		{
+			isProcess: (process): process is IngestBackgroundProcess =>
+				isIngestProcess(process as IngestBackgroundProcess),
+			patchProcess: (process, patch) =>
+				({ ...process, ...patch }) as IngestBackgroundProcess,
+		},
+	);
+}
+
 async function runJob(processId: string): Promise<void> {
 	const process = getIngestProcess(processId);
 	if (process?.status !== "queued") return;
 
-	updateIngestProcess(processId, (currentJob) =>
-		appendLogEntry(
-			{
-				...currentJob,
-				status: "running",
-				startedAt: Date.now(),
-				stepText: "Loading AI configuration...",
-			},
-			"Starting ingest job",
-		),
-	);
+	updateIngestProcess(processId, (job) => ({
+		...job,
+		status: "running",
+		startedAt: Date.now(),
+		stepText: "Loading AI configuration...",
+	}));
+
+	let batcher: ReturnType<typeof createIngestBatcher> | null = null;
 
 	try {
 		const currentProcess = getIngestProcess(processId);
 		if (currentProcess?.status !== "running") return;
 
 		const currentJob = ingestProcessToJob(currentProcess);
-
-		updateIngestProcess(processId, (nextJob) =>
-			appendLogEntry(
-				{
-					...nextJob,
-					stepText: "Sending file for processing...",
-				},
-				`File: ${nextJob.fileName}`,
-			),
-		);
-
 		const controller = new AbortController();
 		registerAbort(processId, controller);
 
-		const result = await ingestJobStream(
-			{
-				buffer: currentJob.buffer,
-				fileName: currentJob.fileName,
-				enableReview: currentJob.enableReview,
-				enableExplanations: currentJob.enableExplanations,
-				agentConcurrency: currentJob.agentConcurrency,
+		const reducer = createIngestPipelineReducer(createIngestPipelineState());
+		batcher = createIngestBatcher(processId);
+		const streamHandlers = ingestPipelineReducerHandlers(reducer);
+
+		const syncReducer = () => {
+			batcher?.queue(pipelineStateToPatch(reducer.getState()));
+		};
+
+		await runJobPipeline({
+			request: {
+				url: "/api/ingest",
+				init: {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						buffer: currentJob.buffer,
+						fileName: currentJob.fileName,
+						enableReview: currentJob.enableReview,
+						enableExplanations: currentJob.enableExplanations,
+						agentConcurrency: currentJob.agentConcurrency,
+					}),
+				},
 				signal: controller.signal,
 			},
-			{
-				onStep: (step) => {
-					updateIngestProcess(processId, (runningJob) =>
-						appendLogEntry({ ...runningJob, stepText: step }, step),
-					);
+			handlers: {
+				onStage(ctx, data) {
+					streamHandlers.onStage?.(ctx, data);
+					syncReducer();
 				},
-				onChunk: (_text, event) => {
-					updateIngestProcess(processId, (runningJob) => {
-						let nextJob = {
-							...runningJob,
-							rawStreamText: event?.text
-								? runningJob.rawStreamText + event.text
-								: runningJob.rawStreamText,
-						};
-						nextJob = applyChunkEvent(nextJob, event);
-						if (event?.agentRunId && event.text) {
-							nextJob =
-								event.kind === "reasoning"
-									? appendReasoningToAgentRun(
-											nextJob,
-											event.agentRunId,
-											event.text,
-										)
-									: appendChunkToAgentRun(
-											nextJob,
-											event.agentRunId,
-											event.text,
-										);
-						}
-						return nextJob;
-					});
+				onProgress(ctx, data) {
+					streamHandlers.onProgress?.(ctx, data);
+					syncReducer();
 				},
-				onToken: (prompt, completion, total, event) => {
-					updateIngestProcess(processId, (runningJob) =>
-						appendLogEntry(
-							applyTokenEvent(
-								runningJob,
-								event ?? { prompt, completion, total },
-							),
-							`Token usage updated (${total.toLocaleString()})`,
-							{
-								agentRunId: event?.agentRunId ?? ("__meta__" as string),
-							},
-						),
-					);
-				},
-				onWarning: (message, event) => {
-					updateIngestProcess(processId, (runningJob) =>
-						applyWarningEvent(runningJob, message, event),
-					);
-				},
-				onStage: (stage: IngestStageEvent) => {
-					updateIngestProcess(processId, (runningJob) =>
-						appendLogEntry(
-							updateFlowStages(runningJob, stage),
-							`${stage.label}: ${stage.status}`,
-							{
-								stageId: stage.stageId,
-								timestamp: stage.timestamp,
-								level: stage.status === "error" ? "error" : "info",
-							},
-						),
-					);
-				},
-				onAgent: (event: IngestAgentEvent) => {
-					const applyAgentEvent = (runningJob: IngestJob) => {
-						let nextJob = syncJobTokenTotals(upsertAgentRun(runningJob, event));
-						if (event.eventType === "tool-call") {
-							nextJob = appendToolCallToAgentRun(nextJob, event);
-						}
-						if (event.eventType === "tool-result") {
-							nextJob = appendToolResultToAgentRun(nextJob, event);
-						}
-						if (event.warning) {
-							nextJob = applyWarningEvent(nextJob, event.warning, {
-								message: event.warning,
-								stageId: event.stageId,
-								agentRunId: event.agentRunId,
-								timestamp: event.timestamp,
-							});
-						}
-						return nextJob;
-					};
-
-					if (event.eventType === "tool-result") {
+				onAgentRun(ctx, data) {
+					streamHandlers.onAgentRun?.(ctx, data);
+					if (data.eventType === "tool-result") {
 						flushSync(() => {
-							updateIngestProcess(processId, applyAgentEvent);
+							batcher?.flush(pipelineStateToPatch(reducer.getState()));
 						});
-						return;
+					} else {
+						syncReducer();
 					}
-
-					updateIngestProcess(processId, applyAgentEvent);
+				},
+				onResult(ctx, data) {
+					streamHandlers.onResult?.(ctx, data);
+					syncReducer();
+				},
+				onLog: (entry) => {
+					const active = getIngestProcess(processId);
+					if (!active) return;
+					batcher?.queue(
+						applyProcessLog(ingestProcessToJob(active), entry),
+					);
 				},
 			},
-		);
+			expectResult: true,
+		});
 
-		updateIngestProcess(processId, (runningJob) =>
-			appendLogEntry(
-				{
-					...runningJob,
-					status: "success",
-					finishedAt: Date.now(),
-					result,
-					stepText: "Completed",
-					flowStages: runningJob.flowStages.map((stage) =>
-						stage.status === "running"
-							? { ...stage, status: "done" as const, timestamp: Date.now() }
-							: stage,
-					),
-				},
-				`Ingest complete: ${result.questions} questions, topics: ${result.topics.join(", ")}`,
-			),
-		);
+		batcher.flush();
+		const finalState = reducer.getState();
+		const result = finalState.result;
+		if (!result) {
+			throw new Error("Ingest stream finished without a result");
+		}
+
+		updateIngestProcess(processId, (job) => ({
+			...job,
+			...pipelineStateToPatch(finalState),
+			status: "success",
+			finishedAt: Date.now(),
+			stepText: "Completed",
+			result,
+			stages: finalizeRunningStages(finalState.stages),
+		}));
 
 		queryClient.invalidateQueries({ queryKey: ["exams"] });
 		queryClient.invalidateQueries({ queryKey: ["exams-detailed"] });
 		queryClient.invalidateQueries({ queryKey: ["stats"] });
 	} catch (err) {
 		if (isAbortError(err)) {
-			updateIngestProcess(processId, (runningJob) =>
-				appendLogEntry(
-					{
-						...runningJob,
-						status: "canceled",
-						finishedAt: Date.now(),
-						stepText: "Canceled",
-						error: "Upload canceled by user",
-						flowStages: runningJob.flowStages.map((stage) =>
-							stage.status === "running"
-								? { ...stage, status: "error" as const, timestamp: Date.now() }
-								: stage,
-						),
-					},
-					"Job canceled by user",
-					{ level: "warning" },
-				),
-			);
+			updateIngestProcess(processId, (runningJob) => ({
+				...runningJob,
+				status: "canceled",
+				finishedAt: Date.now(),
+				stepText: "Canceled",
+				error: "Upload canceled by user",
+				stages: markRunningStagesError(runningJob.stages),
+			}));
 		} else {
 			const message =
 				err instanceof Error ? err.message : "Unknown ingest error";
-			updateIngestProcess(processId, (runningJob) =>
-				appendLogEntry(
-					{
-						...runningJob,
-						status: "error",
-						finishedAt: Date.now(),
-						stepText: `Error: ${message}`,
-						error: message,
-						flowStages: runningJob.flowStages.map((stage) =>
-							stage.status === "running"
-								? { ...stage, status: "error" as const, timestamp: Date.now() }
-								: stage,
-						),
-					},
-					`Error: ${message}`,
-					{ level: "error" },
-				),
-			);
+			updateIngestProcess(processId, (runningJob) => ({
+				...runningJob,
+				status: "error",
+				finishedAt: Date.now(),
+				stepText: `Error: ${message}`,
+				error: message,
+				stages: markRunningStagesError(runningJob.stages),
+			}));
 		}
 	} finally {
+		batcher?.dispose();
 		unregisterAbort(processId);
 		runNextQueued();
 	}
@@ -330,19 +307,13 @@ export function cancelJob(jobId: string): void {
 	if (!process) return;
 
 	if (process.status === "queued") {
-		updateIngestProcess(processId, (queuedJob) =>
-			appendLogEntry(
-				{
-					...queuedJob,
-					status: "canceled",
-					finishedAt: Date.now(),
-					stepText: "Canceled",
-					error: "Canceled before starting",
-				},
-				"Job canceled from queue",
-				{ level: "warning" },
-			),
-		);
+		updateIngestProcess(processId, (queuedJob) => ({
+			...queuedJob,
+			status: "canceled",
+			finishedAt: Date.now(),
+			stepText: "Canceled",
+			error: "Canceled before starting",
+		}));
 		return;
 	}
 

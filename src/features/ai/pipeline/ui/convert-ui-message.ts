@@ -1,16 +1,7 @@
-import {
-	useExternalStoreRuntime,
-	type ThreadMessageLike,
-} from "@assistant-ui/react";
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { ThreadMessageLike } from "@assistant-ui/react";
 import type { UIMessage } from "ai";
 import { getToolName, isToolUIPart } from "ai";
-import { useMemo } from "react";
-
-interface UseReadOnlyAssistantRuntimeOptions {
-	messages: UIMessage[];
-	isRunning?: boolean;
-}
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type ThreadContentPart = Exclude<ThreadMessageLike["content"], string>[number];
 
@@ -129,20 +120,22 @@ function mapMessageParts(parts: UIMessage["parts"]): ThreadContentPart[] {
 
 function getSystemMessageContent(parts: UIMessage["parts"]): string {
 	return parts
-		.filter((part): part is { type: "text"; text: string } => part.type === "text")
+		.filter(
+			(part): part is { type: "text"; text: string } => part.type === "text",
+		)
 		.map((part) => part.text)
 		.join("\n")
 		.trim();
 }
 
-function convertUIMessageToThreadMessageLike(
+export function convertUIMessageToThreadMessageLike(
 	message: UIMessage,
 	options?: { isPending?: boolean },
 ): ThreadMessageLike {
 	const content =
 		message.role === "system"
 			? getSystemMessageContent(message.parts)
-				: mapMessageParts(message.parts);
+			: mapMessageParts(message.parts);
 
 	return {
 		id: message.id,
@@ -156,31 +149,16 @@ function convertUIMessageToThreadMessageLike(
 	};
 }
 
-export function useReadOnlyAssistantRuntime({
-	messages,
-	isRunning = false,
-}: UseReadOnlyAssistantRuntimeOptions) {
-	const mergedMessages = useMemo(
-		() => mergeAssistantTurnMessages(messages),
-		[messages],
-	);
-
-	const store = useMemo(
-		() => ({
-			messages: mergedMessages,
-			isRunning,
-			isDisabled: true,
-			convertMessage: (message: UIMessage, index: number) =>
-				convertUIMessageToThreadMessageLike(message, {
-					isPending:
-						isRunning &&
-						index === mergedMessages.length - 1 &&
-						message.role === "assistant",
-				}),
-			onNew: async () => {},
-		}),
-		[mergedMessages, isRunning],
-	);
-
-	return useExternalStoreRuntime(store);
+export function hasVisibleMessageContent(
+	message: UIMessage,
+	isStreaming: boolean,
+): boolean {
+	if (message.parts.length === 0) return false;
+	if (isStreaming) return true;
+	return message.parts.some((part) => {
+		if (part.type === "text" || part.type === "reasoning") {
+			return part.text.trim().length > 0;
+		}
+		return true;
+	});
 }

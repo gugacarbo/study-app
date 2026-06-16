@@ -1,20 +1,13 @@
 import type { ToolSet } from "ai";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
-import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { IMPROVE_QUESTIONS_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import {
 	buildImproveQuestionsStopWhen,
 	buildImproveQuestionsPrepareStep,
 } from "@/features/ai/core/tool-agent-stop-when";
-import {
-	createAiStreamState,
-	createToolResultEmitter,
-	isAiStreamRunErrorChunk,
-	payloadFromToolExecuteResult,
-	processAiStreamPart,
-} from "@/features/ai/core/ai-stream-handler";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
-import { createLlmLogContext } from "@/lib/llm-logging";
+import { payloadFromToolExecuteResult } from "@/features/ai/core/ai-stream-handler";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
+import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
+import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import {
 	createImproveQuestionsTools,
 	createImproveQuestionsWorkspace,
@@ -29,12 +22,21 @@ import {
 	IMPROVE_QUESTIONS_STAGE_ID,
 	UPDATE_QUESTION_OPTIONS_TOOL,
 	type DraftQuestion,
+	type ImproveQuestionsAgentEvent,
 	type ImproveQuestionsAgentRunSummary,
-	emitAgentEvent,
 	type ImproveSingleQuestionOptions,
 } from "./contracts";
 import { buildUserPrompt } from "./prompt";
 import { buildImproveQuestionsSystemPrompt } from "./system-prompt";
+
+function resolveEmit(
+	options: ImproveSingleQuestionOptions,
+): AgentEventEmitter {
+	if (options.emit) return options.emit;
+	return (event) => {
+		options.onAgentEvent?.(event as ImproveQuestionsAgentEvent);
+	};
+}
 
 export async function improveSingleQuestion(
 	config: ProviderConfig | ResolvedModelConfig,
@@ -56,12 +58,17 @@ export async function improveSingleQuestion(
 	const label = `Improve Question Q${question.id}`;
 	const agentRunId =
 		options.createAgentRunId?.(label) ?? `improve-questions-${question.id}`;
+	const run: AgentRunDescriptor = {
+		stageId: IMPROVE_QUESTIONS_STAGE_ID,
+		agentRunId,
+		label,
+	};
+	const emit = resolveEmit(options);
 	const isFollowUp = options.followUp != null;
 	const followUp = options.followUp;
 	const systemPrompt = buildImproveQuestionsSystemPrompt(question);
 	const userPrompt = followUp?.message ?? buildUserPrompt(question);
 	const workspace = createImproveQuestionsWorkspace({ questions: [question] });
-	const streamState = createAiStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
@@ -78,11 +85,11 @@ export async function improveSingleQuestion(
 	}) => {
 		const toolName =
 			toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-		emitAgentEvent(options, {
+		emit({
 			eventType: "tool-result",
-			stageId: IMPROVE_QUESTIONS_STAGE_ID,
-			agentRunId,
-			label,
+			stageId: run.stageId,
+			agentRunId: run.agentRunId,
+			label: run.label,
 			name: toolName,
 			content: toolResult.content,
 			error: toolResult.error,
@@ -112,12 +119,17 @@ export async function improveSingleQuestion(
 			});
 		}
 	};
-	const emitToolResult = createToolResultEmitter(handleToolResult, streamState);
 
 	const workspaceTools = createImproveQuestionsTools(workspace, {
 		onToolExecuted: async ({ toolCallId, toolName, output }) => {
 			toolNamesById.set(toolCallId, toolName);
-			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+			const payload = payloadFromToolExecuteResult(toolCallId, output);
+			handleToolResult({
+				toolCallId,
+				content: payload.content,
+				error: payload.error,
+				state: payload.state,
+			});
 		},
 	});
 	const externalTools = wrapToolSetWithExecutionHook(options.tools ?? {}, async ({
@@ -126,211 +138,91 @@ export async function improveSingleQuestion(
 		output,
 	}) => {
 		toolNamesById.set(toolCallId, toolName);
-		emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+		const payload = payloadFromToolExecuteResult(toolCallId, output);
+		handleToolResult({
+			toolCallId,
+			content: payload.content,
+			error: payload.error,
+			state: payload.state,
+		});
 	});
 	const combinedTools: ToolSet = {
 		...workspaceTools,
 		...externalTools,
 	};
 
-	emitAgentEvent(options, {
-		eventType: "lifecycle",
-		stageId: IMPROVE_QUESTIONS_STAGE_ID,
-		agentRunId,
-		label,
-		status: "pending",
-		...(isFollowUp
-			? {}
-			: {
-					systemPrompt,
-					userPrompt,
-				}),
-		meta: baseMeta,
-	});
-	emitAgentEvent(options, {
-		eventType: "lifecycle",
-		stageId: IMPROVE_QUESTIONS_STAGE_ID,
-		agentRunId,
-		label,
-		status: "running",
-		meta: baseMeta,
-	});
+	const conversationMessages = followUp
+		? [
+				...followUp.history.map((entry) => ({
+					role: entry.role,
+					content: entry.content,
+				})),
+				{ role: "user" as const, content: followUp.message },
+			]
+		: [{ role: "user" as const, content: userPrompt }];
 
-	try {
-		const handleToolCall = (toolCall: {
-			toolCallId: string;
-			name?: string;
-			arguments?: string;
-			input?: unknown;
-			state: "awaiting-input" | "input-streaming" | "input-complete";
-		}) => {
-			if (
-				toolCall.state === "input-streaming" ||
-				toolCall.state === "awaiting-input"
-			) {
-				if (toolCall.name) {
-					toolNamesById.set(toolCall.toolCallId, toolCall.name);
-				}
-				return;
-			}
-
-			if (toolCall.name) {
-				toolNamesById.set(toolCall.toolCallId, toolCall.name);
-			}
-			emitAgentEvent(options, {
-				eventType: "tool-call",
-				stageId: IMPROVE_QUESTIONS_STAGE_ID,
-				agentRunId,
-				label,
-				name: toolCall.name,
-				arguments: toolCall.arguments,
-				input: toolCall.input,
-				state: toolCall.state,
-				meta: {
-					...baseMeta,
-					toolCallId: toolCall.toolCallId,
-				},
-			});
-		};
-
-		const conversationMessages = followUp
-			? [
-					...followUp.history.map((entry) => ({
-						role: entry.role,
-						content: entry.content,
-					})),
-					{ role: "user" as const, content: followUp.message },
-				]
-			: [{ role: "user" as const, content: userPrompt }];
-
-		const result = loggedStreamText(
-			createLlmLogContext("improve-questions", providerConfig, {
-				callId: agentRunId,
-				systemPrompt,
-				requestSummary: isFollowUp
-					? `questionId=${question.id} followUp`
-					: `questionId=${question.id}`,
-				metadata: baseMeta,
-			}),
-			{
-				model: getAiModel(providerConfig),
-				system: systemPrompt,
-				messages: conversationMessages,
-				tools: combinedTools,
-				stopWhen: buildImproveQuestionsStopWhen(IMPROVE_QUESTIONS_MAX_STEPS),
-				prepareStep: buildImproveQuestionsPrepareStep(() => toolsComplete),
-				providerOptions: buildProviderOptions(providerConfig),
-			},
+	const hasWorkspaceUpdate = () => {
+		if (hasSuccessfulUpdate) return true;
+		const improved = workspace.getQuestion(question.id);
+		return (
+			improved.question !== question.question ||
+			improved.options.join("\0") !== question.options.join("\0") ||
+			improved.answers.join("\0") !== question.answers.join("\0") ||
+			improved.explanation !== question.explanation
 		);
+	};
 
-		for await (const chunk of result.fullStream) {
-			if (isAiStreamRunErrorChunk(chunk)) {
-				const message =
-					chunk.error instanceof Error
-						? chunk.error.message
-						: String(chunk.error);
-				throw new Error(`AI provider returned error: ${message}`);
-			}
-
-			processAiStreamPart(
-				chunk,
-				{
-					onTextDelta: (delta) => {
-						emitAgentEvent(options, {
-							eventType: "token",
-							stageId: IMPROVE_QUESTIONS_STAGE_ID,
-							agentRunId,
-							label,
-							rawText: delta,
-							meta: baseMeta,
-						});
-					},
-					onReasoningDelta: (delta) => {
-						emitAgentEvent(options, {
-							eventType: "token",
-							stageId: IMPROVE_QUESTIONS_STAGE_ID,
-							agentRunId,
-							label,
-							rawText: delta,
-							meta: { ...baseMeta, kind: "reasoning" },
-						});
-					},
-					onUsage: (usage) => {
-						emitAgentEvent(options, {
-							eventType: "token",
-							stageId: IMPROVE_QUESTIONS_STAGE_ID,
-							agentRunId,
-							label,
-							tokens: usage,
-							meta: baseMeta,
-						});
-					},
-					onToolCall: handleToolCall,
-					onToolResult: emitToolResult,
-				},
-				streamState,
-			);
+	const collectUpdatedFields = (
+		before: DraftQuestion,
+		after: DraftQuestion,
+	): string[] => {
+		const fields: string[] = [];
+		if (after.question !== before.question) fields.push("question");
+		if (after.options.join("\0") !== before.options.join("\0")) {
+			fields.push("options");
 		}
-
-		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
-			throw new Error(
-				toolFailureMessages[0] ??
-					"Improve-options agent could not apply a valid update.",
-			);
+		if (after.answers.join("\0") !== before.answers.join("\0")) {
+			fields.push("answer");
 		}
+		if (after.explanation !== before.explanation) {
+			fields.push("explanation");
+		}
+		return fields;
+	};
 
-		const improvedQuestion = readImprovedQuestion(workspace, question.id);
+	const pipelineResult = await runPipelineToolAgent({
+		scope: "improve-questions",
+		stageId: IMPROVE_QUESTIONS_STAGE_ID,
+		config: providerConfig,
+		run,
+		emit,
+		systemPrompt,
+		messages: conversationMessages,
+		tools: combinedTools,
+		stopWhen: buildImproveQuestionsStopWhen(IMPROVE_QUESTIONS_MAX_STEPS),
+		prepareStep: buildImproveQuestionsPrepareStep(() => toolsComplete),
+		meta: baseMeta,
+		requestSummary: isFollowUp
+			? `questionId=${question.id} followUp`
+			: `questionId=${question.id}`,
+		includePromptsInPending: !isFollowUp,
+		isSuccess: ({ toolFailureMessages }) => {
+			if (hasSuccessfulUpdate || hasWorkspaceUpdate()) return true;
+			return toolFailureMessages.length === 0;
+		},
+		failureReason: ({ toolFailureMessages }) =>
+			toolFailureMessages[0] ??
+			"Improve-options agent could not apply a valid update.",
+	});
 
-		emitAgentEvent(options, {
-			eventType: "result",
-			stageId: IMPROVE_QUESTIONS_STAGE_ID,
-			agentRunId,
-			label,
-			finalObject: improvedQuestion,
-			rawText: streamState.rawText,
-			meta: baseMeta,
-		});
-		emitAgentEvent(options, {
-			eventType: "lifecycle",
-			stageId: IMPROVE_QUESTIONS_STAGE_ID,
-			agentRunId,
-			label,
-			status: "done",
-			meta: baseMeta,
-		});
-
-		return {
-			question: improvedQuestion,
-			agentRun: buildAgentRunSummary({
-				agentRunId,
-				label,
-				status: "done",
-				systemPrompt,
-				userPrompt,
-				rawText: streamState.rawText,
-				finalObject: improvedQuestion,
-				meta: baseMeta,
-			}),
-			success: true,
-		};
-	} catch (error) {
-		const message = error instanceof Error ? error.message : "unknown error";
+	if (!pipelineResult.success) {
+		const message = pipelineResult.reason ?? "unknown error";
 		console.error(
 			`[${new Date().toISOString()} ERROR improve-questions] ` +
 				`Improve Q${question.id} failed: ${message}`,
 			`question="${question.question.slice(0, 120)}..."`,
 			`topic=${question.topic ?? "General"}`,
 		);
-
-		emitAgentEvent(options, {
-			eventType: "lifecycle",
-			stageId: IMPROVE_QUESTIONS_STAGE_ID,
-			agentRunId,
-			label,
-			status: "error",
-			error: message,
-			meta: baseMeta,
-		});
 
 		return {
 			question,
@@ -340,7 +232,7 @@ export async function improveSingleQuestion(
 				status: "error",
 				systemPrompt,
 				userPrompt,
-				rawText: streamState.rawText,
+				rawText: pipelineResult.rawText,
 				error: message,
 				meta: baseMeta,
 			}),
@@ -348,6 +240,40 @@ export async function improveSingleQuestion(
 			reason: message,
 		};
 	}
+
+	const improvedQuestion = readImprovedQuestion(workspace, question.id);
+	const updatedFields = collectUpdatedFields(question, improvedQuestion);
+	if (updatedFields.length > 0) {
+		options.onWorkspaceUpdate?.({
+			question: improvedQuestion,
+			updatedFields,
+		});
+	}
+
+	emit({
+		eventType: "result",
+		stageId: run.stageId,
+		agentRunId: run.agentRunId,
+		label: run.label,
+		finalObject: improvedQuestion,
+		rawText: pipelineResult.rawText,
+		meta: baseMeta,
+	});
+
+	return {
+		question: improvedQuestion,
+		agentRun: buildAgentRunSummary({
+			agentRunId,
+			label,
+			status: "done",
+			systemPrompt,
+			userPrompt,
+			rawText: pipelineResult.rawText,
+			finalObject: improvedQuestion,
+			meta: baseMeta,
+		}),
+		success: true,
+	};
 }
 
 function buildAgentRunSummary(

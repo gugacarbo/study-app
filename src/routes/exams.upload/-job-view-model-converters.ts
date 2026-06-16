@@ -1,9 +1,8 @@
 import type {
-	IngestLogEntry,
 	IngestOutputEntry,
 	IngestPipelineStageViewModel,
 } from "@/features/ingest/components/types";
-import type { FlowStage } from "@/features/ingest/store";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import {
 	isRecord,
 	normalizeEventTone,
@@ -15,19 +14,6 @@ import {
 	readNumber,
 	readString,
 } from "./-job-view-model-utils";
-
-export function toLegacyStage(
-	stage: FlowStage,
-): IngestPipelineStageViewModel | null {
-	if (!stage.stageId || !stage.label) return null;
-	return {
-		stageId: stage.stageId,
-		label: stage.label,
-		status: normalizeStageStatus(stage.status) ?? "pending",
-		timestamp: stage.timestamp,
-		meta: stage.meta,
-	};
-}
 
 export function toStageViewModel(
 	value: unknown,
@@ -117,11 +103,12 @@ export function toStoreOutputEntry(
 export function toLogEntry(
 	value: unknown,
 	index: number,
-): IngestLogEntry | null {
+): PipelineLogEntry | null {
 	if (typeof value === "string") {
 		const lower = value.toLowerCase();
 		return {
 			id: `legacy-log-${index}`,
+			timestamp: Date.now(),
 			level: lower.includes("error")
 				? "error"
 				: lower.includes("warning")
@@ -139,11 +126,14 @@ export function toLogEntry(
 	if (!message) return null;
 	return {
 		id,
+		timestamp: readNumber(value.timestamp) ?? Date.now(),
 		stageId: readNullableString(value.stageId),
-		timestamp: readNumber(value.timestamp),
 		level: normalizeLogLevel(value.level),
 		message,
-		agentId: readString(value.agentId) ?? readString(value.agentRunId),
+		agentRunId:
+			readString(value.agentRunId) ??
+			readString(value.agentId) ??
+			null,
 		data: value.data,
 	};
 }

@@ -1,10 +1,10 @@
 import type {
 	IngestAgentRunViewModel,
-	IngestLogEntry,
 	IngestOutputEntry,
 	IngestPipelineStageViewModel,
 	IngestTokenTotals,
 } from "@/features/ingest/components/types";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { TokenTotals } from "@/features/ingest/store";
 
 export function normalizeTokenTotals(value: TokenTotals): IngestTokenTotals {
@@ -83,7 +83,7 @@ export function normalizeEventTone(
 			return undefined;
 	}
 }
-export function normalizeLogLevel(value: unknown): IngestLogEntry["level"] {
+export function normalizeLogLevel(value: unknown): PipelineLogEntry["level"] {
 	switch (value) {
 		case "debug":
 		case "warning":

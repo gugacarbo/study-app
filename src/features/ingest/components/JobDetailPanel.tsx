@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OutputPanel } from "./output-panel";
 import { PipelineFlow } from "./PipelineFlow";
-import { ProcessLogsPanel } from "./ProcessLogsPanel";
+import { PipelineLogsPanel } from "@/features/ai/pipeline/ui";
 import type { IngestJobViewModel } from "./types";
 
 interface JobDetailPanelProps {
@@ -92,7 +92,7 @@ export function JobDetailPanel({
 						value="process"
 						className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
 					>
-						<ProcessLogsPanel
+						<PipelineLogsPanel
 							logs={job.logs}
 							filteredStageId={selectedStageId}
 							filteredStageLabel={selectedStage?.label ?? null}

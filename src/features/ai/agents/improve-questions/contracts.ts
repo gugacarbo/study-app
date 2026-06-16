@@ -1,4 +1,5 @@
 import type { ToolSet } from "ai";
+import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import type {
 	AgentRunDataPart,
 	WorkspaceUpdateDataPart,
@@ -53,20 +54,6 @@ export interface ImproveQuestionsJobResult {
 	agentRun: ImproveQuestionsAgentRunSummary;
 }
 
-/** @deprecated Use ImproveQuestionsJobResult */
-export type ImproveQuestionsDoneEvent = ImproveQuestionsJobResult;
-
-export interface ImproveQuestionsErrorEvent {
-	message: string;
-}
-
-/** @deprecated Legacy SSE shape — client migrates to UI Message Stream in Wave 4C. */
-export type ImproveQuestionsSSEEvent =
-	| { event: "agent"; data: ImproveQuestionsAgentEvent }
-	| { event: "workspace-update"; data: WorkspaceUpdateEvent }
-	| { event: "done"; data: ImproveQuestionsJobResult }
-	| { event: "error"; data: ImproveQuestionsErrorEvent };
-
 export interface ImproveQuestionsFollowUpRequest {
 	message: string;
 	history: Array<{ role: "user" | "assistant"; content: string }>;
@@ -74,20 +61,11 @@ export interface ImproveQuestionsFollowUpRequest {
 
 export interface ImproveSingleQuestionOptions {
 	tools?: ToolSet;
+	emit?: AgentEventEmitter;
 	onAgentEvent?: (event: ImproveQuestionsAgentEvent) => void;
 	onWorkspaceUpdate?: (event: WorkspaceUpdateEvent) => void;
 	createAgentRunId?: (label: string) => string;
 	followUp?: ImproveQuestionsFollowUpRequest;
-}
-
-export function emitAgentEvent(
-	options: Pick<ImproveSingleQuestionOptions, "onAgentEvent">,
-	event: Omit<ImproveQuestionsAgentEvent, "timestamp">,
-): void {
-	options.onAgentEvent?.({
-		...event,
-		timestamp: Date.now(),
-	});
 }
 
 export function toWorkspaceUpdateDataPart(

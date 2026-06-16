@@ -1,5 +1,5 @@
 import type { QuestionChange } from "@/features/ai/agents/improve-questions/contracts";
-import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
+import type { AgentRunState } from "@/features/ai/pipeline/client";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 
 export type ImproveQuestionsRunPhase =

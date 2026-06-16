@@ -6,7 +6,7 @@ import {
 	Loader2Icon,
 	XCircleIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,13 +19,10 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
-import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import {
 	type TokenTotals,
 	TokenTotalsBadge,
 } from "@/features/ai/components/token-totals-badge";
-import { useReadOnlyAssistantRuntime } from "@/features/ai/hooks/use-readonly-assistant-runtime";
 import {
 	type BenchmarkPhaseMetrics,
 	formatTokensPerSecond,
@@ -38,6 +35,12 @@ import {
 } from "@/features/ai/lib/token-usage";
 import { serializeBenchmarkJson } from "@/features/ai/lib/build-benchmark-json";
 import { filterBenchmarkMessagesByPhase } from "@/features/ai/lib/filter-benchmark-messages";
+import {
+	PipelineErrorBanner,
+	PipelineLogsPanel,
+	PipelineThread,
+} from "@/features/ai/pipeline/ui";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { ModelTestMode } from "@/features/config/lib/model-test-process";
 import { cn } from "@/lib/utils";
 import type { TestStatus } from "./use-connection-test";
@@ -54,64 +57,14 @@ type TestConnectionDialogProps = {
 	streamMetrics?: StreamPerfMetrics | null;
 	phaseMetrics?: BenchmarkPhaseMetrics[];
 	testError: string;
+	logs?: PipelineLogEntry[];
+	stepText?: string;
 	modelLabel?: string;
 	inputCostPerMillion?: number | null;
 	outputCostPerMillion?: number | null;
 	onRetest?: () => void;
 	showRetest?: boolean;
 };
-
-function ConnectionTestThread({
-	messages,
-	isStreaming,
-}: {
-	messages: UIMessage[];
-	isStreaming: boolean;
-}) {
-	const scrollRef = useRef<HTMLDivElement | null>(null);
-	const runtime = useReadOnlyAssistantRuntime({
-		messages,
-		isRunning: isStreaming,
-	});
-	const scrollKey = messages
-		.flatMap((message) => message.parts)
-		.map((part) => (part.type === "text" ? part.text.length : 0))
-		.join(":");
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when streamed content grows
-	useEffect(() => {
-		scrollRef.current?.scrollTo({
-			top: scrollRef.current.scrollHeight,
-			behavior: "smooth",
-		});
-	}, [scrollKey, isStreaming]);
-
-	if (messages.length === 0) {
-		return (
-			<div className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
-				{isStreaming ? (
-					<span className="inline-flex items-center gap-2">
-						<Loader2Icon className="size-4 animate-spin" />
-						Waiting for model response...
-					</span>
-				) : (
-					"Run a test to preview the provider conversation."
-				)}
-			</div>
-		);
-	}
-
-	return (
-		<div
-			ref={scrollRef}
-			className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-muted p-3"
-		>
-			<StudyAssistantRuntimeProvider runtime={runtime}>
-				<Thread showComposer={false} collapsiblePrompts />
-			</StudyAssistantRuntimeProvider>
-		</div>
-	);
-}
 
 function StreamPerfBadges({
 	streamMetrics,
@@ -287,9 +240,22 @@ function BenchmarkChatSection({
 					) : null}
 				</div>
 			) : null}
-			<ConnectionTestThread
+			<PipelineThread
 				messages={filteredMessages}
-				isStreaming={isStreaming}
+				isRunning={isStreaming}
+				mode="readonly"
+				layout="panel"
+				className="min-h-0 flex-1"
+				emptyState={
+					isStreaming ? (
+						<span className="inline-flex items-center gap-2 text-sm">
+							<Loader2Icon className="size-4 animate-spin" />
+							Waiting for model response...
+						</span>
+					) : (
+						"Run a test to preview the provider conversation."
+					)
+				}
 			/>
 		</>
 	);
@@ -471,6 +437,8 @@ export function TestConnectionDialog({
 	streamMetrics,
 	phaseMetrics = [],
 	testError,
+	logs = [],
+	stepText,
 	modelLabel,
 	inputCostPerMillion,
 	outputCostPerMillion,
@@ -482,6 +450,7 @@ export function TestConnectionDialog({
 		"error",
 	);
 	const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
+	const displayStep = stepText ?? testStep;
 	const isBenchmark = testMode === "benchmark";
 	const showBenchmarkErrorTabs = isBenchmark && testStatus === "error";
 	const isStreaming = testStatus === "testing";
@@ -609,7 +578,7 @@ export function TestConnectionDialog({
 										isStreaming && "text-foreground",
 									)}
 								>
-									{testStep}
+									{displayStep}
 								</span>
 								<span className="font-medium tabular-nums">
 									{testProgress}%
@@ -663,7 +632,7 @@ export function TestConnectionDialog({
 							>
 								<BenchmarkFailureSummary
 									testError={testError}
-									testStep={testStep}
+									testStep={displayStep}
 									phaseMetrics={phaseMetrics}
 									className="min-h-0 flex-1"
 								/>
@@ -684,31 +653,41 @@ export function TestConnectionDialog({
 						</Tabs>
 					) : (
 						<>
-							{testStatus === "error" ? (
-								<div className="rounded-md border border-destructive/25 bg-destructive/10 p-4">
-									<div className="flex items-start gap-3">
-										<XCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
-										<div className="space-y-1">
-											<p className="font-medium text-foreground">
-												Connection test failed
-											</p>
-											<pre className="whitespace-pre-wrap break-words font-mono text-xs text-foreground">
-												{testError}
-											</pre>
-										</div>
-									</div>
-								</div>
+							{testStatus === "error" && !isBenchmark ? (
+								<PipelineErrorBanner error={testError} />
 							) : null}
 
-							<ConnectionTestThread
+							<PipelineThread
 								messages={
 									isBenchmark ? filteredBenchmarkMessages : testMessages
 								}
-								isStreaming={isStreaming}
+								isRunning={isStreaming}
+								mode="readonly"
+								layout="panel"
+								className="min-h-0 flex-1"
+								emptyState={
+									isStreaming ? (
+										<span className="inline-flex items-center gap-2 text-sm">
+											<Loader2Icon className="size-4 animate-spin" />
+											Waiting for model response...
+										</span>
+									) : (
+										"Run a test to preview the provider conversation."
+									)
+								}
 							/>
 						</>
 					)}
 				</div>
+
+				{logs.length > 0 ? (
+					<PipelineLogsPanel
+						logs={logs}
+						stepText={displayStep}
+						compact
+						className="max-h-40 shrink-0"
+					/>
+				) : null}
 
 				{showRetest && onRetest ? (
 					<DialogFooter className="shrink-0 flex-row flex-wrap justify-end border-t pt-4">

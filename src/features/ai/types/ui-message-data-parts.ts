@@ -1,4 +1,5 @@
 import type { InferUIMessageChunk, UIMessage } from "ai";
+import type { PipelineLogLevel } from "@/features/ai/pipeline/types";
 
 export type StageStatus =
 	| "pending"
@@ -113,6 +114,16 @@ export interface JobErrorDataPart {
 	agentRunId?: string;
 }
 
+/** `data-process-log` — structured process timeline entry (persistent). */
+export interface ProcessLogDataPart {
+	level: PipelineLogLevel;
+	message: string;
+	stageId?: string;
+	agentRunId?: string;
+	timestamp?: number;
+	data?: unknown;
+}
+
 export type StudyAppUIDataParts = {
 	stage: StageDataPart;
 	"agent-run": AgentRunDataPart;
@@ -121,6 +132,7 @@ export type StudyAppUIDataParts = {
 	"job-progress": JobProgressDataPart;
 	"job-result": JobResultDataPart;
 	"job-error": JobErrorDataPart;
+	"process-log": ProcessLogDataPart;
 };
 
 export type StudyAppUIMessage = UIMessage<unknown, StudyAppUIDataParts>;

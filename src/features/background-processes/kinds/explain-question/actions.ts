@@ -1,16 +1,13 @@
 import type { ExplainQuestionJobResult } from "@/features/ai/agents/explanations/contracts";
-import type { ExplainQuestionAgentEvent } from "@/features/ai/agents/explanations/contracts";
 import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
-import { consumeJobStream } from "@/features/ai/lib/read-job-ui-message-stream";
-import type {
-	ExplanationUpdateDataPart,
-	JobResultDataPart,
-} from "@/features/ai/types/ui-message-data-parts";
+import type { JobResultDataPart } from "@/features/ai/types/ui-message-data-parts";
 import {
 	createAgentRunState,
-	reduceAgentEvent,
-	type AgentRunState,
-} from "@/features/ai/utils/agent-run-messages";
+	createRafProcessBatcher,
+	createSingleAgentRunHandlers,
+	runJobPipeline,
+} from "@/features/ai/pipeline/client";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import { getErrorMessage } from "@/features/exams/components/detail/exam-utils";
 import {
@@ -47,26 +44,48 @@ import {
 	isExplainQuestionProcess,
 } from "../../store/types";
 import { cloneQuestion, questionNeedsExplanation } from "./question-helpers";
-import { createExplainQuestionStoreBatcher } from "./store-sync";
+
+type ExplainQuestionStorePatch = Partial<
+	Pick<
+		ExplainQuestionBackgroundProcess,
+		| "explanation"
+		| "deepExplanation"
+		| "agentRunState"
+		| "changes"
+		| "isStreaming"
+		| "streamError"
+		| "phase"
+		| "finishedAt"
+		| "logs"
+		| "stepText"
+	>
+>;
+
+function createExplainQuestionBatcher(questionId: number) {
+	return createRafProcessBatcher<
+		ExplainQuestionBackgroundProcess,
+		ExplainQuestionStorePatch
+	>(explainQuestionProcessId(questionId), {
+		isProcess: (process): process is ExplainQuestionBackgroundProcess =>
+			isExplainQuestionProcess(process as ExplainQuestionBackgroundProcess),
+		patchProcess: (process, patch) => patchExplainQuestionProcess(process, patch),
+	});
+}
+
+function applyProcessLog(
+	process: ExplainQuestionBackgroundProcess,
+	entry: PipelineLogEntry,
+): Pick<ExplainQuestionBackgroundProcess, "logs" | "stepText"> {
+	return {
+		logs: [...process.logs, entry],
+		stepText: entry.agentRunId ? process.stepText : entry.message,
+	};
+}
 
 export const MIN_EXPLAIN_QUESTIONS_MAX_WORKERS = 1;
 export const MAX_EXPLAIN_QUESTIONS_MAX_WORKERS = 20;
 export const DEFAULT_EXPLAIN_QUESTIONS_MAX_WORKERS = 3;
 export const MAX_EXPLAIN_QUESTION_ATTEMPTS = 3;
-
-function syncAgentRunId(
-	state: AgentRunState,
-	event: ExplainQuestionAgentEvent,
-): AgentRunState {
-	if (state.agentRunId === event.agentRunId) return state;
-	return {
-		...state,
-		agentRunId: event.agentRunId,
-		label: event.label || state.label,
-		systemPrompt: event.systemPrompt ?? state.systemPrompt,
-		userPrompt: event.userPrompt ?? state.userPrompt,
-	};
-}
 
 function getExplainQuestionProcess(
 	questionId: number,
@@ -100,19 +119,7 @@ function phaseToStatus(
 
 function patchExplainQuestionProcess(
 	process: ExplainQuestionBackgroundProcess,
-	patch: Partial<
-		Pick<
-			ExplainQuestionBackgroundProcess,
-			| "explanation"
-			| "deepExplanation"
-			| "agentRunState"
-			| "changes"
-			| "isStreaming"
-			| "streamError"
-			| "phase"
-			| "finishedAt"
-		>
-	>,
+	patch: ExplainQuestionStorePatch,
 ): ExplainQuestionBackgroundProcess {
 	const nextPhase = patch.phase ?? process.phase;
 	const nextStreaming = patch.isStreaming ?? process.isStreaming;
@@ -202,6 +209,8 @@ function createInitialProcess(
 		phase: "idle",
 		createdAt: now,
 		finishedAt: null,
+		logs: [],
+		stepText: "",
 	};
 }
 
@@ -375,7 +384,7 @@ export function startQueuedExplainQuestion(processId: string): void {
 	);
 
 	void (async () => {
-		const batcher = createExplainQuestionStoreBatcher(questionId);
+		const batcher = createExplainQuestionBatcher(questionId);
 
 		try {
 			for (let attempt = 1; attempt <= MAX_EXPLAIN_QUESTION_ATTEMPTS; attempt++) {
@@ -395,38 +404,53 @@ export function startQueuedExplainQuestion(processId: string): void {
 					});
 				}
 
-				try {
-					let jobCompleted = false;
-
-					const finishJob = (result: ExplainQuestionJobResult) => {
-						jobCompleted = true;
-						batcher.dispose();
-						updateExplainQuestionProcess(questionId, (run) => {
-							const draft = {
-								explanation: result.explanation,
-								deepExplanation: result.deepExplanation,
-							};
-							return patchExplainQuestionProcess(run, {
-								explanation: draft.explanation,
-								deepExplanation: draft.deepExplanation,
-								changes: computeExplanationChanges(
-									{
-										explanation: run.originalSnapshot.explanation,
-										deepExplanation: run.originalSnapshot.deepExplanation,
-									},
-									draft,
-								),
-								agentRunState: { ...runState, status: "done" },
-								isStreaming: false,
-								phase: "done",
-							});
+				const finishJob = (result: ExplainQuestionJobResult) => {
+					batcher.dispose();
+					updateExplainQuestionProcess(questionId, (run) => {
+						const draft = {
+							explanation: result.explanation,
+							deepExplanation: result.deepExplanation,
+						};
+						return patchExplainQuestionProcess(run, {
+							explanation: draft.explanation,
+							deepExplanation: draft.deepExplanation,
+							changes: computeExplanationChanges(
+								{
+									explanation: run.originalSnapshot.explanation,
+									deepExplanation: run.originalSnapshot.deepExplanation,
+								},
+								draft,
+							),
+							agentRunState: { ...runState, status: "done" },
+							isStreaming: false,
+							phase: "done",
 						});
-						maybeClearExplainQuestionsBatchConfig(examId);
-						runNextQueued();
-					};
+					});
+					maybeClearExplainQuestionsBatchConfig(examId);
+					runNextQueued();
+				};
 
-					await consumeJobStream(
-						{
+				const streamHandlers = createSingleAgentRunHandlers({
+					initialState: runState,
+					onStateChange: (state) => {
+						runState = state;
+						batcher.queue({ agentRunState: { ...state } });
+					},
+					onExplanationUpdate: (update) => {
+						batcher.queue({
+							explanation: update.explanation,
+							deepExplanation: update.deepExplanation,
+						});
+					},
+					onResult: (data) => {
+						const jobResult = normalizeJobResult(data);
+						if (jobResult) finishJob(jobResult);
+					},
+				});
+
+				try {
+					await runJobPipeline({
+						request: {
 							url: "/api/explain-question",
 							init: {
 								method: "POST",
@@ -435,39 +459,16 @@ export function startQueuedExplainQuestion(processId: string): void {
 							},
 							signal: controller.signal,
 						},
-						{
-							onData: (part) => {
-								if (part.type === "data-agent-run") {
-									const event = part.data as ExplainQuestionAgentEvent;
-									runState = syncAgentRunId(runState, event);
-									runState = reduceAgentEvent(runState, event);
-									batcher.queue({ agentRunState: { ...runState } });
-									return;
-								}
-
-								if (part.type === "data-explanation-update") {
-									const update = part.data as ExplanationUpdateDataPart;
-									batcher.queue({
-										explanation: update.explanation,
-										deepExplanation: update.deepExplanation,
-									});
-									return;
-								}
-
-								if (part.type === "data-job-result") {
-									const jobResult = normalizeJobResult(part.data);
-									if (!jobResult) return;
-									finishJob(jobResult);
-								}
+						handlers: {
+							...streamHandlers,
+							onLog: (entry) => {
+								const current = getExplainQuestionProcess(questionId);
+								if (!current) return;
+								batcher.queue(applyProcessLog(current, entry));
 							},
 						},
-					);
-
-					if (!jobCompleted) {
-						throw new Error(
-							"Explain question stream finished without a job result",
-						);
-					}
+						expectResult: true,
+					});
 					return;
 				} catch (error) {
 					if (controller.signal.aborted || isAbortError(error)) {

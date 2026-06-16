@@ -1,4 +1,7 @@
 import type { UIMessage } from "ai";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
+
+export type { PipelineLogEntry };
 
 export interface IngestTokenTotals {
 	prompt: number;
@@ -46,16 +49,6 @@ export type IngestOutputEntry =
 	| IngestOutputMessageEntry
 	| IngestOutputEventEntry;
 
-export interface IngestLogEntry {
-	id: string;
-	stageId?: string | null;
-	timestamp?: number;
-	level: "debug" | "info" | "warning" | "error";
-	message: string;
-	agentId?: string;
-	data?: unknown;
-}
-
 export interface IngestAgentRunViewModel {
 	id: string;
 	stageId: string;
@@ -92,7 +85,7 @@ export interface IngestJobViewModel {
 	outputEntries: IngestOutputEntry[];
 	rawOutput: string;
 	rawStreamText: string;
-	logs: IngestLogEntry[];
+	logs: PipelineLogEntry[];
 	stages: IngestPipelineStageViewModel[];
 	agents: IngestAgentRunViewModel[];
 	error?: string | null;

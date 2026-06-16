@@ -4,7 +4,7 @@ import {
 	agentRunDataPartToReducerEvent,
 	createAgentRunState,
 	reduceAgentEvent,
-} from "@/features/ai/utils/agent-run-messages";
+} from "@/features/ai/pipeline/client/single-agent-run-reducer";
 
 function agentEvent(
 	overrides?: Partial<ImproveQuestionsAgentEvent>,
@@ -20,7 +20,7 @@ function agentEvent(
 	};
 }
 
-describe("agent-run-messages", () => {
+describe("single-agent-run-reducer", () => {
 	it("creates system, user, and assistant messages from initial prompts", () => {
 		const state = createAgentRunState({
 			agentRunId: "run-1",

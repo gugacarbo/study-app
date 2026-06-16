@@ -5,13 +5,14 @@ import type {
 	AgentRunDataPart,
 	AgentRunEventType,
 } from "@/features/ai/types/ui-message-data-parts";
-import type { ImproveQuestionsAgentRunStatus } from "@/features/ai/agents/improve-questions/contracts";
 import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
+
+export type SingleAgentRunStatus = "pending" | "running" | "done" | "error";
 
 export interface AgentRunState {
 	agentRunId: string;
 	label: string;
-	status: ImproveQuestionsAgentRunStatus;
+	status: SingleAgentRunStatus;
 	systemPrompt: string;
 	userPrompt: string;
 	outputText: string;
@@ -614,9 +615,7 @@ function appendAssistantToolPart(
 	});
 }
 
-function normalizeAgentStatus(
-	status?: string,
-): ImproveQuestionsAgentRunStatus {
+function normalizeAgentStatus(status?: string): SingleAgentRunStatus {
 	if (
 		status === "pending" ||
 		status === "running" ||
@@ -629,9 +628,9 @@ function normalizeAgentStatus(
 }
 
 function resolveNextAgentStatus(
-	existingStatus: ImproveQuestionsAgentRunStatus,
+	existingStatus: SingleAgentRunStatus,
 	eventStatus: string | undefined,
-): ImproveQuestionsAgentRunStatus {
+): SingleAgentRunStatus {
 	if (existingStatus === "error") {
 		return "error";
 	}
@@ -734,7 +733,7 @@ export function beginFollowUpAssistantTurn(state: AgentRunState): AgentRunState 
 	};
 }
 
-export function createAgentRunState(input: {
+export function createSingleAgentRunState(input: {
 	agentRunId: string;
 	label: string;
 	systemPrompt?: string;
@@ -830,4 +829,39 @@ export function reduceAgentEvent(
 	}
 
 	return nextState;
+}
+
+export function createAgentRunState(
+	input: Parameters<typeof createSingleAgentRunState>[0],
+): AgentRunState {
+	return createSingleAgentRunState(input);
+}
+
+export function syncAgentRunId(
+	state: AgentRunState,
+	event: Pick<
+		AgentRunDataPart,
+		"agentRunId" | "label" | "systemPrompt" | "userPrompt"
+	>,
+): AgentRunState {
+	if (state.agentRunId === event.agentRunId) return state;
+	return {
+		...state,
+		agentRunId: event.agentRunId,
+		label: event.label || state.label,
+		systemPrompt: event.systemPrompt ?? state.systemPrompt,
+		userPrompt: event.userPrompt ?? state.userPrompt,
+	};
+}
+
+export function applyAgentRunPart(
+	state: AgentRunState,
+	data: AgentRunDataPart,
+): AgentRunState {
+	const synced = syncAgentRunId(state, data);
+	const reducerEvent = agentRunDataPartToReducerEvent(data);
+	if (!reducerEvent) {
+		return synced;
+	}
+	return reduceAgentEvent(synced, reducerEvent);
 }

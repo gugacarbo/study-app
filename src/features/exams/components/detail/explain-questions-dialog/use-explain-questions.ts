@@ -1,7 +1,7 @@
 import { useStore } from "@tanstack/react-store";
 import { useCallback, useMemo, useState } from "react";
 import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
-import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
+import type { AgentRunState } from "@/features/ai/pipeline/client";
 import {
 	applyExplainQuestionRun,
 	backgroundProcessStore,

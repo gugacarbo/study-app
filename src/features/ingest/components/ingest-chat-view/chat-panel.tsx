@@ -1,12 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AgentRunThread } from "@/features/ai/components/assistant-ui/agent-run-thread";
+import { PipelineThread } from "@/features/ai/pipeline/ui";
 import { cn } from "@/lib/utils";
 import type {
 	IngestAgentRunViewModel,
 	IngestPipelineStageViewModel,
 } from "../types";
-import { stageStatusLabel } from "./stage-labels";
+import { agentStateLabel, stageStatusLabel } from "./stage-labels";
 import { useIngestChat } from "./use-ingest-chat";
 
 interface IngestChatViewProps {
@@ -60,13 +60,20 @@ export function IngestChatView({
 				}
 
 				if (!item.bubble) return null;
+				const stateInfo = agentStateLabel(item.bubble.agentState);
 				return (
-					<AgentRunThread
+					<PipelineThread
 						key={item.bubble.id}
-						agentName={item.bubble.agentName}
-						agentState={item.bubble.agentState}
+						layout="mini"
+						mode="readonly"
 						messages={[item.bubble.message]}
-						isStreaming={item.bubble.isStreaming}
+						isRunning={item.bubble.isStreaming}
+						header={{
+							title: item.bubble.agentName,
+							status: stateInfo,
+							isStreaming: item.bubble.isStreaming,
+						}}
+						collapsiblePrompts
 					/>
 				);
 			})}

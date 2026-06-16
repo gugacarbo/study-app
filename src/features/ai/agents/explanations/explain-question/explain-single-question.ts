@@ -1,35 +1,35 @@
 import type { ToolSet } from "ai";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
-import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
-import {
-	createAiStreamState,
-	createToolResultEmitter,
-	isAiStreamRunErrorChunk,
-	payloadFromToolExecuteResult,
-	processAiStreamPart,
-} from "@/features/ai/core/ai-stream-handler";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
+import { payloadFromToolExecuteResult } from "@/features/ai/core/ai-stream-handler";
 import {
 	buildIngestExplanationStopWhen,
 	buildPostUpdatePrepareStep,
 } from "@/features/ai/core/tool-agent-stop-when";
+import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
+import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import {
 	createExplanationTools,
 	createExplanationWorkspace,
 } from "@/features/ai/tools/explanation-tools";
-import { createLlmLogContext } from "@/lib/llm-logging";
 import type { ProviderConfig, ResolvedModelConfig } from "@/lib/validation";
 import { toProviderConfig } from "@/lib/validation";
 import type { ExplanationBatchInput } from "../generate-explanations/types";
 import {
 	EXPLAIN_QUESTION_AGENT_STAGE_ID,
 	UPDATE_QUESTION_EXPLANATION_TOOL,
-	emitExplainQuestionAgentEvent,
 	type ExplainQuestionByIdOptions,
+	type ExplainQuestionAgentEvent,
 } from "./contracts";
 import { buildExplainQuestionUserPrompt } from "./prompt";
 import { buildExplainQuestionSystemPrompt } from "./system-prompt";
+
+function resolveEmit(options: ExplainQuestionByIdOptions): AgentEventEmitter {
+	if (options.emit) return options.emit;
+	return (event) => {
+		options.onAgentEvent?.(event as ExplainQuestionAgentEvent);
+	};
+}
 
 export async function explainQuestionById(
 	config: ProviderConfig | ResolvedModelConfig,
@@ -50,13 +50,18 @@ export async function explainQuestionById(
 	const label = `Explanation Q${questionId}`;
 	const agentRunId =
 		options.createAgentRunId?.(label) ?? `explain-question-${questionId}`;
+	const run: AgentRunDescriptor = {
+		stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
+		agentRunId,
+		label,
+	};
+	const emit = resolveEmit(options);
 	const memoryContext = options.resolveMemoryContext?.();
 	const systemPrompt = buildExplainQuestionSystemPrompt(questionId, memoryContext);
 	const userPrompt = buildExplainQuestionUserPrompt(questionId, {
 		overwrite: options.overwrite,
 	});
 	const workspace = createExplanationWorkspace([question]);
-	const streamState = createAiStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
@@ -72,11 +77,11 @@ export async function explainQuestionById(
 	}) => {
 		const toolName =
 			toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-		emitExplainQuestionAgentEvent(options, {
+		emit({
 			eventType: "tool-result",
-			stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-			agentRunId,
-			label,
+			stageId: run.stageId,
+			agentRunId: run.agentRunId,
+			label: run.label,
 			name: toolName,
 			content: toolResult.content,
 			error: toolResult.error,
@@ -113,12 +118,17 @@ export async function explainQuestionById(
 			}
 		}
 	};
-	const emitToolResult = createToolResultEmitter(handleToolResult, streamState);
 
 	const explanationTools = createExplanationTools(workspace, {
 		onToolExecuted: async ({ toolCallId, toolName, output }) => {
 			toolNamesById.set(toolCallId, toolName);
-			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+			const payload = payloadFromToolExecuteResult(toolCallId, output);
+			handleToolResult({
+				toolCallId,
+				content: payload.content,
+				error: payload.error,
+				state: payload.state,
+			});
 		},
 	});
 	const combinedTools: ToolSet = {
@@ -126,189 +136,68 @@ export async function explainQuestionById(
 		...(options.tools ?? {}),
 	};
 
-	emitExplainQuestionAgentEvent(options, {
-		eventType: "lifecycle",
-		stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-		agentRunId,
-		label,
-		status: "pending",
-		systemPrompt,
-		userPrompt,
-		meta: baseMeta,
-	});
-	emitExplainQuestionAgentEvent(options, {
-		eventType: "lifecycle",
-		stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-		agentRunId,
-		label,
-		status: "running",
-		meta: baseMeta,
-	});
-
-	try {
-		const handleToolCall = (toolCall: {
-			toolCallId: string;
-			name?: string;
-			arguments?: string;
-			input?: unknown;
-			state: "awaiting-input" | "input-streaming" | "input-complete";
-		}) => {
-			if (
-				toolCall.state === "input-streaming" ||
-				toolCall.state === "awaiting-input"
-			) {
-				if (toolCall.name) {
-					toolNamesById.set(toolCall.toolCallId, toolCall.name);
-				}
-				return;
-			}
-
-			if (toolCall.name) {
-				toolNamesById.set(toolCall.toolCallId, toolCall.name);
-			}
-			emitExplainQuestionAgentEvent(options, {
-				eventType: "tool-call",
-				stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-				agentRunId,
-				label,
-				name: toolCall.name,
-				arguments: toolCall.arguments,
-				input: toolCall.input,
-				state: toolCall.state,
-				meta: {
-					...baseMeta,
-					toolCallId: toolCall.toolCallId,
-				},
-			});
-		};
-
-		const result = loggedStreamText(
-			createLlmLogContext("explain-question", providerConfig, {
-				callId: agentRunId,
-				systemPrompt,
-				requestSummary: `questionId=${questionId}`,
-				metadata: baseMeta,
-			}),
-			{
-				model: getAiModel(providerConfig),
-				system: systemPrompt,
-				messages: [{ role: "user", content: userPrompt }],
-				tools: combinedTools,
-				stopWhen: buildIngestExplanationStopWhen(INGEST_PER_QUESTION_MAX_STEPS),
-				prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
-				providerOptions: buildProviderOptions(providerConfig),
-			},
+	const hasWorkspaceUpdate = () => {
+		if (hasSuccessfulUpdate) return true;
+		const generated = workspace
+			.buildResult()
+			.questions.find((item) => item.id === questionId);
+		if (!generated) return false;
+		return (
+			generated.explanation !== question.explanation ||
+			generated.deepExplanation !== (question.deepExplanation ?? "")
 		);
+	};
 
-		for await (const chunk of result.fullStream) {
-			if (isAiStreamRunErrorChunk(chunk)) {
-				const message =
-					chunk.error instanceof Error
-						? chunk.error.message
-						: String(chunk.error);
-				throw new Error(`AI provider returned error: ${message}`);
-			}
+	const pipelineResult = await runPipelineToolAgent({
+		scope: "explain-question",
+		stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
+		config: providerConfig,
+		run,
+		emit,
+		systemPrompt,
+		messages: [{ role: "user", content: userPrompt }],
+		tools: combinedTools,
+		stopWhen: buildIngestExplanationStopWhen(INGEST_PER_QUESTION_MAX_STEPS),
+		prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
+		meta: baseMeta,
+		requestSummary: `questionId=${questionId}`,
+		isSuccess: hasWorkspaceUpdate,
+		failureReason: () =>
+			toolFailureMessages[0] ??
+			(hasSuccessfulUpdate
+				? undefined
+				: "Explanation agent finished without calling update_question_explanation."),
+	});
 
-			processAiStreamPart(
-				chunk,
-				{
-					onTextDelta: (delta) => {
-						emitExplainQuestionAgentEvent(options, {
-							eventType: "token",
-							stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-							agentRunId,
-							label,
-							rawText: delta,
-							meta: baseMeta,
-						});
-					},
-					onReasoningDelta: (delta) => {
-						emitExplainQuestionAgentEvent(options, {
-							eventType: "token",
-							stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-							agentRunId,
-							label,
-							rawText: delta,
-							meta: { ...baseMeta, kind: "reasoning" },
-						});
-					},
-					onUsage: (usage) => {
-						emitExplainQuestionAgentEvent(options, {
-							eventType: "token",
-							stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-							agentRunId,
-							label,
-							tokens: usage,
-							meta: baseMeta,
-						});
-					},
-					onToolCall: handleToolCall,
-					onToolResult: emitToolResult,
-				},
-				streamState,
-			);
-		}
-
-		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
-			throw new Error(
-				toolFailureMessages[0] ??
-					"Explanation agent could not apply a valid explanation update.",
-			);
-		}
-
-		if (!hasSuccessfulUpdate) {
-			throw new Error(
-				"Explanation agent finished without calling update_question_explanation.",
-			);
-		}
-
-		const generated = readGeneratedExplanation(workspace, questionId);
-
-		emitExplainQuestionAgentEvent(options, {
-			eventType: "result",
-			stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-			agentRunId,
-			label,
-			finalObject: generated,
-			rawText: streamState.rawText,
-			meta: baseMeta,
-		});
-		emitExplainQuestionAgentEvent(options, {
-			eventType: "lifecycle",
-			stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-			agentRunId,
-			label,
-			status: "done",
-			meta: baseMeta,
-		});
-
-		return {
-			result: {
-				questionId,
-				explanation: generated.explanation,
-				deepExplanation: generated.deepExplanation,
-			},
-			success: true,
-		};
-	} catch (error) {
-		const message = error instanceof Error ? error.message : "unknown error";
+	if (!pipelineResult.success) {
+		const message = pipelineResult.reason ?? "unknown error";
 		console.error(
 			`[${new Date().toISOString()} ERROR explain-question] ` +
 				`Explanation Q${questionId} failed: ${message}`,
 		);
-
-		emitExplainQuestionAgentEvent(options, {
-			eventType: "lifecycle",
-			stageId: EXPLAIN_QUESTION_AGENT_STAGE_ID,
-			agentRunId,
-			label,
-			status: "error",
-			error: message,
-			meta: baseMeta,
-		});
-
 		return { questionId, success: false, reason: message };
 	}
+
+	const generated = readGeneratedExplanation(workspace, questionId);
+
+	emit({
+		eventType: "result",
+		stageId: run.stageId,
+		agentRunId: run.agentRunId,
+		label: run.label,
+		finalObject: generated,
+		rawText: pipelineResult.rawText,
+		meta: baseMeta,
+	});
+
+	return {
+		result: {
+			questionId,
+			explanation: generated.explanation,
+			deepExplanation: generated.deepExplanation,
+		},
+		success: true,
+	};
 }
 
 function readGeneratedExplanation(

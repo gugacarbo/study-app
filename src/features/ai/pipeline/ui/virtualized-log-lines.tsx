@@ -1,10 +1,10 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import { cn } from "@/lib/utils";
-import type { IngestLogEntry } from "./types";
 
 interface VirtualizedLogLinesProps {
-	logs: IngestLogEntry[];
+	logs: PipelineLogEntry[];
 	className?: string;
 }
 
@@ -37,9 +37,9 @@ export function VirtualizedLogLines({
 							</span>
 							<div className="min-w-0 flex-1">
 								<div>{log.message}</div>
-								{log.agentId ? (
+								{log.agentRunId ? (
 									<div className="text-[0.625rem] text-muted-foreground">
-										Agent: {log.agentId}
+										Agent: {log.agentRunId}
 									</div>
 								) : null}
 							</div>
@@ -84,9 +84,9 @@ export function VirtualizedLogLines({
 								</span>
 								<div className="min-w-0 flex-1">
 									<div>{log.message}</div>
-									{log.agentId ? (
+									{log.agentRunId ? (
 										<div className="text-[0.625rem] text-muted-foreground">
-											Agent: {log.agentId}
+											Agent: {log.agentRunId}
 										</div>
 									) : null}
 								</div>
@@ -99,7 +99,7 @@ export function VirtualizedLogLines({
 	);
 }
 
-function logLevelClass(level: IngestLogEntry["level"]): string {
+function logLevelClass(level: PipelineLogEntry["level"]): string {
 	switch (level) {
 		case "error":
 			return "text-red-600 dark:text-red-400";

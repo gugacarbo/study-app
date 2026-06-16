@@ -1,8 +1,23 @@
-import { consumeConnectionTestStream } from "@/features/ai/lib/connection-test-stream";
 import {
+	normalizeTokenTotals,
+	type TokenTotals,
+} from "@/features/ai/components/token-totals-badge";
+import {
+	buildStreamPerfMetrics,
 	computeTotalRequestMs,
 	type StreamPerfMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
+import { extractTokenTotalsFromUsage } from "@/features/ai/lib/token-usage";
+import {
+	createSingleAgentRunHandlers,
+	isAbortError,
+	runJobPipeline,
+} from "@/features/ai/pipeline/client";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
+import type {
+	AgentRunDataPart,
+	JobResultDataPart,
+} from "@/features/ai/types/ui-message-data-parts";
 import {
 	getAbortController,
 	registerAbort,
@@ -23,8 +38,13 @@ const EMPTY_STREAM_METRICS: StreamPerfMetrics = {
 	totalRequestMs: null,
 };
 
-function isAbortError(err: unknown): boolean {
-	return err instanceof DOMException && err.name === "AbortError";
+function extractUsageTokenTotals(data: AgentRunDataPart): TokenTotals | null {
+	if (data.eventType !== "token" || data.tokens == null) return null;
+	if (typeof data.tokens === "string") return null;
+	return (
+		extractTokenTotalsFromUsage(data.tokens) ??
+		normalizeTokenTotals(data.tokens as Partial<TokenTotals>)
+	);
 }
 
 function finishProcess(
@@ -32,7 +52,7 @@ function finishProcess(
 	patch: Partial<
 		Pick<
 			ConnectionTestBackgroundProcess,
-			"status" | "error" | "finishedAt" | "step" | "progress"
+			"status" | "error" | "finishedAt" | "step" | "stepText" | "progress"
 		>
 	>,
 ): void {
@@ -43,9 +63,12 @@ function finishProcess(
 			process.startedAt ?? finishedAt,
 			finishedAt,
 		);
+		const step = patch.step ?? process.step;
 		return {
 			...process,
 			...patch,
+			step,
+			stepText: patch.stepText ?? step,
 			finishedAt,
 			streamMetrics: {
 				...process.streamMetrics,
@@ -67,6 +90,32 @@ async function runConnectionTest(processId: string): Promise<void> {
 	const { modelId } = initial;
 
 	const startedAt = Date.now();
+	let firstTokenAtMs: number | null = null;
+	let lastTokenAtMs: number | null = null;
+	let generationEndedAtMs: number | null = null;
+	let tokenTotals: TokenTotals | null = null;
+	let resultResponse = "";
+	let logs: PipelineLogEntry[] = [];
+
+	const agentHandlers = createSingleAgentRunHandlers({
+		onStateChange: (state) => {
+			updateProcess(processId, (process) => {
+				if (!isConnectionTestProcess(process)) return process;
+				return {
+					...process,
+					prompt: state.userPrompt,
+					response: state.outputText,
+					messages: state.messages,
+				};
+			});
+		},
+		onResult: (data: JobResultDataPart) => {
+			if (typeof data.response === "string") {
+				resultResponse = data.response;
+			}
+		},
+	});
+
 	updateProcess(processId, (process) => {
 		if (!isConnectionTestProcess(process)) return process;
 		return {
@@ -75,40 +124,132 @@ async function runConnectionTest(processId: string): Promise<void> {
 			startedAt,
 			progress: 5,
 			step: "Starting connection test...",
+			stepText: "Starting connection test...",
 			prompt: "",
 			response: "",
+			messages: [],
 			error: null,
 			tokenTotals: null,
+			logs: [],
 			streamMetrics: EMPTY_STREAM_METRICS,
 		};
 	});
 
+	const publishStreamMetrics = (completionTokens?: number | null) => {
+		return buildStreamPerfMetrics({
+			testStartedAtMs: startedAt,
+			firstTokenAtMs,
+			lastTokenAtMs,
+			generationEndedAtMs,
+			completionTokens: completionTokens ?? tokenTotals?.completion,
+		});
+	};
+
 	try {
-		await consumeConnectionTestStream(
-			modelId,
-			{
-				onUpdate: (patch) => {
-					const { messages: _messages, ...processPatch } = patch;
+		await runJobPipeline({
+			request: {
+				url: "/api/test-connection",
+				init: {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ modelId }),
+				},
+				signal,
+			},
+			handlers: {
+				...agentHandlers,
+				onProgress: (_ctx, data) => {
 					updateProcess(processId, (process) => {
 						if (!isConnectionTestProcess(process)) return process;
-						return { ...process, ...processPatch };
+						const patch: Partial<ConnectionTestBackgroundProcess> = {};
+						if (data.percent != null) patch.progress = data.percent;
+						if (data.step) {
+							patch.step = data.step;
+							patch.stepText = data.step;
+						}
+						return { ...process, ...patch };
 					});
 				},
+				onLog: (entry) => {
+					logs = [...logs, entry];
+					updateProcess(processId, (process) => {
+						if (!isConnectionTestProcess(process)) return process;
+						return { ...process, logs };
+					});
+				},
+				onAgentRun: (ctx, data) => {
+					agentHandlers.onAgentRun?.(ctx, data);
+
+					const now = Date.now();
+					if (data.eventType === "token" && data.rawText) {
+						if (firstTokenAtMs == null) {
+							firstTokenAtMs = now;
+						}
+						lastTokenAtMs = now;
+					}
+
+					const nextTokenTotals = extractUsageTokenTotals(data);
+					if (nextTokenTotals) {
+						generationEndedAtMs = now;
+						tokenTotals = nextTokenTotals;
+					}
+
+					if (
+						data.eventType === "token" &&
+						(data.rawText || nextTokenTotals)
+					) {
+						const streamMetrics = publishStreamMetrics(
+							nextTokenTotals?.completion,
+						);
+						updateProcess(processId, (process) => {
+							if (!isConnectionTestProcess(process)) return process;
+							return {
+								...process,
+								...(nextTokenTotals ? { tokenTotals: nextTokenTotals } : {}),
+								streamMetrics,
+							};
+						});
+					}
+				},
 			},
-			signal,
-			{ testStartedAtMs: startedAt },
-		);
+		});
+
+		const finalProcess = getProcessById(processId);
+		const response =
+			finalProcess && isConnectionTestProcess(finalProcess)
+				? finalProcess.response.trim().length > 0
+					? finalProcess.response
+					: resultResponse
+				: resultResponse;
+
+		const finishedAt = Date.now();
+		const streamMetrics = publishStreamMetrics();
+		updateProcess(processId, (process) => {
+			if (!isConnectionTestProcess(process)) return process;
+			return {
+				...process,
+				response,
+				streamMetrics: {
+					...streamMetrics,
+					totalRequestMs:
+						computeTotalRequestMs(startedAt, finishedAt) ??
+						streamMetrics.totalRequestMs,
+				},
+			};
+		});
 
 		finishProcess(processId, {
 			status: "success",
 			progress: 100,
 			step: "Completed",
+			stepText: "Completed",
 		});
 	} catch (err) {
 		if (isAbortError(err) || signal.aborted) {
 			finishProcess(processId, {
 				status: "canceled",
 				step: "Canceled",
+				stepText: "Canceled",
 				error: "Connection test canceled",
 			});
 			return;
@@ -119,6 +260,7 @@ async function runConnectionTest(processId: string): Promise<void> {
 		finishProcess(processId, {
 			status: "error",
 			step: "Failed",
+			stepText: "Failed",
 			error: message,
 		});
 	} finally {
@@ -161,8 +303,11 @@ export function startConnectionTest(
 		finishedAt: null,
 		progress: 0,
 		step: "Queued",
+		stepText: "Queued",
+		logs: [],
 		prompt: "",
 		response: "",
+		messages: [],
 		error: null,
 		tokenTotals: null,
 		streamMetrics: EMPTY_STREAM_METRICS,
@@ -196,6 +341,7 @@ export function cancelConnectionTest(modelId: number): void {
 			status: "canceled",
 			finishedAt,
 			step: "Canceled",
+			stepText: "Canceled",
 			error: "Connection test canceled",
 			streamMetrics: {
 				...process.streamMetrics,

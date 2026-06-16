@@ -1,10 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-	createJobUIMessageStream,
-	createJobUIMessageStreamResponse,
-	writeJobError,
-	writeJobResult,
-} from "@/features/ai/core/ui-message-job-stream";
+import { writeJobResult } from "@/features/ai/core/ui-message-job-stream";
+import { createJobApiRoute } from "@/features/ai/pipeline/server/create-job-api-route";
 import { ingestRequestSchema, runIngestWithProgress } from "./-pipeline";
 
 export {
@@ -22,52 +18,27 @@ export {
 } from "./-review";
 export { runReviewStage } from "./-review-stage";
 
+const ingestHandler = createJobApiRoute({
+	schema: ingestRequestSchema,
+	logTag: "ingest-handler",
+	signal: true,
+	run: async ({ writer, data, signal, agentRuns, log, ctx }) => {
+		const result = await runIngestWithProgress({
+			payload: data,
+			writer,
+			abortSignal: signal ?? new AbortController().signal,
+			agentRuns,
+			log,
+			ctx,
+		});
+		writeJobResult(writer, result);
+	},
+});
+
 export const Route = createFileRoute("/api/ingest/")({
 	server: {
 		handlers: {
-			POST: async ({ request }: { request: Request }) => {
-				const payloadRaw = await request.json().catch(() => null);
-				const parsed = ingestRequestSchema.safeParse(payloadRaw);
-				if (!parsed.success) {
-					return new Response(
-						JSON.stringify({
-							error: "Invalid ingest payload",
-							details: parsed.error.issues,
-						}),
-						{
-							status: 400,
-							headers: { "Content-Type": "application/json" },
-						},
-					);
-				}
-
-				const stream = createJobUIMessageStream({
-					execute: async ({ writer }) => {
-						try {
-							const result = await runIngestWithProgress(
-								parsed.data,
-								writer,
-								request.signal,
-							);
-							writeJobResult(writer, result);
-						} catch (error) {
-							console.error(
-								`[${new Date().toISOString()} ERROR ingest-handler] Ingest job failed:`,
-								error,
-								`fileName=${parsed.data.fileName}`,
-							);
-							writeJobError(writer, {
-								message:
-									error instanceof Error
-										? error.message
-										: "Unknown ingest error",
-							});
-						}
-					},
-				});
-
-				return createJobUIMessageStreamResponse(stream);
-			},
+			POST: ingestHandler,
 		},
 	},
 } as never);

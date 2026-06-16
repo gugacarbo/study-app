@@ -1,6 +1,6 @@
 import { computeTotalRequestMs } from "@/features/ai/lib/stream-perf-metrics";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import {
-	appendLogEntry,
 	createEmptyJob,
 	ensureAgentRunMessages,
 } from "@/features/background-processes/kinds/ingest/job-utils";
@@ -142,11 +142,25 @@ function isPersistedModelBenchmarkProcess(
 	);
 }
 
+function appendInterruptLog(job: IngestJob, message: string): IngestJob {
+	const now = Date.now();
+	const entry: PipelineLogEntry = {
+		id: `log_${now}_interrupt`,
+		timestamp: now,
+		level: "warning",
+		message,
+	};
+	return {
+		...job,
+		logs: [...job.logs, entry],
+	};
+}
+
 function createInterruptedIngestProcess(
 	process: IngestBackgroundProcess,
 ): IngestBackgroundProcess {
 	const now = Date.now();
-	const interruptedJob = appendLogEntry(
+	const interruptedJob = appendInterruptLog(
 		{
 			...ingestProcessToHydrationJob(process),
 			status: "canceled",
@@ -156,10 +170,6 @@ function createInterruptedIngestProcess(
 			error: "Ingest interrupted after page reload",
 		},
 		"Ingest interrupted after page reload",
-		{
-			timestamp: now,
-			level: "warning",
-		},
 	);
 
 	return ingestJobToProcess(interruptedJob);
@@ -239,6 +249,16 @@ function hydratePersistedIngestProcess(
 		? process.id.slice("ingest:".length)
 		: process.id;
 
+	const persisted = process as PersistedIngestProcess & {
+		flowStages?: IngestJob["stages"];
+	};
+	const stages =
+		Array.isArray(persisted.stages) && persisted.stages.length > 0
+			? persisted.stages
+			: Array.isArray(persisted.flowStages)
+				? persisted.flowStages
+				: [];
+
 	const hydratedJob: IngestJob = {
 		...createEmptyJob(
 			rawId,
@@ -251,6 +271,7 @@ function hydratePersistedIngestProcess(
 		...process,
 		id: rawId,
 		buffer: [],
+		stages,
 		agentRuns: Array.isArray(process.agentRuns)
 			? process.agentRuns.map((agentRun) =>
 					ensureAgentRunMessages(agentRun as IngestJob["agentRuns"][number]),

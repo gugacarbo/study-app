@@ -1,5 +1,5 @@
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import {
-	appendLogEntry,
 	createEmptyJob,
 	ensureAgentRunMessages,
 } from "@/features/background-processes/kinds/ingest/job-utils";
@@ -58,24 +58,32 @@ function isPersistedIngestJob(value: unknown): value is PersistedIngestJob {
 	return typeof value === "object" && value !== null;
 }
 
+function appendInterruptLog(job: IngestJob, message: string): IngestJob {
+	const now = Date.now();
+	const entry: PipelineLogEntry = {
+		id: `log_${now}_interrupt`,
+		timestamp: now,
+		level: "warning",
+		message,
+	};
+	return {
+		...job,
+		logs: [...job.logs, entry],
+	};
+}
+
 function createInterruptedJob(job: IngestJob): IngestJob {
 	const now = Date.now();
-	const interruptedJob: IngestJob = {
-		...job,
-		status: "canceled",
-		buffer: [],
-		finishedAt: job.finishedAt ?? now,
-		stepText: "Interrupted after reload",
-		error: "Ingest interrupted after page reload",
-	};
-
-	return appendLogEntry(
-		interruptedJob,
-		"Ingest interrupted after page reload",
+	return appendInterruptLog(
 		{
-			timestamp: now,
-			level: "warning",
+			...job,
+			status: "canceled",
+			buffer: [],
+			finishedAt: job.finishedAt ?? now,
+			stepText: "Interrupted after reload",
+			error: "Ingest interrupted after page reload",
 		},
+		"Ingest interrupted after page reload",
 	);
 }
 
@@ -84,6 +92,16 @@ function hydratePersistedJob(job: unknown): IngestJob | null {
 	if (typeof job.id !== "string" || typeof job.fileName !== "string") {
 		return null;
 	}
+
+	const persisted = job as PersistedIngestJob & {
+		flowStages?: IngestJob["stages"];
+	};
+	const stages =
+		Array.isArray(persisted.stages) && persisted.stages.length > 0
+			? persisted.stages
+			: Array.isArray(persisted.flowStages)
+				? persisted.flowStages
+				: [];
 
 	const hydratedJob: IngestJob = {
 		...createEmptyJob(
@@ -96,6 +114,7 @@ function hydratePersistedJob(job: unknown): IngestJob | null {
 		),
 		...job,
 		buffer: [],
+		stages,
 		agentRuns: Array.isArray(job.agentRuns)
 			? job.agentRuns.map((agentRun) =>
 					ensureAgentRunMessages(agentRun as IngestJob["agentRuns"][number]),

@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { AgentRunState } from "@/features/ai/utils/agent-run-messages";
+import type { AgentRunState } from "@/features/ai/pipeline/client";
 import {
 	type ExplainQuestionsBatchAgentItem,
 	canContinueExplainQuestionsAgent,

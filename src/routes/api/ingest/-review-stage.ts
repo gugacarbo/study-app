@@ -1,13 +1,43 @@
 import type { ToolSet } from "ai";
-import { reviewExtraction } from "@/features/ai/agents/ingest/review-extraction";
+import { reviewSingleQuestion } from "@/features/ai/agents/ingest/review-extraction/review-question";
+import { deriveTopics } from "@/features/ai/agents/ingest/review-extraction/prompt";
+import type { IngestReviewAgentEvent } from "@/features/ai/agents/ingest/review-extraction/types";
 import { bridgeAgentRunEvent } from "@/features/ai/core/bridge-agent-run-event";
 import {
 	writeStage,
+	createAgentRunWriter,
 	type AgentRunDescriptor,
 	type JobUIMessageStreamWriter,
 } from "@/features/ai/core/ui-message-job-stream";
-import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
+import { runConcurrentBatch } from "@/features/ai/pipeline/server/run-concurrent-batch";
+import type { PipelineRunContext } from "@/features/ai/pipeline/server/create-job-api-route";
+import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
+import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
+
+const MAX_REVIEW_ATTEMPTS = 3;
+
+type ReviewStageResult = {
+	extracted: ExamIngestResponse;
+	reviewed: boolean;
+	reviewedQuestionCount: number;
+	failedQuestionCount: number;
+	reasons: string[];
+};
+
+function noopPipelineLogger(): PipelineLogger {
+	const noop = () => {};
+	return {
+		debug: noop,
+		info: noop,
+		warning: noop,
+		error: noop,
+		step: noop,
+		withContext: () => noopPipelineLogger(),
+	};
+}
+
+type AgentRunWriter = ReturnType<typeof createAgentRunWriter>;
 
 interface RunReviewStageParams {
 	enableReview: boolean;
@@ -17,59 +47,12 @@ interface RunReviewStageParams {
 	extracted: ExamIngestResponse;
 	criticalTopics: string[];
 	tools?: ToolSet;
-	agentRuns: {
-		allocateAgentRunId(stageId: string): string;
-		createRun(stageId: string, label: string): AgentRunDescriptor;
-		lifecycle(
-			run: AgentRunDescriptor,
-			status: AgentRunStatus,
-			meta?: Record<string, unknown>,
-		): void;
-		warning(
-			run: AgentRunDescriptor,
-			warning: string,
-			meta?: Record<string, unknown>,
-		): void;
-		result(
-			run: AgentRunDescriptor,
-			finalObject: unknown,
-			rawText?: string,
-			meta?: Record<string, unknown>,
-		): void;
-		token(
-			run: AgentRunDescriptor,
-			tokens: unknown,
-			meta?: Record<string, unknown>,
-		): void;
-		toolCall(
-			run: AgentRunDescriptor,
-			tool: {
-				name?: string;
-				arguments?: string;
-				input?: unknown;
-				output?: unknown;
-				state?: string;
-			},
-			meta?: Record<string, unknown>,
-		): void;
-		toolResult(
-			run: AgentRunDescriptor,
-			result: {
-				content?: unknown;
-				error?: string;
-				state?: string;
-			},
-			meta?: Record<string, unknown>,
-		): void;
-		textDelta(run: AgentRunDescriptor, delta: string): void;
-		reasoningDelta(run: AgentRunDescriptor, delta: string): void;
-	};
+	agentRuns: AgentRunWriter;
 	writer: JobUIMessageStreamWriter;
+	log?: PipelineLogger;
+	ctx?: PipelineRunContext;
 	onProgress: (step: string) => void;
 	onWarning: (message: string, meta?: Record<string, unknown>) => void;
-	log: {
-		error: (msg: string, err: unknown, ctx?: Record<string, unknown>) => void;
-	};
 }
 
 export async function runReviewStage(params: RunReviewStageParams): Promise<{
@@ -91,104 +74,162 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 		writer,
 		onProgress,
 		onWarning,
-		log,
+		log = noopPipelineLogger(),
+		ctx,
 	} = params;
 
 	if (!enableReview) {
 		onProgress("Review disabled for this ingest.");
-		writeStage(writer, {
-			stageId: "review",
-			label: "Review",
-			status: "skipped",
-			timestamp: Date.now(),
-			meta: { disabled: true },
-		});
-		const skippedRun = agentRuns.createRun("review", "Review disabled");
-		agentRuns.lifecycle(skippedRun, "skipped", {
-			meta: { disabled: true },
-		});
-		agentRuns.warning(skippedRun, "Review disabled for this ingest.", {
-			disabled: true,
-		});
+		await runPipelineStage(
+			writer,
+			{ stageId: "review", label: "Review" },
+			async () => {
+				const skippedRun = agentRuns.createRun("review", "Review disabled");
+				agentRuns.lifecycle(skippedRun, "skipped", {
+					meta: { disabled: true },
+				});
+				agentRuns.warning(skippedRun, "Review disabled for this ingest.", {
+					disabled: true,
+				});
+				return "skipped" as const;
+			},
+			{ log, ctx, meta: { disabled: true } },
+		);
 		return null;
 	}
 
-	onProgress("Running review...");
-	writeStage(writer, {
-		stageId: "review",
-		label: "Review",
-		status: "running",
-		timestamp: Date.now(),
-	});
+	const totalQuestions = extracted.questions.length;
+	if (totalQuestions === 0) {
+		onProgress("No extracted questions were available for review.");
+		await runPipelineStage(
+			writer,
+			{ stageId: "review", label: "Review" },
+			async () => "skipped" as const,
+			{ log, ctx, meta: { reason: "no_questions" } },
+		);
+		return null;
+	}
+
+	if (Object.keys(tools ?? {}).length === 0) {
+		onWarning(
+			"Web verification tools are unavailable. Continuing with LLM-only review (no web search/fetch).",
+		);
+	}
 
 	const agentRunIdsByLabel = new Map<string, string>();
+	const runsByIndex = new Map<number, AgentRunDescriptor>();
+	let reviewResult: ReviewStageResult | null = null;
 
-	try {
-		const reviewResult = await reviewExtraction(
-			config,
-			text,
-			extracted,
-			{
-				reviewTopics: criticalTopics,
+	await runPipelineStage(
+		writer,
+		{ stageId: "review", label: "Review" },
+		async () => {
+			onProgress("Running review...");
+			onProgress(
+				`Reviewing ${totalQuestions} extracted question${totalQuestions === 1 ? "" : "s"} in parallel...`,
+			);
+
+			const batch = await runConcurrentBatch({
+				items: extracted.questions,
 				concurrency: agentConcurrency,
-				tools,
-				onEvent: (event) => {
-					if (event.type === "warning") {
-						onWarning(event.message);
-						return;
-					}
-					onProgress(event.message);
-				},
-				onAgentEvent: (event) => {
-					bridgeAgentRunEvent(event, agentRuns, (message, meta) =>
-						onWarning(message, meta),
-					);
-				},
-				createAgentRunId: (label) => {
-					const cached = agentRunIdsByLabel.get(label);
-					if (cached) return cached;
+				maxAttempts: MAX_REVIEW_ATTEMPTS,
+				log,
+				agentRuns,
+				onProgress,
+				onWarning,
+				getRunForItem: (_item, index) => runsByIndex.get(index),
+				mapper: async (question, index) => {
+					const label = `Reviewer Q${index + 1}`;
 					const agentRunId = agentRuns.allocateAgentRunId("review");
 					agentRunIdsByLabel.set(label, agentRunId);
-					return agentRunId;
-				},
-			},
-		);
+					runsByIndex.set(index, {
+						stageId: "review",
+						agentRunId,
+						label,
+					});
 
+					const result = await reviewSingleQuestion(
+						config,
+						text,
+						question,
+						index,
+						totalQuestions,
+						{
+							reviewTopics: criticalTopics,
+							tools,
+							onEvent: (event) => {
+								if (event.type === "warning") {
+									onWarning(event.message);
+									return;
+								}
+								onProgress(event.message);
+							},
+							onAgentEvent: (event) => {
+								bridgeAgentRunEvent(
+									event as IngestReviewAgentEvent,
+									agentRuns,
+									(message, meta) => onWarning(message, meta),
+								);
+							},
+							createAgentRunId: () => agentRunId,
+						},
+					);
+
+					return {
+						success: result.success,
+						result: result.question,
+						error: result.success ? undefined : result.reason,
+					};
+				},
+			});
+
+			const reviewedQuestions = extracted.questions.map((question, index) => {
+				const outcome = batch.results[index];
+				return outcome?.success && outcome.result
+					? outcome.result
+					: question;
+			});
+			const failedQuestionCount = batch.failureCount;
+			const reviewedQuestionCount = batch.successCount;
+			const reasons = batch.results.flatMap((outcome) =>
+				outcome.error ? [outcome.error] : [],
+			);
+
+			reviewResult = {
+				extracted: {
+					examName: extracted.examName,
+					questions: reviewedQuestions,
+					topics: deriveTopics(reviewedQuestions, extracted.topics),
+				},
+				reviewed: true,
+				reviewedQuestionCount,
+				failedQuestionCount,
+				reasons,
+			};
+
+			onProgress(
+				reviewedQuestionCount > 0 ? "Review completed" : "Review skipped",
+			);
+
+			return "done" as const;
+		},
+		{ log, ctx },
+	);
+
+	if (reviewResult !== null) {
+		const completedReview: ReviewStageResult = reviewResult;
 		writeStage(writer, {
 			stageId: "review",
 			label: "Review",
 			status: "done",
 			timestamp: Date.now(),
 			meta: {
-				reviewed: reviewResult.reviewed,
-				reviewedQuestionCount: reviewResult.reviewedQuestionCount,
-				failedQuestionCount: reviewResult.failedQuestionCount,
+				reviewed: completedReview.reviewed,
+				reviewedQuestionCount: completedReview.reviewedQuestionCount,
+				failedQuestionCount: completedReview.failedQuestionCount,
 			},
 		});
-
-		const step = reviewResult.reviewed ? "Review completed" : "Review skipped";
-		onProgress(step);
-
-		return {
-			extracted: reviewResult.extracted,
-			reviewed: reviewResult.reviewed,
-			reviewedQuestionCount: reviewResult.reviewedQuestionCount,
-			failedQuestionCount: reviewResult.failedQuestionCount,
-			reasons: reviewResult.reasons,
-		};
-	} catch (err) {
-		log.error("Review failed", err, {
-			stage: "review",
-			questionCount: extracted.questions.length,
-			criticalTopics,
-		});
-		writeStage(writer, {
-			stageId: "review",
-			label: "Review",
-			status: "error",
-			timestamp: Date.now(),
-			meta: { error: err instanceof Error ? err.message : "unknown" },
-		});
-		throw err;
 	}
+
+	return reviewResult;
 }

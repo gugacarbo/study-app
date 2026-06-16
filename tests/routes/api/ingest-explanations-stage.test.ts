@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { runQuestionExplanationsMock } = vi.hoisted(() => ({
-	runQuestionExplanationsMock: vi.fn(),
+const { explainSingleQuestionMock } = vi.hoisted(() => ({
+	explainSingleQuestionMock: vi.fn(),
 }));
 
-vi.mock("@/features/ai/agents/explanations", () => ({
-	runQuestionExplanations: runQuestionExplanationsMock,
-}));
+vi.mock(
+	"@/features/ai/agents/explanations/generate-explanations/explain-single-question",
+	() => ({
+		explainSingleQuestion: explainSingleQuestionMock,
+	}),
+);
 
 import { runExplanationsStage } from "@/routes/api/ingest/-explanations-stage";
 
@@ -41,7 +44,7 @@ function createMemoryMock() {
 
 describe("runExplanationsStage", () => {
 	beforeEach(() => {
-		runQuestionExplanationsMock.mockReset();
+		explainSingleQuestionMock.mockReset();
 	});
 
 	it("skips explanation generation when disabled", async () => {
@@ -77,11 +80,10 @@ describe("runExplanationsStage", () => {
 			writer: writer as never,
 			onProgress,
 			onWarning,
-			log: { error: vi.fn() },
 		});
 
 		expect(result).toBeNull();
-		expect(runQuestionExplanationsMock).not.toHaveBeenCalled();
+		expect(explainSingleQuestionMock).not.toHaveBeenCalled();
 		expect(agentRuns.warning).toHaveBeenCalledWith(
 			expect.objectContaining({
 				stageId: "explanations",
@@ -102,18 +104,13 @@ describe("runExplanationsStage", () => {
 	});
 
 	it("runs one explanation agent per question and merges results", async () => {
-		runQuestionExplanationsMock.mockResolvedValue({
-			questions: [
-				{
-					id: 1,
-					explanation: "Curta",
-					deepExplanation: "Longa",
-				},
-			],
-			agentRuns: [],
-			generatedQuestionCount: 1,
-			failedQuestionCount: 0,
-			reasons: [],
+		explainSingleQuestionMock.mockResolvedValue({
+			result: {
+				id: 1,
+				explanation: "Curta",
+				deepExplanation: "Longa",
+			},
+			success: true,
 		});
 
 		const writer = { write: vi.fn() };
@@ -149,18 +146,17 @@ describe("runExplanationsStage", () => {
 			writer: writer as never,
 			onProgress,
 			onWarning,
-			log: { error: vi.fn() },
 		});
 
 		expect(memory.buildMemoryPrompt).toHaveBeenCalledWith(["Geral"]);
-		expect(runQuestionExplanationsMock).toHaveBeenCalledWith(
+		expect(explainSingleQuestionMock).toHaveBeenCalledWith(
 			expect.anything(),
-			[
-				expect.objectContaining({
-					id: 1,
-					question: "Pergunta",
-				}),
-			],
+			expect.objectContaining({
+				id: 1,
+				question: "Pergunta",
+			}),
+			0,
+			1,
 			expect.objectContaining({
 				resolveMemoryContext: expect.any(Function),
 			}),

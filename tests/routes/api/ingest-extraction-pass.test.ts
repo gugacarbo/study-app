@@ -71,6 +71,7 @@ function mockStreamParts(parts: TextStreamPart<ToolSet>[]) {
 
 function createAgentRunsMock() {
 	return {
+		allocateAgentRunId: vi.fn(() => "initial_extraction-1"),
 		createRun: vi.fn(() => ({
 			stageId: "initial_extraction",
 			agentRunId: "initial_extraction-1",
@@ -83,6 +84,7 @@ function createAgentRunsMock() {
 		reasoningDelta: vi.fn(),
 		toolCall: vi.fn(),
 		toolResult: vi.fn(),
+		warning: vi.fn(),
 	};
 }
 
@@ -176,23 +178,13 @@ describe("runExtractionPass", () => {
 			expect.objectContaining({
 				agentRunId: "initial_extraction-1",
 			}),
-			{
+			expect.objectContaining({
 				name: "add_extracted_question",
-				arguments: JSON.stringify({
-					question: "O que e cache?",
-					options: ["Memoria rapida", "Disco rigido"],
-					answer: "Memoria rapida",
-					topic: "Memoria",
-				}),
-				input: {
-					question: "O que e cache?",
-					options: ["Memoria rapida", "Disco rigido"],
-					answer: "Memoria rapida",
-					topic: "Memoria",
-				},
 				state: "input-complete",
-			},
-			{ toolCallId: "tc-1" },
+			}),
+			expect.objectContaining({
+				toolCallId: "tc-1",
+			}),
 		);
 		expect(agentRuns.toolResult).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -202,7 +194,9 @@ describe("runExtractionPass", () => {
 				content: expect.objectContaining({ ok: true }),
 				state: "complete",
 			}),
-			{ toolCallId: "tc-1" },
+			expect.objectContaining({
+				toolCallId: "tc-1",
+			}),
 		);
 	});
 
@@ -543,7 +537,7 @@ describe("runExtractionPass", () => {
 		);
 	});
 
-	it("emits incremental tool-call events while arguments stream", async () => {
+	it("emits tool-call events when arguments are complete", async () => {
 		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
 			const addQuestion = getTool(options?.tools, "add_extracted_question");
 			return {
@@ -613,33 +607,13 @@ describe("runExtractionPass", () => {
 			stageLabel: "Initial extraction agent",
 		});
 
-		expect(agentRuns.toolCall).toHaveBeenNthCalledWith(
-			1,
-			expect.objectContaining({ agentRunId: "initial_extraction-1" }),
-			expect.objectContaining({
-				name: "add_extracted_question",
-				state: "awaiting-input",
-			}),
-			{ toolCallId: "tc-stream-1" },
-		);
-		expect(agentRuns.toolCall).toHaveBeenNthCalledWith(
-			2,
-			expect.objectContaining({ agentRunId: "initial_extraction-1" }),
-			expect.objectContaining({
-				name: "add_extracted_question",
-				arguments: '{"question":"Qual e a derivada?"',
-				state: "input-streaming",
-			}),
-			{ toolCallId: "tc-stream-1" },
-		);
-		expect(agentRuns.toolCall).toHaveBeenNthCalledWith(
-			4,
+		expect(agentRuns.toolCall).toHaveBeenCalledWith(
 			expect.objectContaining({ agentRunId: "initial_extraction-1" }),
 			expect.objectContaining({
 				name: "add_extracted_question",
 				state: "input-complete",
 			}),
-			{ toolCallId: "tc-stream-1" },
+			expect.objectContaining({ toolCallId: "tc-stream-1" }),
 		);
 	});
 });

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AgentStreamPanel } from "./agent-stream-panel";
+import { PipelineThread } from "@/features/ai/pipeline/ui";
 import {
 	type PanelLayout,
 	PanelSplitGutter,
@@ -176,12 +176,13 @@ export function ImproveQuestionsDialog({
 						)}
 						aria-hidden={!agentActive}
 					>
-						<AgentStreamPanel
+						<PipelineThread
 							messages={messages}
-							isStreaming={isStreaming}
-							agentStatus={agentStatus}
+							isRunning={isStreaming}
+							mode="follow-up"
+							layout="panel"
 							composerEnabled={canSendFollowUp}
-							onSendFollowUp={onSendFollowUp}
+							onSend={onSendFollowUp}
 						/>
 					</div>
 				</div>

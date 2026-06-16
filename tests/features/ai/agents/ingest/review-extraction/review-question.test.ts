@@ -243,13 +243,21 @@ describe("reviewSingleQuestion", () => {
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
 			7,
 			expect.objectContaining({
+				eventType: "lifecycle",
+				status: "done",
+				agentRunId: "review-q1",
+			}),
+		);
+		expect(onAgentEvent).toHaveBeenNthCalledWith(
+			8,
+			expect.objectContaining({
 				eventType: "result",
 				agentRunId: "review-q1",
 				rawText: expect.stringContaining("[tool:update_extracted_question]"),
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			8,
+			9,
 			expect.objectContaining({
 				eventType: "lifecycle",
 				status: "done",

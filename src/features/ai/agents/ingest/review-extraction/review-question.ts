@@ -1,9 +1,4 @@
 import type { ToolSet } from "ai";
-import {
-	createAiStreamState,
-	createToolResultEmitter,
-	payloadFromToolExecuteResult,
-} from "@/features/ai/core/ai-stream-handler";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import {
 	buildIngestReviewPrepareStep,
@@ -12,8 +7,12 @@ import {
 import {
 	isSuccessfulNamedToolResult,
 	readToolFailureMessage,
-	runToolAgentStream,
 } from "@/features/ai/core/tool-agent-run";
+import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
+import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
+import { createPipelineAgentEmitter } from "@/features/ai/pipeline/server/agent-emitter";
+import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import {
 	readIngestAgentStageStatusReport,
 	resolveIngestAgentRunStatus,
@@ -30,9 +29,8 @@ import {
 	formatExtractionQuestionId,
 } from "@/features/ai/tools/ingest-tools";
 import type { ProviderConfig, Question } from "@/lib/validation";
-import { emitAgentEvent } from "./execute-helpers";
 import { buildReviewerSystemPrompt, buildReviewerUserPrompt } from "./prompt";
-import type { ReviewExtractionOptions } from "./types";
+import type { IngestReviewAgentEvent, ReviewExtractionOptions } from "./types";
 
 const UPDATE_EXTRACTED_QUESTION_TOOL = "update_extracted_question";
 
@@ -61,8 +59,6 @@ export async function reviewSingleQuestion(
 	);
 	let stageStatusReport: IngestAgentStageStatusReport | null = null;
 	let reportedStageStatus: IngestAgentReportedStatus | null = null;
-	const streamState = createAiStreamState();
-	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
 	let updateCallCount = 0;
@@ -73,130 +69,83 @@ export async function reviewSingleQuestion(
 		questionNumber: index + 1,
 	};
 
-	emitAgentEvent(options, {
-		eventType: "lifecycle",
+	const run: AgentRunDescriptor = {
 		stageId: "review",
 		agentRunId,
 		label,
-		status: "pending",
-		systemPrompt,
-		userPrompt,
-		meta: {
-			...questionMeta,
-			topic: question.topic ?? "General",
+	};
+
+	const emit: AgentEventEmitter = createPipelineAgentEmitter(
+		"review",
+		run,
+		(event) => {
+			options.onAgentEvent?.(event as IngestReviewAgentEvent);
 		},
-	});
-	emitAgentEvent(options, {
-		eventType: "lifecycle",
-		stageId: "review",
-		agentRunId,
-		label,
-		status: "running",
-		meta: questionMeta,
-	});
+	);
+	const emitPartial = (
+		event: Omit<AgentRunDataPart, "timestamp" | "stageId" | "agentRunId" | "label">,
+	) => {
+		emit({ ...run, ...event });
+	};
+
+	const hasWorkspaceUpdate = () => {
+		const reviewed = workspace.listQuestions()[0];
+		if (!reviewed) return false;
+		return (
+			reviewed.question !== question.question ||
+			reviewed.options.join("\0") !== question.options.join("\0") ||
+			reviewed.answers.join("\0") !== question.answers.join("\0") ||
+			reviewed.scoringMode !== question.scoringMode ||
+			(reviewed.topic ?? "General") !== (question.topic ?? "General") ||
+			reviewed.explanation !== (question.explanation ?? "")
+		);
+	};
 
 	try {
-		const handleToolCall = (toolCall: {
-			toolCallId: string;
-			name?: string;
-			arguments?: string;
-			input?: unknown;
-			state: "awaiting-input" | "input-streaming" | "input-complete";
-		}) => {
-			if (toolCall.state === "input-streaming") {
-				if (toolCall.name) {
-					toolNamesById.set(toolCall.toolCallId, toolCall.name);
-				}
-				return;
-			}
-
-			if (toolCall.name) {
-				toolNamesById.set(toolCall.toolCallId, toolCall.name);
-			}
-			emitAgentEvent(options, {
-				eventType: "tool-call",
-				stageId: "review",
-				agentRunId,
-				label,
-				name: toolCall.name,
-				arguments: toolCall.arguments,
-				input: toolCall.input,
-				state: toolCall.state,
-				meta: {
-					...questionMeta,
-					toolCallId: toolCall.toolCallId,
-				},
-			});
-		};
-
-		const handleToolResult = (toolResult: {
-			toolCallId: string;
-			content?: unknown;
-			error?: string;
-			state: "streaming" | "complete" | "error";
-		}) => {
-			emitAgentEvent(options, {
-				eventType: "tool-result",
-				stageId: "review",
-				agentRunId,
-				label,
-				content: toolResult.content,
-				error: toolResult.error,
-				state: toolResult.state,
-				meta: {
-					...questionMeta,
-					toolCallId: toolResult.toolCallId,
-				},
-			});
-
-			const toolFailure = readToolFailureMessage(toolResult.content);
-			if (toolFailure) {
-				toolFailureMessages.push(toolFailure);
-			}
-			const toolName =
-				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-			if (toolName === "update_extracted_question") {
-				updateCallCount += 1;
-				const output = readToolOutput(toolResult.content);
-				if (output?.ok === true && Array.isArray(output.updatedFields)) {
-					if (output.updatedFields.length === 0) {
-						stoppedAfterNoOpUpdate = true;
-					}
-					toolsComplete = true;
-				}
-			}
-			if (toolName === "report_agent_stage_status") {
-				const report = readIngestAgentStageStatusReport(
-					toolResult.content,
-				);
-				stageStatusReport = report;
-				reportedStageStatus = report?.status ?? null;
-			}
-			if (
-				isSuccessfulNamedToolResult(
-					toolName,
-					toolResult.content,
-					UPDATE_EXTRACTED_QUESTION_TOOL,
-				)
-			) {
-				hasSuccessfulUpdate = true;
-			}
-		};
-		const emitToolResult = createToolResultEmitter(
-			handleToolResult,
-			streamState,
-		);
 		const workspaceTools = createIngestReviewTools(workspace, {
 			onToolExecuted: async ({ toolName, toolCallId, output }) => {
-				toolNamesById.set(toolCallId, toolName);
-				emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+				const toolFailure = readToolFailureMessage(output);
+				if (toolFailure) {
+					toolFailureMessages.push(toolFailure);
+				}
+				if (toolName === UPDATE_EXTRACTED_QUESTION_TOOL) {
+					updateCallCount += 1;
+					const toolOutput = readToolOutput(output);
+					if (toolOutput?.ok === true && Array.isArray(toolOutput.updatedFields)) {
+						if (toolOutput.updatedFields.length === 0) {
+							stoppedAfterNoOpUpdate = true;
+						}
+						toolsComplete = true;
+					}
+				}
+				if (
+					isSuccessfulNamedToolResult(
+						toolName,
+						output,
+						UPDATE_EXTRACTED_QUESTION_TOOL,
+					)
+				) {
+					hasSuccessfulUpdate = true;
+				}
+				emitPartial({
+					eventType: "tool-result",
+					name: toolName,
+					content: output,
+					state: "complete",
+					meta: { ...questionMeta, toolCallId },
+				});
 			},
 			onStageStatusReported: async ({ toolCallId, output }) => {
 				const report = readIngestAgentStageStatusReport(output);
 				stageStatusReport = report;
 				reportedStageStatus = report?.status ?? null;
-				toolNamesById.set(toolCallId, "report_agent_stage_status");
-				emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+				emitPartial({
+					eventType: "tool-result",
+					name: "report_agent_stage_status",
+					content: output,
+					state: "complete",
+					meta: { ...questionMeta, toolCallId },
+				});
 			},
 		});
 		const combinedTools: ToolSet = {
@@ -204,12 +153,12 @@ export async function reviewSingleQuestion(
 			...(options.tools ?? {}),
 		};
 
-		await runToolAgentStream({
+		const agentResult = await runPipelineToolAgent({
 			scope: "ingest.review",
+			stageId: "review",
 			config,
-			callId: agentRunId,
-			requestSummary: `question ${index + 1}/${totalQuestions}`,
-			metadata: { questionIndex: index + 1, totalQuestions },
+			run,
+			emit,
 			systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 			tools: combinedTools,
@@ -217,69 +166,50 @@ export async function reviewSingleQuestion(
 			prepareStep: buildIngestReviewPrepareStep({
 				shouldFinalize: () => toolsComplete,
 			}),
-			streamState,
+			meta: questionMeta,
+			requestSummary: `question ${index + 1}/${totalQuestions}`,
 			onRecoverableError: (message) => {
-				emitAgentEvent(options, {
+				emitPartial({
 					eventType: "warning",
-					stageId: "review",
-					agentRunId,
-					label,
 					warning: `Provider dropped a stream chunk after a tool call (${message}); continuing review.`,
 					meta: questionMeta,
 				});
 			},
-			handlers: {
-				onTextDelta: (delta) => {
-					emitAgentEvent(options, {
-						eventType: "token",
-						stageId: "review",
-						agentRunId,
-						label,
-						rawText: delta,
-						meta: questionMeta,
-					});
-				},
-				onReasoningDelta: (delta) => {
-					emitAgentEvent(options, {
-						eventType: "token",
-						stageId: "review",
-						agentRunId,
-						label,
-						rawText: delta,
-						meta: { ...questionMeta, kind: "reasoning" },
-					});
-				},
-				onUsage: (usage) => {
-					emitAgentEvent(options, {
-						eventType: "token",
-						stageId: "review",
-						agentRunId,
-						label,
-						tokens: usage,
-						meta: questionMeta,
-					});
-				},
-				onToolCall: handleToolCall,
-				onToolResult: emitToolResult,
+			isSuccess: ({ toolFailureMessages: pipelineFailures, streamState }) => {
+				const noFailures =
+					toolFailureMessages.length === 0 && pipelineFailures.length === 0;
+				if (
+					hasSuccessfulUpdate ||
+					stageStatusReport != null ||
+					hasWorkspaceUpdate()
+				) {
+					return true;
+				}
+				if (noFailures && (toolsComplete || stoppedAfterNoOpUpdate)) {
+					return true;
+				}
+				return noFailures && streamState.emittedToolResultIds.size > 0;
 			},
+			failureReason: ({ toolFailureMessages: pipelineFailures }) =>
+				toolFailureMessages[0] ??
+				pipelineFailures[0] ??
+				"Reviewer could not apply a valid review.",
 		});
 
+		if (!agentResult.success) {
+			throw new Error(agentResult.reason ?? "Review failed");
+		}
+
 		if (stoppedAfterNoOpUpdate) {
-			emitAgentEvent(options, {
+			emitPartial({
 				eventType: "warning",
-				stageId: "review",
-				agentRunId,
-				label,
 				warning:
 					"Review agent retried a no-op update; stopped the tool loop and kept the workspace question.",
 				meta: questionMeta,
 			});
 		} else if (updateCallCount >= 2 && hasSuccessfulUpdate) {
-			emitAgentEvent(options, {
+			emitPartial({
 				eventType: "warning",
-				stageId: "review",
-				agentRunId,
-				label,
 				warning:
 					"Review agent retried an already-applied update; stopped the tool loop and kept the reviewed question.",
 				meta: questionMeta,
@@ -302,23 +232,17 @@ export async function reviewSingleQuestion(
 				: "Review completed without changes and without an explicit stage report.",
 		});
 
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "result",
-			stageId: "review",
-			agentRunId,
-			label,
 			finalObject: reviewedQuestion,
-			rawText: streamState.rawText,
+			rawText: agentResult.rawText,
 			meta: {
 				...questionMeta,
 				stageStatusMessage: resolvedStageStatus.message,
 			},
 		});
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "lifecycle",
-			stageId: "review",
-			agentRunId,
-			label,
 			status: resolvedStageStatus.status,
 			meta: {
 				...questionMeta,
@@ -337,20 +261,14 @@ export async function reviewSingleQuestion(
 			`topic=${question.topic ?? "General"}`,
 		);
 
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "lifecycle",
-			stageId: "review",
-			agentRunId,
-			label,
 			status: "error",
 			error: message,
 			meta: questionMeta,
 		});
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "warning",
-			stageId: "review",
-			agentRunId,
-			label,
 			warning: `Review failed for question #${index + 1}. Keeping the original extracted question.`,
 			meta: questionMeta,
 		});

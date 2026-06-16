@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { requireModelConfig } from "@/lib/ai-config";
 import type { ExamIngestResponse } from "@/lib/validation";
-import {
+import type {
 	createAgentRunWriter,
-	writeAgentRun,
-	writeJobProgress,
-	writeStage,
-	type JobUIMessageStreamWriter,
+	JobUIMessageStreamWriter,
 } from "@/features/ai/core/ui-message-job-stream";
+import { writeAgentRun } from "@/features/ai/core/ui-message-job-stream";
+import type { PipelineRunContext } from "@/features/ai/pipeline/server/create-job-api-route";
+import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
+import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
 import { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
 import { createIngestLogger } from "../../../lib/logger";
@@ -28,88 +29,81 @@ export const ingestRequestSchema = z.object({
 
 export type IngestRequest = z.infer<typeof ingestRequestSchema>;
 
+interface RunIngestParams {
+	payload: IngestRequest;
+	writer: JobUIMessageStreamWriter;
+	abortSignal: AbortSignal;
+	agentRuns: ReturnType<typeof createAgentRunWriter>;
+	log: PipelineLogger;
+	ctx: PipelineRunContext;
+}
+
 function writeIngestWarning(
 	writer: JobUIMessageStreamWriter,
+	log: PipelineLogger,
 	message: string,
 	meta?: Record<string, unknown>,
 ) {
+	const stageId =
+		typeof meta?.stageId === "string" ? meta.stageId : "pipeline";
+	const agentRunId =
+		typeof meta?.agentRunId === "string" ? meta.agentRunId : "pipeline";
+
 	writeAgentRun(writer, {
 		eventType: "warning",
-		stageId: typeof meta?.stageId === "string" ? meta.stageId : "pipeline",
-		agentRunId:
-			typeof meta?.agentRunId === "string" ? meta.agentRunId : "pipeline",
+		stageId,
+		agentRunId,
 		label: "Ingest",
 		warning: message,
 		timestamp: Date.now(),
 		meta,
 	});
-	writeJobProgress(writer, { step: `Warning: ${message}` });
+	log.warning(message, meta);
 }
 
-export async function runIngestWithProgress(
-	payload: IngestRequest,
-	writer: JobUIMessageStreamWriter,
-	abortSignal: AbortSignal,
-) {
+export async function runIngestWithProgress({
+	payload,
+	writer,
+	abortSignal,
+	agentRuns,
+	log,
+	ctx,
+}: RunIngestParams) {
 	const { getDB } = await import("../../../server-functions/db");
 	const { getFilesBucket } = await import("../../../server-functions/storage");
 	const assertNotAborted = () => {
 		if (abortSignal.aborted) throw new Error("Upload canceled");
 	};
 
-	const onProgress = (step: string) => writeJobProgress(writer, { step });
+	const onProgress = (step: string) => log.step(step);
 	const onWarning = (message: string, meta?: Record<string, unknown>) =>
-		writeIngestWarning(writer, message, meta);
-	const agentRuns = createAgentRunWriter(writer);
+		writeIngestWarning(writer, log, message, meta);
 
-	onProgress("Connecting to database...");
+	log.step("Connecting to database...");
 	const db = await getDB();
 	if (!db) throw new Error("D1 database not available");
 	const queries = new DBQueries(db);
-	const log = createIngestLogger("ingest-pipeline", db);
+	const ingestLog = createIngestLogger("ingest-pipeline", db);
 	const ingestConfig = await requireModelConfig(queries, "ingest");
 
-	onProgress("Preparing memory & tools...");
-	writeStage(writer, {
-		stageId: "memory_setup",
-		label: "Preparing memory & tools",
-		status: "running",
-		timestamp: Date.now(),
+	log.step("Preparing memory & tools...");
+	const memorySetup = await setupMemory({
+		db,
+		queries,
+		providerConfig: ingestConfig,
+		onProgress,
+		onWarning: (message, meta) =>
+			onWarning(message, { stageId: "memory_setup", ...meta }),
 	});
 
-	let memory: Awaited<ReturnType<typeof setupMemory>>["memory"];
-	let criticalTopics: string[];
-	let reviewerTools: Awaited<ReturnType<typeof setupMemory>>["reviewerTools"];
+	await runPipelineStage(
+		writer,
+		{ stageId: "memory_setup", label: "Preparing memory & tools" },
+		async () => "done" as const,
+		{ log: log.withContext({ stageId: "memory_setup" }), ctx },
+	);
 
-	try {
-		const memorySetup = await setupMemory({
-			db,
-			queries,
-			providerConfig: ingestConfig,
-			onProgress,
-			onWarning: (message, meta) =>
-				onWarning(message, { stageId: "memory_setup", ...meta }),
-		});
-		memory = memorySetup.memory;
-		criticalTopics = memorySetup.criticalTopics;
-		reviewerTools = memorySetup.reviewerTools;
-		writeStage(writer, {
-			stageId: "memory_setup",
-			label: "Preparing memory & tools",
-			status: "done",
-			timestamp: Date.now(),
-		});
-	} catch (err) {
-		log.error("Memory setup failed", err, { stage: "memory_setup" });
-		writeStage(writer, {
-			stageId: "memory_setup",
-			label: "Preparing memory & tools",
-			status: "warning",
-			timestamp: Date.now(),
-			meta: { error: err instanceof Error ? err.message : "unknown" },
-		});
-		throw err;
-	}
+	const { memory, criticalTopics, reviewerTools } = memorySetup;
 
 	const filesBucket = await getFilesBucket();
 	if (!filesBucket) {
@@ -118,21 +112,19 @@ export async function runIngestWithProgress(
 	const fileService = new FileService(db, filesBucket);
 	assertNotAborted();
 
-	onProgress("Decoding file...");
-	writeStage(writer, {
-		stageId: "decode",
-		label: "Decoding file",
-		status: "running",
-		timestamp: Date.now(),
-	});
+	log.step("Decoding file...");
 	const bytes = new Uint8Array(payload.buffer);
-	const text = extractTextFromBytes(bytes);
-	writeStage(writer, {
-		stageId: "decode",
-		label: "Decoding file",
-		status: "done",
-		timestamp: Date.now(),
-	});
+	let text = "";
+
+	await runPipelineStage(
+		writer,
+		{ stageId: "decode", label: "Decoding file" },
+		async () => {
+			text = extractTextFromBytes(bytes);
+			return "done" as const;
+		},
+		{ log: log.withContext({ stageId: "decode" }), ctx },
+	);
 	assertNotAborted();
 
 	if (!text || text.length < 50) {
@@ -141,53 +133,34 @@ export async function runIngestWithProgress(
 		);
 	}
 
-	onProgress("Extracting questions with AI...");
-	writeStage(writer, {
-		stageId: "initial_extraction",
-		label: "Extracting questions with AI",
-		status: "running",
-		timestamp: Date.now(),
-	});
-	let extracted: ExamIngestResponse;
-	let extractionStageStatus: "done" | "warning" | "error" | "skipped" = "done";
-	try {
-		const extractionPass = await runExtractionPass({
-			text,
-			fileName: payload.fileName,
-			config: ingestConfig,
-			agentRuns,
-			onWarning,
-			log,
-			stageId: "initial_extraction",
-			stageLabel: "Initial extraction agent",
-		});
-		extracted = extractionPass.result;
-		extractionStageStatus = extractionPass.stageStatus;
-	} catch (err) {
-		log.error("Initial extraction failed", err, {
-			stage: "initial_extraction",
-			textLength: text.length,
-			textPreview: text.length > 500 ? `${text.slice(0, 500)}...` : text,
-		});
-		writeStage(writer, {
-			stageId: "initial_extraction",
-			label: "Extracting questions with AI",
-			status: "error",
-			timestamp: Date.now(),
-			meta: { error: err instanceof Error ? err.message : "unknown" },
-		});
-		throw err;
-	}
-	writeStage(writer, {
-		stageId: "initial_extraction",
-		label: "Extracting questions with AI",
-		status: extractionStageStatus,
-		timestamp: Date.now(),
-	});
-	onProgress("Initial extraction completed");
+	log.step("Extracting questions with AI...");
+	let extracted!: ExamIngestResponse;
+
+	await runPipelineStage(
+		writer,
+		{ stageId: "initial_extraction", label: "Extracting questions with AI" },
+		async () => {
+			const extractionPass = await runExtractionPass({
+				text,
+				fileName: payload.fileName,
+				config: ingestConfig,
+				agentRuns,
+				onWarning: (message) => onWarning(message),
+				log: log.withContext({ stageId: "initial_extraction" }),
+				stageId: "initial_extraction",
+				stageLabel: "Initial extraction agent",
+			});
+			extracted = extractionPass.result;
+			log.step("Initial extraction completed");
+			return extractionPass.stageStatus === "warning"
+				? ("warning" as const)
+				: ("done" as const);
+		},
+		{ log: log.withContext({ stageId: "initial_extraction" }), ctx },
+	);
 	assertNotAborted();
 
-	let finalExtracted: ExamIngestResponse = extracted;
+	let finalExtracted = extracted;
 
 	const reviewConfig = await requireModelConfig(queries, "reviewer");
 	const reviewResult = await runReviewStage({
@@ -202,7 +175,8 @@ export async function runIngestWithProgress(
 		writer,
 		onProgress,
 		onWarning,
-		log,
+		log: log.withContext({ stageId: "review" }),
+		ctx,
 	});
 	assertNotAborted();
 
@@ -219,13 +193,14 @@ export async function runIngestWithProgress(
 		writer,
 		onProgress,
 		onWarning,
-		log,
+		log: log.withContext({ stageId: "explanations" }),
+		ctx,
 	});
 	assertNotAborted();
 
 	if (explanationsResult) finalExtracted = explanationsResult;
 
-	onProgress("Saving to database...");
+	log.step("Saving to database...");
 	const { examId, fileId } = await persistResults({
 		queries,
 		fileService,
@@ -234,16 +209,17 @@ export async function runIngestWithProgress(
 		buffer: payload.buffer,
 		questions: finalExtracted.questions,
 		writer,
-		log,
+		log: ingestLog,
 	});
 
-	onProgress("Completed");
-	writeStage(writer, {
-		stageId: "complete",
-		label: "Ingest complete",
-		status: "done",
-		timestamp: Date.now(),
-	});
+	log.step("Completed");
+	await runPipelineStage(
+		writer,
+		{ stageId: "complete", label: "Ingest complete" },
+		async () => "done" as const,
+		{ log, ctx },
+	);
+
 	return {
 		questions: finalExtracted.questions.length,
 		topics: finalExtracted.topics,

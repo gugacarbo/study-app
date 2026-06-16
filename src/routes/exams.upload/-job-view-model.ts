@@ -1,17 +1,14 @@
 import type {
 	IngestAgentRunViewModel,
 	IngestJobViewModel,
-	IngestLogEntry,
 	IngestPipelineStageViewModel,
 } from "@/features/ingest/components/types";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { IngestJob } from "@/features/ingest/store";
 import { toAgentRun } from "./-agent-converter";
+import { toLogEntry } from "./-job-view-model-converters";
 import {
-	toLegacyStage,
-	toLogEntry,
-	toStageViewModel,
-} from "./-job-view-model-converters";
-import {
+	normalizeStageStatus,
 	normalizeTokenTotals,
 	readArray,
 	readString,
@@ -23,7 +20,7 @@ import {
 
 export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 	const dynamicJob = job as IngestJob & Record<string, unknown>;
-	const stages = readStructuredStages(dynamicJob);
+	const stages = readStructuredStages(job);
 	const outputEntries = coalesceOutputEntries(
 		readStructuredOutputEntries(dynamicJob, job, stages),
 	);
@@ -58,32 +55,31 @@ export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 }
 
 function readStructuredStages(
-	job: IngestJob & Record<string, unknown>,
+	job: IngestJob,
 ): IngestPipelineStageViewModel[] {
-	const structuredStages = readArray(job.stages);
-	if (structuredStages.length > 0) {
-		return structuredStages
-			.map((stage) => toStageViewModel(stage))
-			.filter((stage): stage is IngestPipelineStageViewModel => stage != null);
-	}
-
-	return job.flowStages
-		.map((stage) => toLegacyStage(stage))
-		.filter((stage): stage is IngestPipelineStageViewModel => stage != null);
+	return job.stages
+		.map((stage) => ({
+			stageId: stage.stageId,
+			label: stage.label,
+			status: normalizeStageStatus(stage.status) ?? "pending",
+			timestamp: stage.timestamp,
+			meta: stage.meta,
+		}))
+		.filter((stage) => stage.stageId.length > 0 && stage.label.length > 0);
 }
 
 function readStructuredLogs(
 	job: IngestJob & Record<string, unknown>,
-): IngestLogEntry[] {
+): PipelineLogEntry[] {
 	const structuredLogs = readArray(job.logs)
 		.map((entry, index) => toLogEntry(entry, index))
-		.filter((entry): entry is IngestLogEntry => entry != null);
+		.filter((entry): entry is PipelineLogEntry => entry != null);
 	if (structuredLogs.length > 0) return structuredLogs;
 
 	for (const candidate of [job.structuredLogs, job.logEvents]) {
 		const entries = readArray(candidate)
 			.map((entry, index) => toLogEntry(entry, index))
-			.filter((entry): entry is IngestLogEntry => entry != null);
+			.filter((entry): entry is PipelineLogEntry => entry != null);
 		if (entries.length > 0) return entries;
 	}
 

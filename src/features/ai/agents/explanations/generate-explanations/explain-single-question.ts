@@ -1,16 +1,18 @@
 import type { ToolSet } from "ai";
-import {
-	createAiStreamState,
-	createToolResultEmitter,
-	payloadFromToolExecuteResult,
-} from "@/features/ai/core/ai-stream-handler";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
-import { buildIngestExplanationStopWhen, buildPostUpdatePrepareStep } from "@/features/ai/core/tool-agent-stop-when";
+import {
+	buildIngestExplanationStopWhen,
+	buildPostUpdatePrepareStep,
+} from "@/features/ai/core/tool-agent-stop-when";
 import {
 	isSuccessfulNamedToolResult,
 	readToolFailureMessage,
-	runToolAgentStream,
 } from "@/features/ai/core/tool-agent-run";
+import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
+import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
+import { createPipelineAgentEmitter } from "@/features/ai/pipeline/server/agent-emitter";
+import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import {
 	createExplanationTools,
 	createExplanationWorkspace,
@@ -24,9 +26,9 @@ import {
 } from "@/features/ai/tools/ingest-stage-status";
 import type { ProviderConfig } from "@/lib/validation";
 import { buildSystemPrompt } from "../system-prompt";
-import { emitAgentEvent } from "./execute-helpers";
 import { buildExplanationUserPrompt } from "./prompt";
 import type {
+	ExplanationAgentRunEvent,
 	ExplanationBatchInput,
 	ExplanationQuestionResult,
 	RunQuestionExplanationsOptions,
@@ -52,8 +54,6 @@ export async function explainSingleQuestion(
 	const systemPrompt = buildSystemPrompt(memoryContext, question.id);
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
-	const streamState = createAiStreamState();
-	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let stageStatusReport: IngestAgentStageStatusReport | null = null;
 	let reportedStageStatus: IngestAgentReportedStatus | null = null;
@@ -65,119 +65,52 @@ export async function explainSingleQuestion(
 		questionNumber: index + 1,
 	};
 
-	emitAgentEvent(options, {
-		eventType: "lifecycle",
+	const run: AgentRunDescriptor = {
 		stageId: "explanations",
 		agentRunId,
 		label,
-		status: "pending",
-		systemPrompt,
-		userPrompt,
-		meta: {
-			...questionMeta,
-			questionCount: 1,
-			questionIds: [question.id],
-			topic: question.topic ?? "General",
+	};
+
+	const emit: AgentEventEmitter = createPipelineAgentEmitter(
+		"explanations",
+		run,
+		(event) => {
+			options.onAgentEvent?.(event as ExplanationAgentRunEvent);
 		},
-	});
-	emitAgentEvent(options, {
-		eventType: "lifecycle",
-		stageId: "explanations",
-		agentRunId,
-		label,
-		status: "running",
-		meta: questionMeta,
-	});
+	);
+	const emitPartial = (
+		event: Omit<AgentRunDataPart, "timestamp" | "stageId" | "agentRunId" | "label">,
+	) => {
+		emit({ ...run, ...event });
+	};
 
 	try {
-		const handleToolCall = (toolCall: {
-			toolCallId: string;
-			name?: string;
-			arguments?: string;
-			input?: unknown;
-			state: "awaiting-input" | "input-streaming" | "input-complete";
-		}) => {
-			if (toolCall.state === "input-streaming") {
-				if (toolCall.name) {
-					toolNamesById.set(toolCall.toolCallId, toolCall.name);
-				}
-				return;
-			}
-
-			if (toolCall.name) {
-				toolNamesById.set(toolCall.toolCallId, toolCall.name);
-			}
-			emitAgentEvent(options, {
-				eventType: "tool-call",
-				stageId: "explanations",
-				agentRunId,
-				label,
-				name: toolCall.name,
-				arguments: toolCall.arguments,
-				input: toolCall.input,
-				state: toolCall.state,
-				meta: {
-					...questionMeta,
-					toolCallId: toolCall.toolCallId,
-				},
-			});
-		};
-
-		const handleToolResult = (toolResult: {
-			toolCallId: string;
-			content?: unknown;
-			error?: string;
-			state: "streaming" | "complete" | "error";
-		}) => {
-			emitAgentEvent(options, {
-				eventType: "tool-result",
-				stageId: "explanations",
-				agentRunId,
-				label,
-				content: toolResult.content,
-				error: toolResult.error,
-				state: toolResult.state,
-				meta: {
-					...questionMeta,
-					toolCallId: toolResult.toolCallId,
-				},
-			});
-
-			const toolFailure = readToolFailureMessage(toolResult.content);
-			if (toolFailure) {
-				toolFailureMessages.push(toolFailure);
-			}
-			const toolName =
-				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
-			if (toolName === "update_question_explanation") {
-				updateCallCount += 1;
-			}
-			if (
-				isSuccessfulNamedToolResult(
-					toolName,
-					toolResult.content,
-					UPDATE_QUESTION_EXPLANATION_TOOL,
-				)
-			) {
-				hasSuccessfulUpdate = true;
-				toolsComplete = true;
-			}
-			if (toolName === "report_agent_stage_status") {
-				const report = readIngestAgentStageStatusReport(
-					toolResult.content,
-				);
-				stageStatusReport = report;
-				reportedStageStatus = report?.status ?? null;
-			}
-		};
-		const emitToolResult = createToolResultEmitter(
-			handleToolResult,
-			streamState,
-		);
 		const explanationTools = createExplanationTools(workspace, {
 			onToolExecuted: async ({ toolName, toolCallId, output }) => {
-				toolNamesById.set(toolCallId, toolName);
-				emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+				const toolFailure = readToolFailureMessage(output);
+				if (toolFailure) {
+					toolFailureMessages.push(toolFailure);
+				}
+				if (toolName === UPDATE_QUESTION_EXPLANATION_TOOL) {
+					updateCallCount += 1;
+				}
+				if (
+					isSuccessfulNamedToolResult(
+						toolName,
+						output,
+						UPDATE_QUESTION_EXPLANATION_TOOL,
+					)
+				) {
+					hasSuccessfulUpdate = true;
+					toolsComplete = true;
+				}
+				emitPartial({
+					eventType: "tool-result",
+					name: toolName,
+					content: output,
+					state: "complete",
+					meta: { ...questionMeta, toolCallId },
+				});
 			},
 		});
 		const stageStatusTools = createReportAgentStageStatusTool({
@@ -185,7 +118,13 @@ export async function explainSingleQuestion(
 				const report = readIngestAgentStageStatusReport(output);
 				stageStatusReport = report;
 				reportedStageStatus = report?.status ?? null;
-				emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+				emitPartial({
+					eventType: "tool-result",
+					name: "report_agent_stage_status",
+					content: output,
+					state: "complete",
+					meta: { ...questionMeta, toolCallId },
+				});
 			},
 		});
 		const combinedTools: ToolSet = {
@@ -194,74 +133,44 @@ export async function explainSingleQuestion(
 			...(options.tools as ToolSet | undefined),
 		};
 
-		await runToolAgentStream({
+		const agentResult = await runPipelineToolAgent({
 			scope: "explanations.generate",
+			stageId: "explanations",
 			config,
-			callId: agentRunId,
-			requestSummary: `question ${index + 1}/${totalQuestions}`,
-			metadata: {
-				questionId: question.id,
-				questionIndex: index + 1,
-				totalQuestions,
-			},
+			run,
+			emit,
 			systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 			tools: combinedTools,
 			stopWhen: buildIngestExplanationStopWhen(INGEST_PER_QUESTION_MAX_STEPS),
 			prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
-			streamState,
+			meta: {
+				questionId: question.id,
+				...questionMeta,
+			},
+			requestSummary: `question ${index + 1}/${totalQuestions}`,
 			onRecoverableError: (message) => {
-				emitAgentEvent(options, {
+				emitPartial({
 					eventType: "warning",
-					stageId: "explanations",
-					agentRunId,
-					label,
 					warning: `Provider dropped a stream chunk after a tool call (${message}); continuing explanation generation.`,
 					meta: questionMeta,
 				});
 			},
-			handlers: {
-				onTextDelta: (delta) => {
-					emitAgentEvent(options, {
-						eventType: "token",
-						stageId: "explanations",
-						agentRunId,
-						label,
-						rawText: delta,
-						meta: questionMeta,
-					});
-				},
-				onReasoningDelta: (delta) => {
-					emitAgentEvent(options, {
-						eventType: "token",
-						stageId: "explanations",
-						agentRunId,
-						label,
-						rawText: delta,
-						meta: { ...questionMeta, kind: "reasoning" },
-					});
-				},
-				onUsage: (usage) => {
-					emitAgentEvent(options, {
-						eventType: "token",
-						stageId: "explanations",
-						agentRunId,
-						label,
-						tokens: usage,
-						meta: questionMeta,
-					});
-				},
-				onToolCall: handleToolCall,
-				onToolResult: emitToolResult,
-			},
+			isSuccess: () =>
+				hasSuccessfulUpdate ||
+				workspaceHasCompleteExplanation(workspace, question.id),
+			failureReason: () =>
+				toolFailureMessages[0] ??
+				"Explanation agent could not apply a valid explanation update.",
 		});
 
+		if (!agentResult.success) {
+			throw new Error(agentResult.reason ?? "Explanation generation failed");
+		}
+
 		if (updateCallCount >= 2 && hasSuccessfulUpdate) {
-			emitAgentEvent(options, {
+			emitPartial({
 				eventType: "warning",
-				stageId: "explanations",
-				agentRunId,
-				label,
 				warning:
 					"Explanation agent retried an already-written explanation; stopped the tool loop and kept the workspace result.",
 				meta: questionMeta,
@@ -300,23 +209,17 @@ export async function explainSingleQuestion(
 				: "Explanation stage finished without an explicit stage report.",
 		});
 
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "result",
-			stageId: "explanations",
-			agentRunId,
-			label,
 			finalObject: generated,
-			rawText: streamState.rawText,
+			rawText: agentResult.rawText,
 			meta: {
 				...questionMeta,
 				stageStatusMessage: resolvedStageStatus.message,
 			},
 		});
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "lifecycle",
-			stageId: "explanations",
-			agentRunId,
-			label,
 			status: resolvedStageStatus.status,
 			meta: {
 				...questionMeta,
@@ -335,21 +238,15 @@ export async function explainSingleQuestion(
 			`topic=${question.topic ?? "General"}`,
 		);
 
-		emitAgentEvent(options, {
+		emitPartial({
 			eventType: "lifecycle",
-			stageId: "explanations",
-			agentRunId,
-			label,
 			status: "error",
 			error: message,
 			meta: questionMeta,
 		});
 		if (!options.suppressFailureWarning) {
-			emitAgentEvent(options, {
+			emitPartial({
 				eventType: "warning",
-				stageId: "explanations",
-				agentRunId,
-				label,
 				warning: `Explanation generation failed for question #${index + 1}. Keeping the original question.`,
 				meta: questionMeta,
 			});
@@ -363,11 +260,11 @@ function workspaceHasCompleteExplanation(
 	workspace: ReturnType<typeof createExplanationWorkspace>,
 	questionId: number,
 ): boolean {
-	const question = workspace
+	const item = workspace
 		.listQuestions()
-		.find((item) => item.id === questionId);
+		.find((question) => question.id === questionId);
 	return Boolean(
-		question?.explanation.trim() && question.deepExplanation.trim(),
+		item?.explanation.trim() && item.deepExplanation.trim(),
 	);
 }
 

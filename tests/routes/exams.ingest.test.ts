@@ -19,7 +19,7 @@ function createJob(overrides?: Partial<IngestJob>): IngestJob {
 		warnings: [],
 		result: null,
 		error: null,
-		flowStages: [
+		stages: [
 			{
 				stageId: "review",
 				label: "Review",

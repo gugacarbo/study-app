@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { AgentStreamPanel } from "../improve-questions-dialog/agent-stream-panel";
+import { PipelineThread } from "@/features/ai/pipeline/ui";
 import {
 	type PanelLayout,
 	PanelSplitGutter,
@@ -174,12 +174,11 @@ export function ExplainQuestionsDialog({
 						)}
 						aria-hidden={!agentActive}
 					>
-						<AgentStreamPanel
+						<PipelineThread
 							messages={messages}
-							isStreaming={isStreaming}
-							agentStatus={agentStatus}
-							composerEnabled={false}
-							onSendFollowUp={() => {}}
+							isRunning={isStreaming}
+							mode="readonly"
+							layout="panel"
 						/>
 					</div>
 				</div>

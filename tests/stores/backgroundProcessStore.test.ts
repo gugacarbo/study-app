@@ -1,11 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	applyTokenEvent,
-	applyWarningEvent,
-	syncJobTokenTotals,
-	upsertAgentRun,
-} from "@/features/background-processes/kinds/ingest/job-utils";
-import {
 	clearCompletedIngestProcessesFromState,
 	hydrateBackgroundProcessStateFromStorage,
 	serializeBackgroundProcessStateForStorage,
@@ -34,10 +28,6 @@ import {
 } from "@/features/background-processes/store/types";
 import type { UIMessage } from "ai";
 import type { IngestAgentRun, IngestJob } from "@/features/ingest/store/types";
-import type {
-	IngestAgentEvent,
-	IngestTokenEvent,
-} from "@/features/ingest/store/types";
 
 const { startQueuedIngest, startQueuedImproveQuestions, startQueuedExplainQuestion } =
 	vi.hoisted(() => ({
@@ -75,7 +65,7 @@ function createJob(overrides?: Partial<IngestJob>): IngestJob {
 		warnings: [],
 		result: null,
 		error: null,
-		flowStages: [],
+		stages: [],
 		buffer: [],
 		enableReview: true,
 		enableExplanations: false,
@@ -107,51 +97,6 @@ function createState(
 		improveQuestionsUiByExam: {},
 		explainQuestionsBatchByExam: {},
 		explainQuestionsUiByExam: {},
-		...overrides,
-	};
-}
-
-function agentEvent(
-	overrides?: Partial<IngestAgentEvent>,
-): IngestAgentEvent {
-	return {
-		agentRunId: "agent-1",
-		stageId: "review",
-		label: "Reviewer Q1",
-		status: "running",
-		timestamp: 1,
-		...overrides,
-	};
-}
-
-function tokenEvent(
-	overrides?: Partial<IngestTokenEvent>,
-): IngestTokenEvent {
-	return {
-		prompt: 10,
-		completion: 20,
-		total: 30,
-		...overrides,
-	};
-}
-
-function makeAgentRun(
-	overrides?: Partial<IngestAgentRun>,
-): IngestAgentRun {
-	return {
-		id: "agent-1",
-		stageId: "review",
-		label: "Reviewer Q1",
-		status: "running",
-		timestamp: 1,
-		messages: [],
-		systemPrompt: "",
-		userPrompt: "",
-		outputText: "",
-		rawOutput: null,
-		error: null,
-		warnings: [],
-		tokenTotals: { prompt: 0, completion: 0, total: 0 },
 		...overrides,
 	};
 }
@@ -192,6 +137,8 @@ function createImproveQuestionsProcess(
 		isStreaming: false,
 		streamError: null,
 		phase: "running",
+		logs: [],
+		stepText: "",
 		...overrides,
 	};
 }
@@ -227,6 +174,8 @@ function createExplainQuestionProcess(
 		phase: "idle",
 		createdAt: 1,
 		finishedAt: null,
+		logs: [],
+		stepText: "",
 		...overrides,
 	};
 }
@@ -247,8 +196,11 @@ function createConnectionTestProcess(
 		finishedAt: 3,
 		progress: 100,
 		step: "Completed",
+		stepText: "Completed",
+		logs: [],
 		prompt: "Say hello",
 		response: "Hello",
+		messages: [],
 		error: null,
 		tokenTotals: { prompt: 10, completion: 5, total: 15 },
 		streamMetrics: {
@@ -292,6 +244,8 @@ function createModelBenchmarkProcess(
 		finishedAt: 4,
 		progress: 100,
 		step: "All phases passed",
+		stepText: "All phases passed",
+		logs: [],
 		error: null,
 		tokenTotals: { prompt: 40, completion: 20, total: 60 },
 		streamMetrics: {
@@ -335,72 +289,6 @@ function createModelBenchmarkProcess(
 		...overrides,
 	};
 }
-
-describe("ingest job-utils (background-processes)", () => {
-	it("applyWarningEvent sets agent status to warning when no existing status", () => {
-		const job = createJob({
-			agentRuns: [makeAgentRun({ id: "agent-1", status: "running" })],
-		});
-
-		const updated = applyWarningEvent(job, "low confidence", {
-			message: "low confidence",
-			agentRunId: "agent-1",
-			stageId: "review",
-			timestamp: 10,
-		});
-
-		expect(updated.agentRuns[0]?.status).toBe("warning");
-		expect(updated.agentRuns[0]?.warnings).toContain("low confidence");
-	});
-
-	it("applyTokenEvent without agentRunId adds tokens to job and non-agent totals", () => {
-		const updated = applyTokenEvent(createJob(), tokenEvent());
-
-		expect(updated.tokenTotals).toEqual({ prompt: 10, completion: 20, total: 30 });
-		expect(updated.nonAgentTokenTotals).toEqual({
-			prompt: 10,
-			completion: 20,
-			total: 30,
-		});
-	});
-
-	it("syncJobTokenTotals combines agent totals with non-agent pool", () => {
-		const job = createJob({
-			agentRuns: [
-				makeAgentRun({
-					id: "agent-1",
-					tokenTotals: { prompt: 100, completion: 200, total: 300 },
-				}),
-			],
-			nonAgentTokenTotals: { prompt: 30, completion: 40, total: 70 },
-		});
-
-		const result = syncJobTokenTotals(job);
-
-		expect(result.tokenTotals).toEqual({
-			prompt: 130,
-			completion: 240,
-			total: 370,
-		});
-	});
-
-	it("upsertAgentRun updates agent token totals via tokens field", () => {
-		const updated = upsertAgentRun(
-			createJob(),
-			agentEvent({
-				agentRunId: "agent-1",
-				tokens: { prompt: 100, completion: 200, total: 300 },
-			}),
-		);
-
-		expect(updated.agentRuns).toHaveLength(1);
-		expect(updated.agentRuns[0]?.tokenTotals).toEqual({
-			prompt: 100,
-			completion: 200,
-			total: 300,
-		});
-	});
-});
 
 describe("background process persistence", () => {
 	it("serializes ingest processes without persisting raw file buffers", () => {

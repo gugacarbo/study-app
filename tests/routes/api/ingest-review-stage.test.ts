@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { reviewExtractionMock } = vi.hoisted(() => ({
-	reviewExtractionMock: vi.fn(),
+const { reviewSingleQuestionMock } = vi.hoisted(() => ({
+	reviewSingleQuestionMock: vi.fn(),
 }));
 
-vi.mock("@/features/ai/agents/ingest/review-extraction", () => ({
-	reviewExtraction: reviewExtractionMock,
-}));
+vi.mock(
+	"@/features/ai/agents/ingest/review-extraction/review-question",
+	() => ({
+		reviewSingleQuestion: reviewSingleQuestionMock,
+	}),
+);
 
 import { runReviewStage } from "@/routes/api/ingest/-review-stage";
 
@@ -35,15 +38,17 @@ function createAgentRunsMock() {
 
 describe("runReviewStage", () => {
 	beforeEach(() => {
-		reviewExtractionMock.mockReset();
+		reviewSingleQuestionMock.mockReset();
 	});
 
 	it("forwards reviewer agent warnings as SSE warning events", async () => {
-		reviewExtractionMock.mockImplementation(
+		reviewSingleQuestionMock.mockImplementation(
 			async (
 				_config: unknown,
 				_text: string,
-				extracted: { questions: unknown[]; topics: string[] },
+				question: { question: string },
+				_index: number,
+				_total: number,
 				options?: {
 					onAgentEvent?: (event: Record<string, unknown>) => void;
 				},
@@ -59,11 +64,8 @@ describe("runReviewStage", () => {
 				});
 
 				return {
-					extracted,
-					reviewed: true,
-					reviewedQuestionCount: 0,
-					failedQuestionCount: 1,
-					reasons: ["tool failed"],
+					question,
+					success: true,
 				};
 			},
 		);
@@ -101,7 +103,6 @@ describe("runReviewStage", () => {
 			writer: writer as never,
 			onProgress,
 			onWarning,
-			log: { error: vi.fn() },
 		});
 
 		expect(agentRuns.warning).toHaveBeenCalledWith(
@@ -123,11 +124,13 @@ describe("runReviewStage", () => {
 	});
 
 	it("bridges text-delta token events to agentRuns.textDelta", async () => {
-		reviewExtractionMock.mockImplementation(
+		reviewSingleQuestionMock.mockImplementation(
 			async (
 				_config: unknown,
 				_text: string,
-				extracted: { questions: unknown[]; topics: string[] },
+				question: { question: string },
+				_index: number,
+				_total: number,
 				options?: {
 					onAgentEvent?: (event: Record<string, unknown>) => void;
 				},
@@ -141,13 +144,7 @@ describe("runReviewStage", () => {
 					meta: { questionIndex: 0, questionNumber: 1 },
 				});
 
-				return {
-					extracted,
-					reviewed: true,
-					reviewedQuestionCount: 1,
-					failedQuestionCount: 0,
-					reasons: [],
-				};
+				return { question, success: true };
 			},
 		);
 
@@ -182,7 +179,6 @@ describe("runReviewStage", () => {
 			writer: writer as never,
 			onProgress: vi.fn(),
 			onWarning: vi.fn(),
-			log: { error: vi.fn() },
 		});
 
 		expect(agentRuns.textDelta).toHaveBeenCalledWith(

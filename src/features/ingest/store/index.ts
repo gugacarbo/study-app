@@ -6,17 +6,8 @@ export {
 	removeJob,
 	startQueuedIngest,
 } from "@/features/background-processes/kinds/ingest";
-export {
-	appendChunkToAgentRun,
-	appendReasoningToAgentRun,
-	appendToolCallToAgentRun,
-	appendToolResultToAgentRun,
-	applyTokenEvent,
-	applyWarningEvent,
-	ensureAgentRunMessages,
-	syncJobTokenTotals,
-	upsertAgentRun,
-} from "@/features/background-processes/kinds/ingest/job-utils";
+
+export { ensureAgentRunMessages } from "@/features/background-processes/kinds/ingest/job-utils";
 
 export {
 	clearCompletedIngestProcessesFromState as clearCompletedJobsFromState,
@@ -28,8 +19,6 @@ export type {
 	IngestAgentRun,
 	IngestAgentStatus,
 	IngestJob,
-	IngestLogEntry,
-	IngestLogLevel,
 	IngestOutputEntry,
 	IngestResultEvent,
 	IngestStoreState,
@@ -37,4 +26,5 @@ export type {
 	PersistedIngestStoreState,
 	TokenTotals,
 } from "./types";
+export type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 export { INGEST_STORAGE_KEY } from "./types";

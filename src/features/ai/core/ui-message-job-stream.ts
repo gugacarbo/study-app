@@ -12,6 +12,7 @@ import {
 	type JobErrorDataPart,
 	type JobProgressDataPart,
 	type JobResultDataPart,
+	type ProcessLogDataPart,
 	type StageDataPart,
 	type StudyAppUIDataParts,
 	type StudyAppUIMessage,
@@ -67,7 +68,9 @@ function writeStudyDataPart<NAME extends DataPartName>(
 						? JobResultDataPart
 						: NAME extends "job-error"
 							? JobErrorDataPart
-							: never,
+							: NAME extends "process-log"
+								? ProcessLogDataPart
+								: never,
 	options?: { id?: string },
 ): void {
 	const transient = TRANSIENT_UI_DATA_PARTS.has(name);
@@ -132,6 +135,22 @@ export function writeJobError(
 	options?: { id?: string },
 ): void {
 	writeStudyDataPart(writer, "job-error", data, options);
+}
+
+export function writeProcessLog(
+	writer: JobUIMessageStreamWriter,
+	data: ProcessLogDataPart,
+	options?: { id?: string },
+): void {
+	writeStudyDataPart(
+		writer,
+		"process-log",
+		{
+			...data,
+			timestamp: data.timestamp ?? Date.now(),
+		},
+		options,
+	);
 }
 
 export interface AgentRunDescriptor {

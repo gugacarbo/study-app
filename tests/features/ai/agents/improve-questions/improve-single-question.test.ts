@@ -331,19 +331,19 @@ describe("improveSingleQuestion", () => {
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
 			9,
 			expect.objectContaining({
-				eventType: "result",
+				eventType: "lifecycle",
 				stageId: "improve-questions",
+				status: "done",
 				agentRunId: "improve-q7",
-				rawText: expect.stringContaining("[tool:update_question_options]"),
 			}),
 		);
 		expect(onAgentEvent).toHaveBeenNthCalledWith(
 			10,
 			expect.objectContaining({
-				eventType: "lifecycle",
+				eventType: "result",
 				stageId: "improve-questions",
-				status: "done",
 				agentRunId: "improve-q7",
+				finalObject: expect.objectContaining({ id: 7 }),
 			}),
 		);
 	});

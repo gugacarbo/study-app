@@ -73,6 +73,8 @@ function createQueuedProcess(): ImproveQuestionsBackgroundProcess {
 		isStreaming: false,
 		streamError: null,
 		phase: "idle",
+		logs: [],
+		stepText: "",
 	};
 }
 

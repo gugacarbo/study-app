@@ -1,24 +1,22 @@
 import type {
 	ChangeDecision,
 	DraftQuestion,
-	ImproveQuestionsAgentEvent,
 	ImproveQuestionsJobResult,
 	QuestionChange,
 } from "@/features/ai/agents/improve-questions/contracts";
-import { consumeJobStream } from "@/features/ai/lib/read-job-ui-message-stream";
-import type {
-	JobResultDataPart,
-	WorkspaceUpdateDataPart,
-} from "@/features/ai/types/ui-message-data-parts";
+import type { WorkspaceUpdateDataPart } from "@/features/ai/types/ui-message-data-parts";
+import type { JobResultDataPart } from "@/features/ai/types/ui-message-data-parts";
 import {
-	agentRunDataPartToReducerEvent,
 	appendFollowUpUserMessage,
 	beginFollowUpAssistantTurn,
 	buildTextConversationHistory,
 	createAgentRunState,
-	reduceAgentEvent,
+	createRafProcessBatcher,
+	createSingleAgentRunHandlers,
+	runJobPipeline,
 	type AgentRunState,
-} from "@/features/ai/utils/agent-run-messages";
+} from "@/features/ai/pipeline/client";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import { getErrorMessage } from "@/features/exams/components/detail/exam-utils";
 import {
@@ -56,7 +54,44 @@ import {
 	isImproveQuestionsProcess,
 } from "../../store/types";
 import { cloneQuestion, draftToQuestionData, questionDataToDraft } from "./question-helpers";
-import { createImproveQuestionsStoreBatcher } from "./store-sync";
+
+type ImproveQuestionsStorePatch = Partial<
+	Pick<
+		ImproveQuestionsProcess,
+		| "originalSnapshot"
+		| "draftQuestion"
+		| "agentRunState"
+		| "changes"
+		| "isStreaming"
+		| "streamError"
+		| "phase"
+		| "finishedAt"
+		| "logs"
+		| "stepText"
+	>
+>;
+
+function createImproveQuestionsBatcher(questionId: number) {
+	return createRafProcessBatcher<
+		ImproveQuestionsBackgroundProcess,
+		ImproveQuestionsStorePatch
+	>(improveQuestionsProcessId(questionId), {
+		isProcess: (process): process is ImproveQuestionsBackgroundProcess =>
+			isImproveQuestionsProcess(process as ImproveQuestionsBackgroundProcess),
+		patchProcess: (process, patch) =>
+			patchImproveQuestionsProcess(process as ImproveQuestionsProcess, patch),
+	});
+}
+
+function applyProcessLog(
+	process: ImproveQuestionsProcess,
+	entry: PipelineLogEntry,
+): Pick<ImproveQuestionsProcess, "logs" | "stepText"> {
+	return {
+		logs: [...process.logs, entry],
+		stepText: entry.agentRunId ? process.stepText : entry.message,
+	};
+}
 
 export const MIN_IMPROVE_QUESTIONS_MAX_WORKERS = 1;
 export const MAX_IMPROVE_QUESTIONS_MAX_WORKERS = 20;
@@ -70,20 +105,6 @@ type ImproveQuestionsProcessTimestamps = {
 
 type ImproveQuestionsProcess = ImproveQuestionsBackgroundProcess &
 	ImproveQuestionsProcessTimestamps;
-
-function syncAgentRunId(
-	state: AgentRunState,
-	event: ImproveQuestionsAgentEvent,
-): AgentRunState {
-	if (state.agentRunId === event.agentRunId) return state;
-	return {
-		...state,
-		agentRunId: event.agentRunId,
-		label: event.label || state.label,
-		systemPrompt: event.systemPrompt ?? state.systemPrompt,
-		userPrompt: event.userPrompt ?? state.userPrompt,
-	};
-}
 
 function phaseToStatus(
 	phase: ImproveQuestionsRunPhase,
@@ -117,19 +138,7 @@ function updateImproveQuestionsProcess(
 
 function patchImproveQuestionsProcess(
 	process: ImproveQuestionsProcess,
-	patch: Partial<
-		Pick<
-			ImproveQuestionsProcess,
-			| "originalSnapshot"
-			| "draftQuestion"
-			| "agentRunState"
-			| "changes"
-			| "isStreaming"
-			| "streamError"
-			| "phase"
-			| "finishedAt"
-		>
-	>,
+	patch: ImproveQuestionsStorePatch,
 ): ImproveQuestionsProcess {
 	const nextPhase = patch.phase ?? process.phase;
 	const nextStreaming = patch.isStreaming ?? process.isStreaming;
@@ -301,6 +310,8 @@ function createInitialProcess(
 		phase: "idle",
 		createdAt: now,
 		finishedAt: null,
+		logs: [],
+		stepText: "",
 	};
 }
 
@@ -483,41 +494,57 @@ function runImproveQuestionsFollowUpStream(
 	registerAbort(processId, controller);
 
 	void (async () => {
-		const batcher = createImproveQuestionsStoreBatcher(questionId);
+		const batcher = createImproveQuestionsBatcher(questionId);
 		let runState = initialRunState;
 
-		try {
-			let jobCompleted = false;
-
-			const finishJob = (finalQuestion: DraftQuestion) => {
-				jobCompleted = true;
-				batcher.dispose();
-				updateImproveQuestionsProcess(questionId, (run) => {
-					const finalDraft = draftToQuestionData(
-						finalQuestion,
-						run.originalSnapshot,
-					);
-					return patchImproveQuestionsProcess(run, {
-						draftQuestion: finalDraft,
-						changes: computeQuestionChanges(
-							run.originalSnapshot,
-							finalDraft,
-						),
-						agentRunState: { ...runState, status: "done" },
-						isStreaming: false,
-						phase: "done",
-					});
+		const finishJob = (finalQuestion: DraftQuestion) => {
+			batcher.dispose();
+			updateImproveQuestionsProcess(questionId, (run) => {
+				const finalDraft = draftToQuestionData(
+					finalQuestion,
+					run.originalSnapshot,
+				);
+				return patchImproveQuestionsProcess(run, {
+					draftQuestion: finalDraft,
+					changes: computeQuestionChanges(run.originalSnapshot, finalDraft),
+					agentRunState: { ...runState, status: "done" },
+					isStreaming: false,
+					phase: "done",
 				});
-				runNextQueued();
-			};
+			});
+			runNextQueued();
+		};
 
+		const streamHandlers = createSingleAgentRunHandlers({
+			initialState: runState,
+			onStateChange: (state) => {
+				runState = state;
+				batcher.queue({ agentRunState: { ...state } });
+			},
+			onWorkspaceUpdate: (update) => {
+				const active = getImproveQuestionsProcess(questionId);
+				if (!active) return;
+				batcher.queue({
+					draftQuestion: draftToQuestionData(
+						workspaceUpdateToDraft(update),
+						active.originalSnapshot,
+					),
+				});
+			},
+			onResult: (data) => {
+				const jobResult = normalizeJobResult(data);
+				if (jobResult) finishJob(jobResult.finalQuestion);
+			},
+		});
+
+		try {
 			const current = getImproveQuestionsProcess(questionId);
 			if (!current) {
 				throw new Error("Improve question run disappeared before follow-up");
 			}
 
-			await consumeJobStream(
-				{
+			await runJobPipeline({
+				request: {
 					url: "/api/improve-questions",
 					init: {
 						method: "POST",
@@ -531,44 +558,16 @@ function runImproveQuestionsFollowUpStream(
 					},
 					signal: controller.signal,
 				},
-				{
-					onData: (part) => {
-						if (part.type === "data-agent-run") {
-							const event = part.data as ImproveQuestionsAgentEvent;
-							runState = syncAgentRunId(runState, event);
-							const reducerEvent =
-								agentRunDataPartToReducerEvent(event) ?? event;
-							runState = reduceAgentEvent(runState, reducerEvent);
-							batcher.queue({ agentRunState: { ...runState } });
-							return;
-						}
-
-						if (part.type === "data-workspace-update") {
-							const active = getImproveQuestionsProcess(questionId);
-							if (!active) return;
-							batcher.queue({
-								draftQuestion: draftToQuestionData(
-									workspaceUpdateToDraft(part.data),
-									active.originalSnapshot,
-								),
-							});
-							return;
-						}
-
-						if (part.type === "data-job-result") {
-							const jobResult = normalizeJobResult(part.data);
-							if (!jobResult) return;
-							finishJob(jobResult.finalQuestion);
-						}
+				handlers: {
+					...streamHandlers,
+					onLog: (entry) => {
+						const active = getImproveQuestionsProcess(questionId);
+						if (!active) return;
+						batcher.queue(applyProcessLog(active, entry));
 					},
 				},
-			);
-
-			if (!jobCompleted) {
-				throw new Error(
-					"Improve question follow-up stream finished without a job result",
-				);
-			}
+				expectResult: true,
+			});
 		} catch (error) {
 			if (controller.signal.aborted || isAbortError(error)) {
 				return;
@@ -660,7 +659,7 @@ export function startQueuedImproveQuestions(processId: string): void {
 	);
 
 	void (async () => {
-		const batcher = createImproveQuestionsStoreBatcher(questionId);
+		const batcher = createImproveQuestionsBatcher(questionId);
 
 		try {
 			for (let attempt = 1; attempt <= MAX_IMPROVE_QUESTIONS_ATTEMPTS; attempt++) {
@@ -683,37 +682,56 @@ export function startQueuedImproveQuestions(processId: string): void {
 					});
 				}
 
-				try {
-					let jobCompleted = false;
-
-					const finishJob = (finalQuestion: DraftQuestion) => {
-						jobCompleted = true;
-						batcher.dispose();
-						updateImproveQuestionsProcess(questionId, (run) => {
-							const finalDraft = draftToQuestionData(
-								finalQuestion,
+				const finishJob = (finalQuestion: DraftQuestion) => {
+					batcher.dispose();
+					updateImproveQuestionsProcess(questionId, (run) => {
+						const finalDraft = draftToQuestionData(
+							finalQuestion,
+							run.originalSnapshot,
+						);
+						return patchImproveQuestionsProcess(run, {
+							draftQuestion: finalDraft,
+							changes: computeQuestionChanges(
 								run.originalSnapshot,
-							);
-							return patchImproveQuestionsProcess(run, {
-								draftQuestion: finalDraft,
-								changes: computeQuestionChanges(
-									run.originalSnapshot,
-									finalDraft,
-								),
-								agentRunState: { ...runState, status: "done" },
-								isStreaming: false,
-								phase: "done",
-							});
+								finalDraft,
+							),
+							agentRunState: { ...runState, status: "done" },
+							isStreaming: false,
+							phase: "done",
 						});
-						const finishedRun = getImproveQuestionsProcess(questionId);
-						if (finishedRun) {
-							maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
-						}
-						runNextQueued();
-					};
+					});
+					const finishedRun = getImproveQuestionsProcess(questionId);
+					if (finishedRun) {
+						maybeClearImproveQuestionsBatchConfig(finishedRun.examId);
+					}
+					runNextQueued();
+				};
 
-					await consumeJobStream(
-						{
+				const streamHandlers = createSingleAgentRunHandlers({
+					initialState: runState,
+					onStateChange: (state) => {
+						runState = state;
+						batcher.queue({ agentRunState: { ...state } });
+					},
+					onWorkspaceUpdate: (update) => {
+						const current = getImproveQuestionsProcess(questionId);
+						if (!current) return;
+						batcher.queue({
+							draftQuestion: draftToQuestionData(
+								workspaceUpdateToDraft(update),
+								current.originalSnapshot,
+							),
+						});
+					},
+					onResult: (data) => {
+						const jobResult = normalizeJobResult(data);
+						if (jobResult) finishJob(jobResult.finalQuestion);
+					},
+				});
+
+				try {
+					await runJobPipeline({
+						request: {
 							url: "/api/improve-questions",
 							init: {
 								method: "POST",
@@ -722,44 +740,16 @@ export function startQueuedImproveQuestions(processId: string): void {
 							},
 							signal: controller.signal,
 						},
-						{
-							onData: (part) => {
-								if (part.type === "data-agent-run") {
-									const event = part.data as ImproveQuestionsAgentEvent;
-									runState = syncAgentRunId(runState, event);
-									const reducerEvent =
-										agentRunDataPartToReducerEvent(event) ?? event;
-									runState = reduceAgentEvent(runState, reducerEvent);
-									batcher.queue({ agentRunState: { ...runState } });
-									return;
-								}
-
-								if (part.type === "data-workspace-update") {
-									const current = getImproveQuestionsProcess(questionId);
-									if (!current) return;
-									batcher.queue({
-										draftQuestion: draftToQuestionData(
-											workspaceUpdateToDraft(part.data),
-											current.originalSnapshot,
-										),
-									});
-									return;
-								}
-
-								if (part.type === "data-job-result") {
-									const jobResult = normalizeJobResult(part.data);
-									if (!jobResult) return;
-									finishJob(jobResult.finalQuestion);
-								}
+						handlers: {
+							...streamHandlers,
+							onLog: (entry) => {
+								const current = getImproveQuestionsProcess(questionId);
+								if (!current) return;
+								batcher.queue(applyProcessLog(current, entry));
 							},
 						},
-					);
-
-					if (!jobCompleted) {
-						throw new Error(
-							"Improve question stream finished without a job result",
-						);
-					}
+						expectResult: true,
+					});
 					return;
 				} catch (error) {
 					if (controller.signal.aborted || isAbortError(error)) {

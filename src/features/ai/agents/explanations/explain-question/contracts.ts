@@ -1,4 +1,5 @@
 import type { ToolSet } from "ai";
+import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
 import type { ExplanationQuestionResult } from "../generate-explanations/types";
@@ -57,19 +58,10 @@ export interface ExplainQuestionAgentJobResult {
 
 export interface ExplainQuestionByIdOptions {
 	tools?: ToolSet;
+	emit?: AgentEventEmitter;
 	onAgentEvent?: (event: ExplainQuestionAgentEvent) => void;
 	onWorkspaceUpdate?: (event: ExplanationWorkspaceUpdateEvent) => void;
 	createAgentRunId?: (label: string) => string;
 	resolveMemoryContext?: () => string | undefined;
 	overwrite?: boolean;
-}
-
-export function emitExplainQuestionAgentEvent(
-	options: Pick<ExplainQuestionByIdOptions, "onAgentEvent">,
-	event: Omit<ExplainQuestionAgentEvent, "timestamp">,
-): void {
-	options.onAgentEvent?.({
-		...event,
-		timestamp: Date.now(),
-	});
 }
