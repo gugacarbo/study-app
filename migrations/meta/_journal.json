@@ -127,6 +127,13 @@
       "when": 1781650000000,
       "tag": "0018_ai_models_request_params",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1789999680000,
+      "tag": "0019_ai_models_thinking_param_name",
+      "breakpoints": true
     }
   ]
 }

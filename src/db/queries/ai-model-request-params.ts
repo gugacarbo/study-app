@@ -1,4 +1,4 @@
-import { requestParamsSchema, type RequestParams } from "@/lib/validation";
+import { coerceRequestParams, requestParamsSchema, type RequestParams } from "@/lib/validation";
 
 export function parseRequestParams(
 	raw: string | null | undefined,
@@ -8,7 +8,7 @@ export function parseRequestParams(
 	try {
 		const parsed: unknown = JSON.parse(raw);
 		const result = requestParamsSchema.safeParse(parsed);
-		return result.success ? result.data : {};
+		return result.success ? coerceRequestParams(result.data) : {};
 	} catch {
 		return {};
 	}

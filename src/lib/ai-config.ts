@@ -62,6 +62,7 @@ async function resolvedFromModelRow(
 		thinkingEffortLevels: row.thinkingEffortLevels,
 		defaultThinkingEffort: row.defaultThinkingEffort,
 		thinkingEnabled: row.thinkingEnabled,
+		thinkingParamName: row.thinkingParamName,
 		requestParams: row.requestParams,
 	};
 }

@@ -302,6 +302,50 @@ export const requestParamsSchema = z.record(z.string(), requestParamValueSchema)
 
 export type RequestParams = z.infer<typeof requestParamsSchema>;
 
+export function coerceRequestParamValue(
+	value: RequestParamValue,
+): RequestParamValue {
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (/^true$/i.test(trimmed)) return true;
+		if (/^false$/i.test(trimmed)) return false;
+		if (/^null$/i.test(trimmed)) return null;
+		if (/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed)) {
+			const parsed = Number(trimmed);
+			if (Number.isFinite(parsed)) return parsed;
+		}
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((item) => coerceRequestParamValue(item));
+	}
+
+	if (value !== null && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value).map(([key, item]) => [
+				key,
+				coerceRequestParamValue(item),
+			]),
+		);
+	}
+
+	return value;
+}
+
+export function coerceRequestParams(params: RequestParams): RequestParams {
+	return Object.fromEntries(
+		Object.entries(params).map(([key, value]) => [
+			key,
+			coerceRequestParamValue(value),
+		]),
+	);
+}
+
+const coercedRequestParamsFieldSchema = requestParamsSchema
+	.optional()
+	.transform((params) => (params ? coerceRequestParams(params) : params));
+
 function refineThinkingEffortDefault<
 	T extends {
 		thinkingEffortLevels?: ThinkingEffortLevel[];
@@ -341,6 +385,7 @@ export const providerConfigSchema = z.object({
 	apiKey: z.string(),
 	thinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
 	thinkingEnabled: z.boolean().nullable().optional(),
+	thinkingParamName: z.string().nullable().optional(),
 	requestParams: requestParamsSchema.optional(),
 });
 
@@ -357,6 +402,7 @@ export const resolvedModelConfigSchema = providerConfigSchema
 		thinkingEffortLevels: thinkingEffortLevelsSchema.default([]),
 		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
 		thinkingEnabled: z.boolean().nullable().optional(),
+		thinkingParamName: z.string().nullable().optional(),
 		requestParams: requestParamsSchema.default({}),
 	});
 
@@ -389,9 +435,10 @@ export const createAiModelSchema = z
 		thinkingEffortLevels: thinkingEffortLevelsSchema.optional(),
 		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
 		thinkingEnabled: z.boolean().nullable().optional(),
+		thinkingParamName: z.string().nullable().optional(),
 		enabled: z.boolean().optional(),
 		metadata: z.string().nullable().optional(),
-		requestParams: requestParamsSchema.optional(),
+		requestParams: coercedRequestParamsFieldSchema,
 	})
 	.superRefine(refineThinkingEffortDefault);
 
@@ -427,9 +474,10 @@ export const updateAiModelSchema = z
 		thinkingEffortLevels: thinkingEffortLevelsSchema.optional(),
 		defaultThinkingEffort: thinkingEffortLevelSchema.nullable().optional(),
 		thinkingEnabled: z.boolean().nullable().optional(),
+		thinkingParamName: z.string().nullable().optional(),
 		enabled: z.boolean().optional(),
 		metadata: z.string().nullable().optional(),
-		requestParams: requestParamsSchema.optional(),
+		requestParams: coercedRequestParamsFieldSchema,
 	})
 	.superRefine(refineThinkingEffortDefault);
 
@@ -494,6 +542,10 @@ export function toProviderConfig(
 		thinkingEnabled:
 			"thinkingEnabled" in config
 				? (config.thinkingEnabled ?? undefined)
+				: undefined,
+		thinkingParamName:
+			"thinkingParamName" in config
+				? (config.thinkingParamName ?? undefined)
 				: undefined,
 		requestParams:
 			"requestParams" in config && config.requestParams

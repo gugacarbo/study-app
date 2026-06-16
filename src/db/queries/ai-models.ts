@@ -39,6 +39,7 @@ function toPublicModel(row: AiModelWithProvider): AiModelPublic {
 			thinkingEffortLevels,
 		),
 		thinkingEnabled: row.thinking_enabled,
+		thinkingParamName: row.thinking_param_name,
 		enabled: row.enabled,
 		metadata: row.metadata,
 		requestParams: parseRequestParams(row.request_params),
@@ -59,6 +60,7 @@ function modelWithProviderSelect(db: DBQueries["db"]) {
 			thinking_effort_levels: schema.aiModels.thinking_effort_levels,
 			default_thinking_effort: schema.aiModels.default_thinking_effort,
 			thinking_enabled: schema.aiModels.thinking_enabled,
+			thinking_param_name: schema.aiModels.thinking_param_name,
 			enabled: schema.aiModels.enabled,
 			metadata: schema.aiModels.metadata,
 			request_params: schema.aiModels.request_params,
@@ -143,6 +145,7 @@ export function insertAiModel(
 		thinkingEffortLevels?: ThinkingEffortLevel[];
 		defaultThinkingEffort?: ThinkingEffortLevel | null;
 		thinkingEnabled?: boolean | null;
+		thinkingParamName?: string | null;
 		enabled?: boolean;
 		metadata?: string | null;
 		requestParams?: RequestParams;
@@ -163,6 +166,7 @@ export function insertAiModel(
 			),
 			default_thinking_effort: data.defaultThinkingEffort ?? null,
 			thinking_enabled: data.thinkingEnabled ?? null,
+			thinking_param_name: data.thinkingParamName ?? null,
 			enabled: data.enabled ?? true,
 			metadata: data.metadata ?? null,
 			request_params: serializeRequestParams(data.requestParams),
@@ -185,6 +189,7 @@ export function updateAiModel(
 		thinkingEffortLevels?: ThinkingEffortLevel[];
 		defaultThinkingEffort?: ThinkingEffortLevel | null;
 		thinkingEnabled?: boolean | null;
+		thinkingParamName?: string | null;
 		enabled?: boolean;
 		metadata?: string | null;
 		requestParams?: RequestParams;
@@ -216,6 +221,9 @@ export function updateAiModel(
 	}
 	if (data.thinkingEnabled !== undefined) {
 		values.thinking_enabled = data.thinkingEnabled;
+	}
+	if (data.thinkingParamName !== undefined) {
+		values.thinking_param_name = data.thinkingParamName;
 	}
 	if (data.enabled !== undefined) values.enabled = data.enabled;
 	if (data.metadata !== undefined) values.metadata = data.metadata;

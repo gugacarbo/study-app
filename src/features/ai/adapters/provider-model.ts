@@ -7,7 +7,7 @@ function hasRequestParams(requestParams: RequestParams | null | undefined): bool
 
 export function injectModelRequestBody(
 	body: BodyInit | null | undefined,
-	config: Pick<ProviderConfig, "thinkingEnabled" | "requestParams">,
+	config: Pick<ProviderConfig, "thinkingEnabled" | "thinkingParamName" | "requestParams">,
 ): BodyInit | null | undefined {
 	const needsThinking = config.thinkingEnabled != null;
 	const needsParams = hasRequestParams(config.requestParams);
@@ -22,10 +22,12 @@ export function injectModelRequestBody(
 			return body;
 		}
 
+		const thinkingKey = config.thinkingParamName ?? "thinking";
+
 		return JSON.stringify({
 			...(needsParams ? config.requestParams : {}),
 			...parsed,
-			...(needsThinking ? { thinking: config.thinkingEnabled } : {}),
+			...(needsThinking ? { [thinkingKey]: config.thinkingEnabled } : {}),
 		});
 	} catch {
 		return body;
@@ -37,7 +39,7 @@ export function injectThinkingIntoBody(
 	body: BodyInit | null | undefined,
 	thinkingEnabled: boolean | null | undefined,
 ): BodyInit | null | undefined {
-	return injectModelRequestBody(body, { thinkingEnabled });
+	return injectModelRequestBody(body, { thinkingEnabled, thinkingParamName: "thinking" });
 }
 
 function needsCustomFetch(config: ProviderConfig): boolean {

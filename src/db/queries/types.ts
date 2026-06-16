@@ -103,6 +103,7 @@ export interface AiModelRecord {
 	thinking_effort_levels: string | null;
 	default_thinking_effort: string | null;
 	thinking_enabled: boolean | null;
+	thinking_param_name: string | null;
 	enabled: boolean;
 	metadata: string | null;
 	request_params: string | null;
@@ -129,6 +130,7 @@ export interface AiModelPublic {
 	thinkingEffortLevels: ThinkingEffortLevel[];
 	defaultThinkingEffort: ThinkingEffortLevel | null;
 	thinkingEnabled: boolean | null;
+	thinkingParamName: string | null;
 	enabled: boolean;
 	metadata: string | null;
 	requestParams: RequestParams;

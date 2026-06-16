@@ -42,6 +42,7 @@ export const createModel = createServerFn({ method: "POST" })
 			thinkingEffortLevels: data.thinkingEffortLevels,
 			defaultThinkingEffort: data.defaultThinkingEffort,
 			thinkingEnabled: data.thinkingEnabled,
+			thinkingParamName: data.thinkingParamName,
 			enabled: data.enabled,
 			metadata: data.metadata,
 			requestParams: data.requestParams,

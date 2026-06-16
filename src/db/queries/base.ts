@@ -150,6 +150,7 @@ export interface DBQueries {
 			| import("@/lib/validation").ThinkingEffortLevel
 			| null;
 		thinkingEnabled?: boolean | null;
+		thinkingParamName?: string | null;
 		enabled?: boolean;
 		metadata?: string | null;
 		requestParams?: import("@/lib/validation").RequestParams;
@@ -168,6 +169,7 @@ export interface DBQueries {
 				| import("@/lib/validation").ThinkingEffortLevel
 				| null;
 			thinkingEnabled?: boolean | null;
+			thinkingParamName?: string | null;
 			enabled?: boolean;
 			metadata?: string | null;
 			requestParams?: import("@/lib/validation").RequestParams;
