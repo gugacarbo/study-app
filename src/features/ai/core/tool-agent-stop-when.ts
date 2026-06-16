@@ -1,7 +1,7 @@
 import {
-	stepCountIs,
 	type PrepareStepFunction,
 	type StopCondition,
+	stepCountIs,
 	type ToolSet,
 } from "ai";
 import { INGEST_STAGE_STATUS_TOOL } from "@/features/ai/tools/ingest-stage-status";
@@ -17,7 +17,7 @@ function lastStepToolResults(
 	return steps.at(-1)?.toolResults ?? [];
 }
 
-export function toolResultMatches(
+function toolResultMatches(
 	toolName: string,
 	predicate: (output: Record<string, unknown>) => boolean,
 ): StopCondition<ToolSet> {
@@ -44,7 +44,7 @@ export function repeatedToolCallInLastSteps(
 	};
 }
 
-export function repeatedSuccessfulToolCallInLastSteps(
+function repeatedSuccessfulToolCallInLastSteps(
 	toolName: string,
 	stepCount = 2,
 ): StopCondition<ToolSet> {
@@ -61,7 +61,9 @@ export function repeatedSuccessfulToolCallInLastSteps(
 	};
 }
 
-function workspaceUpdateSucceeded(updateToolName: string): StopCondition<ToolSet> {
+function workspaceUpdateSucceeded(
+	updateToolName: string,
+): StopCondition<ToolSet> {
 	return toolResultMatches(
 		updateToolName,
 		(output) =>
@@ -81,7 +83,7 @@ function workspaceUpdateNoOp(updateToolName: string): StopCondition<ToolSet> {
 	);
 }
 
-export function buildWorkspaceAgentStopWhen(
+function buildWorkspaceAgentStopWhen(
 	maxSteps: number,
 	options: {
 		updateToolName: string;
@@ -261,10 +263,9 @@ export function buildIngestReviewPrepareStep(options: {
 }
 
 export function buildIngestExplanationStopWhen(maxSteps: number) {
-	return [
-		stepCountIs(maxSteps),
-		ingestStageStatusReported,
-	] satisfies Array<StopCondition<ToolSet>>;
+	return [stepCountIs(maxSteps), ingestStageStatusReported] satisfies Array<
+		StopCondition<ToolSet>
+	>;
 }
 
 export function buildImproveQuestionsStopWhen(maxSteps: number) {

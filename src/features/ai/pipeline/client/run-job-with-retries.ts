@@ -1,7 +1,7 @@
 import { updateProcess } from "@/features/background-processes/store/store";
-import type { PipelineLogEntry, PipelineErrorState } from "../types";
-import { errorToPipelineErrorState } from "./run-job-pipeline";
+import type { PipelineErrorState, PipelineLogEntry } from "../types";
 import { isAbortError } from "./catch-pipeline-error";
+import { errorToPipelineErrorState } from "./run-job-pipeline";
 
 export interface RafProcessBatcher<TPatch extends object> {
 	queue: (patch: TPatch) => void;

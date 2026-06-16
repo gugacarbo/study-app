@@ -1,6 +1,6 @@
 import {
-	writeStage,
 	type JobUIMessageStreamWriter,
+	writeStage,
 } from "@/features/ai/core/ui-message-job-stream";
 import type { StageStatus } from "@/features/ai/types/ui-message-data-parts";
 import { createPipelineLogger, type PipelineLogger } from "./pipeline-logger";
@@ -34,8 +34,7 @@ export async function runPipelineStage(
 ): Promise<PipelineStageOutcome | "error"> {
 	const { fatal = true, ctx } = options ?? {};
 	const log =
-		options?.log ??
-		createPipelineLogger(writer, { stageId: stage.stageId });
+		options?.log ?? createPipelineLogger(writer, { stageId: stage.stageId });
 
 	if (ctx) {
 		ctx.stageId = stage.stageId;

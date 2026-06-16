@@ -4,7 +4,9 @@ import { getActiveProcesses } from "./types";
 let lifecycleInitialized = false;
 
 function handleBeforeUnload(event: BeforeUnloadEvent): void {
-	const activeProcesses = getActiveProcesses(backgroundProcessStore.state.processes);
+	const activeProcesses = getActiveProcesses(
+		backgroundProcessStore.state.processes,
+	);
 	if (activeProcesses.length > 0) {
 		event.preventDefault();
 	}

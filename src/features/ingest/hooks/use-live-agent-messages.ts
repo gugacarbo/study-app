@@ -1,10 +1,10 @@
-import type { UIMessage } from "ai";
 import { useStore } from "@tanstack/react-store";
+import type { UIMessage } from "ai";
 import {
 	backgroundProcessStore,
+	type IngestBackgroundProcess,
 	ingestProcessId,
 	isIngestProcess,
-	type IngestBackgroundProcess,
 } from "@/features/background-processes";
 import {
 	ensureAgentRunMessages,

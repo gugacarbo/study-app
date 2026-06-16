@@ -3,10 +3,10 @@ import {
 	createIngestPipelineReducer,
 	createIngestPipelineState,
 	createRafProcessBatcher,
+	type IngestPipelineState,
 	ingestPipelineReducerHandlers,
 	isAbortError,
 	runJobPipeline,
-	type IngestPipelineState,
 } from "@/features/ai/pipeline/client";
 import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { IngestJob } from "@/features/ingest/store/types";
@@ -202,9 +202,7 @@ async function runJob(processId: string): Promise<void> {
 				onLog: (entry) => {
 					const active = getIngestProcess(processId);
 					if (!active) return;
-					batcher?.queue(
-						applyProcessLog(ingestProcessToJob(active), entry),
-					);
+					batcher?.queue(applyProcessLog(ingestProcessToJob(active), entry));
 				},
 			},
 			expectResult: true,
@@ -287,10 +285,7 @@ export function enqueueIngest(
 		const otherProcesses = state.processes.filter(
 			(candidate) => !isIngestProcess(candidate),
 		);
-		const trimmed = trimCompletedIngestProcesses([
-			...ingestProcesses,
-			process,
-		]);
+		const trimmed = trimCompletedIngestProcesses([...ingestProcesses, process]);
 		return {
 			...state,
 			processes: [...otherProcesses, ...trimmed],

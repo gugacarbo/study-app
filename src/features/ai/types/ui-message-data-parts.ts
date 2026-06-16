@@ -17,7 +17,7 @@ export type AgentRunStatus =
 	| "error"
 	| "skipped";
 
-export type ToolEventState =
+type ToolEventState =
 	| "awaiting-input"
 	| "input-streaming"
 	| "input-complete"

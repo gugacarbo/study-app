@@ -51,7 +51,6 @@ export function filterBenchmarkMessagesByPhase(
 	if (!agentRunId) return messages;
 
 	return messages.filter(
-		(message) =>
-			extractAgentRunIdFromMessageId(message.id) === agentRunId,
+		(message) => extractAgentRunIdFromMessageId(message.id) === agentRunId,
 	);
 }

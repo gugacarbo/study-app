@@ -1,9 +1,6 @@
-import { tool, zodSchema, type ToolExecutionOptions, type ToolSet } from "ai";
+import { type ToolExecutionOptions, type ToolSet, tool, zodSchema } from "ai";
 import { z } from "zod";
-import {
-	explanationPatchSchema,
-	explanationQuestionIdSchema,
-} from "./shared";
+import { explanationPatchSchema, explanationQuestionIdSchema } from "./shared";
 import type { ExplanationWorkspaceQuestion } from "./workspace";
 import { ExplanationWorkspaceError } from "./workspace";
 
@@ -202,9 +199,4 @@ export function createExplanationTools(
 	};
 }
 
-export {
-	explanationPatchSchema,
-	explanationQuestionIdSchema,
-	getExplanationQuestionInputSchema,
-	listExplanationQuestionsInputSchema,
-};
+export { explanationPatchSchema };

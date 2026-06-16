@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
-import type { TokenTotals } from "@/features/ai/components/token-totals-badge";
 import type { TestStatus } from "@/features/ai/components/config/use-connection-test";
+import type { TokenTotals } from "@/features/ai/components/token-totals-badge";
 import type {
 	BenchmarkPhaseMetrics,
 	StreamPerfMetrics,

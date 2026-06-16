@@ -25,23 +25,6 @@ const toolErrorSchema = z.object({
 	message: z.string(),
 });
 
-function paginatedSuccessSchema<TItem extends z.ZodTypeAny>(itemSchema: TItem) {
-	return z.object({
-		ok: z.literal(true),
-		data: z.object({
-			items: z.array(itemSchema),
-			pagination: z.object({
-				page: z.number().int(),
-				pageSize: z.number().int(),
-				totalItems: z.number().int(),
-				totalPages: z.number().int(),
-				hasNextPage: z.boolean(),
-				hasPrevPage: z.boolean(),
-			}),
-		}),
-	});
-}
-
 const toolFailureSchema = z.object({
 	ok: z.literal(false),
 	error: toolErrorSchema,
@@ -77,10 +60,12 @@ function toQuestionExcerpt(question: string): string {
 function sanitizeQuestions(
 	items: QuestionListItem[],
 	includeAnswer: boolean,
-): Array<Omit<QuestionListItem, "answers" | "scoringMode"> & {
-	answers?: string[];
-	scoringMode?: "exact" | "partial";
-}> {
+): Array<
+	Omit<QuestionListItem, "answers" | "scoringMode"> & {
+		answers?: string[];
+		scoringMode?: "exact" | "partial";
+	}
+> {
 	if (includeAnswer) return items;
 	return items.map(
 		({ answers: _answers, scoringMode: _scoringMode, ...question }) => question,
@@ -103,7 +88,6 @@ export {
 	optionalTrimmedString,
 	pageSchema,
 	pageSizeSchema,
-	paginatedSuccessSchema,
 	safeToolResult,
 	sanitizeQuestions,
 	toolFailureSchema,

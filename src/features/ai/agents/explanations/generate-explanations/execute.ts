@@ -121,13 +121,10 @@ async function explainAllQuestionsWithRetries(
 			failedIndices,
 			concurrency,
 			(index) =>
-				explainSingleQuestion(
-					config,
-					questions[index],
-					index,
-					totalQuestions,
-					{ ...options, suppressFailureWarning: true },
-				),
+				explainSingleQuestion(config, questions[index], index, totalQuestions, {
+					...options,
+					suppressFailureWarning: true,
+				}),
 		);
 
 		for (let i = 0; i < failedIndices.length; i++) {

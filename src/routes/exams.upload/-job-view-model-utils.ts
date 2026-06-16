@@ -1,10 +1,10 @@
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type {
 	IngestAgentRunViewModel,
 	IngestOutputEntry,
 	IngestPipelineStageViewModel,
 	IngestTokenTotals,
 } from "@/features/ingest/components/types";
-import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { TokenTotals } from "@/features/ingest/store";
 
 export function normalizeTokenTotals(value: TokenTotals): IngestTokenTotals {

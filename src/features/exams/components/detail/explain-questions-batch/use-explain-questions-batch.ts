@@ -32,7 +32,9 @@ export function useExplainQuestionsBatch({
 }: UseExplainQuestionsBatchParams) {
 	const [selectAll, setSelectAll] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
-		const eligible = questions.filter((q) => questionNeedsExplanation(q, false));
+		const eligible = questions.filter((q) =>
+			questionNeedsExplanation(q, false),
+		);
 		return new Set(eligible.map((q) => q.id));
 	});
 	const [maxWorkers, setMaxWorkers] = useState(3);
@@ -122,15 +124,18 @@ export function useExplainQuestionsBatch({
 
 	useEffect(() => {
 		if (!open) return;
-		const eligible = questions.filter((q) => questionNeedsExplanation(q, false));
+		const eligible = questions.filter((q) =>
+			questionNeedsExplanation(q, false),
+		);
 		setSelectAll(true);
 		setSelectedIds(new Set(eligible.map((q) => q.id)));
 	}, [open, questions]);
 
 	const pendingExplanationCount = useMemo(
 		() =>
-			questions.filter((q) => questionNeedsExplanation(q, overwriteExplanations))
-				.length,
+			questions.filter((q) =>
+				questionNeedsExplanation(q, overwriteExplanations),
+			).length,
 		[questions, overwriteExplanations],
 	);
 
@@ -150,9 +155,7 @@ export function useExplainQuestionsBatch({
 			const eligible = questions.filter((q) =>
 				questionNeedsExplanation(q, overwriteExplanations),
 			);
-			setSelectedIds(
-				checked ? new Set(eligible.map((q) => q.id)) : new Set(),
-			);
+			setSelectedIds(checked ? new Set(eligible.map((q) => q.id)) : new Set());
 		},
 		[questions, overwriteExplanations],
 	);

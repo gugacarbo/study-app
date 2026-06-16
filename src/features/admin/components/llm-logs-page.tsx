@@ -136,7 +136,8 @@ export function LlmLogsPage() {
 							<code className="rounded bg-muted px-1 py-0.5 text-xs">
 								AI_LOG_LLM=true
 							</code>{" "}
-							in <code className="rounded bg-muted px-1 py-0.5 text-xs">.env</code>{" "}
+							in{" "}
+							<code className="rounded bg-muted px-1 py-0.5 text-xs">.env</code>{" "}
 							to record AI calls.
 						</div>
 					) : (
@@ -167,7 +168,9 @@ export function LlmLogsPage() {
 												<TableCell className="max-w-[140px] truncate text-xs font-mono">
 													{log.call_type}
 												</TableCell>
-												<TableCell className="text-xs">{log.provider}</TableCell>
+												<TableCell className="text-xs">
+													{log.provider}
+												</TableCell>
 												<TableCell className="max-w-[120px] truncate text-xs">
 													{log.model}
 												</TableCell>
@@ -199,7 +202,9 @@ export function LlmLogsPage() {
 										size="sm"
 										className="h-7 text-xs"
 										disabled={!pagination.hasPrevPage}
-										onClick={() => setPage((current) => Math.max(1, current - 1))}
+										onClick={() =>
+											setPage((current) => Math.max(1, current - 1))
+										}
 									>
 										Previous
 									</Button>

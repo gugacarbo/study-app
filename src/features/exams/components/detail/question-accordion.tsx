@@ -1,4 +1,3 @@
-import type { ImproveQuestionsRunPhase } from "@/features/background-processes";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import {
 	Accordion,
@@ -9,6 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown";
+import type { ImproveQuestionsRunPhase } from "@/features/background-processes";
 import { isOptionCorrect } from "@/lib/answer-scoring";
 import { cn } from "@/lib/utils";
 import type { QuestionData } from "./exam-utils";

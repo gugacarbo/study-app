@@ -3,12 +3,12 @@ import type {
 	JobResultDataPart,
 	WorkspaceUpdateDataPart,
 } from "@/features/ai/types/ui-message-data-parts";
+import type { RunJobPipelineHandlers } from "./run-job-pipeline";
 import {
+	type AgentRunState,
 	applyAgentRunPart,
 	createSingleAgentRunState,
-	type AgentRunState,
 } from "./single-agent-run-reducer";
-import type { RunJobPipelineHandlers } from "./run-job-pipeline";
 
 export interface CreateSingleAgentRunHandlersOptions {
 	initialState?: AgentRunState;

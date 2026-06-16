@@ -1,17 +1,16 @@
 import type { ToolSet } from "ai";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import {
-	buildIngestExplanationStopWhen,
-	buildPostUpdatePrepareStep,
-} from "@/features/ai/core/tool-agent-stop-when";
-import {
 	isSuccessfulNamedToolResult,
 	readToolFailureMessage,
 } from "@/features/ai/core/tool-agent-run";
+import {
+	buildIngestExplanationStopWhen,
+	buildPostUpdatePrepareStep,
+} from "@/features/ai/core/tool-agent-stop-when";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
-import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
-import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import { createPipelineAgentEmitter } from "@/features/ai/pipeline/server/agent-emitter";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import {
 	createExplanationTools,
@@ -19,11 +18,12 @@ import {
 } from "@/features/ai/tools/explanation-tools";
 import {
 	createReportAgentStageStatusTool,
-	readIngestAgentStageStatusReport,
-	resolveIngestAgentRunStatus,
 	type IngestAgentReportedStatus,
 	type IngestAgentStageStatusReport,
+	readIngestAgentStageStatusReport,
+	resolveIngestAgentRunStatus,
 } from "@/features/ai/tools/ingest-stage-status";
+import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ProviderConfig } from "@/lib/validation";
 import { buildSystemPrompt } from "../system-prompt";
 import { buildExplanationUserPrompt } from "./prompt";
@@ -79,7 +79,10 @@ export async function explainSingleQuestion(
 		},
 	);
 	const emitPartial = (
-		event: Omit<AgentRunDataPart, "timestamp" | "stageId" | "agentRunId" | "label">,
+		event: Omit<
+			AgentRunDataPart,
+			"timestamp" | "stageId" | "agentRunId" | "label"
+		>,
 	) => {
 		emit({ ...run, ...event });
 	};
@@ -263,9 +266,7 @@ function workspaceHasCompleteExplanation(
 	const item = workspace
 		.listQuestions()
 		.find((question) => question.id === questionId);
-	return Boolean(
-		item?.explanation.trim() && item.deepExplanation.trim(),
-	);
+	return Boolean(item?.explanation.trim() && item.deepExplanation.trim());
 }
 
 function readGeneratedExplanation(

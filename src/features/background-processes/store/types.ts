@@ -168,7 +168,7 @@ export type BackgroundProcess =
 	| ConnectionTestBackgroundProcess
 	| ModelBenchmarkBackgroundProcess;
 
-export interface ImproveQuestionsBatchConfig {
+interface ImproveQuestionsBatchConfig {
 	maxWorkers: number;
 }
 

@@ -1,6 +1,6 @@
 import { Output, streamObject } from "ai";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import {
 	buildLlmLogInsert,
@@ -17,7 +17,10 @@ import {
 	isRecoverableGenerationError,
 } from "./error-utils";
 import { tryParseFallbackCandidates } from "./json-extract";
-import { resolveObjectGenerationOptions, toFlexibleSchema } from "./schema-utils";
+import {
+	resolveObjectGenerationOptions,
+	toFlexibleSchema,
+} from "./schema-utils";
 import type { GenerateJsonStreamOptions, OutputSchema } from "./types";
 import { isRecoverableStructuredOutputError } from "./types";
 
@@ -91,9 +94,7 @@ export async function generateJsonStream<T>(
 					startedAt,
 					finish: {
 						text:
-							event.object !== undefined
-								? JSON.stringify(event.object)
-								: "",
+							event.object !== undefined ? JSON.stringify(event.object) : "",
 						finishReason: status,
 						usage: event.usage,
 					},
@@ -231,7 +232,11 @@ async function generateJsonStreamWithTools<T>(
 	return resolveStructuredOutputFallback(
 		config,
 		outputSchema,
-		[accumulatedText, `${accumulatedThinking}${accumulatedText}`, accumulatedThinking],
+		[
+			accumulatedText,
+			`${accumulatedThinking}${accumulatedText}`,
+			accumulatedThinking,
+		],
 		chunkTypes,
 		accumulatedText.length,
 		accumulatedThinking.length,
@@ -246,7 +251,7 @@ async function consumeStructuredObjectStream<T>(
 	_startedAt?: number,
 ): Promise<T> {
 	let accumulatedText = "";
-	let accumulatedThinking = "";
+	const accumulatedThinking = "";
 	const chunkTypes = new Set<string>();
 	let streamFailure: StreamFailure | null = null;
 	let latestObject: T | undefined;
@@ -328,7 +333,11 @@ async function consumeStructuredObjectStream<T>(
 	return resolveStructuredOutputFallback(
 		config,
 		outputSchema,
-		[accumulatedText, `${accumulatedThinking}${accumulatedText}`, accumulatedThinking],
+		[
+			accumulatedText,
+			`${accumulatedThinking}${accumulatedText}`,
+			accumulatedThinking,
+		],
 		chunkTypes,
 		accumulatedText.length,
 		accumulatedThinking.length,
@@ -341,7 +350,10 @@ function throwIfFatalStreamFailure(
 	accumulatedTextLength: number,
 	accumulatedThinkingLength: number,
 ): void {
-	if (streamFailure && !isRecoverableStructuredOutputError(streamFailure.code)) {
+	if (
+		streamFailure &&
+		!isRecoverableStructuredOutputError(streamFailure.code)
+	) {
 		throw new Error(
 			`AI provider returned error: ${streamFailure.message}${streamFailure.code ? ` (code: ${streamFailure.code})` : ""}. ` +
 				`Chunk types seen: ${[...chunkTypes].join(", ")}. ` +

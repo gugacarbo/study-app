@@ -27,7 +27,9 @@ export function QuizExplanation({
 	return (
 		<div className="mt-4">
 			<Badge
-				variant={isCorrect ? "default" : partialCredit ? "secondary" : "destructive"}
+				variant={
+					isCorrect ? "default" : partialCredit ? "secondary" : "destructive"
+				}
 				className="mb-2"
 			>
 				{isCorrect

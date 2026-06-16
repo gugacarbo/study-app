@@ -1,5 +1,5 @@
-export { checkTextSpelling, checkTextWithSpellChecker } from "./check-text";
 export type { SpellCheckResult, SpellIssue } from "./check-text";
+export { checkTextSpelling, checkTextWithSpellChecker } from "./check-text";
 export {
 	getPtBrSpellChecker,
 	resetPtBrSpellCheckerForTests,

@@ -15,8 +15,8 @@ import { WELCOME } from "@/features/ai/components/chat/chat-utils";
 import { useAutoTitle } from "@/features/ai/hooks/use-auto-title";
 import { useEnabledAiModels } from "@/features/ai/hooks/use-enabled-models";
 import { errorToPipelineErrorState } from "@/features/ai/pipeline/client";
-import { PipelineErrorBanner } from "@/features/ai/pipeline/ui";
 import type { PipelineErrorState } from "@/features/ai/pipeline/types";
+import { PipelineErrorBanner } from "@/features/ai/pipeline/ui";
 import {
 	conversationsStore,
 	createConversationHistoryAdapter,
@@ -26,8 +26,8 @@ import {
 	updateConversationTitle,
 } from "@/features/ai/stores/conversations-store";
 import {
-	hydrateLayoutUIStore,
 	getLayoutUIStore,
+	hydrateLayoutUIStore,
 	setChatSidebarOpen,
 } from "@/features/ai/stores/ui-store";
 import { CHAT_RUNTIME_MESSAGE_LIMIT } from "@/lib/chat-conversations/constants";
@@ -59,7 +59,10 @@ export function Chat() {
 		conversationsStore,
 		(s) => s.loadingConversationId,
 	);
-	const chatSidebarOpen = useSelector(getLayoutUIStore(), (s) => s.chatSidebarOpen);
+	const chatSidebarOpen = useSelector(
+		getLayoutUIStore(),
+		(s) => s.chatSidebarOpen,
+	);
 	const activeConversation = conversations.find((c) => c.id === activeId);
 	const isTruncated =
 		(activeConversation?.messageCount ?? 0) > CHAT_RUNTIME_MESSAGE_LIMIT;
@@ -173,8 +176,8 @@ function ChatConversation({
 		queryFn: () => getAiSettings(),
 	});
 
-	const [selectedModelId, setSelectedModelId] = useState<number | undefined>(() =>
-		resolveInitialModelId(models, settings),
+	const [selectedModelId, setSelectedModelId] = useState<number | undefined>(
+		() => resolveInitialModelId(models, settings),
 	);
 
 	const selectedModelIdRef = useRef(selectedModelId);

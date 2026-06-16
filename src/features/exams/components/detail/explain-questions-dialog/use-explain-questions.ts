@@ -5,8 +5,8 @@ import type { AgentRunState } from "@/features/ai/pipeline/client";
 import {
 	applyExplainQuestionRun,
 	backgroundProcessStore,
-	cancelExplainQuestionRun,
 	canContinueExplainQuestionRun,
+	cancelExplainQuestionRun,
 	continueExplainQuestionRun,
 	dismissExplainQuestionRun,
 	explainQuestionProcessId,
@@ -63,13 +63,17 @@ export function useExplainQuestions({
 	}, [run, question]);
 
 	const agentStatus = useMemo(
-		() => mapRunStatusToUi(run?.agentRunState?.status ?? null, run?.isStreaming ?? false),
+		() =>
+			mapRunStatusToUi(
+				run?.agentRunState?.status ?? null,
+				run?.isStreaming ?? false,
+			),
 		[run?.agentRunState?.status, run?.isStreaming],
 	);
 
 	const canContinue = useMemo(
 		() => canContinueExplainQuestionRun(questionId),
-		[questionId, run],
+		[questionId],
 	);
 
 	const streamError = useMemo(() => {

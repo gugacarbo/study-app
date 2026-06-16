@@ -23,7 +23,11 @@ export function LlmLogDetailSheet({
 	open,
 	onOpenChange,
 }: LlmLogDetailSheetProps) {
-	const { data: log, isLoading, isError } = useQuery({
+	const {
+		data: log,
+		isLoading,
+		isError,
+	} = useQuery({
 		queryKey: ["llm-log", logId],
 		queryFn: () => getLlmLog({ data: { id: logId as number } }),
 		enabled: open && logId != null,
@@ -77,7 +81,9 @@ export function LlmLogDetailSheet({
 								</MetadataItem>
 								{log.error_message ? (
 									<MetadataItem label="Error" className="col-span-2">
-										<span className="text-destructive">{log.error_message}</span>
+										<span className="text-destructive">
+											{log.error_message}
+										</span>
 									</MetadataItem>
 								) : null}
 							</dl>

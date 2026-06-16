@@ -29,7 +29,9 @@ export function selectImproveQuestionsExamUi(
 	state: BackgroundProcessStoreState,
 	examId: number,
 ): ImproveQuestionsExamUiState {
-	return state.improveQuestionsUiByExam[examId] ?? DEFAULT_IMPROVE_QUESTIONS_EXAM_UI;
+	return (
+		state.improveQuestionsUiByExam[examId] ?? DEFAULT_IMPROVE_QUESTIONS_EXAM_UI
+	);
 }
 
 export function areImproveQuestionsExamUiEqual(

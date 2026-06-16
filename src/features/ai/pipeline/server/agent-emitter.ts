@@ -25,7 +25,7 @@ export function createAgentEventEmitter(
 			},
 			agentRuns,
 			options?.onWarning
-				? (message, meta) => options.onWarning!(message, meta)
+				? (message, meta) => options.onWarning?.(message, meta)
 				: undefined,
 		);
 	};

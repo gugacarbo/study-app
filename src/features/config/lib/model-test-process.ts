@@ -22,10 +22,7 @@ function isFinishedTestStatus(status: BackgroundProcess["status"]): boolean {
 }
 
 function processFinishedAt(process: BackgroundProcess): number {
-	if (
-		isConnectionTestProcess(process) ||
-		isModelBenchmarkProcess(process)
-	) {
+	if (isConnectionTestProcess(process) || isModelBenchmarkProcess(process)) {
 		return process.finishedAt ?? process.createdAt;
 	}
 	return 0;
@@ -58,9 +55,7 @@ export function getModelTestProcessForModel(
 
 	const finished = candidates
 		.filter((candidate) => isFinishedTestStatus(candidate.status))
-		.sort(
-			(left, right) => processFinishedAt(right) - processFinishedAt(left),
-		);
+		.sort((left, right) => processFinishedAt(right) - processFinishedAt(left));
 
 	const latest = finished[0];
 	if (!latest) return null;

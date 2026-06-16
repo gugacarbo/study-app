@@ -1,13 +1,13 @@
 import type { ToolSet } from "ai";
 import { IMPROVE_QUESTIONS_MAX_STEPS } from "@/features/ai/core/agent-limits";
-import {
-	buildImproveQuestionsStopWhen,
-	buildImproveQuestionsPrepareStep,
-} from "@/features/ai/core/tool-agent-stop-when";
 import { payloadFromToolExecuteResult } from "@/features/ai/core/ai-stream-handler";
+import {
+	buildImproveQuestionsPrepareStep,
+	buildImproveQuestionsStopWhen,
+} from "@/features/ai/core/tool-agent-stop-when";
+import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
-import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import {
 	createImproveQuestionsTools,
 	createImproveQuestionsWorkspace,
@@ -19,19 +19,17 @@ import {
 	toProviderConfig,
 } from "@/lib/validation";
 import {
-	IMPROVE_QUESTIONS_STAGE_ID,
-	UPDATE_QUESTION_OPTIONS_TOOL,
 	type DraftQuestion,
+	IMPROVE_QUESTIONS_STAGE_ID,
 	type ImproveQuestionsAgentEvent,
 	type ImproveQuestionsAgentRunSummary,
 	type ImproveSingleQuestionOptions,
+	UPDATE_QUESTION_OPTIONS_TOOL,
 } from "./contracts";
 import { buildUserPrompt } from "./prompt";
 import { buildImproveQuestionsSystemPrompt } from "./system-prompt";
 
-function resolveEmit(
-	options: ImproveSingleQuestionOptions,
-): AgentEventEmitter {
+function resolveEmit(options: ImproveSingleQuestionOptions): AgentEventEmitter {
 	if (options.emit) return options.emit;
 	return (event) => {
 		options.onAgentEvent?.(event as ImproveQuestionsAgentEvent);
@@ -83,8 +81,7 @@ export async function improveSingleQuestion(
 		error?: string;
 		state: "streaming" | "complete" | "error";
 	}) => {
-		const toolName =
-			toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+		const toolName = toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
 		emit({
 			eventType: "tool-result",
 			stageId: run.stageId,
@@ -132,20 +129,19 @@ export async function improveSingleQuestion(
 			});
 		},
 	});
-	const externalTools = wrapToolSetWithExecutionHook(options.tools ?? {}, async ({
-		toolCallId,
-		toolName,
-		output,
-	}) => {
-		toolNamesById.set(toolCallId, toolName);
-		const payload = payloadFromToolExecuteResult(toolCallId, output);
-		handleToolResult({
-			toolCallId,
-			content: payload.content,
-			error: payload.error,
-			state: payload.state,
-		});
-	});
+	const externalTools = wrapToolSetWithExecutionHook(
+		options.tools ?? {},
+		async ({ toolCallId, toolName, output }) => {
+			toolNamesById.set(toolCallId, toolName);
+			const payload = payloadFromToolExecuteResult(toolCallId, output);
+			handleToolResult({
+				toolCallId,
+				content: payload.content,
+				error: payload.error,
+				state: payload.state,
+			});
+		},
+	);
 	const combinedTools: ToolSet = {
 		...workspaceTools,
 		...externalTools,

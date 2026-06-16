@@ -6,6 +6,7 @@ export type {
 	ImproveQuestionsAgentRunStatus,
 	ImproveQuestionsAgentRunSummary,
 	ImproveQuestionsJobResult,
+	ImproveSingleQuestionOptions,
 	QuestionChange,
 	WorkspaceUpdateEvent,
 } from "./contracts";
@@ -15,6 +16,5 @@ export {
 	UPDATE_QUESTION_OPTIONS_TOOL,
 } from "./contracts";
 export { improveSingleQuestion } from "./improve-single-question";
-export type { ImproveSingleQuestionOptions } from "./contracts";
 export { buildUserPrompt } from "./prompt";
 export { buildImproveQuestionsSystemPrompt } from "./system-prompt";

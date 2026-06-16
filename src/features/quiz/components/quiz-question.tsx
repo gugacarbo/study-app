@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { MarkdownRenderer } from "@/components/ui/markdown";
 import { isOptionCorrect } from "@/lib/answer-scoring";
-import type { Question } from "@/lib/validation";
 import { cn } from "@/lib/utils";
+import type { Question } from "@/lib/validation";
 
 export interface QuestionWithId extends Question {
 	id: number;

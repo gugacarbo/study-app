@@ -9,9 +9,9 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { QuestionData } from "../exam-utils";
 import { ExplainQuestionsAgentList } from "../explain-questions-batch/agent-list";
 import { useExplainQuestionsBatch } from "../explain-questions-batch/use-explain-questions-batch";
-import type { QuestionData } from "../exam-utils";
 import { QuestionSelection } from "../improve-questions-batch-dialog/question-selection";
 
 interface ExplainQuestionsBatchDialogProps {
@@ -33,153 +33,161 @@ export function ExplainQuestionsBatchDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-				<DialogContent className="flex h-[600px] w-[calc(100vw-2rem)] flex-col gap-4 sm:max-w-4xl">
-					<DialogHeader className="shrink-0">
-						<DialogTitle>Gerar explicacoes com agente</DialogTitle>
-						<DialogDescription>
-							{batch.isBatchComplete
-								? "Execucao concluida. Clique em um agente para revisar as explicacoes geradas."
-								: batch.showAgentPanel
-									? "Acompanhe o progresso dos agentes. Clique em um agente para inspecionar a execucao."
-									: "Selecione as questoes e defina quantos agentes rodam em paralelo. A execucao continua em background ao fechar."}
-						</DialogDescription>
-					</DialogHeader>
+			<DialogContent className="flex h-[600px] w-[calc(100vw-2rem)] flex-col gap-4 sm:max-w-4xl">
+				<DialogHeader className="shrink-0">
+					<DialogTitle>Gerar explicacoes com agente</DialogTitle>
+					<DialogDescription>
+						{batch.isBatchComplete
+							? "Execucao concluida. Clique em um agente para revisar as explicacoes geradas."
+							: batch.showAgentPanel
+								? "Acompanhe o progresso dos agentes. Clique em um agente para inspecionar a execucao."
+								: "Selecione as questoes e defina quantos agentes rodam em paralelo. A execucao continua em background ao fechar."}
+					</DialogDescription>
+				</DialogHeader>
 
-					<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden text-sm">
-						{batch.showAgentPanel ? (
-							<ExplainQuestionsAgentList
-								agentItems={batch.agentItems}
-								finishedCount={batch.finishedCount}
-								processingCount={batch.processingCount}
-								errorCount={batch.errorCount}
-								progressPercent={batch.progressPercent}
-								complete={batch.isBatchComplete}
-								onAgentClick={(questionId) => {
-									const question = questions.find((q) => q.id === questionId);
-									if (question) onOpenQuestion(question);
-								}}
-								onContinue={batch.handleContinue}
-							/>
-						) : (
-							<QuestionSelection
-								questions={questions}
-								selectAll={batch.selectAll}
-								selectedIds={batch.selectedIds}
-								disabled={false}
-								onSelectAll={batch.handleSelectAll}
-								onToggleQuestion={batch.toggleQuestion}
-								toolbar={
-									<div className="grid shrink-0 grid-cols-4 gap-1.5">
-										<label className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs">
-											<input
-												type="checkbox"
-												checked={batch.selectAll}
-												onChange={(e) => batch.handleSelectAll(e.target.checked)}
-												className="accent-primary"
-											/>
-											<span className="truncate font-medium">Selecionar todas</span>
-										</label>
+				<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden text-sm">
+					{batch.showAgentPanel ? (
+						<ExplainQuestionsAgentList
+							agentItems={batch.agentItems}
+							finishedCount={batch.finishedCount}
+							processingCount={batch.processingCount}
+							errorCount={batch.errorCount}
+							progressPercent={batch.progressPercent}
+							complete={batch.isBatchComplete}
+							onAgentClick={(questionId) => {
+								const question = questions.find((q) => q.id === questionId);
+								if (question) onOpenQuestion(question);
+							}}
+							onContinue={batch.handleContinue}
+						/>
+					) : (
+						<QuestionSelection
+							questions={questions}
+							selectAll={batch.selectAll}
+							selectedIds={batch.selectedIds}
+							disabled={false}
+							onSelectAll={batch.handleSelectAll}
+							onToggleQuestion={batch.toggleQuestion}
+							toolbar={
+								<div className="grid shrink-0 grid-cols-4 gap-1.5">
+									<label className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs">
+										<input
+											type="checkbox"
+											checked={batch.selectAll}
+											onChange={(e) => batch.handleSelectAll(e.target.checked)}
+											className="accent-primary"
+										/>
+										<span className="truncate font-medium">
+											Selecionar todas
+										</span>
+									</label>
 
-										<label className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs">
-											<input
-												type="checkbox"
-												checked={batch.overwriteExplanations}
-												onChange={(e) =>
-													batch.setOverwriteExplanations(e.target.checked)
-												}
-												className="accent-primary"
-											/>
-											<span className="truncate">Sobrescrever</span>
-										</label>
+									<label className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs">
+										<input
+											type="checkbox"
+											checked={batch.overwriteExplanations}
+											onChange={(e) =>
+												batch.setOverwriteExplanations(e.target.checked)
+											}
+											className="accent-primary"
+										/>
+										<span className="truncate">Sobrescrever</span>
+									</label>
 
-										<div className="flex min-w-0 flex-col justify-center rounded-lg border border-border bg-muted px-2 py-1.5 text-xs leading-tight">
-											<span className="font-medium">Pendentes</span>
-											<span className="truncate text-muted-foreground">
-												{batch.pendingExplanationCount}/{questions.length}
-											</span>
-										</div>
-
-										<div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs">
-											<span className="shrink-0 text-muted-foreground">Agentes</span>
-											<Input
-												type="number"
-												min={1}
-												max={20}
-												value={batch.maxWorkers}
-												onChange={(e) => {
-													const value = Number(e.target.value);
-													if (Number.isNaN(value)) return;
-													batch.setMaxWorkers(Math.max(1, Math.min(20, value)));
-												}}
-												className="h-6 w-10 px-1 text-center text-xs"
-											/>
-											<span className="truncate text-muted-foreground">
-												{batch.selectedCount} sel.
-											</span>
-										</div>
+									<div className="flex min-w-0 flex-col justify-center rounded-lg border border-border bg-muted px-2 py-1.5 text-xs leading-tight">
+										<span className="font-medium">Pendentes</span>
+										<span className="truncate text-muted-foreground">
+											{batch.pendingExplanationCount}/{questions.length}
+										</span>
 									</div>
-								}
-							/>
-						)}
-					</div>
 
-					<DialogFooter className="shrink-0 gap-2 sm:justify-end">
+									<div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs">
+										<span className="shrink-0 text-muted-foreground">
+											Agentes
+										</span>
+										<Input
+											type="number"
+											min={1}
+											max={20}
+											value={batch.maxWorkers}
+											onChange={(e) => {
+												const value = Number(e.target.value);
+												if (Number.isNaN(value)) return;
+												batch.setMaxWorkers(Math.max(1, Math.min(20, value)));
+											}}
+											className="h-6 w-10 px-1 text-center text-xs"
+										/>
+										<span className="truncate text-muted-foreground">
+											{batch.selectedCount} sel.
+										</span>
+									</div>
+								</div>
+							}
+						/>
+					)}
+				</div>
+
+				<DialogFooter className="shrink-0 gap-2 sm:justify-end">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => onOpenChange(false)}
+						disabled={batch.applyingAll}
+					>
+						Fechar
+					</Button>
+					{batch.isBatchRunning ? (
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => onOpenChange(false)}
+							onClick={batch.handleCancel}
+						>
+							<Square data-icon="inline-start" />
+							Cancelar
+						</Button>
+					) : batch.isBatchComplete ? (
+						<Button
+							type="button"
+							variant="outline"
+							onClick={batch.handleClear}
 							disabled={batch.applyingAll}
 						>
-							Fechar
+							Limpar execucao
 						</Button>
-						{batch.isBatchRunning ? (
-							<Button type="button" variant="outline" onClick={batch.handleCancel}>
-								<Square data-icon="inline-start" />
-								Cancelar
-							</Button>
-						) : batch.isBatchComplete ? (
-							<Button
-								type="button"
-								variant="outline"
-								onClick={batch.handleClear}
-								disabled={batch.applyingAll}
-							>
-								Limpar execucao
-							</Button>
-						) : null}
-						{batch.showAgentPanel && batch.readyToApplyCount > 0 && (
-							<Button
-								type="button"
-								onClick={batch.handleApplyAll}
-								disabled={batch.applyingAll}
-							>
-								{batch.applyingAll ? (
-									<>
-										<Loader2 className="size-4 animate-spin" />
-										Aplicando…
-									</>
-								) : (
-									`Aplicar todos (${batch.readyToApplyCount})`
-								)}
-							</Button>
-						)}
-						{!batch.showAgentPanel ? (
-							<Button
-								type="button"
-								onClick={batch.handleStart}
-								disabled={batch.selectedCount === 0 || questions.length === 0}
-							>
-								<Sparkles data-icon="inline-start" />
-								Gerar agora
-							</Button>
-						) : batch.isBatchRunning ? (
-							<Button type="button" disabled>
-								<Loader2 className="size-4 animate-spin" />
-								Gerando…
-							</Button>
-						) : null}
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					) : null}
+					{batch.showAgentPanel && batch.readyToApplyCount > 0 && (
+						<Button
+							type="button"
+							onClick={batch.handleApplyAll}
+							disabled={batch.applyingAll}
+						>
+							{batch.applyingAll ? (
+								<>
+									<Loader2 className="size-4 animate-spin" />
+									Aplicando…
+								</>
+							) : (
+								`Aplicar todos (${batch.readyToApplyCount})`
+							)}
+						</Button>
+					)}
+					{!batch.showAgentPanel ? (
+						<Button
+							type="button"
+							onClick={batch.handleStart}
+							disabled={batch.selectedCount === 0 || questions.length === 0}
+						>
+							<Sparkles data-icon="inline-start" />
+							Gerar agora
+						</Button>
+					) : batch.isBatchRunning ? (
+						<Button type="button" disabled>
+							<Loader2 className="size-4 animate-spin" />
+							Gerando…
+						</Button>
+					) : null}
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

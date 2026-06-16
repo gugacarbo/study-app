@@ -7,7 +7,7 @@ import type { QuestionData } from "@/features/exams/components/detail/exam-utils
 
 export type ImproveQuestionsAgentStatus = "idle" | "running" | "done" | "error";
 
-export type ImproveQuestionsUIMessage = UIMessage;
+type ImproveQuestionsUIMessage = UIMessage;
 
 export interface ImproveQuestionsDialogProps {
 	open: boolean;

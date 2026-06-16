@@ -33,6 +33,10 @@ import type { AiProviderPublic } from "@/db/queries/types";
 import { backgroundProcessStore } from "@/features/background-processes";
 import { getModelTestProcessForModel } from "@/features/config/lib/model-test-process";
 import {
+	formatRequestParamForInput,
+	requestParamsFromRows,
+} from "@/lib/request-params";
+import {
 	THINKING_EFFORT_LEVELS,
 	type ThinkingEffortLevel,
 } from "@/lib/validation";
@@ -43,10 +47,6 @@ import {
 	updateModel,
 } from "@/server-functions/ai-models";
 import { listProviders } from "@/server-functions/ai-providers";
-import {
-	formatRequestParamForInput,
-	requestParamsFromRows,
-} from "@/lib/request-params";
 import { useConnectionTestDialog } from "./connection-test-dialog-provider";
 import { ModelConnectionTestBadge } from "./model-connection-test-badge";
 import { ProviderDialog } from "./provider-dialog";
@@ -74,10 +74,7 @@ type ModelFormState = {
 	requestParamRows: RequestParamRow[];
 };
 
-function createRequestParamRow(
-	key = "",
-	value = "",
-): RequestParamRow {
+function createRequestParamRow(key = "", value = ""): RequestParamRow {
 	return {
 		id: crypto.randomUUID(),
 		key,
@@ -243,7 +240,7 @@ export function ModelsPanel() {
 				thinkingEnabled: form.thinkingEnabled,
 				thinkingParamName:
 					form.thinkingEnabled !== null
-						? (form.thinkingParamName.trim() || "thinking")
+						? form.thinkingParamName.trim() || "thinking"
 						: null,
 				enabled: form.enabled,
 				requestParams: recordFromRequestParamRows(form.requestParamRows),
@@ -504,269 +501,271 @@ export function ModelsPanel() {
 							value="general"
 							className="mt-0 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
 						>
-						<div className="space-y-1.5">
-							<Label>Provider</Label>
-							<Select
-								value={form.providerId}
-								onValueChange={(providerId) =>
-									setForm((current) => ({ ...current, providerId }))
-								}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select provider" />
-								</SelectTrigger>
-								<SelectContent>
-									{providers.map((provider) => (
-										<SelectItem key={provider.id} value={String(provider.id)}>
-											{provider.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-						<div className="grid gap-3 sm:grid-cols-2">
 							<div className="space-y-1.5">
-								<Label htmlFor="model-id">Model ID</Label>
-								<Input
-									id="model-id"
-									value={form.modelId}
-									onChange={(event) =>
-										setForm((current) => ({
-											...current,
-											modelId: event.target.value,
-										}))
+								<Label>Provider</Label>
+								<Select
+									value={form.providerId}
+									onValueChange={(providerId) =>
+										setForm((current) => ({ ...current, providerId }))
 									}
-									placeholder="openai/gpt-4o-mini"
-								/>
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Select provider" />
+									</SelectTrigger>
+									<SelectContent>
+										{providers.map((provider) => (
+											<SelectItem key={provider.id} value={String(provider.id)}>
+												{provider.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
-							<div className="space-y-1.5">
-								<Label htmlFor="model-display-name">Display name</Label>
-								<Input
-									id="model-display-name"
-									value={form.displayName}
-									onChange={(event) =>
-										setForm((current) => ({
-											...current,
-											displayName: event.target.value,
-										}))
-									}
-									placeholder="GPT-4o Mini"
-								/>
-							</div>
-						</div>
-						<div className="grid grid-cols-2 gap-3">
-							<div className="space-y-1.5">
-								<Label htmlFor="context-window">Context window</Label>
-								<Input
-									id="context-window"
-									value={form.contextWindow}
-									onChange={(event) =>
-										setForm((current) => ({
-											...current,
-											contextWindow: event.target.value,
-										}))
-									}
-								/>
-							</div>
-							<div className="space-y-1.5">
-								<Label htmlFor="max-output">Max output tokens</Label>
-								<Input
-									id="max-output"
-									value={form.maxOutputTokens}
-									onChange={(event) =>
-										setForm((current) => ({
-											...current,
-											maxOutputTokens: event.target.value,
-										}))
-									}
-								/>
-							</div>
-						</div>
-						<div className="space-y-2 rounded-md border border-border/60 p-3">
-							<div className="flex items-center justify-between gap-3">
-								<div className="space-y-1">
-									<Label>Thinking configuration</Label>
-									<p className="text-[0.6875rem] text-muted-foreground">
-										Choose either effort levels or a boolean request flag.
-									</p>
-								</div>
-								<Switch
-									id="thinking-boolean-enabled"
-									checked={form.thinkingEnabled !== null}
-									onCheckedChange={(checked) =>
-										setForm((current) => ({
-											...current,
-											thinkingEnabled: checked
-												? (current.thinkingEnabled ?? true)
-												: null,
-											thinkingEffortLevels: checked
-												? []
-												: current.thinkingEffortLevels,
-											defaultThinkingEffort: checked
-												? null
-												: current.defaultThinkingEffort,
-										}))
-									}
-								/>
-							</div>
-							{form.thinkingEnabled !== null ? (
-								<div className="space-y-2 rounded-md border border-dashed border-border/60 p-3">
-									<div className="space-y-1">
-										<Label htmlFor="thinking-param-name">
-											Parameter name
-										</Label>
-										<p className="text-[0.6875rem] text-muted-foreground">
-											Name of the boolean field sent in the request body.
-										</p>
-									</div>
+							<div className="grid gap-3 sm:grid-cols-2">
+								<div className="space-y-1.5">
+									<Label htmlFor="model-id">Model ID</Label>
 									<Input
-										id="thinking-param-name"
-										value={form.thinkingParamName}
-										placeholder="thinking"
+										id="model-id"
+										value={form.modelId}
 										onChange={(event) =>
 											setForm((current) => ({
 												...current,
-												thinkingParamName: event.target.value,
+												modelId: event.target.value,
+											}))
+										}
+										placeholder="openai/gpt-4o-mini"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="model-display-name">Display name</Label>
+									<Input
+										id="model-display-name"
+										value={form.displayName}
+										onChange={(event) =>
+											setForm((current) => ({
+												...current,
+												displayName: event.target.value,
+											}))
+										}
+										placeholder="GPT-4o Mini"
+									/>
+								</div>
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="context-window">Context window</Label>
+									<Input
+										id="context-window"
+										value={form.contextWindow}
+										onChange={(event) =>
+											setForm((current) => ({
+												...current,
+												contextWindow: event.target.value,
 											}))
 										}
 									/>
-									<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
-										<div className="space-y-1">
-											<Label htmlFor="thinking-boolean-value">
-												Default value
-											</Label>
-											<p className="text-[0.6875rem] text-muted-foreground">
-												Controls whether requests send{" "}
-												<code>
-													{form.thinkingParamName.trim() || "thinking"}: true
-												</code>{" "}
-												or{" "}
-												<code>
-													{form.thinkingParamName.trim() || "thinking"}: false
-												</code>
-												.
-											</p>
-										</div>
-										<div className="flex items-center gap-2">
-											<span className="text-xs text-muted-foreground">
-												{String(form.thinkingEnabled)}
-											</span>
-											<Switch
-												id="thinking-boolean-value"
-												checked={form.thinkingEnabled}
-												onCheckedChange={(thinkingEnabled) =>
-													setForm((current) => ({
-														...current,
-														thinkingEnabled,
-													}))
-												}
-											/>
-										</div>
-									</div>
 								</div>
-							) : (
-								<div className="space-y-2 rounded-md border border-dashed border-border/60 p-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="max-output">Max output tokens</Label>
+									<Input
+										id="max-output"
+										value={form.maxOutputTokens}
+										onChange={(event) =>
+											setForm((current) => ({
+												...current,
+												maxOutputTokens: event.target.value,
+											}))
+										}
+									/>
+								</div>
+							</div>
+							<div className="space-y-2 rounded-md border border-border/60 p-3">
+								<div className="flex items-center justify-between gap-3">
 									<div className="space-y-1">
-										<Label>Thinking effort levels</Label>
+										<Label>Thinking configuration</Label>
 										<p className="text-[0.6875rem] text-muted-foreground">
-											Select which effort levels this model supports.
+											Choose either effort levels or a boolean request flag.
 										</p>
 									</div>
-									<div className="flex flex-wrap gap-2">
-										{THINKING_EFFORT_LEVELS.map((level) => {
-											const selected = form.thinkingEffortLevels.includes(level);
-											return (
-												<Button
-													key={level}
-													type="button"
-													size="sm"
-													variant={selected ? "default" : "outline"}
-													onClick={() =>
-														setForm((current) => {
-															const thinkingEffortLevels =
-																toggleThinkingEffortLevel(
-																	current.thinkingEffortLevels,
-																	level,
-																);
-															return {
-																...current,
-																thinkingEffortLevels,
-																defaultThinkingEffort:
-																	resolveDefaultThinkingEffort(
-																		thinkingEffortLevels,
-																		current.defaultThinkingEffort,
-																	),
-																thinkingEnabled:
-																	thinkingEffortLevels.length > 0
-																		? null
-																		: current.thinkingEnabled,
-															};
-														})
+									<Switch
+										id="thinking-boolean-enabled"
+										checked={form.thinkingEnabled !== null}
+										onCheckedChange={(checked) =>
+											setForm((current) => ({
+												...current,
+												thinkingEnabled: checked
+													? (current.thinkingEnabled ?? true)
+													: null,
+												thinkingEffortLevels: checked
+													? []
+													: current.thinkingEffortLevels,
+												defaultThinkingEffort: checked
+													? null
+													: current.defaultThinkingEffort,
+											}))
+										}
+									/>
+								</div>
+								{form.thinkingEnabled !== null ? (
+									<div className="space-y-2 rounded-md border border-dashed border-border/60 p-3">
+										<div className="space-y-1">
+											<Label htmlFor="thinking-param-name">
+												Parameter name
+											</Label>
+											<p className="text-[0.6875rem] text-muted-foreground">
+												Name of the boolean field sent in the request body.
+											</p>
+										</div>
+										<Input
+											id="thinking-param-name"
+											value={form.thinkingParamName}
+											placeholder="thinking"
+											onChange={(event) =>
+												setForm((current) => ({
+													...current,
+													thinkingParamName: event.target.value,
+												}))
+											}
+										/>
+										<div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-3">
+											<div className="space-y-1">
+												<Label htmlFor="thinking-boolean-value">
+													Default value
+												</Label>
+												<p className="text-[0.6875rem] text-muted-foreground">
+													Controls whether requests send{" "}
+													<code>
+														{form.thinkingParamName.trim() || "thinking"}: true
+													</code>{" "}
+													or{" "}
+													<code>
+														{form.thinkingParamName.trim() || "thinking"}: false
+													</code>
+													.
+												</p>
+											</div>
+											<div className="flex items-center gap-2">
+												<span className="text-xs text-muted-foreground">
+													{String(form.thinkingEnabled)}
+												</span>
+												<Switch
+													id="thinking-boolean-value"
+													checked={form.thinkingEnabled}
+													onCheckedChange={(thinkingEnabled) =>
+														setForm((current) => ({
+															...current,
+															thinkingEnabled,
+														}))
+													}
+												/>
+											</div>
+										</div>
+									</div>
+								) : (
+									<div className="space-y-2 rounded-md border border-dashed border-border/60 p-3">
+										<div className="space-y-1">
+											<Label>Thinking effort levels</Label>
+											<p className="text-[0.6875rem] text-muted-foreground">
+												Select which effort levels this model supports.
+											</p>
+										</div>
+										<div className="flex flex-wrap gap-2">
+											{THINKING_EFFORT_LEVELS.map((level) => {
+												const selected =
+													form.thinkingEffortLevels.includes(level);
+												return (
+													<Button
+														key={level}
+														type="button"
+														size="sm"
+														variant={selected ? "default" : "outline"}
+														onClick={() =>
+															setForm((current) => {
+																const thinkingEffortLevels =
+																	toggleThinkingEffortLevel(
+																		current.thinkingEffortLevels,
+																		level,
+																	);
+																return {
+																	...current,
+																	thinkingEffortLevels,
+																	defaultThinkingEffort:
+																		resolveDefaultThinkingEffort(
+																			thinkingEffortLevels,
+																			current.defaultThinkingEffort,
+																		),
+																	thinkingEnabled:
+																		thinkingEffortLevels.length > 0
+																			? null
+																			: current.thinkingEnabled,
+																};
+															})
+														}
+													>
+														{formatEffortLabel(level)}
+													</Button>
+												);
+											})}
+										</div>
+										{form.thinkingEffortLevels.length > 0 ? (
+											<div className="space-y-1.5">
+												<Label htmlFor="default-thinking-effort">
+													Default thinking effort
+												</Label>
+												<Select
+													value={form.defaultThinkingEffort ?? undefined}
+													onValueChange={(value) =>
+														setForm((current) => ({
+															...current,
+															defaultThinkingEffort:
+																value as ThinkingEffortLevel,
+														}))
 													}
 												>
-													{formatEffortLabel(level)}
-												</Button>
-											);
-										})}
+													<SelectTrigger id="default-thinking-effort">
+														<SelectValue placeholder="Select default" />
+													</SelectTrigger>
+													<SelectContent>
+														{form.thinkingEffortLevels.map((level) => (
+															<SelectItem key={level} value={level}>
+																{formatEffortLabel(level)}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+										) : null}
 									</div>
-									{form.thinkingEffortLevels.length > 0 ? (
-										<div className="space-y-1.5">
-											<Label htmlFor="default-thinking-effort">
-												Default thinking effort
-											</Label>
-											<Select
-												value={form.defaultThinkingEffort ?? undefined}
-												onValueChange={(value) =>
-													setForm((current) => ({
-														...current,
-														defaultThinkingEffort: value as ThinkingEffortLevel,
-													}))
-												}
-											>
-												<SelectTrigger id="default-thinking-effort">
-													<SelectValue placeholder="Select default" />
-												</SelectTrigger>
-												<SelectContent>
-													{form.thinkingEffortLevels.map((level) => (
-														<SelectItem key={level} value={level}>
-															{formatEffortLabel(level)}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-									) : null}
+								)}
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<div className="space-y-1.5">
+									<Label htmlFor="input-cost">Input cost / 1M USD</Label>
+									<Input
+										id="input-cost"
+										value={form.inputCostPerMillion}
+										onChange={(event) =>
+											setForm((current) => ({
+												...current,
+												inputCostPerMillion: event.target.value,
+											}))
+										}
+									/>
 								</div>
-							)}
-						</div>
-						<div className="grid grid-cols-2 gap-3">
-							<div className="space-y-1.5">
-								<Label htmlFor="input-cost">Input cost / 1M USD</Label>
-								<Input
-									id="input-cost"
-									value={form.inputCostPerMillion}
-									onChange={(event) =>
-										setForm((current) => ({
-											...current,
-											inputCostPerMillion: event.target.value,
-										}))
-									}
-								/>
+								<div className="space-y-1.5">
+									<Label htmlFor="output-cost">Output cost / 1M USD</Label>
+									<Input
+										id="output-cost"
+										value={form.outputCostPerMillion}
+										onChange={(event) =>
+											setForm((current) => ({
+												...current,
+												outputCostPerMillion: event.target.value,
+											}))
+										}
+									/>
+								</div>
 							</div>
-							<div className="space-y-1.5">
-								<Label htmlFor="output-cost">Output cost / 1M USD</Label>
-								<Input
-									id="output-cost"
-									value={form.outputCostPerMillion}
-									onChange={(event) =>
-										setForm((current) => ({
-											...current,
-											outputCostPerMillion: event.target.value,
-										}))
-									}
-								/>
-							</div>
-						</div>
 						</TabsContent>
 
 						<TabsContent

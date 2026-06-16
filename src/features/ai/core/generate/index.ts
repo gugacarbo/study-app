@@ -5,5 +5,4 @@ export type {
 	GenerateJsonStreamChunk,
 	GenerateJsonStreamOnErrorInfo,
 	OutputSchema,
-	StructuredOutputCompleteEvent,
 } from "./types";

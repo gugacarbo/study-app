@@ -12,24 +12,24 @@ type SafeParseCapableSchema<T> = {
 
 export type OutputSchema<T = unknown> = z.ZodType<T> | FlexibleSchema<T>;
 
-export type StructuredOutputCompleteEvent<T> = {
+type StructuredOutputCompleteEvent<T> = {
 	type: "CUSTOM";
 	name: "structured-output.complete";
 	value: { object: T };
 };
 
-export type GenerateJsonTextChunk = {
+type GenerateJsonTextChunk = {
 	type: "TEXT_MESSAGE_CONTENT";
 	delta: string;
 	content?: string;
 };
 
-export type GenerateJsonReasoningChunk = {
+type GenerateJsonReasoningChunk = {
 	type: "REASONING_MESSAGE_CONTENT";
 	delta: string;
 };
 
-export type GenerateJsonRunErrorChunk = {
+type GenerateJsonRunErrorChunk = {
 	type: "RUN_ERROR";
 	message: string;
 	code?: string;
@@ -73,45 +73,6 @@ function isSafeParseCapableSchema<T>(
 	);
 }
 
-function isTextMessageChunk(chunk: unknown): chunk is GenerateJsonTextChunk {
-	return (
-		typeof chunk === "object" &&
-		chunk !== null &&
-		"type" in chunk &&
-		chunk.type === "TEXT_MESSAGE_CONTENT" &&
-		"delta" in chunk &&
-		typeof chunk.delta === "string"
-	);
-}
-
-function isStructuredOutputCompleteEvent<T>(
-	chunk: GenerateJsonStreamChunk<T>,
-): chunk is StructuredOutputCompleteEvent<T> {
-	return chunk.type === "CUSTOM" && chunk.name === "structured-output.complete";
-}
-
-function isRunErrorChunk(chunk: unknown): chunk is GenerateJsonRunErrorChunk {
-	return (
-		typeof chunk === "object" &&
-		chunk !== null &&
-		"type" in chunk &&
-		chunk.type === "RUN_ERROR"
-	);
-}
-
-function isReasoningChunk(
-	chunk: unknown,
-): chunk is GenerateJsonReasoningChunk {
-	return (
-		typeof chunk === "object" &&
-		chunk !== null &&
-		"type" in chunk &&
-		(chunk as { type: unknown }).type === "REASONING_MESSAGE_CONTENT" &&
-		"delta" in chunk &&
-		typeof (chunk as { delta: unknown }).delta === "string"
-	);
-}
-
 const RECOVERABLE_STRUCTURED_OUTPUT_CODES = new Set<string>([
 	"parse-error",
 	"structured-output-parse-failed",
@@ -125,11 +86,4 @@ function isRecoverableStructuredOutputError(code: string | undefined): boolean {
 }
 
 export type { SafeParseCapableSchema };
-export {
-	isReasoningChunk,
-	isRecoverableStructuredOutputError,
-	isRunErrorChunk,
-	isSafeParseCapableSchema,
-	isStructuredOutputCompleteEvent,
-	isTextMessageChunk,
-};
+export { isRecoverableStructuredOutputError, isSafeParseCapableSchema };

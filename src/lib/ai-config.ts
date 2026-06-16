@@ -15,7 +15,7 @@ export async function encryptApiKeyForStorage(apiKey: string): Promise<string> {
 	return encryptSecret(apiKey);
 }
 
-export async function decryptStoredApiKey(
+async function decryptStoredApiKey(
 	stored: string | undefined,
 ): Promise<string | undefined> {
 	if (!stored?.trim()) return undefined;
@@ -173,28 +173,4 @@ export async function isModelReferencedInSettings(
 	const settings = await loadAiSettings(queries);
 	if (settings.defaultModelId === modelId) return true;
 	return Object.values(settings.agentModels).some((id) => id === modelId);
-}
-
-/** @deprecated Use requireModelConfig */
-export async function requireProviderConfigFromDb(
-	queries: DBQueries,
-	agent?: AiAgentTask,
-): Promise<ResolvedModelConfig> {
-	return requireModelConfig(queries, agent);
-}
-
-/** @deprecated Use resolveModelConfig */
-export async function loadProviderConfigFromDb(
-	queries: DBQueries,
-	agent?: AiAgentTask,
-): Promise<ResolvedModelConfig | null> {
-	return resolveModelConfig(queries, agent);
-}
-
-/** @deprecated Use resolveModelConfigById */
-export async function resolveProviderConfigForTest(
-	queries: DBQueries,
-	modelId: number,
-): Promise<ResolvedModelConfig> {
-	return resolveModelConfigById(queries, modelId);
 }

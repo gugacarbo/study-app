@@ -70,7 +70,9 @@ function findMissingAccentIssue(
 	};
 }
 
-export async function checkTextSpelling(text: string): Promise<SpellCheckResult> {
+export async function checkTextSpelling(
+	text: string,
+): Promise<SpellCheckResult> {
 	const spellChecker = await getPtBrSpellChecker();
 	return checkTextWithSpellChecker(spellChecker, text);
 }

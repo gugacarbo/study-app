@@ -1,3 +1,4 @@
+export * from "./client";
 export type {
 	AgentEventEmitter,
 	PipelineDiagnostics,
@@ -6,4 +7,3 @@ export type {
 	PipelineLogEntry,
 	PipelineLogLevel,
 } from "./types";
-export * from "./client";

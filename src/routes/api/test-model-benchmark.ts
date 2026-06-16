@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { stepCountIs, type LanguageModelUsage, type ToolSet } from "ai";
+import { type LanguageModelUsage, stepCountIs, type ToolSet } from "ai";
 import { DBQueries } from "@/db/queries";
 import type { createAgentRunWriter } from "@/features/ai/core/ui-message-job-stream";
 import {
+	type JobUIMessageStreamWriter,
 	writeJobProgress,
 	writeJobResult,
-	type JobUIMessageStreamWriter,
 } from "@/features/ai/core/ui-message-job-stream";
 import {
 	type BenchmarkPhaseId,
@@ -13,6 +13,7 @@ import {
 	validateBenchmarkPhase,
 } from "@/features/ai/lib/benchmark-phase-validation";
 import {
+	type BenchmarkPhaseMetrics,
 	buildBenchmarkPerfMetrics,
 	buildBenchmarkPhaseMetrics,
 	createBenchmarkPhaseTiming,
@@ -20,7 +21,6 @@ import {
 	noteBenchmarkPhaseTextDelta,
 	noteBenchmarkPhaseToolCall,
 	noteBenchmarkPhaseToolResult,
-	type BenchmarkPhaseMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
 import { extractTokenTotalsFromUsage } from "@/features/ai/lib/token-usage";
 import { createAgentEventEmitter } from "@/features/ai/pipeline/server/agent-emitter";
@@ -32,9 +32,9 @@ import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import { createBenchmarkTools } from "@/features/ai/tools/benchmark-tools";
 import { resolveModelConfigById } from "@/lib/ai-config";
 import {
+	type ResolvedModelConfig,
 	testModelBenchmarkInputSchema,
 	toProviderConfig,
-	type ResolvedModelConfig,
 } from "@/lib/validation";
 import {
 	BENCHMARK_PHASES,
@@ -90,7 +90,9 @@ function createBenchmarkEmit(
 			noteBenchmarkPhaseToolCall(phaseTiming, now);
 			const meta = event.meta as Record<string, unknown> | undefined;
 			const toolCallId =
-				typeof meta?.toolCallId === "string" ? meta.toolCallId : `tool-${toolCalls.length}`;
+				typeof meta?.toolCallId === "string"
+					? meta.toolCallId
+					: `tool-${toolCalls.length}`;
 			const record: BenchmarkToolCallRecord = {
 				name: event.name ?? "unknown",
 				input: event.input,

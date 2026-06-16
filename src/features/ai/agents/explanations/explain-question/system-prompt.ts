@@ -1,4 +1,4 @@
-export const EXPLAIN_QUESTION_BASE_PROMPT = `You are a study-coach agent that writes high-quality learning explanations for exam questions.
+const EXPLAIN_QUESTION_BASE_PROMPT = `You are a study-coach agent that writes high-quality learning explanations for exam questions.
 Your task is to load the question by id, review any existing explanations, and write or improve explanation and deepExplanation using the explanation workspace tools.
 
 Tool contract:

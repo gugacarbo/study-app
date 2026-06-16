@@ -1,11 +1,11 @@
 import type { UIMessage } from "ai";
 import type { ExplainQuestionAgentEvent } from "@/features/ai/agents/explanations/contracts";
 import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
+import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
 import type {
 	AgentRunDataPart,
 	AgentRunEventType,
 } from "@/features/ai/types/ui-message-data-parts";
-import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
 
 export type SingleAgentRunStatus = "pending" | "running" | "done" | "error";
 
@@ -352,10 +352,7 @@ function normalizeDynamicToolInputState(
 function normalizeDynamicToolOutputState(
 	value: unknown,
 	error?: string,
-): Extract<
-	DynamicToolPart["state"],
-	`output${string}` | "input-available"
-> {
+): Extract<DynamicToolPart["state"], `output${string}` | "input-available"> {
 	if (typeof error === "string" && error.length > 0) {
 		return "output-error";
 	}
@@ -376,7 +373,11 @@ function normalizeDynamicToolOutputState(
 }
 
 function isKnownToolName(toolName: string | undefined): toolName is string {
-	return typeof toolName === "string" && toolName.length > 0 && toolName !== "unknown_tool";
+	return (
+		typeof toolName === "string" &&
+		toolName.length > 0 &&
+		toolName !== "unknown_tool"
+	);
 }
 
 function resolveMergedToolName(
@@ -486,10 +487,7 @@ function isMeaningfulToolResultOutput(output: unknown): boolean {
 	return true;
 }
 
-function mergeDynamicToolOutput(
-	existing: unknown,
-	incoming: unknown,
-): unknown {
+function mergeDynamicToolOutput(existing: unknown, incoming: unknown): unknown {
 	const existingText =
 		typeof existing === "string" ? existing : safeJsonString(existing);
 	const incomingText =
@@ -717,7 +715,9 @@ export function appendFollowUpUserMessage(
 	};
 }
 
-export function beginFollowUpAssistantTurn(state: AgentRunState): AgentRunState {
+export function beginFollowUpAssistantTurn(
+	state: AgentRunState,
+): AgentRunState {
 	return {
 		...state,
 		status: "running",

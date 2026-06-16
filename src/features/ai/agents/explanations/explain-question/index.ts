@@ -1,11 +1,11 @@
 export type {
-	ExplanationChange,
-	ExplanationChangeField,
-	ExplanationWorkspaceUpdateEvent,
 	ExplainQuestionAgentEvent,
 	ExplainQuestionAgentJobResult,
 	ExplainQuestionAgentRunSummary,
 	ExplainQuestionByIdOptions,
+	ExplanationChange,
+	ExplanationChangeField,
+	ExplanationWorkspaceUpdateEvent,
 } from "./contracts";
 export {
 	EXPLAIN_QUESTION_AGENT_STAGE_ID,

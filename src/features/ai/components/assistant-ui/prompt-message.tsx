@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
 
-export type PromptMessageLabel = "System prompt" | "User prompt";
+type PromptMessageLabel = "System prompt" | "User prompt";
 
 type PromptVariant = "system" | "user";
 

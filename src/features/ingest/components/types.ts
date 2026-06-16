@@ -1,8 +1,6 @@
 import type { UIMessage } from "ai";
 import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 
-export type { PipelineLogEntry };
-
 export interface IngestTokenTotals {
 	prompt: number;
 	completion: number;

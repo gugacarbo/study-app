@@ -27,10 +27,7 @@ function buildSearchNeedles(
 
 	for (const answer of question.answers) {
 		const normalizedAnswer = normalizeWhitespace(answer);
-		if (
-			normalizedAnswer.length >= 4 &&
-			!/^[A-E]$/i.test(normalizedAnswer)
-		) {
+		if (normalizedAnswer.length >= 4 && !/^[A-E]$/i.test(normalizedAnswer)) {
 			needles.push(normalizedAnswer);
 		}
 	}

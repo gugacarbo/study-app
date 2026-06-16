@@ -10,15 +10,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
 	createContext,
+	type FC,
 	memo,
+	type PropsWithChildren,
 	useCallback,
 	useContext,
 	useEffect,
 	useLayoutEffect,
 	useRef,
 	useState,
-	type FC,
-	type PropsWithChildren,
 } from "react";
 import {
 	Collapsible,
@@ -45,7 +45,7 @@ const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
 	},
 });
 
-export type ReasoningRootProps = Omit<
+type ReasoningRootProps = Omit<
 	React.ComponentProps<typeof Collapsible>,
 	"open" | "onOpenChange"
 > &
@@ -463,10 +463,7 @@ ReasoningGroup.displayName = "ReasoningGroup";
 export {
 	Reasoning,
 	ReasoningContent,
-	ReasoningFade,
-	ReasoningGroup,
 	ReasoningRoot,
 	ReasoningText,
 	ReasoningTrigger,
-	reasoningVariants,
 };

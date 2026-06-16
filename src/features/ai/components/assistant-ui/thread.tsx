@@ -41,6 +41,7 @@ import {
 	UserMessageAttachments,
 } from "@/features/ai/components/assistant-ui/attachment";
 import { MarkdownText } from "@/features/ai/components/assistant-ui/markdown-text";
+import { CollapsiblePromptMessage } from "@/features/ai/components/assistant-ui/prompt-message";
 import {
 	CollapsibleReasoningGroup,
 	Reasoning,
@@ -49,7 +50,6 @@ import {
 	ReasoningText,
 	ReasoningTrigger,
 } from "@/features/ai/components/assistant-ui/reasoning";
-import { CollapsiblePromptMessage } from "@/features/ai/components/assistant-ui/prompt-message";
 import { ToolFallback } from "@/features/ai/components/assistant-ui/tool-fallback";
 import {
 	ToolGroupContent,
@@ -59,7 +59,7 @@ import {
 import { TooltipIconButton } from "@/features/ai/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
-export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -68,7 +68,7 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
  * `ToolFallback`.
  */
-export type ThreadComponents = {
+type ThreadComponents = {
 	AssistantMessage?: ComponentType | undefined;
 	Welcome?: ComponentType | undefined;
 	Composer?: ComponentType | undefined;

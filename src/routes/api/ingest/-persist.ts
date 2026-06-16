@@ -1,8 +1,8 @@
-import type { Question } from "@/lib/validation";
 import {
-	writeStage,
 	type JobUIMessageStreamWriter,
+	writeStage,
 } from "@/features/ai/core/ui-message-job-stream";
+import type { Question } from "@/lib/validation";
 import type { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
 
@@ -22,8 +22,16 @@ interface PersistParams {
 export async function persistResults(
 	params: PersistParams,
 ): Promise<{ examId: number; fileId: number }> {
-	const { queries, fileService, fileName, examName, buffer, questions, writer, log } =
-		params;
+	const {
+		queries,
+		fileService,
+		fileName,
+		examName,
+		buffer,
+		questions,
+		writer,
+		log,
+	} = params;
 
 	writeStage(writer, {
 		stageId: "persist",

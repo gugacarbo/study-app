@@ -2,7 +2,9 @@ import { asSchema, type FlexibleSchema } from "ai";
 import type { z } from "zod";
 import type { OutputSchema } from "./types";
 
-export function toFlexibleSchema<T>(schema: OutputSchema<T>): FlexibleSchema<T> {
+export function toFlexibleSchema<T>(
+	schema: OutputSchema<T>,
+): FlexibleSchema<T> {
 	return asSchema(schema);
 }
 
@@ -24,7 +26,9 @@ export function resolveObjectGenerationOptions<T>(schema: OutputSchema<T>): {
 	};
 }
 
-function isZodArray(schema: OutputSchema<unknown>): schema is z.ZodArray<z.ZodType> {
+function isZodArray(
+	schema: OutputSchema<unknown>,
+): schema is z.ZodArray<z.ZodType> {
 	return (
 		typeof schema === "object" &&
 		schema !== null &&

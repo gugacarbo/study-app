@@ -137,9 +137,7 @@ export function useImproveQuestionsBatch({
 	const handleSelectAll = useCallback(
 		(checked: boolean) => {
 			setSelectAll(checked);
-			setSelectedIds(
-				checked ? new Set(questions.map((q) => q.id)) : new Set(),
-			);
+			setSelectedIds(checked ? new Set(questions.map((q) => q.id)) : new Set());
 		},
 		[questions],
 	);

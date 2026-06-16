@@ -1,6 +1,6 @@
 import {
-	writeJobProgress,
 	type JobUIMessageStreamWriter,
+	writeJobProgress,
 } from "@/features/ai/core/ui-message-job-stream";
 
 export interface JobProgressTrackerOptions {

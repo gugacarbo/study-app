@@ -40,10 +40,7 @@ export function AdminSidebar() {
 											isActive={isActive}
 											tooltip={item.label}
 										>
-											<Link
-												to={item.to}
-												activeProps={{ "data-active": true }}
-											>
+											<Link to={item.to} activeProps={{ "data-active": true }}>
 												<Icon />
 												<span>{item.label}</span>
 											</Link>

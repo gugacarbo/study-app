@@ -7,9 +7,9 @@ import { JobProgressTracker } from "@/features/ai/pipeline/server/job-progress-t
 import { runPipelineTextAgent } from "@/features/ai/pipeline/server/run-pipeline-text-agent";
 import { resolveModelConfigById } from "@/lib/ai-config";
 import {
+	type ResolvedModelConfig,
 	testConnectionInputSchema,
 	toProviderConfig,
-	type ResolvedModelConfig,
 } from "@/lib/validation";
 
 const CONNECTION_TEST_STAGE_ID = "connection-test";
@@ -49,7 +49,10 @@ const connectionTestHandler = createJobApiRoute({
 		const userMsg =
 			'Say: "Connection successful using model: <model-name>" and include only one short line.';
 
-		const run = agentRuns.createRun(CONNECTION_TEST_STAGE_ID, "Connection Test");
+		const run = agentRuns.createRun(
+			CONNECTION_TEST_STAGE_ID,
+			"Connection Test",
+		);
 		ctx.agentRunId = run.agentRunId;
 		const emit = createAgentEventEmitter(agentRuns, run);
 

@@ -37,13 +37,10 @@ async function getEncryptionKey(): Promise<CryptoKey> {
 	}
 
 	const keyBytes = new Uint8Array(raw);
-	return crypto.subtle.importKey(
-		"raw",
-		keyBytes,
-		{ name: ALGORITHM },
-		false,
-		["encrypt", "decrypt"],
-	);
+	return crypto.subtle.importKey("raw", keyBytes, { name: ALGORITHM }, false, [
+		"encrypt",
+		"decrypt",
+	]);
 }
 
 export function isEncryptedSecret(value: string): boolean {
@@ -54,7 +51,11 @@ export async function encryptSecret(plaintext: string): Promise<string> {
 	const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
 	const key = await getEncryptionKey();
 	const encoded = new TextEncoder().encode(plaintext);
-	const ciphertext = await crypto.subtle.encrypt({ name: ALGORITHM, iv }, key, encoded);
+	const ciphertext = await crypto.subtle.encrypt(
+		{ name: ALGORITHM, iv },
+		key,
+		encoded,
+	);
 
 	return `${ENCRYPTED_PREFIX}${bytesToBase64(iv)}:${bytesToBase64(new Uint8Array(ciphertext))}`;
 }

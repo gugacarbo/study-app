@@ -26,8 +26,6 @@ export const arbiterResultSchema = z.object({
 	sources: z.array(z.string()),
 });
 
-export type ArbiterResult = z.infer<typeof arbiterResultSchema>;
-
 const REVIEWER_ROLES: Record<number, string> = {
 	1: "Skeptic — Challenge every claim. Assume the original answer is wrong until proven otherwise. Focus on finding counter-evidence and logical fallacies.",
 	2: "Source Hunter — Prioritize verification through authoritative sources. Search for primary references, official documentation, and established consensus.",

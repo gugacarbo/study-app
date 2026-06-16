@@ -1,14 +1,14 @@
 import { z } from "zod";
-import { requireModelConfig } from "@/lib/ai-config";
-import type { ExamIngestResponse } from "@/lib/validation";
 import type {
 	createAgentRunWriter,
 	JobUIMessageStreamWriter,
 } from "@/features/ai/core/ui-message-job-stream";
 import { writeAgentRun } from "@/features/ai/core/ui-message-job-stream";
 import type { PipelineRunContext } from "@/features/ai/pipeline/server/create-job-api-route";
-import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
 import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
+import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
+import { requireModelConfig } from "@/lib/ai-config";
+import type { ExamIngestResponse } from "@/lib/validation";
 import { DBQueries } from "../../../db/queries";
 import { FileService } from "../../../lib/file-service";
 import { createIngestLogger } from "../../../lib/logger";
@@ -44,8 +44,7 @@ function writeIngestWarning(
 	message: string,
 	meta?: Record<string, unknown>,
 ) {
-	const stageId =
-		typeof meta?.stageId === "string" ? meta.stageId : "pipeline";
+	const stageId = typeof meta?.stageId === "string" ? meta.stageId : "pipeline";
 	const agentRunId =
 		typeof meta?.agentRunId === "string" ? meta.agentRunId : "pipeline";
 

@@ -438,7 +438,7 @@ export function hydrateBackgroundProcessStateFromStorage(
 			improveQuestionsBatchByExam: {},
 			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
-		explainQuestionsUiByExam: {},
+			explainQuestionsUiByExam: {},
 		};
 	} catch {
 		return initialState;
@@ -453,7 +453,7 @@ function migrateLegacyStorageIfNeeded(): BackgroundProcessStoreState {
 			improveQuestionsBatchByExam: {},
 			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
-		explainQuestionsUiByExam: {},
+			explainQuestionsUiByExam: {},
 		};
 	}
 
@@ -490,7 +490,7 @@ export function loadInitialState(): BackgroundProcessStoreState {
 			improveQuestionsBatchByExam: {},
 			improveQuestionsUiByExam: {},
 			explainQuestionsBatchByExam: {},
-		explainQuestionsUiByExam: {},
+			explainQuestionsUiByExam: {},
 		};
 	}
 	return migrateLegacyStorageIfNeeded();

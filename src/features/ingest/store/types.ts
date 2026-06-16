@@ -20,8 +20,6 @@ export interface FlowStage {
 
 import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 
-export type { PipelineLogEntry };
-
 export interface IngestOutputEntry {
 	id: string;
 	timestamp: number;
@@ -62,38 +60,6 @@ export interface IngestResultEvent {
 	questions: number;
 	topics: string[];
 }
-
-export type IngestChunkEvent = {
-	stageId?: string;
-	agentRunId?: string;
-	text: string;
-	kind?: "text" | "reasoning";
-	timestamp?: number;
-};
-
-export type IngestTokenEvent = {
-	prompt: number;
-	completion: number;
-	total: number;
-	stageId?: string;
-	agentRunId?: string;
-	timestamp?: number;
-};
-
-export type IngestWarningEvent = {
-	message: string;
-	stageId?: string;
-	agentRunId?: string;
-	timestamp?: number;
-};
-
-export type IngestStageEvent = {
-	stageId: string;
-	label: string;
-	status: string;
-	timestamp: number;
-	meta?: Record<string, unknown>;
-};
 
 export type IngestAgentEvent = {
 	eventType?:

@@ -100,8 +100,7 @@ const optionalNullableAnswersSchema = z
 	.transform((value) => value ?? undefined);
 
 export const extractionQuestionFieldsSchema = z.preprocess(
-	(input) =>
-		preprocessExtractionQuestionFields(stripNullObjectFields(input)),
+	(input) => preprocessExtractionQuestionFields(stripNullObjectFields(input)),
 	z
 		.object({
 			question: z.string().trim().min(1),
@@ -116,8 +115,7 @@ export const extractionQuestionFieldsSchema = z.preprocess(
 );
 
 export const extractionQuestionPatchSchema = z.preprocess(
-	(input) =>
-		preprocessExtractionQuestionPatch(stripNullObjectFields(input)),
+	(input) => preprocessExtractionQuestionPatch(stripNullObjectFields(input)),
 	z
 		.object({
 			questionId: extractionQuestionIdSchema,

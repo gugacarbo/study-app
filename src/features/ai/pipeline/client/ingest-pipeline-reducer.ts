@@ -13,9 +13,9 @@ import type {
 } from "@/features/ingest/store/types";
 import { createEmptyTotals } from "@/features/ingest/store/types";
 import {
+	type AgentRunState,
 	applyAgentRunPart,
 	createSingleAgentRunState,
-	type AgentRunState,
 } from "./single-agent-run-reducer";
 
 export interface IngestPipelineState {
@@ -62,9 +62,7 @@ function createInternals(): IngestReducerInternals {
 	};
 }
 
-function normalizeStageStatus(
-	status: string,
-): FlowStage["status"] {
+function normalizeStageStatus(status: string): FlowStage["status"] {
 	switch (status) {
 		case "pending":
 		case "running":
@@ -78,7 +76,9 @@ function normalizeStageStatus(
 	}
 }
 
-function normalizeAgentStatus(status: SingleAgentRunStatusish): IngestAgentStatus {
+function normalizeAgentStatus(
+	status: SingleAgentRunStatusish,
+): IngestAgentStatus {
 	switch (status) {
 		case "pending":
 		case "running":
@@ -176,9 +176,7 @@ function agentRunStateToIngest(
 	};
 }
 
-function rebuildAgentRuns(
-	internals: IngestReducerInternals,
-): IngestAgentRun[] {
+function rebuildAgentRuns(internals: IngestReducerInternals): IngestAgentRun[] {
 	const agentRuns: IngestAgentRun[] = [];
 	for (const [agentRunId, runState] of internals.runStates) {
 		const meta = internals.runMeta.get(agentRunId);
@@ -243,7 +241,9 @@ function readJobResult(data: JobResultDataPart): IngestResultEvent {
 				? record.questions.length
 				: 0;
 	const topics = Array.isArray(record.topics)
-		? record.topics.filter((topic): topic is string => typeof topic === "string")
+		? record.topics.filter(
+				(topic): topic is string => typeof topic === "string",
+			)
 		: [];
 	return {
 		questions,

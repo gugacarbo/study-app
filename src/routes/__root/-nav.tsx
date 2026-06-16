@@ -1,5 +1,4 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BackgroundProcessIndicator } from "@/features/background-processes/components/process-indicator";
 import { Logo } from "@/components/logo";
 import {
 	NavigationMenu,
@@ -8,6 +7,7 @@ import {
 	NavigationMenuList,
 	navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import { BackgroundProcessIndicator } from "@/features/background-processes/components/process-indicator";
 import ThemeToggle from "@/features/theme/components/theme-toggle";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 

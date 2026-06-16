@@ -23,6 +23,8 @@ import {
 	type TokenTotals,
 	TokenTotalsBadge,
 } from "@/features/ai/components/token-totals-badge";
+import { serializeBenchmarkJson } from "@/features/ai/lib/build-benchmark-json";
+import { filterBenchmarkMessagesByPhase } from "@/features/ai/lib/filter-benchmark-messages";
 import {
 	type BenchmarkPhaseMetrics,
 	formatTokensPerSecond,
@@ -33,14 +35,12 @@ import {
 	estimateTokenCost,
 	formatUsdCost,
 } from "@/features/ai/lib/token-usage";
-import { serializeBenchmarkJson } from "@/features/ai/lib/build-benchmark-json";
-import { filterBenchmarkMessagesByPhase } from "@/features/ai/lib/filter-benchmark-messages";
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import {
 	PipelineErrorBanner,
 	PipelineLogsPanel,
 	PipelineThread,
 } from "@/features/ai/pipeline/ui";
-import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { ModelTestMode } from "@/features/config/lib/model-test-process";
 import { cn } from "@/lib/utils";
 import type { TestStatus } from "./use-connection-test";
@@ -158,9 +158,7 @@ function PhaseMetricsTable({
 									isSelected && "bg-primary/10",
 								)}
 								onClick={
-									isSelectable
-										? () => onPhaseSelect(phase.phaseId)
-										: undefined
+									isSelectable ? () => onPhaseSelect(phase.phaseId) : undefined
 								}
 								onKeyDown={
 									isSelectable

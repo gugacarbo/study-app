@@ -1,13 +1,18 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import type { ProviderConfig, RequestParams } from "@/lib/validation";
 
-function hasRequestParams(requestParams: RequestParams | null | undefined): boolean {
+function hasRequestParams(
+	requestParams: RequestParams | null | undefined,
+): boolean {
 	return Boolean(requestParams && Object.keys(requestParams).length > 0);
 }
 
 export function injectModelRequestBody(
 	body: BodyInit | null | undefined,
-	config: Pick<ProviderConfig, "thinkingEnabled" | "thinkingParamName" | "requestParams">,
+	config: Pick<
+		ProviderConfig,
+		"thinkingEnabled" | "thinkingParamName" | "requestParams"
+	>,
 ): BodyInit | null | undefined {
 	const needsThinking = config.thinkingEnabled != null;
 	const needsParams = hasRequestParams(config.requestParams);
@@ -39,7 +44,10 @@ export function injectThinkingIntoBody(
 	body: BodyInit | null | undefined,
 	thinkingEnabled: boolean | null | undefined,
 ): BodyInit | null | undefined {
-	return injectModelRequestBody(body, { thinkingEnabled, thinkingParamName: "thinking" });
+	return injectModelRequestBody(body, {
+		thinkingEnabled,
+		thinkingParamName: "thinking",
+	});
 }
 
 function needsCustomFetch(config: ProviderConfig): boolean {

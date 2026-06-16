@@ -1,3 +1,4 @@
+export type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 export {
 	cancelJob,
 	clearSavedIngestJobs,
@@ -6,9 +7,7 @@ export {
 	removeJob,
 	startQueuedIngest,
 } from "@/features/background-processes/kinds/ingest";
-
 export { ensureAgentRunMessages } from "@/features/background-processes/kinds/ingest/job-utils";
-
 export {
 	clearCompletedIngestProcessesFromState as clearCompletedJobsFromState,
 	hydrateBackgroundProcessStateFromStorage as hydrateIngestStateFromStorage,
@@ -26,5 +25,4 @@ export type {
 	PersistedIngestStoreState,
 	TokenTotals,
 } from "./types";
-export type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 export { INGEST_STORAGE_KEY } from "./types";

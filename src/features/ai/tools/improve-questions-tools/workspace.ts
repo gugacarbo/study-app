@@ -2,8 +2,8 @@ import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contr
 import { normalizeAnswerSet } from "@/lib/answer-scoring";
 import {
 	IMPROVE_QUESTIONS_TOOL_ERROR_CODE,
-	QUESTION_NOT_FOUND_ERROR_CODE,
 	improveQuestionsOptionsSchema,
+	QUESTION_NOT_FOUND_ERROR_CODE,
 } from "./shared";
 
 export type ImproveQuestionsUpdatedField =
@@ -47,9 +47,7 @@ function answersInOptions(answers: string[], options: string[]): boolean {
 	const optionSet = new Set(
 		options.map((option) => option.trim().toLowerCase()),
 	);
-	return answers.every((answer) =>
-		optionSet.has(answer.trim().toLowerCase()),
-	);
+	return answers.every((answer) => optionSet.has(answer.trim().toLowerCase()));
 }
 
 function answersEqual(left: string[], right: string[]): boolean {
@@ -67,7 +65,9 @@ function normalizeDraftQuestion(
 		DraftQuestion,
 		"question" | "options" | "answers" | "scoringMode" | "explanation"
 	> &
-		Partial<Pick<DraftQuestion, "id" | "exam_id" | "deepExplanation" | "topic">>,
+		Partial<
+			Pick<DraftQuestion, "id" | "exam_id" | "deepExplanation" | "topic">
+		>,
 ): DraftQuestion {
 	const parsedOptions = improveQuestionsOptionsSchema.safeParse(input.options);
 	if (!parsedOptions.success) {
@@ -78,9 +78,7 @@ function normalizeDraftQuestion(
 		);
 	}
 
-	const answers = input.answers
-		.map((answer) => answer.trim())
-		.filter(Boolean);
+	const answers = input.answers.map((answer) => answer.trim()).filter(Boolean);
 	if (answers.length === 0) {
 		throw new ImproveQuestionsWorkspaceError(
 			IMPROVE_QUESTIONS_TOOL_ERROR_CODE,
@@ -210,11 +208,7 @@ export function createImproveQuestionsWorkspace(
 			patch: Partial<
 				Pick<
 					DraftQuestion,
-					| "question"
-					| "options"
-					| "answers"
-					| "scoringMode"
-					| "explanation"
+					"question" | "options" | "answers" | "scoringMode" | "explanation"
 				>
 			>,
 		) {

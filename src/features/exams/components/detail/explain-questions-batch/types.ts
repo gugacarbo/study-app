@@ -19,7 +19,11 @@ export function mapProcessViewToDisplayStatus(
 	view: ExplainQuestionsExamProcessView,
 ): ExplainQuestionsAgentDisplayStatus {
 	if (view.status === "queued" || view.phase === "idle") return "pending";
-	if (view.isStreaming || view.status === "running" || view.phase === "running") {
+	if (
+		view.isStreaming ||
+		view.status === "running" ||
+		view.phase === "running"
+	) {
 		return "running";
 	}
 	if (view.status === "awaiting_review" || view.phase === "done") {
@@ -35,9 +39,7 @@ export function mapProcessViewToDisplayStatus(
 export function canContinueExplainQuestionsAgent(
 	item: ExplainQuestionsBatchAgentItem,
 ): boolean {
-	return (
-		item.displayStatus === "error" || item.displayStatus === "canceled"
-	);
+	return item.displayStatus === "error" || item.displayStatus === "canceled";
 }
 
 export function explainQuestionsAgentBadgeClass(

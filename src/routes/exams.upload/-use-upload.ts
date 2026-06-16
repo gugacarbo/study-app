@@ -5,11 +5,13 @@ import {
 	isIngestProcess,
 	parseIngestProcessId,
 } from "@/features/background-processes";
-import { ingestProcessToJob } from "@/features/background-processes/store/types";
 import { enqueueIngest } from "@/features/background-processes/kinds/ingest";
+import { ingestProcessToJob } from "@/features/background-processes/store/types";
 import { toIngestJobViewModel } from "./-job-view-model";
 
-function selectFocusedIngestJobId(focusedProcessId: string | null): string | null {
+function selectFocusedIngestJobId(
+	focusedProcessId: string | null,
+): string | null {
 	if (!focusedProcessId) return null;
 	return parseIngestProcessId(focusedProcessId);
 }

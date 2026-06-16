@@ -31,7 +31,7 @@ const toolGroupVariants = cva("aui-tool-group-root group/tool-group w-full", {
 	defaultVariants: { variant: "outline" },
 });
 
-export type ToolGroupRootProps = Omit<
+type ToolGroupRootProps = Omit<
 	React.ComponentProps<typeof Collapsible>,
 	"open" | "onOpenChange"
 > &
@@ -223,10 +223,4 @@ ToolGroup.Root = ToolGroupRoot;
 ToolGroup.Trigger = ToolGroupTrigger;
 ToolGroup.Content = ToolGroupContent;
 
-export {
-	ToolGroup,
-	ToolGroupContent,
-	ToolGroupRoot,
-	ToolGroupTrigger,
-	toolGroupVariants,
-};
+export { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger };

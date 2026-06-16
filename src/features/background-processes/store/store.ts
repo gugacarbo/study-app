@@ -92,11 +92,15 @@ export function getIngestProcesses(): IngestBackgroundProcess[] {
 }
 
 export function getImproveQuestionsProcesses(): ImproveQuestionsBackgroundProcess[] {
-	return backgroundProcessStore.state.processes.filter(isImproveQuestionsProcess);
+	return backgroundProcessStore.state.processes.filter(
+		isImproveQuestionsProcess,
+	);
 }
 
 export function getExplainQuestionProcesses(): ExplainQuestionBackgroundProcess[] {
-	return backgroundProcessStore.state.processes.filter(isExplainQuestionProcess);
+	return backgroundProcessStore.state.processes.filter(
+		isExplainQuestionProcess,
+	);
 }
 
 export function getConnectionTestProcesses(): ConnectionTestBackgroundProcess[] {

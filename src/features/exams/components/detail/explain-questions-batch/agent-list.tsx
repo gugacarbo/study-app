@@ -3,10 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { AgentRunState } from "@/features/ai/pipeline/client";
 import {
-	type ExplainQuestionsBatchAgentItem,
 	canContinueExplainQuestionsAgent,
+	type ExplainQuestionsBatchAgentItem,
 	explainQuestionsAgentBadgeClass,
 } from "./types";
 
@@ -101,5 +100,3 @@ export function ExplainQuestionsAgentList({
 		</div>
 	);
 }
-
-export type { AgentRunState };

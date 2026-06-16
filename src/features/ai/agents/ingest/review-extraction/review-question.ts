@@ -1,23 +1,22 @@
 import type { ToolSet } from "ai";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import {
-	buildIngestReviewPrepareStep,
-	buildIngestReviewStopWhen,
-} from "@/features/ai/core/tool-agent-stop-when";
-import {
 	isSuccessfulNamedToolResult,
 	readToolFailureMessage,
 } from "@/features/ai/core/tool-agent-run";
+import {
+	buildIngestReviewPrepareStep,
+	buildIngestReviewStopWhen,
+} from "@/features/ai/core/tool-agent-stop-when";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
-import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
-import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import { createPipelineAgentEmitter } from "@/features/ai/pipeline/server/agent-emitter";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
 import {
-	readIngestAgentStageStatusReport,
-	resolveIngestAgentRunStatus,
 	type IngestAgentReportedStatus,
 	type IngestAgentStageStatusReport,
+	readIngestAgentStageStatusReport,
+	resolveIngestAgentRunStatus,
 } from "@/features/ai/tools/ingest-stage-status";
 import type {
 	ExtractionWorkspaceQuestion,
@@ -28,6 +27,7 @@ import {
 	createIngestReviewTools,
 	formatExtractionQuestionId,
 } from "@/features/ai/tools/ingest-tools";
+import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ProviderConfig, Question } from "@/lib/validation";
 import { buildReviewerSystemPrompt, buildReviewerUserPrompt } from "./prompt";
 import type { IngestReviewAgentEvent, ReviewExtractionOptions } from "./types";
@@ -83,7 +83,10 @@ export async function reviewSingleQuestion(
 		},
 	);
 	const emitPartial = (
-		event: Omit<AgentRunDataPart, "timestamp" | "stageId" | "agentRunId" | "label">,
+		event: Omit<
+			AgentRunDataPart,
+			"timestamp" | "stageId" | "agentRunId" | "label"
+		>,
 	) => {
 		emit({ ...run, ...event });
 	};
@@ -111,7 +114,10 @@ export async function reviewSingleQuestion(
 				if (toolName === UPDATE_EXTRACTED_QUESTION_TOOL) {
 					updateCallCount += 1;
 					const toolOutput = readToolOutput(output);
-					if (toolOutput?.ok === true && Array.isArray(toolOutput.updatedFields)) {
+					if (
+						toolOutput?.ok === true &&
+						Array.isArray(toolOutput.updatedFields)
+					) {
 						if (toolOutput.updatedFields.length === 0) {
 							stoppedAfterNoOpUpdate = true;
 						}

@@ -15,7 +15,11 @@ export function ConfigPage() {
 				);
 			}}
 		>
-			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full gap-0">
+			<Tabs
+				value={activeTab}
+				onValueChange={setActiveTab}
+				className="w-full gap-0"
+			>
 				<TabsList>
 					<TabsTrigger value="models">Models</TabsTrigger>
 					<TabsTrigger value="defaults">Defaults & Test</TabsTrigger>

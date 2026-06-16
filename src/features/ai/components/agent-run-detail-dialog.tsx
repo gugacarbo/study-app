@@ -96,11 +96,7 @@ export function AgentRunDetailDialog({
 	});
 
 	const copyDebugJson = () => {
-		if (
-			typeof navigator === "undefined" ||
-			!navigator.clipboard ||
-			isCopied
-		) {
+		if (typeof navigator === "undefined" || !navigator.clipboard || isCopied) {
 			return;
 		}
 

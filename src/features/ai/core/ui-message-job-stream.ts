@@ -6,7 +6,6 @@ import {
 } from "ai";
 import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-headers";
 import {
-	TRANSIENT_UI_DATA_PARTS,
 	type AgentRunDataPart,
 	type ExplanationUpdateDataPart,
 	type JobErrorDataPart,
@@ -17,13 +16,16 @@ import {
 	type StudyAppUIDataParts,
 	type StudyAppUIMessage,
 	type StudyAppUIMessageChunk,
+	TRANSIENT_UI_DATA_PARTS,
 	type WorkspaceUpdateDataPart,
 } from "@/features/ai/types/ui-message-data-parts";
 
 export type JobUIMessageStreamWriter = UIMessageStreamWriter<StudyAppUIMessage>;
 
 export interface JobUIMessageStreamOptions {
-	execute: (options: { writer: JobUIMessageStreamWriter }) => Promise<void> | void;
+	execute: (options: {
+		writer: JobUIMessageStreamWriter;
+	}) => Promise<void> | void;
 	onFinish?: UIMessageStreamOnFinishCallback<StudyAppUIMessage>;
 	onError?: (error: unknown) => string;
 }
@@ -58,19 +60,19 @@ function writeStudyDataPart<NAME extends DataPartName>(
 		? StageDataPart
 		: NAME extends "agent-run"
 			? AgentRunDataPart
-		: NAME extends "workspace-update"
-			? WorkspaceUpdateDataPart
-			: NAME extends "explanation-update"
-				? ExplanationUpdateDataPart
-				: NAME extends "job-progress"
-					? JobProgressDataPart
-					: NAME extends "job-result"
-						? JobResultDataPart
-						: NAME extends "job-error"
-							? JobErrorDataPart
-							: NAME extends "process-log"
-								? ProcessLogDataPart
-								: never,
+			: NAME extends "workspace-update"
+				? WorkspaceUpdateDataPart
+				: NAME extends "explanation-update"
+					? ExplanationUpdateDataPart
+					: NAME extends "job-progress"
+						? JobProgressDataPart
+						: NAME extends "job-result"
+							? JobResultDataPart
+							: NAME extends "job-error"
+								? JobErrorDataPart
+								: NAME extends "process-log"
+									? ProcessLogDataPart
+									: never,
 	options?: { id?: string },
 ): void {
 	const transient = TRANSIENT_UI_DATA_PARTS.has(name);

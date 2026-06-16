@@ -1,6 +1,6 @@
+import type { UIMessage } from "ai";
 import type { ExplanationChange } from "@/features/ai/agents/explanations/explain-question/contracts";
 import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
-import type { UIMessage } from "ai";
 import type { QuestionData } from "../exam-utils";
 
 export type ExplainQuestionsAgentStatus = "idle" | "running" | "done" | "error";

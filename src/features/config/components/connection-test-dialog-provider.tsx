@@ -12,16 +12,16 @@ import { TestConnectionDialog } from "@/features/ai/components/config/test-conne
 import type { TestStatus } from "@/features/ai/components/config/use-connection-test";
 import {
 	backgroundProcessStore,
+	type ConnectionTestBackgroundProcess,
 	isConnectionTestProcess,
 	isModelBenchmarkProcess,
+	type ModelBenchmarkBackgroundProcess,
 	parseConnectionTestProcessId,
 	parseModelBenchmarkProcessId,
-	startConnectionTest,
-	startModelBenchmark,
-	type ConnectionTestBackgroundProcess,
-	type ModelBenchmarkBackgroundProcess,
 	type StartConnectionTestOptions,
 	type StartModelBenchmarkOptions,
+	startConnectionTest,
+	startModelBenchmark,
 } from "@/features/background-processes";
 import {
 	getModelTestProcessForModel,
@@ -30,7 +30,10 @@ import {
 import { listModels } from "@/server-functions/ai-models";
 
 function processToTestStatus(
-	process: ConnectionTestBackgroundProcess | ModelBenchmarkBackgroundProcess | null,
+	process:
+		| ConnectionTestBackgroundProcess
+		| ModelBenchmarkBackgroundProcess
+		| null,
 ): TestStatus {
 	if (!process) return "idle";
 	if (process.status === "queued" || process.status === "running") {
@@ -46,7 +49,10 @@ function processToTestStatus(
 type ConnectionTestDialogContextValue = {
 	openDialog: (modelId: number) => void;
 	startTest: (modelId: number, options: StartConnectionTestOptions) => void;
-	startBenchmark: (modelId: number, options: StartModelBenchmarkOptions) => void;
+	startBenchmark: (
+		modelId: number,
+		options: StartModelBenchmarkOptions,
+	) => void;
 };
 
 const ConnectionTestDialogContext =
@@ -66,7 +72,10 @@ function selectModelTestState(
 	state: typeof backgroundProcessStore.state,
 	modelId: number | null,
 ): {
-	process: ConnectionTestBackgroundProcess | ModelBenchmarkBackgroundProcess | null;
+	process:
+		| ConnectionTestBackgroundProcess
+		| ModelBenchmarkBackgroundProcess
+		| null;
 	mode: ModelTestMode;
 } {
 	if (modelId == null) {

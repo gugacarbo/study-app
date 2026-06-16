@@ -1,9 +1,8 @@
-import { ScriptOnce } from "@tanstack/react-router";
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { HeadContent, Link, Scripts } from "@tanstack/react-router";
+import { HeadContent, Link, ScriptOnce, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import appCss from "../../globals.css?url";
 import { getLayoutUIScript } from "@/features/ai/stores/ui-store";
+import appCss from "../../globals.css?url";
 import { RootNav } from "./-nav";
 import { RootProviders } from "./-providers";
 

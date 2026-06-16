@@ -12,13 +12,3 @@ export const explanationPatchSchema = z.object({
 	explanation: nonEmptyTrimmedStringSchema,
 	deepExplanation: nonEmptyTrimmedStringSchema,
 });
-
-const explanationToolErrorSchema = z.object({
-	code: z.string(),
-	message: z.string(),
-});
-
-export const explanationToolFailureSchema = z.object({
-	ok: z.literal(false),
-	error: explanationToolErrorSchema,
-});

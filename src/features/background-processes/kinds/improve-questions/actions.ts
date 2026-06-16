@@ -4,9 +4,8 @@ import type {
 	ImproveQuestionsJobResult,
 	QuestionChange,
 } from "@/features/ai/agents/improve-questions/contracts";
-import type { WorkspaceUpdateDataPart } from "@/features/ai/types/ui-message-data-parts";
-import type { JobResultDataPart } from "@/features/ai/types/ui-message-data-parts";
 import {
+	type AgentRunState,
 	appendFollowUpUserMessage,
 	beginFollowUpAssistantTurn,
 	buildTextConversationHistory,
@@ -14,9 +13,12 @@ import {
 	createRafProcessBatcher,
 	createSingleAgentRunHandlers,
 	runJobPipeline,
-	type AgentRunState,
 } from "@/features/ai/pipeline/client";
 import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
+import type {
+	JobResultDataPart,
+	WorkspaceUpdateDataPart,
+} from "@/features/ai/types/ui-message-data-parts";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import { getErrorMessage } from "@/features/exams/components/detail/exam-utils";
 import {
@@ -27,16 +29,15 @@ import { resolveQuestion } from "@/features/exams/components/detail/improve-ques
 import { queryClient } from "@/routes/__root";
 import { updateQuestion } from "@/server-functions/exams";
 import {
+	areImproveQuestionsExamUiEqual,
+	DEFAULT_IMPROVE_QUESTIONS_EXAM_UI,
+} from "../../store/improve-questions-selectors";
+import {
 	getAbortController,
 	registerAbort,
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
-import {
-	areImproveQuestionsExamUiEqual,
-	DEFAULT_IMPROVE_QUESTIONS_EXAM_UI,
-} from "../../store/improve-questions-selectors";
-import { isActiveProcess } from "../../store/types";
 import {
 	backgroundProcessStore,
 	getProcessById,
@@ -51,9 +52,14 @@ import type {
 } from "../../store/types";
 import {
 	improveQuestionsProcessId,
+	isActiveProcess,
 	isImproveQuestionsProcess,
 } from "../../store/types";
-import { cloneQuestion, draftToQuestionData, questionDataToDraft } from "./question-helpers";
+import {
+	cloneQuestion,
+	draftToQuestionData,
+	questionDataToDraft,
+} from "./question-helpers";
 
 type ImproveQuestionsStorePatch = Partial<
 	Pick<
@@ -182,12 +188,12 @@ function workspaceUpdateToDraft(
 	const question = update.question;
 	return {
 		id: Number(question.id),
-		exam_id:
-			question.exam_id != null ? Number(question.exam_id) : undefined,
+		exam_id: question.exam_id != null ? Number(question.exam_id) : undefined,
 		question: question.question,
 		options: [...question.options],
 		answers: [...question.answers],
-		scoringMode: (question.scoringMode ?? "exact") as DraftQuestion["scoringMode"],
+		scoringMode: (question.scoringMode ??
+			"exact") as DraftQuestion["scoringMode"],
 		explanation: question.explanation ?? "",
 		...(question.deepExplanation !== undefined
 			? { deepExplanation: question.deepExplanation }
@@ -205,16 +211,14 @@ function normalizeJobResult(
 	if (data.finalQuestion && data.agentRun) {
 		return {
 			finalQuestion: data.finalQuestion as DraftQuestion,
-			agentRun:
-				data.agentRun as ImproveQuestionsJobResult["agentRun"],
+			agentRun: data.agentRun as ImproveQuestionsJobResult["agentRun"],
 		};
 	}
 
 	if (data.question && data.agentRun) {
 		return {
 			finalQuestion: data.question as DraftQuestion,
-			agentRun:
-				data.agentRun as ImproveQuestionsJobResult["agentRun"],
+			agentRun: data.agentRun as ImproveQuestionsJobResult["agentRun"],
 		};
 	}
 
@@ -350,7 +354,8 @@ function patchImproveQuestionsExamUi(
 ): void {
 	backgroundProcessStore.setState((state) => {
 		const current =
-			state.improveQuestionsUiByExam[examId] ?? DEFAULT_IMPROVE_QUESTIONS_EXAM_UI;
+			state.improveQuestionsUiByExam[examId] ??
+			DEFAULT_IMPROVE_QUESTIONS_EXAM_UI;
 		const next: ImproveQuestionsExamUiState = { ...current, ...patch };
 		if (areImproveQuestionsExamUiEqual(current, next)) return state;
 		return {
@@ -408,9 +413,7 @@ export function startImproveQuestionsBatch(
 	runNextQueued();
 }
 
-export function canContinueImproveQuestionsRun(
-	questionId: number,
-): boolean {
+export function canContinueImproveQuestionsRun(questionId: number): boolean {
 	const process = getImproveQuestionsProcess(questionId);
 	if (!process) return false;
 	if (
@@ -465,7 +468,7 @@ export function sendImproveQuestionsFollowUp(
 			agentRunId: `improve-questions-${questionId}`,
 			label: "Improve question",
 		});
-	let runState = beginFollowUpAssistantTurn(
+	const runState = beginFollowUpAssistantTurn(
 		appendFollowUpUserMessage(baseRunState, trimmed),
 	);
 
@@ -479,7 +482,12 @@ export function sendImproveQuestionsFollowUp(
 		}),
 	);
 
-	runImproveQuestionsFollowUpStream(questionId, trimmed, conversationHistory, runState);
+	runImproveQuestionsFollowUpStream(
+		questionId,
+		trimmed,
+		conversationHistory,
+		runState,
+	);
 	return true;
 }
 
@@ -662,7 +670,11 @@ export function startQueuedImproveQuestions(processId: string): void {
 		const batcher = createImproveQuestionsBatcher(questionId);
 
 		try {
-			for (let attempt = 1; attempt <= MAX_IMPROVE_QUESTIONS_ATTEMPTS; attempt++) {
+			for (
+				let attempt = 1;
+				attempt <= MAX_IMPROVE_QUESTIONS_ATTEMPTS;
+				attempt++
+			) {
 				let runState = createAgentRunState({
 					agentRunId: agentRunIdForAttempt(questionId, attempt),
 					label: labelForAttempt(attempt),
@@ -691,10 +703,7 @@ export function startQueuedImproveQuestions(processId: string): void {
 						);
 						return patchImproveQuestionsProcess(run, {
 							draftQuestion: finalDraft,
-							changes: computeQuestionChanges(
-								run.originalSnapshot,
-								finalDraft,
-							),
+							changes: computeQuestionChanges(run.originalSnapshot, finalDraft),
 							agentRunState: { ...runState, status: "done" },
 							isStreaming: false,
 							phase: "done",

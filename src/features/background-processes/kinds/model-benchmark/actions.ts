@@ -3,11 +3,11 @@ import {
 	type TokenTotals,
 } from "@/features/ai/components/token-totals-badge";
 import {
+	type BenchmarkPerfMetrics,
+	type BenchmarkPhaseMetrics,
 	buildBenchmarkPerfMetrics,
 	computeTotalRequestMs,
 	EMPTY_BENCHMARK_PERF_METRICS,
-	type BenchmarkPerfMetrics,
-	type BenchmarkPhaseMetrics,
 	type StreamPerfMetrics,
 } from "@/features/ai/lib/stream-perf-metrics";
 import { extractTokenTotalsFromUsage } from "@/features/ai/lib/token-usage";
@@ -30,7 +30,11 @@ import {
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
-import { getProcessById, updateProcess, upsertProcess } from "../../store/store";
+import {
+	getProcessById,
+	updateProcess,
+	upsertProcess,
+} from "../../store/store";
 import type { ModelBenchmarkBackgroundProcess } from "../../store/types";
 import {
 	isModelBenchmarkProcess,
@@ -65,7 +69,9 @@ function mergeTokenTotals(
 	};
 }
 
-function parseBenchmarkPhaseMetrics(value: unknown): BenchmarkPhaseMetrics | null {
+function parseBenchmarkPhaseMetrics(
+	value: unknown,
+): BenchmarkPhaseMetrics | null {
 	if (!value || typeof value !== "object") return null;
 	const record = value as Partial<BenchmarkPhaseMetrics>;
 	if (typeof record.phaseId !== "string" || typeof record.label !== "string") {
@@ -74,7 +80,9 @@ function parseBenchmarkPhaseMetrics(value: unknown): BenchmarkPhaseMetrics | nul
 	return record as BenchmarkPhaseMetrics;
 }
 
-function parseBenchmarkPerfMetrics(value: unknown): BenchmarkPerfMetrics | null {
+function parseBenchmarkPerfMetrics(
+	value: unknown,
+): BenchmarkPerfMetrics | null {
 	if (!value || typeof value !== "object") return null;
 	const record = value as Partial<BenchmarkPerfMetrics>;
 	if (!Array.isArray(record.phases) || !record.aggregate) return null;
@@ -112,8 +120,7 @@ function finishProcess(
 			finishedAt,
 			streamMetrics: {
 				...process.benchmarkMetrics.aggregate,
-				totalRequestMs:
-					totalRequestMs ?? process.streamMetrics.totalRequestMs,
+				totalRequestMs: totalRequestMs ?? process.streamMetrics.totalRequestMs,
 			},
 		};
 	});
@@ -441,8 +448,7 @@ export function cancelModelBenchmark(modelId: number): void {
 			error: "Model benchmark canceled",
 			streamMetrics: {
 				...process.streamMetrics,
-				totalRequestMs:
-					totalRequestMs ?? process.streamMetrics.totalRequestMs,
+				totalRequestMs: totalRequestMs ?? process.streamMetrics.totalRequestMs,
 			},
 		};
 	});

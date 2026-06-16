@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { DBQueries } from "@/db/queries";
+import { env } from "@/env";
 import {
-	improveSingleQuestion,
 	IMPROVE_QUESTIONS_STAGE_ID,
+	improveSingleQuestion,
 } from "@/features/ai/agents/improve-questions";
 import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
 import { toWorkspaceUpdateDataPart } from "@/features/ai/agents/improve-questions/contracts";
@@ -14,7 +15,6 @@ import {
 import { createAgentEventEmitter } from "@/features/ai/pipeline/server/agent-emitter";
 import { createJobApiRoute } from "@/features/ai/pipeline/server/create-job-api-route";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
-import { env } from "@/env";
 
 const draftQuestionSchema = z.object({
 	id: z.number().int().positive(),
@@ -162,10 +162,7 @@ export const Route = createFileRoute("/api/improve-questions/")({
 							emit,
 							createAgentRunId: () => run.agentRunId,
 							onWorkspaceUpdate: (update) => {
-								writeWorkspaceUpdate(
-									writer,
-									toWorkspaceUpdateDataPart(update),
-								);
+								writeWorkspaceUpdate(writer, toWorkspaceUpdateDataPart(update));
 							},
 							...(data.followUpMessage && data.conversationHistory
 								? {

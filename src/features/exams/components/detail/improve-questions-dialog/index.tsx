@@ -1,5 +1,5 @@
-import { ImproveQuestionsDialog as ImproveQuestionsDialogView } from "./improve-questions-dialog";
 import type { QuestionData } from "../exam-utils";
+import { ImproveQuestionsDialog as ImproveQuestionsDialogView } from "./improve-questions-dialog";
 import { useImproveQuestions } from "./use-improve-questions";
 
 export interface ImproveQuestionsDialogProps {

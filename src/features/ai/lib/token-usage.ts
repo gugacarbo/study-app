@@ -51,8 +51,7 @@ export function estimateTokenCost(
 		return null;
 	}
 
-	const input =
-		(tokenTotals.prompt / 1_000_000) * (inputCostPerMillion ?? 0);
+	const input = (tokenTotals.prompt / 1_000_000) * (inputCostPerMillion ?? 0);
 	const output =
 		(tokenTotals.completion / 1_000_000) * (outputCostPerMillion ?? 0);
 

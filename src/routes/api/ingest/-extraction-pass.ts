@@ -1,30 +1,33 @@
 import type { ToolSet } from "ai";
-import {
-	buildExtractionPrepareStep,
-	buildIngestExtractionStopWhen,
-} from "@/features/ai/core/tool-agent-stop-when";
 import { parseExamNameFromFileName } from "@/features/ai/agents/ingest/parse-exam-name";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
 import { INGEST_EXTRACTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import { readToolFailureMessage } from "@/features/ai/core/tool-agent-run";
+import {
+	buildExtractionPrepareStep,
+	buildIngestExtractionStopWhen,
+} from "@/features/ai/core/tool-agent-stop-when";
 import type { createAgentRunWriter } from "@/features/ai/core/ui-message-job-stream";
-import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import { createAgentEventEmitter } from "@/features/ai/pipeline/server/agent-emitter";
-import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
+import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
+import type { IngestAgentResolvedStatus } from "@/features/ai/tools/ingest-stage-status";
+import {
+	type IngestAgentReportedStatus,
+	type IngestAgentStageStatusReport,
+	readIngestAgentStageStatusReport,
+	resolveIngestAgentRunStatus,
+} from "@/features/ai/tools/ingest-stage-status";
 import {
 	createExtractionWorkspace,
 	createIngestExtractionTools,
 } from "@/features/ai/tools/ingest-tools";
-import {
-	readIngestAgentStageStatusReport,
-	resolveIngestAgentRunStatus,
-	type IngestAgentReportedStatus,
-	type IngestAgentStageStatusReport,
-} from "@/features/ai/tools/ingest-stage-status";
+import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
-import type { IngestAgentResolvedStatus } from "@/features/ai/tools/ingest-stage-status";
-import { buildExtractionUserPrompt, estimateSourceQuestionCount } from "./-extract-text";
+import {
+	buildExtractionUserPrompt,
+	estimateSourceQuestionCount,
+} from "./-extract-text";
 
 interface ExtractionPassParams {
 	text: string;

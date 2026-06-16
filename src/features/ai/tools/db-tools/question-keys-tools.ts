@@ -1,4 +1,4 @@
-import { tool, zodSchema, type ToolSet } from "ai";
+import { type ToolSet, tool, zodSchema } from "ai";
 import { z } from "zod";
 import type { DBQueries, ListAnswerKeysFilters } from "../../../../db/queries";
 import {
@@ -55,5 +55,3 @@ export function createQuestionKeysTools(queries: DBQueries): ToolSet {
 		}),
 	};
 }
-
-export { listAnswerKeysInputSchema };

@@ -41,7 +41,7 @@ interface StudyChatComposerProps {
 	onSelectedModelChange: (modelId: number) => void;
 }
 
-export function StudyChatComposer({
+function StudyChatComposer({
 	reviewMode,
 	onReviewModeChange,
 	inputTokens,
@@ -116,9 +116,7 @@ function StudyChatComposerAction({
 						aria-label="Select model"
 					>
 						<SelectValue
-							placeholder={
-								hasModels ? "Select model" : "No models available"
-							}
+							placeholder={hasModels ? "Select model" : "No models available"}
 						/>
 					</SelectTrigger>
 					<SelectContent align="start" side="top">

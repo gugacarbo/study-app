@@ -54,7 +54,7 @@ export interface ImproveQuestionsJobResult {
 	agentRun: ImproveQuestionsAgentRunSummary;
 }
 
-export interface ImproveQuestionsFollowUpRequest {
+interface ImproveQuestionsFollowUpRequest {
 	message: string;
 	history: Array<{ role: "user" | "assistant"; content: string }>;
 }

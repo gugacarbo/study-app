@@ -1,9 +1,9 @@
 import {
+	type ChatOnDataCallback,
+	type DataUIPart,
 	parseJsonEventStream,
 	readUIMessageStream,
 	uiMessageChunkSchema,
-	type ChatOnDataCallback,
-	type DataUIPart,
 } from "ai";
 import type {
 	JobErrorDataPart,
@@ -13,7 +13,7 @@ import type {
 } from "@/features/ai/types/ui-message-data-parts";
 
 export type StudyAppDataUIPart = DataUIPart<StudyAppUIDataParts>;
-export type JobStreamOnDataCallback = ChatOnDataCallback<StudyAppUIMessage>;
+type JobStreamOnDataCallback = ChatOnDataCallback<StudyAppUIMessage>;
 
 export interface ConsumeJobStreamRequest {
 	url: string;
@@ -115,8 +115,7 @@ export async function consumeJobStreamFromResponse(
 		stream: chunkStream,
 		terminateOnError: true,
 		onError: (error) => {
-			streamError =
-				error instanceof Error ? error : new Error(String(error));
+			streamError = error instanceof Error ? error : new Error(String(error));
 		},
 	});
 

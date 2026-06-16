@@ -1,15 +1,15 @@
 import type { LanguageModelUsage, StopCondition, ToolSet } from "ai";
-import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import {
+	type AiStreamState,
 	createAiStreamState,
 	processAiStreamPart,
-	type AiStreamState,
 } from "@/features/ai/core/ai-stream-handler";
 import { streamTextWithCompatibilityFallback } from "@/features/ai/core/stream-text-compat";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
+import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import { createLlmLogContext } from "@/lib/llm-logging";
 import type { ProviderConfig } from "@/lib/validation";
 
@@ -92,12 +92,7 @@ export async function runPipelineTextAgent(
 		},
 		meta,
 	);
-	emitRunEvent(
-		emit,
-		run,
-		{ eventType: "lifecycle", status: "running" },
-		meta,
-	);
+	emitRunEvent(emit, run, { eventType: "lifecycle", status: "running" }, meta);
 
 	const llmLogContext = createLlmLogContext(params.scope, params.config, {
 		callId: run.agentRunId,
@@ -184,12 +179,7 @@ export async function runPipelineTextAgent(
 
 		const text = generation.text || responseText.trim();
 
-		emitRunEvent(
-			emit,
-			run,
-			{ eventType: "lifecycle", status: "done" },
-			meta,
-		);
+		emitRunEvent(emit, run, { eventType: "lifecycle", status: "done" }, meta);
 
 		return {
 			success: true,
@@ -199,8 +189,7 @@ export async function runPipelineTextAgent(
 			streamState,
 		};
 	} catch (error) {
-		const reason =
-			error instanceof Error ? error.message : "unknown error";
+		const reason = error instanceof Error ? error.message : "unknown error";
 
 		params.onRecoverableError?.(reason);
 		emitRunEvent(

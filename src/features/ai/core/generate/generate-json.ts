@@ -1,6 +1,6 @@
 import { generateObject, generateText, Output } from "ai";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import {
 	logSyncGenerationError,
 	logSyncGenerationResult,
@@ -15,7 +15,10 @@ import {
 	isRecoverableGenerationError,
 } from "./error-utils";
 import { extractLikelyJson, stripThinkBlocks } from "./json-extract";
-import { resolveObjectGenerationOptions, toFlexibleSchema } from "./schema-utils";
+import {
+	resolveObjectGenerationOptions,
+	toFlexibleSchema,
+} from "./schema-utils";
 import type { GenerateJsonOptions, OutputSchema } from "./types";
 import { isSafeParseCapableSchema } from "./types";
 

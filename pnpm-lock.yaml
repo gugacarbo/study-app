@@ -11,9 +11,6 @@ importers:
       '@ai-sdk/openai':
         specifier: ^3.0.69
         version: 3.0.69(zod@4.4.3)
-      '@ai-sdk/react':
-        specifier: ^3.0.203
-        version: 3.0.203(react@19.2.6)(zod@4.4.3)
       '@assistant-ui/react':
         specifier: ^0.14.16
         version: 0.14.16(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -32,9 +29,6 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
-      '@hookform/resolvers':
-        specifier: ^5.4.0
-        version: 5.4.0(react-hook-form@7.76.1(react@19.2.6))
       '@t3-oss/env-core':
         specifier: ^0.13.11
         version: 0.13.11(typescript@6.0.3)(zod@4.4.3)
@@ -95,9 +89,6 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.2.6(react@19.2.6)
-      react-hook-form:
-        specifier: ^7.76.1
-        version: 7.76.1(react@19.2.6)
       react-markdown:
         specifier: ^10.1.0
         version: 10.1.0(@types/react@19.2.15)(react@19.2.6)
@@ -116,9 +107,6 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
-      tw-shimmer:
-        specifier: ^0.4.11
-        version: 0.4.11(tailwindcss@4.3.0)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -216,12 +204,6 @@ packages:
 
   '@ai-sdk/react@3.0.201':
     resolution: {integrity: sha512-sDYdkPB96aHPrF5WKP0BdjRjymgZOdIMzNt1SlYPCoWWvLnV+UMwnIqvqEG+OAa9n4Sq7J3A3N/JD7rozow+CA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
-
-  '@ai-sdk/react@3.0.203':
-    resolution: {integrity: sha512-6YcuOw50Ay/q21FXytEaRDXsabEqwpp8YcJ+moEaImyQpd94OKEqFEDs62jLHkK8gW6Xw9nmKNSNpCglsHAJ4g==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -1277,11 +1259,6 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
-
-  '@hookform/resolvers@5.4.0':
-    resolution: {integrity: sha512-EIsqr/t/qbinPIhGjMdtvutIN1Kk4uwbROE9/UQ93CAVGR7GkA7Y92+fX80OzXi/OB67jVFYwKGO1WzkxmkFZw==}
-    peerDependencies:
-      react-hook-form: ^7.55.0
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -3466,9 +3443,6 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@standard-schema/utils@0.3.0':
-    resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
-
   '@t3-oss/env-core@0.13.11':
     resolution: {integrity: sha512-sM7GYY+KL7H/Hl0BE0inWfk3nRHZOLhmVn7sHGxaZt9FAR6KqREXAE+6TqKfiavfXmpRxO/OZ2QgKRd+oiBYRQ==}
     peerDependencies:
@@ -5542,12 +5516,6 @@ packages:
     peerDependencies:
       react: ^19.2.6
 
-  react-hook-form@7.76.1:
-    resolution: {integrity: sha512-rYM7tPiWlu3nZchkR/ex7piyzui2vFPyaLnXnI/RnblB/L4qfMmyses8llJVtF1NpE9WBBsJlGtcSZzPCXW1qQ==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      react: ^16.8.0 || ^17 || ^18 || ^19
-
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
@@ -5966,11 +5934,6 @@ packages:
 
   tw-animate-css@1.4.0:
     resolution: {integrity: sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ==}
-
-  tw-shimmer@0.4.11:
-    resolution: {integrity: sha512-pTpGJzp3xaCPO87WeHETngmZHJYvygiSTt4jqzh2oR3DWBoeudi/ANB304zks9+Cm2vQ1ai3w9fetviYdqY8HQ==}
-    peerDependencies:
-      tailwindcss: '>=4.0.0-0'
 
   type-fest@5.6.0:
     resolution: {integrity: sha512-8ZiHFm91orbSAe2PSAiSVBVko18pbhbiB3U9GglSzF/zCGkR+rxpHx6sEMCUm4kxY4LjDIUGgCfUMtwfZfjfUA==}
@@ -6423,16 +6386,6 @@ snapshots:
     dependencies:
       '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
       ai: 6.0.199(zod@4.4.3)
-      react: 19.2.6
-      swr: 2.4.1(react@19.2.6)
-      throttleit: 2.1.0
-    transitivePeerDependencies:
-      - zod
-
-  '@ai-sdk/react@3.0.203(react@19.2.6)(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
-      ai: 6.0.201(zod@4.4.3)
       react: 19.2.6
       swr: 2.4.1(react@19.2.6)
       throttleit: 2.1.0
@@ -7233,11 +7186,6 @@ snapshots:
   '@hono/node-server@1.19.14(hono@4.12.23)':
     dependencies:
       hono: 4.12.23
-
-  '@hookform/resolvers@5.4.0(react-hook-form@7.76.1(react@19.2.6))':
-    dependencies:
-      '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.76.1(react@19.2.6)
 
   '@img/colour@1.1.0': {}
 
@@ -9268,8 +9216,6 @@ snapshots:
   '@speed-highlight/core@1.2.15': {}
 
   '@standard-schema/spec@1.1.0': {}
-
-  '@standard-schema/utils@0.3.0': {}
 
   '@t3-oss/env-core@0.13.11(typescript@6.0.3)(zod@4.4.3)':
     optionalDependencies:
@@ -11685,10 +11631,6 @@ snapshots:
       react: 19.2.6
       scheduler: 0.27.0
 
-  react-hook-form@7.76.1(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-
   react-is@17.0.2: {}
 
   react-markdown@10.1.0(@types/react@19.2.15)(react@19.2.6):
@@ -12188,10 +12130,6 @@ snapshots:
       fsevents: 2.3.3
 
   tw-animate-css@1.4.0: {}
-
-  tw-shimmer@0.4.11(tailwindcss@4.3.0):
-    dependencies:
-      tailwindcss: 4.3.0
 
   type-fest@5.6.0:
     dependencies:

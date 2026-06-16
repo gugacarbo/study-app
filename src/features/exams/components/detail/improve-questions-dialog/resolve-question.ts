@@ -1,8 +1,5 @@
 import type { QuestionChange } from "@/features/ai/agents/improve-questions/contracts";
-import {
-	remapAnswersForOptionRename,
-	type QuestionData,
-} from "../exam-utils";
+import { type QuestionData, remapAnswersForOptionRename } from "../exam-utils";
 
 type QuestionResolveSnapshot = Pick<
 	QuestionData,

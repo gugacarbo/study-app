@@ -1,10 +1,10 @@
 import type { UIMessage } from "ai";
 import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import {
+	type AgentRunState,
 	agentRunDataPartToReducerEvent,
 	createSingleAgentRunState,
 	reduceAgentEvent,
-	type AgentRunState,
 } from "./single-agent-run-reducer";
 
 export interface MultiAgentRunState {
@@ -74,7 +74,9 @@ export function applyAgentRunPartToMulti(
 	return { runs };
 }
 
-export function rebuildMultiAgentMessages(state: MultiAgentRunState): UIMessage[] {
+export function rebuildMultiAgentMessages(
+	state: MultiAgentRunState,
+): UIMessage[] {
 	const messages: UIMessage[] = [];
 	for (const runState of state.runs.values()) {
 		messages.push(...runState.messages);

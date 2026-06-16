@@ -1,4 +1,8 @@
-import { coerceRequestParams, requestParamsSchema, type RequestParams } from "@/lib/validation";
+import {
+	coerceRequestParams,
+	type RequestParams,
+	requestParamsSchema,
+} from "@/lib/validation";
 
 export function parseRequestParams(
 	raw: string | null | undefined,

@@ -1,5 +1,4 @@
-import type { OutputSchema } from "./types";
-import type { SafeParseCapableSchema } from "./types";
+import type { OutputSchema, SafeParseCapableSchema } from "./types";
 import { isSafeParseCapableSchema } from "./types";
 
 function stripThinkBlocks(content: string): string {

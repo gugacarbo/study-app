@@ -3,8 +3,8 @@ import {
 	createAgentRunWriter,
 	createJobUIMessageStream,
 	createJobUIMessageStreamResponse,
-	writeJobError,
 	type JobUIMessageStreamWriter,
+	writeJobError,
 } from "@/features/ai/core/ui-message-job-stream";
 import { createPipelineLogger, type PipelineLogger } from "./pipeline-logger";
 
@@ -13,7 +13,7 @@ export interface PipelineRunContext {
 	agentRunId?: string;
 }
 
-export interface JobApiRouteRunContext<TData> {
+interface JobApiRouteRunContext<TData> {
 	writer: JobUIMessageStreamWriter;
 	data: TData;
 	signal?: AbortSignal;
@@ -27,10 +27,10 @@ export interface CreateJobApiRouteOptions<TSchema extends z.ZodType> {
 	schema: TSchema;
 	logTag: string;
 	signal?: boolean;
-	preflight?: (
-		data: z.infer<TSchema>,
-	) => Promise<unknown> | unknown;
-	run: (context: JobApiRouteRunContext<z.infer<TSchema>>) => Promise<void> | void;
+	preflight?: (data: z.infer<TSchema>) => Promise<unknown> | unknown;
+	run: (
+		context: JobApiRouteRunContext<z.infer<TSchema>>,
+	) => Promise<void> | void;
 }
 
 function normalizeErrorMessage(error: unknown): string {

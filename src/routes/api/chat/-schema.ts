@@ -1,5 +1,5 @@
-import type { ToolJSONSchema } from "assistant-stream";
 import type { UIMessage } from "ai";
+import type { ToolJSONSchema } from "assistant-stream";
 import { z } from "zod";
 import { toBoolean } from "./-tools";
 
@@ -127,9 +127,7 @@ export function parseClientToolsFromRequest(
 
 export function parseChatRequest(
 	payload: unknown,
-):
-	| { ok: true; data: ChatRequest }
-	| { ok: false; response: Response } {
+): { ok: true; data: ChatRequest } | { ok: false; response: Response } {
 	if (payload === null || typeof payload !== "object") {
 		return {
 			ok: false,

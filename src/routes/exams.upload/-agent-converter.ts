@@ -69,7 +69,8 @@ function normalizeMessagePart(
 				readString(part.toolCallId) ??
 				readString(part.id) ??
 				`${crypto.randomUUID()}:tool-call`,
-			toolName: readString(part.toolName) ?? readString(part.name) ?? "unknown_tool",
+			toolName:
+				readString(part.toolName) ?? readString(part.name) ?? "unknown_tool",
 			input: part.input,
 			output: part.output,
 			errorText: readString(part.errorText) ?? readString(part.error),

@@ -51,37 +51,37 @@ export function QuestionsCard({
 				</CardTitle>
 				{(onOpenImproveQuestionsBatch || onOpenExplainQuestionsBatch) &&
 					questions.length > 0 && (
-					<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-						{onOpenExplainQuestionsBatch && (
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="min-h-10 w-full sm:min-h-8 sm:w-auto"
-								onClick={onOpenExplainQuestionsBatch}
-							>
-								{explanationProcessActive ? (
-									<Loader2 className="size-3.5 animate-spin" />
-								) : (
+						<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+							{onOpenExplainQuestionsBatch && (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="min-h-10 w-full sm:min-h-8 sm:w-auto"
+									onClick={onOpenExplainQuestionsBatch}
+								>
+									{explanationProcessActive ? (
+										<Loader2 className="size-3.5 animate-spin" />
+									) : (
+										<Sparkles data-icon="inline-start" />
+									)}
+									Gerar explicacoes
+								</Button>
+							)}
+							{onOpenImproveQuestionsBatch && (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="min-h-10 w-full sm:min-h-8 sm:w-auto"
+									onClick={onOpenImproveQuestionsBatch}
+								>
 									<Sparkles data-icon="inline-start" />
-								)}
-								Gerar explicacoes
-							</Button>
-						)}
-						{onOpenImproveQuestionsBatch && (
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								className="min-h-10 w-full sm:min-h-8 sm:w-auto"
-								onClick={onOpenImproveQuestionsBatch}
-							>
-								<Sparkles data-icon="inline-start" />
-								Melhorar questões
-							</Button>
-						)}
-					</div>
-				)}
+									Melhorar questões
+								</Button>
+							)}
+						</div>
+					)}
 			</CardHeader>
 			<CardContent className="px-3 sm:px-4">
 				{questions.length === 0 ? (
@@ -97,8 +97,7 @@ export function QuestionsCard({
 					>
 						{questions.map((q, idx) => {
 							const isEditing = editingQuestionId === q.id && !!editForm;
-							const displayQuestion =
-								draftOverrideByQuestionId.get(q.id) ?? q;
+							const displayQuestion = draftOverrideByQuestionId.get(q.id) ?? q;
 							const improveQuestionsStatus =
 								improveQuestionsStatusByQuestionId.get(q.id) ?? null;
 

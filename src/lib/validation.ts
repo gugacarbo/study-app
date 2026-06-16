@@ -276,7 +276,7 @@ export type ThinkingEffortLevel = (typeof THINKING_EFFORT_LEVELS)[number];
 
 export const thinkingEffortLevelSchema = z.enum(THINKING_EFFORT_LEVELS);
 
-export const thinkingEffortLevelsSchema = z.array(thinkingEffortLevelSchema);
+const thinkingEffortLevelsSchema = z.array(thinkingEffortLevelSchema);
 
 export type RequestParamValue =
 	| string
@@ -286,19 +286,21 @@ export type RequestParamValue =
 	| RequestParamValue[]
 	| { [key: string]: RequestParamValue };
 
-export const requestParamValueSchema: z.ZodType<RequestParamValue> = z.lazy(
-	() =>
-		z.union([
-			z.string(),
-			z.number(),
-			z.boolean(),
-			z.null(),
-			z.array(requestParamValueSchema),
-			z.record(z.string(), requestParamValueSchema),
-		]),
+const requestParamValueSchema: z.ZodType<RequestParamValue> = z.lazy(() =>
+	z.union([
+		z.string(),
+		z.number(),
+		z.boolean(),
+		z.null(),
+		z.array(requestParamValueSchema),
+		z.record(z.string(), requestParamValueSchema),
+	]),
 );
 
-export const requestParamsSchema = z.record(z.string(), requestParamValueSchema);
+export const requestParamsSchema = z.record(
+	z.string(),
+	requestParamValueSchema,
+);
 
 export type RequestParams = z.infer<typeof requestParamsSchema>;
 
@@ -391,7 +393,7 @@ export const providerConfigSchema = z.object({
 
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 
-export const resolvedModelConfigSchema = providerConfigSchema
+const resolvedModelConfigSchema = providerConfigSchema
 	.omit({ thinkingEffort: true })
 	.extend({
 		modelId: z.number().int().positive(),
@@ -481,7 +483,7 @@ export const updateAiModelSchema = z
 	})
 	.superRefine(refineThinkingEffortDefault);
 
-export const aiSettingsSchema = z.object({
+const aiSettingsSchema = z.object({
 	defaultModelId: z.number().int().positive().nullable(),
 	agentModels: z.record(z.string(), z.number().int().positive().nullable()),
 });
@@ -501,15 +503,9 @@ export const testConnectionInputSchema = z.object({
 	modelId: z.number().int().positive(),
 });
 
-export type TestConnectionInput = z.infer<typeof testConnectionInputSchema>;
-
 export const testModelBenchmarkInputSchema = z.object({
 	modelId: z.number().int().positive(),
 });
-
-export type TestModelBenchmarkInput = z.infer<
-	typeof testModelBenchmarkInputSchema
->;
 
 export function agentModelConfigKey(agent: AiAgentTask): string {
 	return `agent.${agent}.model_id`;

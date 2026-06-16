@@ -1,6 +1,5 @@
 import type { ExplainQuestionJobResult } from "@/features/ai/agents/explanations/contracts";
 import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
-import type { JobResultDataPart } from "@/features/ai/types/ui-message-data-parts";
 import {
 	createAgentRunState,
 	createRafProcessBatcher,
@@ -8,6 +7,7 @@ import {
 	runJobPipeline,
 } from "@/features/ai/pipeline/client";
 import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
+import type { JobResultDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { QuestionData } from "@/features/exams/components/detail/exam-utils";
 import { getErrorMessage } from "@/features/exams/components/detail/exam-utils";
 import {
@@ -18,16 +18,15 @@ import {
 import { queryClient } from "@/routes/__root";
 import { updateQuestion } from "@/server-functions/exams";
 import {
+	areExplainQuestionsExamUiEqual,
+	DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI,
+} from "../../store/explain-question-selectors";
+import {
 	getAbortController,
 	registerAbort,
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
-import {
-	areExplainQuestionsExamUiEqual,
-	DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI,
-} from "../../store/explain-question-selectors";
-import { isActiveProcess } from "../../store/types";
 import {
 	backgroundProcessStore,
 	getProcessById,
@@ -41,6 +40,7 @@ import type {
 } from "../../store/types";
 import {
 	explainQuestionProcessId,
+	isActiveProcess,
 	isExplainQuestionProcess,
 } from "../../store/types";
 import { cloneQuestion, questionNeedsExplanation } from "./question-helpers";
@@ -68,7 +68,8 @@ function createExplainQuestionBatcher(questionId: number) {
 	>(explainQuestionProcessId(questionId), {
 		isProcess: (process): process is ExplainQuestionBackgroundProcess =>
 			isExplainQuestionProcess(process as ExplainQuestionBackgroundProcess),
-		patchProcess: (process, patch) => patchExplainQuestionProcess(process, patch),
+		patchProcess: (process, patch) =>
+			patchExplainQuestionProcess(process, patch),
 	});
 }
 
@@ -97,7 +98,9 @@ function getExplainQuestionProcess(
 
 function updateExplainQuestionProcess(
 	questionId: number,
-	updater: (process: ExplainQuestionBackgroundProcess) => ExplainQuestionBackgroundProcess,
+	updater: (
+		process: ExplainQuestionBackgroundProcess,
+	) => ExplainQuestionBackgroundProcess,
 ): void {
 	const processId = explainQuestionProcessId(questionId);
 	updateProcess(processId, (process) => {
@@ -239,7 +242,8 @@ function patchExplainQuestionsExamUi(
 ): void {
 	backgroundProcessStore.setState((state) => {
 		const current =
-			state.explainQuestionsUiByExam[examId] ?? DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI;
+			state.explainQuestionsUiByExam[examId] ??
+			DEFAULT_EXPLAIN_QUESTIONS_EXAM_UI;
 		const next: ExplainQuestionsExamUiState = { ...current, ...patch };
 		if (areExplainQuestionsExamUiEqual(current, next)) return state;
 		return {
@@ -387,7 +391,11 @@ export function startQueuedExplainQuestion(processId: string): void {
 		const batcher = createExplainQuestionBatcher(questionId);
 
 		try {
-			for (let attempt = 1; attempt <= MAX_EXPLAIN_QUESTION_ATTEMPTS; attempt++) {
+			for (
+				let attempt = 1;
+				attempt <= MAX_EXPLAIN_QUESTION_ATTEMPTS;
+				attempt++
+			) {
 				let runState = createAgentRunState({
 					agentRunId: agentRunIdForAttempt(questionId, attempt),
 					label: labelForAttempt(attempt),
@@ -727,7 +735,7 @@ export async function applyExplainQuestionRun(
 	}
 }
 
-export type ApplyAllReadyExplainQuestionsResult = {
+type ApplyAllReadyExplainQuestionsResult = {
 	applied: number;
 	failed: number;
 	errors: string[];

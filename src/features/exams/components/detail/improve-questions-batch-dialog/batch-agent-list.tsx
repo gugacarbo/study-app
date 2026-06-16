@@ -5,8 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { QuestionData } from "../exam-utils";
 import {
-	type ImproveQuestionsBatchAgentItem,
 	canContinueImproveQuestionsAgent,
+	type ImproveQuestionsBatchAgentItem,
 	improveQuestionsAgentBadgeClass,
 } from "./types";
 

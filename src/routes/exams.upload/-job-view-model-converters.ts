@@ -1,37 +1,15 @@
-import type {
-	IngestOutputEntry,
-	IngestPipelineStageViewModel,
-} from "@/features/ingest/components/types";
 import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
+import type { IngestOutputEntry } from "@/features/ingest/components/types";
 import {
 	isRecord,
 	normalizeEventTone,
 	normalizeLogLevel,
 	normalizeOutputStatus,
 	normalizeRole,
-	normalizeStageStatus,
 	readNullableString,
 	readNumber,
 	readString,
 } from "./-job-view-model-utils";
-
-export function toStageViewModel(
-	value: unknown,
-): IngestPipelineStageViewModel | null {
-	if (!isRecord(value)) return null;
-	const stageId = readString(value.stageId) ?? readString(value.id);
-	const label = readString(value.label) ?? readString(value.name);
-	const status = normalizeStageStatus(value.status);
-	const timestamp = readNumber(value.timestamp) ?? Date.now();
-	if (!stageId || !label || !status) return null;
-	return {
-		stageId,
-		label,
-		status,
-		timestamp,
-		meta: isRecord(value.meta) ? value.meta : undefined,
-	};
-}
 
 export function toOutputEntry(value: unknown): IngestOutputEntry | null {
 	if (!isRecord(value)) return null;
@@ -131,9 +109,7 @@ export function toLogEntry(
 		level: normalizeLogLevel(value.level),
 		message,
 		agentRunId:
-			readString(value.agentRunId) ??
-			readString(value.agentId) ??
-			null,
+			readString(value.agentRunId) ?? readString(value.agentId) ?? null,
 		data: value.data,
 	};
 }

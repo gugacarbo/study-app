@@ -24,7 +24,11 @@ import {
 	unregisterAbort,
 } from "../../store/registry";
 import { runNextQueued } from "../../store/scheduler";
-import { getProcessById, updateProcess, upsertProcess } from "../../store/store";
+import {
+	getProcessById,
+	updateProcess,
+	upsertProcess,
+} from "../../store/store";
 import type { ConnectionTestBackgroundProcess } from "../../store/types";
 import {
 	connectionTestProcessId,
@@ -72,8 +76,7 @@ function finishProcess(
 			finishedAt,
 			streamMetrics: {
 				...process.streamMetrics,
-				totalRequestMs:
-					totalRequestMs ?? process.streamMetrics.totalRequestMs,
+				totalRequestMs: totalRequestMs ?? process.streamMetrics.totalRequestMs,
 			},
 		};
 	});
@@ -194,10 +197,7 @@ async function runConnectionTest(processId: string): Promise<void> {
 						tokenTotals = nextTokenTotals;
 					}
 
-					if (
-						data.eventType === "token" &&
-						(data.rawText || nextTokenTotals)
-					) {
+					if (data.eventType === "token" && (data.rawText || nextTokenTotals)) {
 						const streamMetrics = publishStreamMetrics(
 							nextTokenTotals?.completion,
 						);
@@ -345,8 +345,7 @@ export function cancelConnectionTest(modelId: number): void {
 			error: "Connection test canceled",
 			streamMetrics: {
 				...process.streamMetrics,
-				totalRequestMs:
-					totalRequestMs ?? process.streamMetrics.totalRequestMs,
+				totalRequestMs: totalRequestMs ?? process.streamMetrics.totalRequestMs,
 			},
 		};
 	});

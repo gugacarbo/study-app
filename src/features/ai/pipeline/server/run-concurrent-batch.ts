@@ -7,13 +7,13 @@ import type { PipelineLogger } from "./pipeline-logger";
 
 type AgentRunWriter = ReturnType<typeof createAgentRunWriter>;
 
-export interface BatchItemOutcome<TResult> {
+interface BatchItemOutcome<TResult> {
 	success: boolean;
 	result?: TResult;
 	error?: string;
 }
 
-export interface BatchItemCompleteEvent<TResult> extends BatchItemOutcome<TResult> {
+interface BatchItemCompleteEvent<TResult> extends BatchItemOutcome<TResult> {
 	index: number;
 	attempt: number;
 }
@@ -34,7 +34,10 @@ export interface RunConcurrentBatchOptions<TItem, TResult> {
 	onWarning?: (message: string, meta?: Record<string, unknown>) => void;
 	log?: PipelineLogger;
 	agentRuns?: AgentRunWriter;
-	getRunForItem?: (item: TItem, index: number) => AgentRunDescriptor | undefined;
+	getRunForItem?: (
+		item: TItem,
+		index: number,
+	) => AgentRunDescriptor | undefined;
 }
 
 export interface RunConcurrentBatchResult<TResult> {
@@ -141,9 +144,7 @@ export async function runConcurrentBatch<TItem, TResult>(
 		);
 	}
 
-	log?.info(
-		`Batch complete: ${successCount}/${items.length} succeeded`,
-	);
+	log?.info(`Batch complete: ${successCount}/${items.length} succeeded`);
 
 	return { results, successCount, failureCount };
 }

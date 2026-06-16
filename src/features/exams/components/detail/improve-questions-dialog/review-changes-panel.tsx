@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
 import { cn } from "@/lib/utils";
 
-export interface ReviewableChange {
+interface ReviewableChange {
 	id: string;
 	label: string;
 	before: string;
@@ -100,13 +100,18 @@ export function ReviewChangesPanel({
 								<span className="text-sm font-medium">{change.label}</span>
 								<Badge
 									variant="outline"
-									className={cn("text-[0.65rem]", decisionBadgeClass(change.decision))}
+									className={cn(
+										"text-[0.65rem]",
+										decisionBadgeClass(change.decision),
+									)}
 								>
 									{decisionLabel(change.decision)}
 								</Badge>
 							</div>
 							<div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center">
-								<span className="line-clamp-2 break-words">{change.before || "—"}</span>
+								<span className="line-clamp-2 break-words">
+									{change.before || "—"}
+								</span>
 								<ArrowRight className="hidden size-3 shrink-0 sm:block" />
 								<span className="line-clamp-2 break-words text-foreground">
 									{change.after || "—"}

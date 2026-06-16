@@ -42,9 +42,6 @@ export function scoreAnswer(
 		}
 	}
 
-	const credit = Math.max(
-		0,
-		Math.min(1, (hits - misses) / correctSet.size),
-	);
+	const credit = Math.max(0, Math.min(1, (hits - misses) / correctSet.size));
 	return { credit, isFullyCorrect: credit >= 1 };
 }

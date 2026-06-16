@@ -1,18 +1,18 @@
 import type { ToolSet } from "ai";
-import { reviewSingleQuestion } from "@/features/ai/agents/ingest/review-extraction/review-question";
 import { deriveTopics } from "@/features/ai/agents/ingest/review-extraction/prompt";
+import { reviewSingleQuestion } from "@/features/ai/agents/ingest/review-extraction/review-question";
 import type { IngestReviewAgentEvent } from "@/features/ai/agents/ingest/review-extraction/types";
 import { bridgeAgentRunEvent } from "@/features/ai/core/bridge-agent-run-event";
 import {
-	writeStage,
-	createAgentRunWriter,
 	type AgentRunDescriptor,
+	type createAgentRunWriter,
 	type JobUIMessageStreamWriter,
+	writeStage,
 } from "@/features/ai/core/ui-message-job-stream";
-import { runConcurrentBatch } from "@/features/ai/pipeline/server/run-concurrent-batch";
 import type { PipelineRunContext } from "@/features/ai/pipeline/server/create-job-api-route";
-import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
 import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
+import { runConcurrentBatch } from "@/features/ai/pipeline/server/run-concurrent-batch";
+import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 
 const MAX_REVIEW_ATTEMPTS = 3;
@@ -185,9 +185,7 @@ export async function runReviewStage(params: RunReviewStageParams): Promise<{
 
 			const reviewedQuestions = extracted.questions.map((question, index) => {
 				const outcome = batch.results[index];
-				return outcome?.success && outcome.result
-					? outcome.result
-					: question;
+				return outcome?.success && outcome.result ? outcome.result : question;
 			});
 			const failedQuestionCount = batch.failureCount;
 			const reviewedQuestionCount = batch.successCount;

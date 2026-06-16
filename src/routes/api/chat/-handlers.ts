@@ -1,33 +1,27 @@
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import type { ToolJSONSchema } from "assistant-stream";
 import type { D1Database } from "@cloudflare/workers-types";
-import {
-	convertToModelMessages,
-	stepCountIs,
-	type ToolSet,
-} from "ai";
-import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
-import { createLlmLogCallId, createLlmLogContext } from "@/lib/llm-logging";
-import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
+import { convertToModelMessages, stepCountIs, type ToolSet } from "ai";
+import type { ToolJSONSchema } from "assistant-stream";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
+import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
+import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-headers";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import {
-	resolveChatModelConfig,
 	type ResolvedModelConfig,
+	resolveChatModelConfig,
 } from "@/lib/ai-config";
+import { createLlmLogCallId, createLlmLogContext } from "@/lib/llm-logging";
 import { DBQueries } from "../../../db/queries";
 import { env } from "../../../env";
 import { MemoryManager } from "../../../lib/memory";
 import {
+	type ChatRequest,
 	parseChatRequest,
 	parseClientToolsFromRequest,
-	type ChatRequest,
 } from "./-schema";
 import { summarizeSearchResultSnippets } from "./-tools";
-
-export { readModelId, resolveChatModelId } from "./-schema";
 
 const AI_TIMEOUT_MS = 60_000;
 
@@ -99,8 +93,7 @@ async function runChatStream({
 							query: input.query,
 							summary: summarizeSearchResultSnippets(output.results),
 							sources: output.results.map((result) => result.url),
-							conclusion:
-								"Search results collected for factual verification.",
+							conclusion: "Search results collected for factual verification.",
 							context: "chat",
 						});
 					} catch (error) {

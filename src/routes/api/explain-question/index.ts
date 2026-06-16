@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { DBQueries } from "@/db/queries";
+import { env } from "@/env";
 import {
-	explainQuestionById,
 	EXPLAIN_QUESTION_AGENT_STAGE_ID,
+	explainQuestionById,
 } from "@/features/ai/agents/explanations/explain-question";
 import {
 	writeExplanationUpdate,
@@ -14,7 +15,6 @@ import { createJobApiRoute } from "@/features/ai/pipeline/server/create-job-api-
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import { MemoryManager } from "@/lib/memory";
 import { buildTopicMemoryResolver } from "@/lib/memory/topic-context";
-import { env } from "@/env";
 
 const explainQuestionRequestSchema = z.object({
 	questionId: z.number().int().positive(),
@@ -41,14 +41,19 @@ export const Route = createFileRoute("/api/explain-question/")({
 					}
 
 					const hasExplanation = Boolean(questionRow.explanation?.trim());
-					const hasDeepExplanation = Boolean(questionRow.deepExplanation?.trim());
+					const hasDeepExplanation = Boolean(
+						questionRow.deepExplanation?.trim(),
+					);
 					if (!data.overwrite && hasExplanation && hasDeepExplanation) {
 						throw new Error("Question already has complete explanations");
 					}
 
 					const config = await queries.getAllConfig();
 					const { requireModelConfig } = await import("@/lib/ai-config");
-					const providerConfig = await requireModelConfig(queries, "explanations");
+					const providerConfig = await requireModelConfig(
+						queries,
+						"explanations",
+					);
 
 					const memory = new MemoryManager(db);
 					await memory.ensureStructure();

@@ -1,9 +1,8 @@
 import type { PrepareStepFunction, StopCondition, ToolSet } from "ai";
-import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import {
+	type AiStreamState,
 	createAiStreamState,
 	createToolResultEmitter,
-	type AiStreamState,
 } from "@/features/ai/core/ai-stream-handler";
 import {
 	readToolFailureMessage,
@@ -11,6 +10,7 @@ import {
 } from "@/features/ai/core/tool-agent-run";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
+import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ProviderConfig } from "@/lib/validation";
 
 export interface PipelineToolAgentResult {
@@ -119,12 +119,7 @@ export async function runPipelineToolAgent(
 		},
 		meta,
 	);
-	emitRunEvent(
-		emit,
-		run,
-		{ eventType: "lifecycle", status: "running" },
-		meta,
-	);
+	emitRunEvent(emit, run, { eventType: "lifecycle", status: "running" }, meta);
 
 	const handleToolCall = (toolCall: {
 		toolCallId: string;
@@ -168,8 +163,7 @@ export async function runPipelineToolAgent(
 		error?: string;
 		state: "streaming" | "complete" | "error";
 	}) => {
-		const toolName =
-			toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+		const toolName = toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
 
 		emitRunEvent(
 			emit,
@@ -220,12 +214,7 @@ export async function runPipelineToolAgent(
 			},
 			handlers: {
 				onTextDelta: (delta) => {
-					emitRunEvent(
-						emit,
-						run,
-						{ eventType: "token", rawText: delta },
-						meta,
-					);
+					emitRunEvent(emit, run, { eventType: "token", rawText: delta }, meta);
 				},
 				onReasoningDelta: (delta) => {
 					emitRunEvent(
@@ -240,12 +229,7 @@ export async function runPipelineToolAgent(
 					);
 				},
 				onUsage: (usage) => {
-					emitRunEvent(
-						emit,
-						run,
-						{ eventType: "token", tokens: usage },
-						meta,
-					);
+					emitRunEvent(emit, run, { eventType: "token", tokens: usage }, meta);
 				},
 				onToolCall: handleToolCall,
 				onToolResult: emitToolResult,
@@ -275,12 +259,7 @@ export async function runPipelineToolAgent(
 			};
 		}
 
-		emitRunEvent(
-			emit,
-			run,
-			{ eventType: "lifecycle", status: "done" },
-			meta,
-		);
+		emitRunEvent(emit, run, { eventType: "lifecycle", status: "done" }, meta);
 
 		return {
 			success: true,
@@ -289,8 +268,7 @@ export async function runPipelineToolAgent(
 			toolFailureMessages,
 		};
 	} catch (error) {
-		const reason =
-			error instanceof Error ? error.message : "unknown error";
+		const reason = error instanceof Error ? error.message : "unknown error";
 
 		emitRunEvent(
 			emit,

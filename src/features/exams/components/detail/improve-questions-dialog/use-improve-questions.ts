@@ -5,8 +5,8 @@ import type { AgentRunState } from "@/features/ai/pipeline/client";
 import {
 	applyImproveQuestionsRun,
 	backgroundProcessStore,
-	cancelImproveQuestionsRun,
 	canContinueImproveQuestionsRun,
+	cancelImproveQuestionsRun,
 	canSendImproveQuestionsFollowUp,
 	continueImproveQuestionsRun,
 	dismissImproveQuestionsRun,
@@ -16,8 +16,8 @@ import {
 	isImproveQuestionsProcess,
 	keepAllImproveQuestionsChanges,
 	revertAllImproveQuestionsChanges,
-	setImproveQuestionsDecision,
 	sendImproveQuestionsFollowUp,
+	setImproveQuestionsDecision,
 	startImproveQuestionsRun,
 } from "@/features/background-processes";
 import type { QuestionData } from "../exam-utils";
@@ -71,18 +71,22 @@ export function useImproveQuestions({
 	}, [run, question]);
 
 	const agentStatus = useMemo(
-		() => mapRunStatusToUi(run?.agentRunState?.status ?? null, run?.isStreaming ?? false),
+		() =>
+			mapRunStatusToUi(
+				run?.agentRunState?.status ?? null,
+				run?.isStreaming ?? false,
+			),
 		[run?.agentRunState?.status, run?.isStreaming],
 	);
 
 	const canContinue = useMemo(
 		() => canContinueImproveQuestionsRun(questionId),
-		[questionId, run],
+		[questionId],
 	);
 
 	const canSendFollowUp = useMemo(
 		() => canSendImproveQuestionsFollowUp(questionId),
-		[questionId, run],
+		[questionId],
 	);
 
 	const streamError = useMemo(() => {

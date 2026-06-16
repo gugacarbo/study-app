@@ -7,7 +7,12 @@ import { createChatDbTools } from "./db-tools";
 import { createSpellTools } from "./spell-tools";
 import { createChatWebTools, type WebToolsObserver } from "./web-tools";
 
-export type AgentName = "chat" | "reviewer" | "ingest" | "improve_questions" | "explanations";
+export type AgentName =
+	| "chat"
+	| "reviewer"
+	| "ingest"
+	| "improve_questions"
+	| "explanations";
 export type BaseToolName = "db_tools" | "web_tools" | "spell_tools";
 export type AgentToolName = BaseToolName | "parallel_review";
 

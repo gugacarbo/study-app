@@ -13,13 +13,13 @@ export function extractTextFromBytes(bytes: Uint8Array): string {
 }
 
 function isNumberedQuestionLine(line: string): boolean {
-	return /^\s*(?:\*{0,2})?\d+[\.\):\-]\s+\S/.test(line);
+	return /^\s*(?:\*{0,2})?\d+[.):-]\s+\S/.test(line);
 }
 
 function countDistinctNumberedQuestions(lines: string[]): number | undefined {
 	const numbers = new Set<number>();
 	for (const line of lines) {
-		const match = line.match(/^\s*(?:\*{0,2})?(\d+)[\.\):\-]\s+\S/);
+		const match = line.match(/^\s*(?:\*{0,2})?(\d+)[.):-]\s+\S/);
 		if (match) numbers.add(Number(match[1]));
 	}
 	return numbers.size > 0 ? numbers.size : undefined;
@@ -61,7 +61,11 @@ export function estimateSourceQuestionCount(text: string): number | undefined {
 
 export function buildExtractionUserPrompt(
 	text: string,
-	source?: { fileName: string; examName: string; expectedQuestionCount?: number },
+	source?: {
+		fileName: string;
+		examName: string;
+		expectedQuestionCount?: number;
+	},
 ): string {
 	return [
 		"Extract all exam questions from the following text.",

@@ -27,6 +27,3 @@ export function ExplainQuestionsDialogContainer({
 
 	return <ExplainQuestionsDialog open={open} {...state} />;
 }
-
-export { ExplainQuestionsDialog } from "./explain-questions-dialog";
-export { useExplainQuestions } from "./use-explain-questions";

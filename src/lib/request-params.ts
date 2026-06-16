@@ -1,7 +1,7 @@
 import {
 	coerceRequestParamValue,
-	type RequestParamValue,
 	type RequestParams,
+	type RequestParamValue,
 } from "@/lib/validation";
 
 export function parseRequestParamInput(raw: string): RequestParamValue {
@@ -25,7 +25,11 @@ export function parseRequestParamInput(raw: string): RequestParamValue {
 
 export function formatRequestParamForInput(value: RequestParamValue): string {
 	if (typeof value === "string") return value;
-	if (typeof value === "number" || typeof value === "boolean" || value === null) {
+	if (
+		typeof value === "number" ||
+		typeof value === "boolean" ||
+		value === null
+	) {
 		return String(value);
 	}
 	return JSON.stringify(value);

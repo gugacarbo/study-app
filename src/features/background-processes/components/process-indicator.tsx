@@ -3,6 +3,7 @@ import { Activity, Loader2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useBackgroundProcesses } from "../hooks/use-background-processes";
 import {
 	type BackgroundProcess,
 	type BackgroundProcessStatus,
@@ -13,7 +14,6 @@ import {
 	isIngestProcess,
 	isModelBenchmarkProcess,
 } from "../store/types";
-import { useBackgroundProcesses } from "../hooks/use-background-processes";
 
 const KIND_CHIP_LABEL: Record<BackgroundProcess["kind"], string> = {
 	ingest: "Upload",
@@ -180,7 +180,8 @@ export function BackgroundProcessIndicator() {
 		setOpen(false);
 	}
 
-	const hasAnyProcesses = activeProcesses.length > 0 || recentCompleted.length > 0;
+	const hasAnyProcesses =
+		activeProcesses.length > 0 || recentCompleted.length > 0;
 	const Icon = activeCount > 0 ? Loader2 : Activity;
 
 	return (
@@ -191,9 +192,7 @@ export function BackgroundProcessIndicator() {
 				className="relative inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
 				aria-label="Background processes"
 			>
-				<Icon
-					className={`size-4 ${activeCount > 0 ? "animate-spin" : ""}`}
-				/>
+				<Icon className={`size-4 ${activeCount > 0 ? "animate-spin" : ""}`} />
 				<span className="hidden sm:inline">Processes</span>
 				{activeCount > 0 && (
 					<Badge

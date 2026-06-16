@@ -3,11 +3,11 @@ import * as schema from "../schema";
 import type { DBQueries } from "./base";
 import { buildPaginationMeta, normalizePagination, withWhere } from "./helpers";
 import type {
+	ListLLMLogsFilters,
 	LLMLogDetail,
 	LLMLogInsert,
 	LLMLogStatus,
 	LLMLogSummary,
-	ListLLMLogsFilters,
 	PaginatedResult,
 } from "./types";
 

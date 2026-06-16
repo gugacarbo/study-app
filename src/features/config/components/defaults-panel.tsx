@@ -54,9 +54,7 @@ export function DefaultsPanel() {
 		(model) => String(model.id) === testModelId,
 	);
 
-	const selectedModelId = testModelId
-		? Number.parseInt(testModelId, 10)
-		: null;
+	const selectedModelId = testModelId ? Number.parseInt(testModelId, 10) : null;
 	const connectionTestProcess = useStore(backgroundProcessStore, (state) => {
 		if (selectedModelId == null) return null;
 		const process = state.processes.find(
@@ -150,9 +148,7 @@ export function DefaultsPanel() {
 										agentMutation.mutate({
 											agent,
 											modelId:
-												value === "default"
-													? null
-													: Number.parseInt(value, 10),
+												value === "default" ? null : Number.parseInt(value, 10),
 										})
 									}
 								>
@@ -221,7 +217,9 @@ export function DefaultsPanel() {
 				</CardContent>
 			</Card>
 
-			{message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+			{message ? (
+				<p className="text-sm text-muted-foreground">{message}</p>
+			) : null}
 		</div>
 	);
 }

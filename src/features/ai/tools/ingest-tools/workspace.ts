@@ -80,7 +80,7 @@ function normalizeQuestionKey(text: string): string {
 	return text
 		.trim()
 		.replace(/^\*{0,2}\s*/, "")
-		.replace(/^\d+[\.\):\-]\s*/, "")
+		.replace(/^\d+[.):-]\s*/, "")
 		.replace(/\*{1,2}$/, "")
 		.trim()
 		.toLowerCase()
@@ -125,8 +125,7 @@ export function createExtractionWorkspace(
 			const question = normalizeQuestion(input);
 			const questionKey = normalizeQuestionKey(question.question);
 			const duplicate = state.questions.find(
-				(existing) =>
-					normalizeQuestionKey(existing.question) === questionKey,
+				(existing) => normalizeQuestionKey(existing.question) === questionKey,
 			);
 			if (duplicate) {
 				return duplicate;

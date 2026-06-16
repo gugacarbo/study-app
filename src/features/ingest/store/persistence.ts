@@ -17,7 +17,7 @@ const COMPLETED_JOB_STATUSES: IngestJob["status"][] = [
 	"canceled",
 ];
 
-export function trimCompletedJobs(jobs: IngestJob[]): IngestJob[] {
+function trimCompletedJobs(jobs: IngestJob[]): IngestJob[] {
 	const completed = jobs.filter((job) =>
 		COMPLETED_JOB_STATUSES.includes(job.status),
 	);
@@ -29,29 +29,6 @@ export function trimCompletedJobs(jobs: IngestJob[]): IngestJob[] {
 
 	const kept = completed.slice(completed.length - MAX_COMPLETED_JOBS);
 	return [...active, ...kept];
-}
-
-export function serializeIngestStateForStorage(
-	state: IngestStoreState,
-): string {
-	return JSON.stringify({
-		jobs: state.jobs.map(({ buffer: _buffer, ...job }) => job),
-		focusedJobId: state.focusedJobId,
-	} satisfies PersistedIngestStoreState);
-}
-
-export function clearCompletedJobsFromState(
-	state: IngestStoreState,
-): IngestStoreState {
-	const jobs = state.jobs.filter(
-		(job) => !COMPLETED_JOB_STATUSES.includes(job.status),
-	);
-	const focusedJobId =
-		state.focusedJobId && jobs.some((job) => job.id === state.focusedJobId)
-			? state.focusedJobId
-			: null;
-
-	return { jobs, focusedJobId };
 }
 
 function isPersistedIngestJob(value: unknown): value is PersistedIngestJob {
@@ -155,22 +132,4 @@ export function hydrateIngestStateFromStorage(
 	} catch {
 		return initialState;
 	}
-}
-
-export function loadInitialState(): IngestStoreState {
-	if (typeof window === "undefined") return { jobs: [], focusedJobId: null };
-	return hydrateIngestStateFromStorage(localStorage.getItem("ingest-jobs"));
-}
-
-export function persistIngestState(state: IngestStoreState) {
-	if (typeof window === "undefined") return;
-
-	try {
-		if (state.jobs.length === 0) {
-			localStorage.removeItem("ingest-jobs");
-			return;
-		}
-
-		localStorage.setItem("ingest-jobs", serializeIngestStateForStorage(state));
-	} catch {}
 }

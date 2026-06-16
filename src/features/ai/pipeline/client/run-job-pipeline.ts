@@ -1,7 +1,7 @@
 import type { StudyAppDataUIPart } from "@/features/ai/lib/read-job-ui-message-stream";
 import {
-	consumeJobStream,
 	type ConsumeJobStreamRequest,
+	consumeJobStream,
 } from "@/features/ai/lib/read-job-ui-message-stream";
 import type {
 	AgentRunDataPart,
@@ -11,9 +11,8 @@ import type {
 	StageDataPart,
 	StudyAppUIMessage,
 } from "@/features/ai/types/ui-message-data-parts";
-import type { PipelineErrorState } from "../types";
+import type { PipelineErrorState, PipelineLogEntry } from "../types";
 import { createPipelineLogReducer } from "./pipeline-log-reducer";
-import type { PipelineLogEntry } from "../types";
 
 export interface RunJobPipelineContext {
 	jobError: JobErrorDataPart | null;

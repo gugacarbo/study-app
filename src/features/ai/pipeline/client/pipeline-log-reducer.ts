@@ -21,9 +21,7 @@ export interface PipelineLogReducerState {
 
 const DEDUPE_WINDOW_MS = 100;
 
-function stageStatusToLevel(
-	status: StageDataPart["status"],
-): PipelineLogLevel {
+function stageStatusToLevel(status: StageDataPart["status"]): PipelineLogLevel {
 	switch (status) {
 		case "warning":
 			return "warning";
@@ -82,7 +80,9 @@ export function createPipelineLogReducer() {
 		state.stepText = stepText;
 	};
 
-	const handleDataPart = (part: StudyAppDataUIPart): PipelineLogEntry | null => {
+	const handleDataPart = (
+		part: StudyAppDataUIPart,
+	): PipelineLogEntry | null => {
 		if (part.type === "data-process-log") {
 			return append(processLogPartToEntry(part.data));
 		}
@@ -123,7 +123,11 @@ export function createPipelineLogReducer() {
 					agentRunId: data.agentRunId,
 				});
 			}
-			if (data.eventType === "lifecycle" && data.status === "error" && data.error) {
+			if (
+				data.eventType === "lifecycle" &&
+				data.status === "error" &&
+				data.error
+			) {
 				return append({
 					timestamp: data.timestamp ?? Date.now(),
 					level: "error",

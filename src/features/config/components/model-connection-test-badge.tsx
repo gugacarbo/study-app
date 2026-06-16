@@ -111,9 +111,7 @@ function buildTooltip(
 			);
 		}
 		if (process.streamMetrics?.totalRequestMs != null) {
-			parts.push(
-				`Total: ${formatTtft(process.streamMetrics.totalRequestMs)}`,
-			);
+			parts.push(`Total: ${formatTtft(process.streamMetrics.totalRequestMs)}`);
 		}
 		if (process.tokenTotals) {
 			parts.push(

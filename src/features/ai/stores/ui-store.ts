@@ -97,23 +97,6 @@ export function getLayoutUIStore(): Store<LayoutUIState> {
 	return globalStore[LAYOUT_UI_STORE_KEY];
 }
 
-/** Proxy so duplicate module instances always resolve the same global store. */
-export const layoutUIStore: Store<LayoutUIState> = new Proxy(
-	{} as Store<LayoutUIState>,
-	{
-		get(_target, prop) {
-			const store = getLayoutUIStore();
-			const value = store[prop as keyof Store<LayoutUIState>];
-			return typeof value === "function"
-				? (value as (...args: never[]) => unknown).bind(store)
-				: value;
-		},
-	},
-);
-
-/** @deprecated Use `layoutUIStore` */
-export const chatUIStore = layoutUIStore;
-
 /** Re-read layout UI state from localStorage on the client (after SSR). */
 export function hydrateLayoutUIStore(): void {
 	const globalStore = globalThis as LayoutUIGlobal;
@@ -130,19 +113,8 @@ export function setChatSidebarOpen(open: boolean): void {
 }
 
 export function setAdminSidebarOpen(open: boolean): void {
-	getLayoutUIStore().setState((state) => ({ ...state, adminSidebarOpen: open }));
-}
-
-export function toggleChatSidebar(): void {
 	getLayoutUIStore().setState((state) => ({
 		...state,
-		chatSidebarOpen: !state.chatSidebarOpen,
-	}));
-}
-
-export function toggleAdminSidebar(): void {
-	getLayoutUIStore().setState((state) => ({
-		...state,
-		adminSidebarOpen: !state.adminSidebarOpen,
+		adminSidebarOpen: open,
 	}));
 }

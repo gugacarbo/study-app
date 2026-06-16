@@ -1,13 +1,13 @@
 import { useSelector } from "@tanstack/react-store";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
 	SidebarInset,
 	SidebarProvider,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
-	hydrateLayoutUIStore,
 	getLayoutUIStore,
+	hydrateLayoutUIStore,
 	setAdminSidebarOpen,
 } from "@/features/ai/stores/ui-store";
 import { AdminSidebar } from "./admin-sidebar";

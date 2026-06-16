@@ -1,9 +1,9 @@
+import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type {
 	IngestAgentRunViewModel,
 	IngestJobViewModel,
 	IngestPipelineStageViewModel,
 } from "@/features/ingest/components/types";
-import type { PipelineLogEntry } from "@/features/ai/pipeline/types";
 import type { IngestJob } from "@/features/ingest/store";
 import { toAgentRun } from "./-agent-converter";
 import { toLogEntry } from "./-job-view-model-converters";
@@ -54,9 +54,7 @@ export function toIngestJobViewModel(job: IngestJob): IngestJobViewModel {
 	};
 }
 
-function readStructuredStages(
-	job: IngestJob,
-): IngestPipelineStageViewModel[] {
+function readStructuredStages(job: IngestJob): IngestPipelineStageViewModel[] {
 	return job.stages
 		.map((stage) => ({
 			stageId: stage.stageId,

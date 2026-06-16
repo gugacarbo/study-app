@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useStore } from "@tanstack/react-store";
 import { Link } from "@tanstack/react-router";
+import { useStore } from "@tanstack/react-store";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -27,12 +27,12 @@ import {
 import { getExamDetail } from "@/server-functions/exams";
 import { ExamHeader } from "./exam-header";
 import { ExamInfoPanel } from "./exam-info-panel";
+import type { QuestionData } from "./exam-utils";
 import { ExplainQuestionsBatchDialog } from "./explain-questions-batch-dialog";
 import { ExplainQuestionsDialogContainer } from "./explain-questions-dialog";
 import { ImproveQuestionsBatchDialog } from "./improve-questions-batch-dialog";
 import { ImproveQuestionsDialog } from "./improve-questions-dialog";
 import { QuestionsCard } from "./questions-card";
-import type { QuestionData } from "./exam-utils";
 import { useExamDelete } from "./use-exam-delete";
 import { useQuestionEditing } from "./use-question-editing";
 
@@ -74,9 +74,7 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	);
 	const explanationProcessActive = explainQuestionsExamViews.some(
 		(view) =>
-			view.isStreaming ||
-			view.status === "running" ||
-			view.status === "queued",
+			view.isStreaming || view.status === "running" || view.status === "queued",
 	);
 
 	const { data: exam } = useSuspenseQuery({
@@ -102,13 +100,17 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	const improveQuestionsQuestion = useMemo(() => {
 		const questionId = improveQuestionsUi.questionDialogQuestionId;
 		if (questionId === null) return null;
-		return exam.questions.find((question) => question.id === questionId) ?? null;
+		return (
+			exam.questions.find((question) => question.id === questionId) ?? null
+		);
 	}, [exam.questions, improveQuestionsUi.questionDialogQuestionId]);
 
 	const explainQuestionsQuestion = useMemo(() => {
 		const questionId = explainQuestionsUi.questionDialogQuestionId;
 		if (questionId === null) return null;
-		return exam.questions.find((question) => question.id === questionId) ?? null;
+		return (
+			exam.questions.find((question) => question.id === questionId) ?? null
+		);
 	}, [exam.questions, explainQuestionsUi.questionDialogQuestionId]);
 
 	const improveQuestionsByQuestionId = useMemo(() => {
@@ -218,7 +220,9 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 
 			<ExplainQuestionsBatchDialog
 				open={explainQuestionsBatchOpen}
-				onOpenChange={(open) => setExplainQuestionsBatchDialogOpen(examId, open)}
+				onOpenChange={(open) =>
+					setExplainQuestionsBatchDialogOpen(examId, open)
+				}
 				examId={examId}
 				questions={exam.questions}
 				onOpenQuestion={(question) => {
@@ -228,7 +232,9 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 
 			<ImproveQuestionsBatchDialog
 				open={improveQuestionsBatchOpen}
-				onOpenChange={(open) => setImproveQuestionsBatchDialogOpen(examId, open)}
+				onOpenChange={(open) =>
+					setImproveQuestionsBatchDialogOpen(examId, open)
+				}
 				examId={examId}
 				questions={exam.questions}
 				onOpenQuestion={(question) => {

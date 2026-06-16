@@ -17,9 +17,9 @@ import { toProviderConfig } from "@/lib/validation";
 import type { ExplanationBatchInput } from "../generate-explanations/types";
 import {
 	EXPLAIN_QUESTION_AGENT_STAGE_ID,
-	UPDATE_QUESTION_EXPLANATION_TOOL,
-	type ExplainQuestionByIdOptions,
 	type ExplainQuestionAgentEvent,
+	type ExplainQuestionByIdOptions,
+	UPDATE_QUESTION_EXPLANATION_TOOL,
 } from "./contracts";
 import { buildExplainQuestionUserPrompt } from "./prompt";
 import { buildExplainQuestionSystemPrompt } from "./system-prompt";
@@ -57,7 +57,10 @@ export async function explainQuestionById(
 	};
 	const emit = resolveEmit(options);
 	const memoryContext = options.resolveMemoryContext?.();
-	const systemPrompt = buildExplainQuestionSystemPrompt(questionId, memoryContext);
+	const systemPrompt = buildExplainQuestionSystemPrompt(
+		questionId,
+		memoryContext,
+	);
 	const userPrompt = buildExplainQuestionUserPrompt(questionId, {
 		overwrite: options.overwrite,
 	});
@@ -75,8 +78,7 @@ export async function explainQuestionById(
 		error?: string;
 		state: "streaming" | "complete" | "error";
 	}) => {
-		const toolName =
-			toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+		const toolName = toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
 		emit({
 			eventType: "tool-result",
 			stageId: run.stageId,

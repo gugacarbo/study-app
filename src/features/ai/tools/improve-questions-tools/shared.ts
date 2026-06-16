@@ -3,7 +3,7 @@ import { z } from "zod";
 export const IMPROVE_QUESTIONS_TOOL_ERROR_CODE = "IMPROVE_QUESTIONS_TOOL_ERROR";
 export const QUESTION_NOT_FOUND_ERROR_CODE = "QUESTION_NOT_FOUND";
 
-export const questionIdSchema = z.coerce.number().int().positive();
+const questionIdSchema = z.coerce.number().int().positive();
 
 function stripNullObjectFields(input: unknown): unknown {
 	if (typeof input !== "object" || input === null || Array.isArray(input)) {
@@ -57,10 +57,6 @@ const optionalNullableOptionsSchema = z
 	.nullable()
 	.optional()
 	.transform((value) => value ?? undefined);
-
-const improveQuestionsAnswersSchema = z
-	.array(z.string().trim().min(1))
-	.min(1, "At least 1 answer required");
 
 const optionalNullableAnswersSchema = z
 	.array(z.string().trim().min(1))
@@ -147,17 +143,9 @@ export const updateQuestionOptionsPatchSchema = z.preprocess(
 		.transform(({ answer: _answer, ...data }) => data),
 );
 
-export const improveQuestionsToolFailureSchema = z.object({
-	ok: z.literal(false),
-	error: z.object({
-		code: z.string(),
-		message: z.string(),
-	}),
-});
-
 export type GetQuestionInput = z.output<typeof getQuestionInputSchema>;
 export type UpdateQuestionOptionsPatch = z.output<
 	typeof updateQuestionOptionsPatchSchema
 >;
 
-export { improveQuestionsAnswersSchema, improveQuestionsOptionsSchema };
+export { improveQuestionsOptionsSchema };

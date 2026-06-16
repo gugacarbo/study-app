@@ -89,7 +89,11 @@ export function ExamHeader({
 			</div>
 
 			<div className="flex shrink-0 items-center gap-2">
-				<Button asChild className="min-h-10 flex-1 sm:min-h-8 sm:flex-none" size="sm">
+				<Button
+					asChild
+					className="min-h-10 flex-1 sm:min-h-8 sm:flex-none"
+					size="sm"
+				>
 					<Link
 						from="/exams/$id"
 						to="/quiz/$id"

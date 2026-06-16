@@ -55,7 +55,7 @@ function normalizeToolResultContent(content: unknown): unknown {
 	return content;
 }
 
-export function scoreToolResultContent(content: unknown): number {
+function scoreToolResultContent(content: unknown): number {
 	if (content === undefined || content === null) return 0;
 
 	const parsed = normalizeToolResultContent(content);

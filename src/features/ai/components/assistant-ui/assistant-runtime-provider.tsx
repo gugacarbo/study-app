@@ -1,6 +1,6 @@
 import {
-	AssistantRuntimeProvider,
 	type AssistantRuntime,
+	AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import type { ReactNode } from "react";

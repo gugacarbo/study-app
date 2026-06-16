@@ -1,9 +1,9 @@
-import { tool, zodSchema, type ToolExecutionOptions, type ToolSet } from "ai";
+import { type ToolExecutionOptions, type ToolSet, tool, zodSchema } from "ai";
 import { z } from "zod";
 
 export const INGEST_STAGE_STATUS_TOOL = "report_agent_stage_status";
 
-export const ingestAgentReportedStatusSchema = z.enum([
+const ingestAgentReportedStatusSchema = z.enum([
 	"success",
 	"warning",
 	"error",
@@ -29,7 +29,7 @@ export type IngestAgentResolvedStatus =
 	| "error"
 	| "skipped";
 
-export const ingestAgentStageStatusSuccessSchema = z.object({
+const ingestAgentStageStatusSuccessSchema = z.object({
 	ok: z.literal(true),
 	status: ingestAgentReportedStatusSchema,
 	message: z.string().min(1),
@@ -41,7 +41,7 @@ export const INGEST_STAGE_STATUS_COMPLETION_PROMPT = `Completion behavior:
 - Use status "success" when the stage completed normally, "warning" when work finished with recoverable issues, "error" when the stage failed, and "skipped" when there was nothing meaningful to do.
 - The message must explain the outcome for the pipeline; never leave it empty.`;
 
-export function mapReportedStatusToAgentStatus(
+function mapReportedStatusToAgentStatus(
 	status: IngestAgentReportedStatus,
 ): IngestAgentResolvedStatus {
 	switch (status) {
@@ -167,12 +167,7 @@ export function createReportAgentStageStatusTool(options?: {
 					status: parsedInput.status,
 					message: parsedInput.message,
 				};
-				await notifyStageStatusExecuted(
-					options,
-					parsedInput,
-					output,
-					context,
-				);
+				await notifyStageStatusExecuted(options, parsedInput, output, context);
 				return output;
 			},
 		}),

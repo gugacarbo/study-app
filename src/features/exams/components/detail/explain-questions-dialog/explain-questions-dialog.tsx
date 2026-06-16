@@ -10,8 +10,8 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 import { PipelineThread } from "@/features/ai/pipeline/ui";
+import { cn } from "@/lib/utils";
 import {
 	type PanelLayout,
 	PanelSplitGutter,
@@ -78,16 +78,13 @@ export function ExplainQuestionsDialog({
 			"grid-cols-1 grid-rows-[0fr_auto_minmax(0,1fr)] sm:grid-cols-[0fr_auto_minmax(0,1fr)] sm:grid-rows-none",
 	);
 
-	const paneShellClass =
-		"flex min-h-0 min-w-0 flex-col overflow-hidden";
+	const paneShellClass = "flex min-h-0 min-w-0 flex-col overflow-hidden";
 
 	const previewContent =
 		showReview && hasDiff ? (
 			<Tabs
 				value={activeTab}
-				onValueChange={(value) =>
-					setActiveTab(value as "preview" | "review")
-				}
+				onValueChange={(value) => setActiveTab(value as "preview" | "review")}
 				className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
 			>
 				<TabsList className="h-8 shrink-0 bg-muted">

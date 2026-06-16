@@ -1,5 +1,5 @@
-import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
 import type { ExplanationChange } from "@/features/ai/agents/explanations/explain-question/contracts";
+import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
 
 export interface ExplanationSnapshot {
 	explanation: string;
@@ -51,9 +51,7 @@ export function resolveExplanations(
 ): ExplanationSnapshot {
 	const changeById = new Map(changes.map((change) => [change.id, change]));
 
-	const resolveField = (
-		field: "explanation" | "deepExplanation",
-	): string => {
+	const resolveField = (field: "explanation" | "deepExplanation"): string => {
 		const change = changeById.get(field);
 		if (!change || change.decision === "revert") {
 			return original[field];
@@ -67,14 +65,12 @@ export function resolveExplanations(
 	};
 }
 
-export function getRunPreviewExplanations(
-	run: {
-		originalSnapshot: ExplanationSnapshot;
-		explanation: string;
-		deepExplanation: string;
-		changes: ExplanationChange[];
-	},
-): ExplanationSnapshot {
+export function getRunPreviewExplanations(run: {
+	originalSnapshot: ExplanationSnapshot;
+	explanation: string;
+	deepExplanation: string;
+	changes: ExplanationChange[];
+}): ExplanationSnapshot {
 	if (run.changes.length === 0) {
 		return {
 			explanation: run.explanation,

@@ -1,4 +1,3 @@
-import type { ExplanationAgentRunSummary } from "@/features/ai/agents/explanations";
 import type { ScoringMode } from "@/lib/answer-scoring";
 
 export function formatDate(dateStr: string | null): string {
@@ -33,33 +32,6 @@ export function getErrorMessage(error: unknown): string {
 	if (error instanceof Error && error.message) return error.message;
 	if (typeof error === "string") return error;
 	return "Erro desconhecido";
-}
-
-export function chunkIds(ids: number[], chunkSize: number): number[][] {
-	const chunks: number[][] = [];
-	for (let idx = 0; idx < ids.length; idx += chunkSize) {
-		chunks.push(ids.slice(idx, idx + chunkSize));
-	}
-	return chunks;
-}
-
-export type ExplanationProgressStatus =
-	| "pending"
-	| "processing"
-	| "done"
-	| "error"
-	| "skipped";
-
-export interface ExplanationProgressItem {
-	id: number;
-	question: string;
-	status: ExplanationProgressStatus;
-	message?: string;
-	response?: {
-		explanation: string;
-		deepExplanation: string;
-		agentRun?: ExplanationAgentRunSummary;
-	};
 }
 
 export interface EditFormData {

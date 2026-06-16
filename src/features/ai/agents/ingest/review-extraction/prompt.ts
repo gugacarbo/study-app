@@ -1,7 +1,7 @@
-import type { Question } from "@/lib/validation";
 import { INGEST_STAGE_STATUS_COMPLETION_PROMPT } from "@/features/ai/tools/ingest-stage-status";
 import type { ExtractionQuestionId } from "@/features/ai/tools/ingest-tools";
 import { formatExtractionQuestionId } from "@/features/ai/tools/ingest-tools";
+import type { Question } from "@/lib/validation";
 import { extractQuestionSourceSnippet } from "./source-snippet";
 
 function unique<T>(items: T[]): T[] {

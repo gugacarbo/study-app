@@ -1,17 +1,16 @@
-import { tool, zodSchema, type ToolExecutionOptions, type ToolSet } from "ai";
+import { type ToolExecutionOptions, type ToolSet, tool, zodSchema } from "ai";
 import { z } from "zod";
-import type { Question } from "@/lib/validation";
 import {
 	createReportAgentStageStatusTool,
 	type IngestStageStatusToolEvent,
 } from "@/features/ai/tools/ingest-stage-status";
+import type { Question } from "@/lib/validation";
 import {
 	type ExtractionQuestionFields,
 	type ExtractionQuestionPatch,
-	INGEST_TOOL_ERROR_CODE,
 	extractionQuestionFieldsSchema,
-	extractionQuestionIdSchema,
 	extractionQuestionPatchSchema,
+	INGEST_TOOL_ERROR_CODE,
 } from "./shared";
 import type {
 	ExtractionQuestionId,
@@ -106,7 +105,7 @@ function toToolFailure(error: unknown) {
 	};
 }
 
-export type IngestToolExecutedEvent = {
+type IngestToolExecutedEvent = {
 	toolCallId: string;
 	toolName: string;
 	input: unknown;
@@ -157,8 +156,7 @@ export function createIngestReviewTools(
 	const tools = createIngestExtractionTools(workspace, options);
 	return Object.fromEntries(
 		Object.entries(tools).filter(
-			([name]) =>
-				!(REVIEW_OMITTED_TOOLS as readonly string[]).includes(name),
+			([name]) => !(REVIEW_OMITTED_TOOLS as readonly string[]).includes(name),
 		),
 	);
 }
@@ -316,10 +314,3 @@ export function createIngestExtractionTools(
 		}),
 	};
 }
-
-export {
-	extractionQuestionFieldsSchema,
-	extractionQuestionIdSchema,
-	extractionQuestionPatchSchema,
-	listExtractedQuestionsInputSchema,
-};

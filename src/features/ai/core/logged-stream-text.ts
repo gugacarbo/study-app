@@ -1,9 +1,6 @@
-import { streamText } from "ai";
 import type { D1Database } from "@cloudflare/workers-types";
-import {
-	type LlmLogContext,
-	withStreamTextLogging,
-} from "@/lib/llm-logging";
+import { streamText } from "ai";
+import { type LlmLogContext, withStreamTextLogging } from "@/lib/llm-logging";
 
 type StreamTextOptions = NonNullable<Parameters<typeof streamText>[0]>;
 

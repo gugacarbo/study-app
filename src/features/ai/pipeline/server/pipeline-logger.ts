@@ -1,7 +1,7 @@
 import {
+	type JobUIMessageStreamWriter,
 	writeJobProgress,
 	writeProcessLog,
-	type JobUIMessageStreamWriter,
 } from "@/features/ai/core/ui-message-job-stream";
 import type { PipelineLogLevel } from "@/features/ai/pipeline/types";
 

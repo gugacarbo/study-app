@@ -20,7 +20,11 @@ type FinishStepLike = {
 	finishReason: string;
 	usage: LanguageModelUsage;
 	toolCalls?: Array<{ toolName: string; input?: unknown }>;
-	toolResults?: Array<{ toolName: string; output?: unknown; isError?: boolean }>;
+	toolResults?: Array<{
+		toolName: string;
+		output?: unknown;
+		isError?: boolean;
+	}>;
 };
 
 export interface LlmLogContext {
@@ -46,10 +50,7 @@ export function shouldLogLlmChunks(): boolean {
 	return env.AI_LOG_LLM_CHUNKS === "true";
 }
 
-export function createLlmLogCallId(
-	callType: string,
-	suffix?: string,
-): string {
+export function createLlmLogCallId(callType: string, suffix?: string): string {
 	const slug = callType.replace(/[^a-zA-Z0-9._-]+/g, "-");
 	const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 	return suffix ? `${slug}-${suffix}-${unique}` : `${slug}-${unique}`;
@@ -156,9 +157,7 @@ export function serializeFinishEvent(
 					: redactText(event.reasoningText),
 		finishReason: event.finishReason,
 		usage: serializeUsage(event.usage),
-		totalUsage: event.totalUsage
-			? serializeUsage(event.totalUsage)
-			: undefined,
+		totalUsage: event.totalUsage ? serializeUsage(event.totalUsage) : undefined,
 		steps: steps.map((step) => serializeStep(step, includeContent)),
 	};
 }
@@ -195,7 +194,9 @@ export function buildLlmLogInsert(
 			metadata: ctx.metadata,
 			payload: includeContent ? event.requestPayload : undefined,
 		}),
-		responsePayload: responsePayload ? safeStringify(responsePayload) : undefined,
+		responsePayload: responsePayload
+			? safeStringify(responsePayload)
+			: undefined,
 		durationMs: Math.max(0, Date.now() - event.startedAt),
 		chunks: event.chunks,
 		finalChars: event.finish?.text.length,
@@ -216,8 +217,7 @@ export async function persistLlmLog(
 	if (!isLlmLoggingEnabled()) return;
 
 	const database =
-		db ??
-		(await import("@/server-functions/db").then(({ getDB }) => getDB()));
+		db ?? (await import("@/server-functions/db").then(({ getDB }) => getDB()));
 	if (!database) {
 		console.warn("[llm-logging] D1 unavailable — skipping log persistence");
 		return;
@@ -309,7 +309,9 @@ export function logSyncGenerationError(
 	);
 }
 
-type StreamTextOptions = NonNullable<Parameters<typeof import("ai").streamText>[0]>;
+type StreamTextOptions = NonNullable<
+	Parameters<typeof import("ai").streamText>[0]
+>;
 
 export function withStreamTextLogging(
 	options: StreamTextOptions,

@@ -1,18 +1,20 @@
 import {
-	generateText,
 	type GenerateTextResult,
+	generateText,
 	type LanguageModelUsage,
 	type TextStreamPart,
 	type ToolSet,
 } from "ai";
 import {
+	type LlmLogContext,
 	logSyncGenerationError,
 	logSyncGenerationResult,
-	type LlmLogContext,
 } from "@/lib/llm-logging";
 import { loggedStreamText } from "./logged-stream-text";
 
-type StreamTextOptions = NonNullable<Parameters<typeof import("ai").streamText>[0]>;
+type StreamTextOptions = NonNullable<
+	Parameters<typeof import("ai").streamText>[0]
+>;
 type GenerateTextOptions = NonNullable<Parameters<typeof generateText>[0]>;
 
 export interface StreamTextCompatResult<TOOLS extends ToolSet> {
@@ -27,7 +29,7 @@ function readStreamErrorMessage(error: unknown): string {
 	return String(error);
 }
 
-export function isMissingTextPartCompatibilityError(error: unknown): boolean {
+function isMissingTextPartCompatibilityError(error: unknown): boolean {
 	const message = readStreamErrorMessage(error);
 	return /(?:^|:\s)text part [^ ]+ not found$/i.test(message);
 }
@@ -75,10 +77,9 @@ export async function streamTextWithCompatibilityFallback<
 		};
 
 		try {
-			const fallbackResult = (await generateText(request)) as unknown as GenerateTextResult<
-				TOOLS,
-				any
-			>;
+			const fallbackResult = (await generateText(
+				request,
+			)) as unknown as GenerateTextResult<TOOLS, any>;
 
 			logSyncGenerationResult(
 				ctx,

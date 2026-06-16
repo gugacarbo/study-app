@@ -13,7 +13,9 @@ import { JobDetailPanel } from "@/features/ingest/components/JobDetailPanel";
 import { QueueList } from "@/features/ingest/components/QueueList";
 import { toIngestJobViewModel } from "@/routes/exams.upload/-job-view-model";
 
-function selectFocusedIngestJobId(focusedProcessId: string | null): string | null {
+function selectFocusedIngestJobId(
+	focusedProcessId: string | null,
+): string | null {
 	if (!focusedProcessId) return null;
 	return parseIngestProcessId(focusedProcessId);
 }
@@ -50,8 +52,8 @@ export function ProcessLogsPage() {
 			<div className="shrink-0">
 				<h2 className="text-lg font-semibold">Process Logs</h2>
 				<p className="text-xs text-muted-foreground">
-					Ingest jobs from local storage. Completed job history is limited to the
-					last {MAX_RECENT_COMPLETED_PROCESSES} jobs (
+					Ingest jobs from local storage. Completed job history is limited to
+					the last {MAX_RECENT_COMPLETED_PROCESSES} jobs (
 					<code className="rounded bg-muted px-1 py-0.5 text-[0.65rem]">
 						MAX_RECENT_COMPLETED_PROCESSES
 					</code>
@@ -65,7 +67,9 @@ export function ProcessLogsPage() {
 						<Card size="sm" className="border-border bg-card">
 							<CardContent className="px-4 py-6 text-xs text-muted-foreground">
 								No ingest jobs yet. Run an upload at{" "}
-								<span className="font-medium text-foreground">/exams/upload</span>{" "}
+								<span className="font-medium text-foreground">
+									/exams/upload
+								</span>{" "}
 								to see process logs here.
 							</CardContent>
 						</Card>

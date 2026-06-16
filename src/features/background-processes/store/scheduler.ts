@@ -1,8 +1,8 @@
 import { startQueuedConnectionTest } from "../kinds/connection-test/actions";
-import { startQueuedModelBenchmark } from "../kinds/model-benchmark/actions";
 import { startQueuedExplainQuestion } from "../kinds/explain-question/actions";
-import { startQueuedIngest } from "../kinds/ingest/actions";
 import { startQueuedImproveQuestions } from "../kinds/improve-questions/actions";
+import { startQueuedIngest } from "../kinds/ingest/actions";
+import { startQueuedModelBenchmark } from "../kinds/model-benchmark/actions";
 import { backgroundProcessStore } from "./store";
 import type { BackgroundProcess } from "./types";
 import {

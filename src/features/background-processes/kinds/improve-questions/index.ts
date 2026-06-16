@@ -1,9 +1,9 @@
 export {
 	applyAllReadyImproveQuestionsRuns,
 	applyImproveQuestionsRun,
-	cancelImproveQuestionsRun,
 	canApplyImproveQuestionsRun,
 	canContinueImproveQuestionsRun,
+	cancelImproveQuestionsRun,
 	canSendImproveQuestionsFollowUp,
 	clearImproveQuestionsBatch,
 	continueImproveQuestionsRun,

@@ -44,10 +44,7 @@ export async function runParallelReview(
 						system: systemPrompt,
 						tools: options?.tools,
 						logging: createLlmLogContext("reviewer.draft", config, {
-							callId: createLlmLogCallId(
-								"reviewer.draft",
-								String(index + 1),
-							),
+							callId: createLlmLogCallId("reviewer.draft", String(index + 1)),
 							systemPrompt,
 							requestSummary: question.slice(0, 200),
 						}),

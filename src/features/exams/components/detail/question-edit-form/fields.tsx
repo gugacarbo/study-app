@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ScoringMode } from "@/lib/answer-scoring";
 import {
+	type EditFormData,
 	isAnswerSelected,
+	type QuestionData,
 	remapAnswersForOptionRename,
 	removeAnswersForOption,
 	toggleAnswerSelection,
-	type EditFormData,
-	type QuestionData,
 } from "../exam-utils";
 
 interface QuestionEditFieldsProps {
@@ -89,10 +89,7 @@ export function QuestionEditFields({
 											);
 											onFormChange({
 												options: newOptions,
-												answers: removeAnswersForOption(
-													editForm.answers,
-													opt,
-												),
+												answers: removeAnswersForOption(editForm.answers, opt),
 											});
 										}}
 										className="text-muted-foreground hover:text-destructive"

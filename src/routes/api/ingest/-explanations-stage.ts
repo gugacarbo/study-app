@@ -1,15 +1,15 @@
 import { explainSingleQuestion } from "@/features/ai/agents/explanations/generate-explanations/explain-single-question";
 import { bridgeAgentRunEvent } from "@/features/ai/core/bridge-agent-run-event";
 import {
-	writeStage,
-	createAgentRunWriter,
 	type AgentRunDescriptor,
+	type createAgentRunWriter,
 	type JobUIMessageStreamWriter,
+	writeStage,
 } from "@/features/ai/core/ui-message-job-stream";
-import { runConcurrentBatch } from "@/features/ai/pipeline/server/run-concurrent-batch";
 import type { PipelineRunContext } from "@/features/ai/pipeline/server/create-job-api-route";
-import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
 import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
+import { runConcurrentBatch } from "@/features/ai/pipeline/server/run-concurrent-batch";
+import { runPipelineStage } from "@/features/ai/pipeline/server/run-pipeline-stage";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import type { MemoryManager } from "../../../lib/memory";
 import { buildTopicMemoryResolver } from "../../../lib/memory/topic-context";
@@ -71,7 +71,9 @@ export async function runExplanationsStage(
 					"explanations",
 					"Explanation generation disabled",
 				);
-				agentRuns.lifecycle(skippedRun, "skipped", { meta: { disabled: true } });
+				agentRuns.lifecycle(skippedRun, "skipped", {
+					meta: { disabled: true },
+				});
 				agentRuns.warning(
 					skippedRun,
 					"Explanation generation disabled for this ingest.",
