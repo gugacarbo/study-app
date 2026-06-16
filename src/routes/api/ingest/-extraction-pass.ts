@@ -7,6 +7,7 @@ import {
 	createAiStreamState,
 	createToolResultEmitter,
 	isAiStreamRunErrorChunk,
+	isRecoverableStreamPartError,
 	payloadFromToolExecuteResult,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
@@ -139,16 +140,30 @@ export async function runExtractionPass(
 
 		for await (const chunk of result.fullStream) {
 			if (isAiStreamRunErrorChunk(chunk)) {
+				const message =
+					chunk.error instanceof Error
+						? chunk.error.message
+						: String(chunk.error);
+
+				if (isRecoverableStreamPartError(chunk)) {
+					log.error("AI extraction pass recoverable stream error", chunk, {
+						stage: stageId,
+						agentRunId: run.agentRunId,
+						label: stageLabel,
+						rawTextLength: streamState.rawText.length,
+					});
+					onWarning(
+						`Provider dropped a stream chunk after a tool call (${message}); continuing with extracted questions.`,
+					);
+					continue;
+				}
+
 				log.error("AI extraction pass run error", chunk, {
 					stage: stageId,
 					agentRunId: run.agentRunId,
 					label: stageLabel,
 					rawTextLength: streamState.rawText.length,
 				});
-				const message =
-					chunk.error instanceof Error
-						? chunk.error.message
-						: String(chunk.error);
 				throw new Error(`AI provider returned error: ${message}`);
 			}
 

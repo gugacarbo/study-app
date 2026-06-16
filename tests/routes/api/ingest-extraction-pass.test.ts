@@ -22,6 +22,7 @@ vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
 		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
 	return {
 		...actual,
+		isRecoverableStreamPartError: actual.isRecoverableStreamPartError,
 		processAiStreamPart(
 			chunk: Parameters<typeof actual.processAiStreamPart>[0],
 			handlers: Parameters<typeof actual.processAiStreamPart>[1],
@@ -390,6 +391,69 @@ describe("runExtractionPass", () => {
 		);
 		expect(onWarning).toHaveBeenCalledWith(
 			"No questions were extracted during the initial ingest pass.",
+		);
+	});
+
+	it("continues after a recoverable text-part compatibility error", async () => {
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
+					await addQuestion.execute(
+						{
+							question: "O que e cache?",
+							options: ["Memoria rapida", "Disco rigido"],
+							answer: "Memoria rapida",
+							topic: "Memoria",
+						},
+						{ toolCallId: "tc-1" },
+					);
+					yield {
+						type: "tool-result",
+						toolCallId: "tc-1",
+						toolName: "add_extracted_question",
+						input: {
+							question: "O que e cache?",
+							options: ["Memoria rapida", "Disco rigido"],
+							answer: "Memoria rapida",
+							topic: "Memoria",
+						},
+						output: { ok: true },
+					} as TextStreamPart<ToolSet>;
+					yield {
+						type: "error",
+						error: "text part dde5bf33-a114-4841-b717-7d9f17785d67 not found",
+					} as TextStreamPart<ToolSet>;
+				})(),
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
+
+		const onWarning = vi.fn();
+		const log = { error: vi.fn() };
+		const agentRuns = createAgentRunsMock();
+
+		const result = await runExtractionPass({
+			text: "Texto da prova",
+			fileName: "exam.txt",
+			config: {
+				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
+				apiKey: "test-key",
+			},
+			criticalTopics: [],
+			agentRuns,
+			onWarning,
+			log,
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		expect(result.questions).toHaveLength(1);
+		expect(onWarning).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"Provider dropped a stream chunk after a tool call",
+			),
 		);
 	});
 

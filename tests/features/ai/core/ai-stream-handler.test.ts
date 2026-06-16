@@ -4,6 +4,7 @@ import {
 	createAiStreamState,
 	createIncrementalToolChunkHandler,
 	createToolResultEmitter,
+	isRecoverableStreamPartError,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
 
@@ -260,5 +261,40 @@ describe("createIncrementalToolChunkHandler", () => {
 				state: "complete",
 			},
 		]);
+	});
+});
+
+describe("isRecoverableStreamPartError", () => {
+	function asErrorPart(error: unknown): TextStreamPart<ToolSet> {
+		return { type: "error", error } as unknown as TextStreamPart<ToolSet>;
+	}
+
+	it("returns true for AI SDK missing text-part compatibility errors", () => {
+		expect(
+			isRecoverableStreamPartError(
+				asErrorPart(
+					"text part dde5bf33-a114-4841-b717-7d9f17785d67 not found",
+				),
+			),
+		).toBe(true);
+		expect(
+			isRecoverableStreamPartError(
+				asErrorPart(
+					new Error(
+						"AI provider returned error: text part abc-123 not found",
+					),
+				),
+			),
+		).toBe(true);
+	});
+
+	it("returns false for other stream errors", () => {
+		expect(
+			isRecoverableStreamPartError(asErrorPart("provider rate limit")),
+		).toBe(false);
+		expect(
+			isRecoverableStreamPartError(asErrorPart(new Error("something else"))),
+		).toBe(false);
+		expect(isRecoverableStreamPartError("not a chunk" as unknown as TextStreamPart<ToolSet>)).toBe(false);
 	});
 });

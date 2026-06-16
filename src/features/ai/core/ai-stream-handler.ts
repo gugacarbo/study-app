@@ -215,6 +215,19 @@ function readToolErrorMessage(error: unknown): string {
 	return "Unknown error";
 }
 
+function readStreamErrorMessage(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	return String(error);
+}
+
+export function isRecoverableStreamPartError(part: unknown): boolean {
+	if (typeof part !== "object" || part === null) return false;
+	const chunk = part as { type?: unknown; error?: unknown };
+	if (chunk.type !== "error") return false;
+	const message = readStreamErrorMessage(chunk.error);
+	return /(?:^|:\s)text part [^ ]+ not found$/i.test(message);
+}
+
 export function isAiStreamRunErrorChunk<TOOLS extends ToolSet>(
 	chunk: TextStreamPart<TOOLS>,
 ): chunk is Extract<TextStreamPart<TOOLS>, { type: "error" }> {
