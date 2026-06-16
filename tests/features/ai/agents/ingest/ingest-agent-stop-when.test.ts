@@ -6,6 +6,7 @@ import {
 	buildIngestExtractionStopWhen,
 	buildIngestReviewStopWhen,
 	ingestExtractionDuplicateAddDetected,
+	ingestExtractionTargetReached,
 	ingestReviewUpdateNoOpDetected,
 	ingestStageStatusReported,
 	repeatedToolCallInLastSteps,
@@ -124,9 +125,48 @@ describe("ingestStageStatusReported", () => {
 	});
 });
 
+describe("ingestExtractionTargetReached", () => {
+	it("stops when the expected question count is registered", () => {
+		const condition = ingestExtractionTargetReached(2);
+
+		expect(
+			condition({
+				steps: [
+					createStep([
+						{
+							toolName: "add_extracted_question",
+							output: { ok: true, questionId: "q2", totalQuestions: 2 },
+						},
+					]),
+				],
+			}),
+		).toBe(true);
+	});
+
+	it("does not stop before the expected question count is reached", () => {
+		const condition = ingestExtractionTargetReached(2);
+
+		expect(
+			condition({
+				steps: [
+					createStep([
+						{
+							toolName: "add_extracted_question",
+							output: { ok: true, questionId: "q1", totalQuestions: 1 },
+						},
+					]),
+				],
+			}),
+		).toBe(false);
+	});
+});
+
 describe("ingest agent stopWhen builders", () => {
 	it("builds extraction, review, and explanation stop conditions", () => {
-		expect(buildIngestExtractionStopWhen(15)).toHaveLength(2);
+		expect(buildIngestExtractionStopWhen(15)).toHaveLength(4);
+		expect(
+			buildIngestExtractionStopWhen(15, { expectedQuestionCount: 3 }),
+		).toHaveLength(5);
 		expect(buildIngestReviewStopWhen(12)).toHaveLength(2);
 		expect(buildIngestExplanationStopWhen(12)).toHaveLength(2);
 		expect(buildImproveQuestionsStopWhen(12)).toHaveLength(5);
