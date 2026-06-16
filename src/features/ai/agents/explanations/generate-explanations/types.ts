@@ -28,7 +28,13 @@ export interface ExplanationBatchInput {
 	explanation?: string;
 }
 
-type ExplanationAgentRunStatus = "pending" | "running" | "done" | "error";
+type ExplanationAgentRunStatus =
+	| "pending"
+	| "running"
+	| "done"
+	| "warning"
+	| "error"
+	| "skipped";
 
 interface ExplanationAgentRunMeta {
 	questionIndex?: number;
@@ -38,6 +44,8 @@ interface ExplanationAgentRunMeta {
 	topic?: string;
 	toolCallId?: string;
 	kind?: "reasoning";
+	stageStatusMessage?: string;
+	reportedStageStatus?: string | null;
 }
 
 export interface ExplanationAgentRunEvent {
@@ -104,6 +112,8 @@ export interface RunQuestionExplanationsOptions {
 		} & AiStreamToolResultPayload,
 	) => void;
 	createAgentRunId?: (label: string) => string;
+	/** Skip per-attempt failure warnings; caller emits one summary warning instead. */
+	suppressFailureWarning?: boolean;
 }
 
 /** @deprecated Use RunQuestionExplanationsOptions */

@@ -1,6 +1,11 @@
-import { stepCountIs, type ToolSet } from "ai";
+import type { ToolSet } from "ai";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
+import { IMPROVE_QUESTIONS_MAX_STEPS } from "@/features/ai/core/agent-limits";
+import {
+	buildImproveQuestionsStopWhen,
+	buildPostUpdatePrepareStep,
+} from "@/features/ai/core/tool-agent-stop-when";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
@@ -59,6 +64,7 @@ export async function improveSingleQuestion(
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
+	let toolsComplete = false;
 
 	const baseMeta = { questionId: question.id };
 	const providerConfig = toProviderConfig(config);
@@ -93,6 +99,7 @@ export async function improveSingleQuestion(
 
 		if (isSuccessfulUpdateToolResult(toolName, toolResult.content)) {
 			hasSuccessfulUpdate = true;
+			toolsComplete = true;
 			const content = toolResult.content as {
 				ok: true;
 				id: number;
@@ -201,7 +208,8 @@ export async function improveSingleQuestion(
 				system: systemPrompt,
 				messages: conversationMessages,
 				tools: combinedTools,
-				stopWhen: stepCountIs(10),
+				stopWhen: buildImproveQuestionsStopWhen(IMPROVE_QUESTIONS_MAX_STEPS),
+				prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
 				providerOptions: buildProviderOptions(providerConfig),
 			},
 		);

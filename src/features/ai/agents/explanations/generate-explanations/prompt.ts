@@ -18,10 +18,11 @@ export function buildExplanationUserPrompt(
 		`The question already exists in the workspace as questionId ${question.id}.`,
 		"",
 		"Workflow:",
-		"- Inspect the workspace with list_explanation_questions.",
 		"- Call update_question_explanation with questionId, explanation, and deepExplanation.",
+		"- The snapshot below already has the stem and correct answer(s); you do not need list_explanation_questions first.",
 		"- Every call must include questionId, explanation, and deepExplanation.",
-		"- Finish only after the workspace shows hasExplanation and hasDeepExplanation true.",
+		"- Call update_question_explanation exactly once, then stop.",
+		"- Do not call list_explanation_questions or update_question_explanation repeatedly.",
 		...(multiAnswer
 			? [
 					"- This question has multiple correct answers — cover each one in both fields.",

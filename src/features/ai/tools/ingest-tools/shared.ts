@@ -136,6 +136,11 @@ export const extractionToolFailureSchema = z.object({
 	error: extractionToolErrorSchema,
 });
 
+export const extractionToolSuccessBaseSchema = z.object({
+	ok: z.literal(true),
+	message: z.string().min(1),
+});
+
 export type ExtractionQuestionFields = z.output<
 	typeof extractionQuestionFieldsSchema
 >;

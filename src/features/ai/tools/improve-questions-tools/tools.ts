@@ -167,6 +167,7 @@ export function createImproveQuestionsTools(
 							ok: true;
 							id: number;
 							updatedFields: ImproveQuestionsUpdatedField[];
+							message: string;
 					  };
 				try {
 					if (!hasMeaningfulOptionsPatch(parsedInput)) {
@@ -174,6 +175,8 @@ export function createImproveQuestionsTools(
 							ok: true as const,
 							id: parsedInput.id,
 							updatedFields: [],
+							message:
+								"No fields changed. Stop calling update_question_options and finish with a brief summary.",
 						};
 					} else {
 						workspace.updateQuestion(parsedInput.id, {
@@ -187,6 +190,8 @@ export function createImproveQuestionsTools(
 							ok: true as const,
 							id: parsedInput.id,
 							updatedFields: workspace.getUpdatedFields(parsedInput.id),
+							message:
+								"Question updated. Stop calling update_question_options and finish with a brief summary.",
 						};
 					}
 				} catch (error) {

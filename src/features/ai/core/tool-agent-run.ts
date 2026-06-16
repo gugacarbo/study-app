@@ -1,4 +1,4 @@
-import type { StopCondition, ToolSet } from "ai";
+import type { PrepareStepFunction, StopCondition, ToolSet } from "ai";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import {
@@ -51,7 +51,10 @@ export interface RunToolAgentStreamParams {
 	systemPrompt: string;
 	messages: Array<{ role: "user" | "assistant"; content: string }>;
 	tools: ToolSet;
-	stopWhen: StopCondition<NoInfer<ToolSet>>;
+	stopWhen:
+		| StopCondition<NoInfer<ToolSet>>
+		| Array<StopCondition<NoInfer<ToolSet>>>;
+	prepareStep?: PrepareStepFunction<NoInfer<ToolSet>>;
 	handlers: AiStreamHandlers;
 	streamState?: AiStreamState;
 	onRecoverableError?: (message: string) => void;
@@ -75,6 +78,7 @@ export async function runToolAgentStream(
 			messages: params.messages,
 			tools: params.tools,
 			stopWhen: params.stopWhen,
+			prepareStep: params.prepareStep,
 			providerOptions: buildProviderOptions(params.config),
 		},
 	);

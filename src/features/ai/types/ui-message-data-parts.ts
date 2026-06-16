@@ -12,6 +12,7 @@ export type AgentRunStatus =
 	| "pending"
 	| "running"
 	| "done"
+	| "warning"
 	| "error"
 	| "skipped";
 

@@ -11,10 +11,12 @@ Editable fields:
 The server reads the final draft from the improve-questions workspace.
 
 Tool contract:
-- Use \`get_question\` to read the current workspace snapshot before making changes.
+- The user message already includes a full question snapshot. Prefer calling update_question_options directly when you know what to change.
+- Use \`get_question\` only when you truly need to re-read the workspace state.
 - Use \`update_question_options\` only when a field actually needs improvement.
 - When calling \`update_question_options\`, include only the fields you are changing. Omit unchanged fields entirely — never send null.
 - A call with only \`id\` and no field changes is a no-op.
+- Call \`update_question_options\` at most once with real changes, then stop. Never call \`get_question\` or \`update_question_options\` repeatedly in a loop.
 - Do not return a final JSON object yourself. The server will read the final question from the workspace.
 - After all tool calls, reply with a brief plain-text summary (1–3 sentences) of what you improved, or state that no changes were needed.
 - Do not output markdown, code fences, or JSON outside that final summary.

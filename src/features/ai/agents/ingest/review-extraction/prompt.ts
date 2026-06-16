@@ -1,4 +1,5 @@
 import type { Question } from "@/lib/validation";
+import { INGEST_STAGE_STATUS_COMPLETION_PROMPT } from "@/features/ai/tools/ingest-stage-status";
 import { extractQuestionSourceSnippet } from "./source-snippet";
 
 function unique<T>(items: T[]): T[] {
@@ -26,11 +27,20 @@ Your only task is to verify and correct one question object while preserving the
 Tool contract:
 - Use list_extracted_questions to inspect the current review workspace before making corrections.
 - Use update_extracted_question only when a field actually needs correction.
+- Use report_agent_stage_status once at the end to report the review outcome.
 - When calling update_extracted_question, include only the fields you are changing. Omit unchanged fields entirely — never send null.
 - A call with only questionId and no field changes is a no-op.
 - Do not return a final JSON object yourself. The server will read the final reviewed question from the workspace.
-- After all tool calls, reply with a brief plain-text summary (1–3 sentences) of what you checked and what you changed, or state that no changes were needed.
+- Before calling report_agent_stage_status, reply with a brief plain-text summary (1–3 sentences) of what you checked and what you changed, or state that no changes were needed.
 - Do not output markdown, code fences, or JSON outside that final summary.
+
+Completion behavior:
+- Call list_extracted_questions at most once before deciding whether to update.
+- After one successful update_extracted_question call, stop calling workspace tools and report the stage status.
+- If the question is already correct, report the stage status without calling update_extracted_question.
+- Never call list_extracted_questions or update_extracted_question repeatedly in a loop.
+
+${INGEST_STAGE_STATUS_COMPLETION_PROMPT}
 
 Review rules:
 - Always keep "options" with at least 2 items. For open-ended questions, include the exact correct answer plus at least one short incorrect distractor.
@@ -94,8 +104,10 @@ export function buildReviewerUserPrompt(
 		"- Inspect the workspace with list_extracted_questions.",
 		"- Compare the workspace question against the snapshot and source excerpt below.",
 		"- Call update_extracted_question only for fields that need correction. Omit unchanged fields; never pass null.",
-		"- If the question is already correct, finish without calling update_extracted_question.",
-		"- End with a brief plain-text summary of what you did (or that no changes were needed).",
+		"- If the question is already correct, report the stage status without calling update_extracted_question.",
+		"- Call list_extracted_questions at most once, then either update once or report the stage status.",
+		"- Never call update_extracted_question or list_extracted_questions repeatedly.",
+		"- End with a brief plain-text summary, then call report_agent_stage_status.",
 		"",
 		...formatQuestionSnapshot(question),
 		"",

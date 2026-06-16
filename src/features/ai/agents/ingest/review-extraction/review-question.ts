@@ -1,14 +1,24 @@
-import { stepCountIs, type ToolSet } from "ai";
+import type { ToolSet } from "ai";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
 } from "@/features/ai/core/ai-stream-handler";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import {
+	buildIngestReviewPrepareStep,
+	buildIngestReviewStopWhen,
+} from "@/features/ai/core/tool-agent-stop-when";
+import {
 	isSuccessfulNamedToolResult,
 	readToolFailureMessage,
 	runToolAgentStream,
 } from "@/features/ai/core/tool-agent-run";
+import {
+	readIngestAgentStageStatusReport,
+	resolveIngestAgentRunStatus,
+	type IngestAgentReportedStatus,
+	type IngestAgentStageStatusReport,
+} from "@/features/ai/tools/ingest-stage-status";
 import type {
 	ExtractionWorkspaceQuestion,
 	ExtractionWorkspaceState,
@@ -43,7 +53,15 @@ export async function reviewSingleQuestion(
 	const workspace = createExtractionWorkspace(
 		createReviewWorkspaceState(question),
 	);
-	const workspaceTools = createIngestExtractionTools(workspace);
+	let stageStatusReport: IngestAgentStageStatusReport | null = null;
+	let reportedStageStatus: IngestAgentReportedStatus | null = null;
+	const workspaceTools = createIngestExtractionTools(workspace, {
+		onStageStatusReported: ({ output }) => {
+			const report = readIngestAgentStageStatusReport(output);
+			stageStatusReport = report;
+			reportedStageStatus = report?.status ?? null;
+		},
+	});
 	const combinedTools: ToolSet = {
 		...workspaceTools,
 		...(options.tools ?? {}),
@@ -52,6 +70,10 @@ export async function reviewSingleQuestion(
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
+	let listCallCount = 0;
+	let updateCallCount = 0;
+	let stoppedAfterNoOpUpdate = false;
+	let toolsComplete = false;
 	const questionMeta = {
 		questionIndex: index,
 		questionNumber: index + 1,
@@ -139,6 +161,26 @@ export async function reviewSingleQuestion(
 			}
 			const toolName =
 				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+			if (toolName === "list_extracted_questions") {
+				listCallCount += 1;
+			}
+			if (toolName === "update_extracted_question") {
+				updateCallCount += 1;
+				const output = readToolOutput(toolResult.content);
+				if (output?.ok === true && Array.isArray(output.updatedFields)) {
+					if (output.updatedFields.length === 0) {
+						stoppedAfterNoOpUpdate = true;
+					}
+					toolsComplete = true;
+				}
+			}
+			if (toolName === "report_agent_stage_status") {
+				const report = readIngestAgentStageStatusReport(
+					toolResult.content,
+				);
+				stageStatusReport = report;
+				reportedStageStatus = report?.status ?? null;
+			}
 			if (
 				isSuccessfulNamedToolResult(
 					toolName,
@@ -163,7 +205,11 @@ export async function reviewSingleQuestion(
 			systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 			tools: combinedTools,
-			stopWhen: stepCountIs(INGEST_PER_QUESTION_MAX_STEPS),
+			stopWhen: buildIngestReviewStopWhen(INGEST_PER_QUESTION_MAX_STEPS),
+			prepareStep: buildIngestReviewPrepareStep({
+				shouldFinalize: () => toolsComplete,
+				listCallCount: () => listCallCount,
+			}),
 			streamState,
 			onRecoverableError: (message) => {
 				emitAgentEvent(options, {
@@ -211,6 +257,38 @@ export async function reviewSingleQuestion(
 			},
 		});
 
+		if (stoppedAfterNoOpUpdate) {
+			emitAgentEvent(options, {
+				eventType: "warning",
+				stageId: "review",
+				agentRunId,
+				label,
+				warning:
+					"Review agent retried a no-op update; stopped the tool loop and kept the workspace question.",
+				meta: questionMeta,
+			});
+		} else if (listCallCount >= 2 && !hasSuccessfulUpdate) {
+			emitAgentEvent(options, {
+				eventType: "warning",
+				stageId: "review",
+				agentRunId,
+				label,
+				warning:
+					"Review agent kept re-listing the workspace; stopped the tool loop and kept the current question.",
+				meta: questionMeta,
+			});
+		} else if (updateCallCount >= 2 && hasSuccessfulUpdate) {
+			emitAgentEvent(options, {
+				eventType: "warning",
+				stageId: "review",
+				agentRunId,
+				label,
+				warning:
+					"Review agent retried an already-applied update; stopped the tool loop and kept the reviewed question.",
+				meta: questionMeta,
+			});
+		}
+
 		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
 			throw new Error(
 				toolFailureMessages[0] ?? "Reviewer could not apply a valid review.",
@@ -218,6 +296,14 @@ export async function reviewSingleQuestion(
 		}
 
 		const reviewedQuestion = readReviewedQuestion(workspace);
+		const resolvedStageStatus = resolveIngestAgentRunStatus({
+			reported: stageStatusReport,
+			toolFailureMessages,
+			hasSuccessfulWork: hasSuccessfulUpdate || listCallCount >= 1,
+			fallbackMessage: hasSuccessfulUpdate
+				? "Review applied changes without an explicit stage report."
+				: "Review completed without changes and without an explicit stage report.",
+		});
 
 		emitAgentEvent(options, {
 			eventType: "result",
@@ -226,15 +312,22 @@ export async function reviewSingleQuestion(
 			label,
 			finalObject: reviewedQuestion,
 			rawText: streamState.rawText,
-			meta: questionMeta,
+			meta: {
+				...questionMeta,
+				stageStatusMessage: resolvedStageStatus.message,
+			},
 		});
 		emitAgentEvent(options, {
 			eventType: "lifecycle",
 			stageId: "review",
 			agentRunId,
 			label,
-			status: "done",
-			meta: questionMeta,
+			status: resolvedStageStatus.status,
+			meta: {
+				...questionMeta,
+				stageStatusMessage: resolvedStageStatus.message,
+				reportedStageStatus,
+			},
 		});
 
 		return { question: reviewedQuestion, success: true };
@@ -267,6 +360,11 @@ export async function reviewSingleQuestion(
 
 		return { question, success: false, reason: message };
 	}
+}
+
+function readToolOutput(content: unknown): Record<string, unknown> | null {
+	if (typeof content !== "object" || content === null) return null;
+	return content as Record<string, unknown>;
 }
 
 function createReviewWorkspaceState(

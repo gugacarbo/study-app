@@ -92,7 +92,10 @@ async function explainAllQuestionsWithRetries(
 		questions,
 		concurrency,
 		(question, index) =>
-			explainSingleQuestion(config, question, index, totalQuestions, options),
+			explainSingleQuestion(config, question, index, totalQuestions, {
+				...options,
+				suppressFailureWarning: true,
+			}),
 	);
 
 	if (results.every((result) => !result.success)) {
@@ -123,12 +126,21 @@ async function explainAllQuestionsWithRetries(
 					questions[index],
 					index,
 					totalQuestions,
-					options,
+					{ ...options, suppressFailureWarning: true },
 				),
 		);
 
 		for (let i = 0; i < failedIndices.length; i++) {
 			results[failedIndices[i]] = retryResults[i];
+		}
+	}
+
+	for (let index = 0; index < results.length; index++) {
+		const result = results[index];
+		if (!result.success) {
+			options.onProgress?.({
+				message: `Explanation generation failed for question #${index + 1}. Keeping the original question.`,
+			});
 		}
 	}
 

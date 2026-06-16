@@ -126,7 +126,7 @@ describe("runExtractionPass", () => {
 		const agentRuns = createAgentRunsMock();
 		const log = { error: vi.fn() };
 
-		const result = await runExtractionPass({
+		const pass = await runExtractionPass({
 			text: "Texto da prova",
 			fileName: "ENEM_2023_Linguagens.pdf",
 			config: {
@@ -140,6 +140,8 @@ describe("runExtractionPass", () => {
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
 		});
+
+		const result = pass.result;
 
 		expect(result).toEqual({
 			examName: "ENEM 2023 Linguagens",
@@ -164,7 +166,11 @@ describe("runExtractionPass", () => {
 			}),
 			result,
 			expect.stringContaining("[tool:add_extracted_question]"),
-			{ toolQuestionCount: 1 },
+			{
+				toolQuestionCount: 1,
+				stageStatusMessage:
+					"Extracted 1 question(s) without an explicit stage report.",
+			},
 		);
 		expect(agentRuns.toolCall).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -222,7 +228,7 @@ describe("runExtractionPass", () => {
 			};
 		});
 
-		const result = await runExtractionPass({
+		const pass = await runExtractionPass({
 			text: "Texto da prova",
 			fileName: "prova-redes.txt",
 			config: {
@@ -236,6 +242,8 @@ describe("runExtractionPass", () => {
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
 		});
+
+		const result = pass.result;
 
 		expect(result).toEqual({
 			examName: "prova redes",
@@ -460,7 +468,7 @@ describe("runExtractionPass", () => {
 		const log = { error: vi.fn() };
 		const agentRuns = createAgentRunsMock();
 
-		const result = await runExtractionPass({
+		const pass = await runExtractionPass({
 			text: "Texto da prova",
 			fileName: "exam.txt",
 			config: {
@@ -475,11 +483,63 @@ describe("runExtractionPass", () => {
 			stageLabel: "Initial extraction agent",
 		});
 
+		const result = pass.result;
 		expect(result.questions).toHaveLength(1);
 		expect(onWarning).toHaveBeenCalledWith(
 			expect.stringContaining(
 				"Provider dropped a stream chunk after a tool call",
 			),
+		);
+	});
+
+	it("warns when the agent retries an already-registered question", async () => {
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
+					await addQuestion.execute(
+						{
+							question: "Qual e a derivada de f(x) = x²?",
+							options: ["1", "2x", "x²", "2"],
+							answers: ["2x"],
+							scoringMode: "exact",
+						},
+						{ toolCallId: "tc-1" },
+					);
+					await addQuestion.execute(
+						{
+							question: "Qual e a derivada de f(x) = x²?",
+							options: ["1", "2x", "x²", "2"],
+							answers: ["2x"],
+							scoringMode: "exact",
+						},
+						{ toolCallId: "tc-2" },
+					);
+				})(),
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
+
+		const onWarning = vi.fn();
+		const pass = await runExtractionPass({
+			text: "1. Qual e a derivada de f(x) = x²?\na) 1\nb) 2x\nc) x²\nd) 2",
+			fileName: "single-question.md",
+			config: {
+				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
+				apiKey: "test-key",
+			},
+			agentRuns: createAgentRunsMock(),
+			onWarning,
+			log: { error: vi.fn() },
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		const result = pass.result;
+		expect(result.questions).toHaveLength(1);
+		expect(onWarning).toHaveBeenCalledWith(
+			"Extraction agent retried an already-registered question; stopped the tool loop and kept the workspace result.",
 		);
 	});
 

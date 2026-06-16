@@ -1,9 +1,10 @@
-import { stepCountIs, type ToolSet } from "ai";
+import type { ToolSet } from "ai";
 import {
 	createAiStreamState,
 	createToolResultEmitter,
 } from "@/features/ai/core/ai-stream-handler";
 import { INGEST_PER_QUESTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
+import { buildIngestExplanationStopWhen, buildPostUpdatePrepareStep } from "@/features/ai/core/tool-agent-stop-when";
 import {
 	isSuccessfulNamedToolResult,
 	readToolFailureMessage,
@@ -13,6 +14,13 @@ import {
 	createExplanationTools,
 	createExplanationWorkspace,
 } from "@/features/ai/tools/explanation-tools";
+import {
+	createReportAgentStageStatusTool,
+	readIngestAgentStageStatusReport,
+	resolveIngestAgentRunStatus,
+	type IngestAgentReportedStatus,
+	type IngestAgentStageStatusReport,
+} from "@/features/ai/tools/ingest-stage-status";
 import type { ProviderConfig } from "@/lib/validation";
 import { buildSystemPrompt } from "../system-prompt";
 import { emitAgentEvent } from "./execute-helpers";
@@ -43,15 +51,27 @@ export async function explainSingleQuestion(
 	const systemPrompt = buildSystemPrompt(memoryContext);
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
-	const explanationTools = createExplanationTools(workspace);
-	const combinedTools: ToolSet = {
-		...explanationTools,
-		...(options.tools as ToolSet | undefined),
-	};
 	const streamState = createAiStreamState();
 	const toolNamesById = new Map<string, string>();
 	const toolFailureMessages: string[] = [];
+	let stageStatusReport: IngestAgentStageStatusReport | null = null;
+	let reportedStageStatus: IngestAgentReportedStatus | null = null;
 	let hasSuccessfulUpdate = false;
+	let updateCallCount = 0;
+	let toolsComplete = false;
+	const explanationTools = createExplanationTools(workspace);
+	const stageStatusTools = createReportAgentStageStatusTool({
+		onToolExecuted: ({ output }) => {
+			const report = readIngestAgentStageStatusReport(output);
+			stageStatusReport = report;
+			reportedStageStatus = report?.status ?? null;
+		},
+	});
+	const combinedTools: ToolSet = {
+		...explanationTools,
+		...stageStatusTools,
+		...(options.tools as ToolSet | undefined),
+	};
 	const questionMeta = {
 		questionIndex: index,
 		questionNumber: index + 1,
@@ -141,6 +161,9 @@ export async function explainSingleQuestion(
 			}
 			const toolName =
 				toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+			if (toolName === "update_question_explanation") {
+				updateCallCount += 1;
+			}
 			if (
 				isSuccessfulNamedToolResult(
 					toolName,
@@ -149,6 +172,14 @@ export async function explainSingleQuestion(
 				)
 			) {
 				hasSuccessfulUpdate = true;
+				toolsComplete = true;
+			}
+			if (toolName === "report_agent_stage_status") {
+				const report = readIngestAgentStageStatusReport(
+					toolResult.content,
+				);
+				stageStatusReport = report;
+				reportedStageStatus = report?.status ?? null;
 			}
 		};
 		const emitToolResult = createToolResultEmitter(
@@ -169,7 +200,8 @@ export async function explainSingleQuestion(
 			systemPrompt,
 			messages: [{ role: "user", content: userPrompt }],
 			tools: combinedTools,
-			stopWhen: stepCountIs(INGEST_PER_QUESTION_MAX_STEPS),
+			stopWhen: buildIngestExplanationStopWhen(INGEST_PER_QUESTION_MAX_STEPS),
+			prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
 			streamState,
 			onRecoverableError: (message) => {
 				emitAgentEvent(options, {
@@ -217,14 +249,49 @@ export async function explainSingleQuestion(
 			},
 		});
 
-		if (toolFailureMessages.length > 0 && !hasSuccessfulUpdate) {
+		if (updateCallCount >= 2 && hasSuccessfulUpdate) {
+			emitAgentEvent(options, {
+				eventType: "warning",
+				stageId: "explanations",
+				agentRunId,
+				label,
+				warning:
+					"Explanation agent retried an already-written explanation; stopped the tool loop and kept the workspace result.",
+				meta: questionMeta,
+			});
+		}
+
+		if (
+			toolFailureMessages.length > 0 &&
+			!hasSuccessfulUpdate &&
+			!workspaceHasCompleteExplanation(workspace, question.id)
+		) {
 			throw new Error(
 				toolFailureMessages[0] ??
 					"Explanation agent could not apply a valid explanation update.",
 			);
 		}
 
+		if (
+			!hasSuccessfulUpdate &&
+			!workspaceHasCompleteExplanation(workspace, question.id)
+		) {
+			throw new Error(
+				"Explanation agent finished without calling update_question_explanation.",
+			);
+		}
+
 		const generated = readGeneratedExplanation(workspace, question.id);
+		const resolvedStageStatus = resolveIngestAgentRunStatus({
+			reported: stageStatusReport,
+			toolFailureMessages,
+			hasSuccessfulWork:
+				hasSuccessfulUpdate ||
+				workspaceHasCompleteExplanation(workspace, question.id),
+			fallbackMessage: hasSuccessfulUpdate
+				? "Explanation written without an explicit stage report."
+				: "Explanation stage finished without an explicit stage report.",
+		});
 
 		emitAgentEvent(options, {
 			eventType: "result",
@@ -233,15 +300,22 @@ export async function explainSingleQuestion(
 			label,
 			finalObject: generated,
 			rawText: streamState.rawText,
-			meta: questionMeta,
+			meta: {
+				...questionMeta,
+				stageStatusMessage: resolvedStageStatus.message,
+			},
 		});
 		emitAgentEvent(options, {
 			eventType: "lifecycle",
 			stageId: "explanations",
 			agentRunId,
 			label,
-			status: "done",
-			meta: questionMeta,
+			status: resolvedStageStatus.status,
+			meta: {
+				...questionMeta,
+				stageStatusMessage: resolvedStageStatus.message,
+				reportedStageStatus,
+			},
 		});
 
 		return { result: generated, success: true };
@@ -263,17 +337,31 @@ export async function explainSingleQuestion(
 			error: message,
 			meta: questionMeta,
 		});
-		emitAgentEvent(options, {
-			eventType: "warning",
-			stageId: "explanations",
-			agentRunId,
-			label,
-			warning: `Explanation generation failed for question #${index + 1}. Keeping the original question.`,
-			meta: questionMeta,
-		});
+		if (!options.suppressFailureWarning) {
+			emitAgentEvent(options, {
+				eventType: "warning",
+				stageId: "explanations",
+				agentRunId,
+				label,
+				warning: `Explanation generation failed for question #${index + 1}. Keeping the original question.`,
+				meta: questionMeta,
+			});
+		}
 
 		return { question, success: false, reason: message };
 	}
+}
+
+function workspaceHasCompleteExplanation(
+	workspace: ReturnType<typeof createExplanationWorkspace>,
+	questionId: number,
+): boolean {
+	const question = workspace
+		.listQuestions()
+		.find((item) => item.id === questionId);
+	return Boolean(
+		question?.explanation.trim() && question.deepExplanation.trim(),
+	);
 }
 
 function readGeneratedExplanation(

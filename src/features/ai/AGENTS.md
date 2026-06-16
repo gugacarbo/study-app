@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-15 (per-question explain-question jobs) -->
+<!-- Last updated: 2026-06-15 (agent stage status + stop-when helpers) -->
 
 Domain-driven AI integration layer. 60+ files across 12 subdirectories.
 
@@ -47,7 +47,8 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`db-tools.ts`** — Database query tools (exposed to agents via MCP-like interface)
 - **`web-tools.ts`** — Web search + content fetch tools (Tavily provider)
 - **`reviewer-tool.ts`** — Specialized tool for reviewer agent
-- **`ingest-tools/`** — Ingest extraction workspace + tools (`add_extracted_question`, `update_extracted_question`)
+- **`ingest-stage-status.ts`** — `report_agent_stage_status` tool + status resolution for ingest pipeline stages
+- **`ingest-tools/`** — Ingest extraction workspace + tools (`add_extracted_question`, `update_extracted_question`, `report_agent_stage_status`)
   - `workspace.ts` — Workspace implementation (question storage, lookup by ID)
   - `tools.ts` — Tool definitions for AI function calling
   - `shared.ts` — Shared types and validators
@@ -56,9 +57,10 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 
 - **`core/generate/`** — `generateObject` / `streamObject` structured output
 - **`core/ai-stream-handler.ts`** — Stream chunk processing for agent runs
-- **`core/agent-limits.ts`** — Named `stopWhen` step limits for ingest (`INGEST_EXTRACTION_MAX_STEPS=15`, `INGEST_PER_QUESTION_MAX_STEPS=12`)
+- **`core/agent-limits.ts`** — Named step limits (`INGEST_EXTRACTION_MAX_STEPS=15`, `INGEST_PER_QUESTION_MAX_STEPS=12`, `IMPROVE_QUESTIONS_MAX_STEPS=12`)
 - **`core/bridge-agent-run-event.ts`** — Bridges per-question agent events to UI Message Stream writers (lifecycle, tokens, tool calls)
-- **`core/tool-agent-run.ts`** — Shared stream loop for single-question tool agents (review, explanations)
+- **`core/tool-agent-run.ts`** — Shared stream loop for single-question tool agents (review, explanations); supports `stopWhen` arrays and `prepareStep`
+- **`core/tool-agent-stop-when.ts`** — Reusable `stopWhen` / `prepareStep` builders (stage status, workspace no-op, duplicate add, repeated tool calls)
 - **`core/map-with-concurrency.ts`** — Parallel mapper used by review/explanation batches
 - **`core/ui-message-job-stream.ts`** — `createJobUIMessageStream` + data-part writers for jobs
 - **`core/stream-text-compat.ts`** — `streamTextWithCompatibilityFallback` for providers missing text stream parts

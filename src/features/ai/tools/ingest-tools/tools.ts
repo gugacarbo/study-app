@@ -2,8 +2,13 @@ import { tool, zodSchema, type ToolExecutionOptions, type ToolSet } from "ai";
 import { z } from "zod";
 import type { Question } from "@/lib/validation";
 import {
+	createReportAgentStageStatusTool,
+	type IngestStageStatusToolEvent,
+} from "@/features/ai/tools/ingest-stage-status";
+import {
 	type ExtractionQuestionFields,
 	type ExtractionQuestionPatch,
+	INGEST_TOOL_ERROR_CODE,
 	extractionQuestionFieldsSchema,
 	extractionQuestionIdSchema,
 	extractionQuestionPatchSchema,
@@ -25,6 +30,14 @@ interface ExtractionWorkspaceApi {
 	listQuestions: () => ExtractionWorkspaceQuestion[];
 }
 
+type ExtractionUpdatedField =
+	| "question"
+	| "options"
+	| "answers"
+	| "scoringMode"
+	| "topic"
+	| "explanation";
+
 function hasMeaningfulQuestionPatch(input: ExtractionQuestionPatch) {
 	return (
 		input.question != null ||
@@ -34,6 +47,38 @@ function hasMeaningfulQuestionPatch(input: ExtractionQuestionPatch) {
 		input.topic != null ||
 		input.explanation != null
 	);
+}
+
+function collectUpdatedFields(
+	parsedInput: ExtractionQuestionPatch,
+): ExtractionUpdatedField[] {
+	return [
+		...(parsedInput.question != null ? ["question" as const] : []),
+		...(parsedInput.options != null ? ["options" as const] : []),
+		...(parsedInput.answers != null ? ["answers" as const] : []),
+		...(parsedInput.scoringMode != null ? ["scoringMode" as const] : []),
+		...(parsedInput.topic != null ? ["topic" as const] : []),
+		...(parsedInput.explanation != null ? ["explanation" as const] : []),
+	];
+}
+
+function buildUpdateSuccessMessage(
+	questionId: string,
+	updatedFields: ExtractionUpdatedField[],
+) {
+	if (updatedFields.length === 0) {
+		return `No changes applied to ${questionId}. The question is already correct — stop calling update_extracted_question.`;
+	}
+
+	return `Updated ${questionId}: ${updatedFields.join(", ")}. Stop if no further corrections are needed.`;
+}
+
+function buildListSuccessMessage(totalQuestions: number) {
+	if (totalQuestions === 0) {
+		return "No questions registered in the extraction workspace yet.";
+	}
+
+	return `Listed ${totalQuestions} question(s) from the extraction workspace.`;
 }
 
 function toToolFailure(error: unknown) {
@@ -48,11 +93,15 @@ function toToolFailure(error: unknown) {
 	}
 
 	console.error("Ingest extraction tool failed:", error);
+	const message =
+		error instanceof Error && error.message.length > 0
+			? error.message
+			: "Unable to update the current extraction workspace.";
 	return {
 		ok: false as const,
 		error: {
-			code: "INGEST_TOOL_ERROR",
-			message: "Unable to update the current extraction workspace.",
+			code: INGEST_TOOL_ERROR_CODE,
+			message,
 		},
 	};
 }
@@ -62,6 +111,13 @@ export type IngestToolExecutedEvent = {
 	toolName: string;
 	input: unknown;
 	output: unknown;
+};
+
+export type IngestExtractionToolsOptions = {
+	onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void>;
+	onStageStatusReported?: (
+		event: IngestStageStatusToolEvent,
+	) => void | Promise<void>;
 };
 
 async function notifyToolExecuted(
@@ -91,11 +147,14 @@ const listExtractedQuestionsInputSchema = z.object({});
 
 export function createIngestExtractionTools(
 	workspace: ExtractionWorkspaceApi,
-	options?: {
-		onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void>;
-	},
+	options?: IngestExtractionToolsOptions,
 ): ToolSet {
+	const stageStatusTools = createReportAgentStageStatusTool({
+		onToolExecuted: options?.onStageStatusReported,
+	});
+
 	return {
+		...stageStatusTools,
 		add_extracted_question: tool({
 			description:
 				"Add one extracted exam question to the current ingest workspace.",
@@ -106,19 +165,32 @@ export function createIngestExtractionTools(
 					| Awaited<ReturnType<typeof toToolFailure>>
 					| {
 							ok: true;
+							added: boolean;
 							questionId: string;
 							totalQuestions: number;
+							alreadyExists?: true;
+							message: string;
 					  };
 				try {
 					const existingCount = workspace.listQuestions().length;
 					const question = workspace.addQuestion(parsedInput);
+					const alreadyExists =
+						workspace.listQuestions().length === existingCount;
 					output = {
 						ok: true as const,
+						added: !alreadyExists,
 						questionId: question.questionId,
 						totalQuestions: workspace.listQuestions().length,
-						...(workspace.listQuestions().length === existingCount
-							? { alreadyExists: true as const }
-							: {}),
+						...(alreadyExists
+							? {
+									alreadyExists: true as const,
+									message:
+										"This question is already registered. Stop calling add_extracted_question. Use update_extracted_question only if a correction is needed.",
+								}
+							: {
+									message:
+										"Question registered. Continue only if more distinct source questions remain; otherwise stop.",
+								}),
 					};
 				} catch (error) {
 					output = toToolFailure(error);
@@ -144,23 +216,23 @@ export function createIngestExtractionTools(
 					| {
 							ok: true;
 							questionId: string;
-							updatedFields: Array<
-								| "question"
-								| "options"
-								| "answers"
-								| "scoringMode"
-								| "topic"
-								| "explanation"
-							>;
+							updatedFields: ExtractionUpdatedField[];
+							message: string;
 					  };
 				try {
 					if (!hasMeaningfulQuestionPatch(parsedInput)) {
+						const updatedFields: ExtractionUpdatedField[] = [];
 						output = {
 							ok: true as const,
 							questionId: parsedInput.questionId,
-							updatedFields: [],
+							updatedFields,
+							message: buildUpdateSuccessMessage(
+								parsedInput.questionId,
+								updatedFields,
+							),
 						};
 					} else {
+						const updatedFields = collectUpdatedFields(parsedInput);
 						workspace.updateQuestion(
 							parsedInput.questionId as ExtractionQuestionId,
 							{
@@ -175,18 +247,11 @@ export function createIngestExtractionTools(
 						output = {
 							ok: true as const,
 							questionId: parsedInput.questionId,
-							updatedFields: [
-								...(parsedInput.question != null ? ["question" as const] : []),
-								...(parsedInput.options != null ? ["options" as const] : []),
-								...(parsedInput.answers != null ? ["answers" as const] : []),
-								...(parsedInput.scoringMode != null
-									? ["scoringMode" as const]
-									: []),
-								...(parsedInput.topic != null ? ["topic" as const] : []),
-								...(parsedInput.explanation != null
-									? ["explanation" as const]
-									: []),
-							],
+							updatedFields,
+							message: buildUpdateSuccessMessage(
+								parsedInput.questionId,
+								updatedFields,
+							),
 						};
 					}
 				} catch (error) {
@@ -211,6 +276,7 @@ export function createIngestExtractionTools(
 				const output = {
 					ok: true as const,
 					totalQuestions: questions.length,
+					message: buildListSuccessMessage(questions.length),
 					data: questions.map((question) => ({
 						questionId: question.questionId,
 						question: question.question,

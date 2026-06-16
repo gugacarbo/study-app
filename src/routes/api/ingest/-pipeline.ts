@@ -149,8 +149,9 @@ export async function runIngestWithProgress(
 		timestamp: Date.now(),
 	});
 	let extracted: ExamIngestResponse;
+	let extractionStageStatus: "done" | "warning" | "error" | "skipped" = "done";
 	try {
-		extracted = await runExtractionPass({
+		const extractionPass = await runExtractionPass({
 			text,
 			fileName: payload.fileName,
 			config: ingestConfig,
@@ -160,6 +161,8 @@ export async function runIngestWithProgress(
 			stageId: "initial_extraction",
 			stageLabel: "Initial extraction agent",
 		});
+		extracted = extractionPass.result;
+		extractionStageStatus = extractionPass.stageStatus;
 	} catch (err) {
 		log.error("Initial extraction failed", err, {
 			stage: "initial_extraction",
@@ -178,7 +181,7 @@ export async function runIngestWithProgress(
 	writeStage(writer, {
 		stageId: "initial_extraction",
 		label: "Extracting questions with AI",
-		status: "done",
+		status: extractionStageStatus,
 		timestamp: Date.now(),
 	});
 	onProgress("Initial extraction completed");

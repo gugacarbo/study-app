@@ -101,4 +101,57 @@ describe("ingest extraction workspace", () => {
 			"Question q999 was not found in the current extraction workspace.",
 		);
 	});
+
+	it("supports custom initial state, getState, reset, and topic aggregation", () => {
+		const workspace = createExtractionWorkspace({
+			examName: "Prova Final",
+			nextQuestionNumber: 3,
+		});
+
+		workspace.addQuestion({
+			question: "Questao A",
+			options: ["A", "B"],
+			answers: ["A"],
+			topic: "Algebra",
+		});
+		workspace.addQuestion({
+			question: "Questao B",
+			options: ["A", "B"],
+			answers: ["B"],
+			topic: "Geometria",
+		});
+
+		expect(workspace.getState()).toMatchObject({
+			examName: "Prova Final",
+			nextQuestionNumber: 5,
+		});
+		expect(workspace.listQuestions().map((item) => item.questionId)).toEqual([
+			"q3",
+			"q4",
+		]);
+
+		const result = workspace.buildResult();
+		expect(result.examName).toBe("Prova Final");
+		expect(result.questions).toHaveLength(2);
+		expect(result.topics).toEqual(["Algebra", "Geometria"]);
+
+		workspace.reset();
+		expect(workspace.getState()).toEqual({
+			examName: "Untitled exam",
+			questions: [],
+			nextQuestionNumber: 1,
+		});
+	});
+
+	it("throws INGEST_TOOL_ERROR when validation fails on add", () => {
+		const workspace = createExtractionWorkspace();
+
+		expect(() =>
+			workspace.addQuestion({
+				question: "Sem resposta",
+				options: ["A", "B"],
+				answers: [],
+			}),
+		).toThrowError(ExtractionWorkspaceError);
+	});
 });

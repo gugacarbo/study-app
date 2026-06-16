@@ -1,4 +1,5 @@
-import { stepCountIs, type ToolSet } from "ai";
+import type { ToolSet } from "ai";
+import { buildExtractionPrepareStep, buildIngestExtractionStopWhen } from "@/features/ai/core/tool-agent-stop-when";
 import { parseExamNameFromFileName } from "@/features/ai/agents/ingest/parse-exam-name";
 import { buildSystemPrompt } from "@/features/ai/agents/ingest/system-prompt";
 import { INGEST_EXTRACTION_MAX_STEPS } from "@/features/ai/core/agent-limits";
@@ -12,6 +13,7 @@ import {
 	payloadFromToolExecuteResult,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
+import { readToolFailureMessage } from "@/features/ai/core/tool-agent-run";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import { createLlmLogContext } from "@/lib/llm-logging";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
@@ -20,8 +22,15 @@ import {
 	createExtractionWorkspace,
 	createIngestExtractionTools,
 } from "@/features/ai/tools/ingest-tools";
+import {
+	readIngestAgentStageStatusReport,
+	resolveIngestAgentRunStatus,
+	type IngestAgentReportedStatus,
+	type IngestAgentStageStatusReport,
+} from "@/features/ai/tools/ingest-stage-status";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
-import { buildExtractionUserPrompt } from "./-extract-text";
+import type { IngestAgentResolvedStatus } from "@/features/ai/tools/ingest-stage-status";
+import { buildExtractionUserPrompt, estimateSourceQuestionCount } from "./-extract-text";
 
 interface ExtractionPassParams {
 	text: string;
@@ -77,9 +86,15 @@ interface ExtractionPassParams {
 	stageLabel: string;
 }
 
+export interface ExtractionPassResult {
+	result: ExamIngestResponse;
+	stageStatus: IngestAgentResolvedStatus;
+	stageStatusMessage: string;
+}
+
 export async function runExtractionPass(
 	params: ExtractionPassParams,
-): Promise<ExamIngestResponse> {
+): Promise<ExtractionPassResult> {
 	const {
 		text,
 		fileName,
@@ -92,11 +107,20 @@ export async function runExtractionPass(
 	} = params;
 
 	const examName = parseExamNameFromFileName(fileName);
+	const expectedQuestionCount = estimateSourceQuestionCount(text);
 	const systemPrompt = buildSystemPrompt({ enableWebVerification: false });
-	const userPrompt = buildExtractionUserPrompt(text, { fileName, examName });
+	const userPrompt = buildExtractionUserPrompt(text, {
+		fileName,
+		examName,
+		expectedQuestionCount,
+	});
 	const run = agentRuns.createRun(stageId, stageLabel);
 	const workspace = createExtractionWorkspace({ examName });
 	const streamState = createAiStreamState();
+	let stoppedAfterDuplicateAdd = false;
+	let stageStatusReport: IngestAgentStageStatusReport | null = null;
+	let reportedStageStatus: IngestAgentReportedStatus | null = null;
+	const toolFailureMessages: string[] = [];
 	const emitToolResult = createToolResultEmitter((toolResult) => {
 		const tracked = streamState.toolCalls.get(toolResult.toolCallId);
 		agentRuns.toolResult(
@@ -111,8 +135,25 @@ export async function runExtractionPass(
 		);
 	}, streamState);
 	const tools = createIngestExtractionTools(workspace, {
-		onToolExecuted: async ({ toolCallId, output }) => {
+		onToolExecuted: async ({ toolName, toolCallId, output }) => {
+			const toolFailure = readToolFailureMessage(output);
+			if (toolFailure) {
+				toolFailureMessages.push(toolFailure);
+			}
+			if (
+				toolName === "add_extracted_question" &&
+				typeof output === "object" &&
+				output !== null &&
+				(output as { alreadyExists?: boolean }).alreadyExists === true
+			) {
+				stoppedAfterDuplicateAdd = true;
+			}
 			emitToolResult(payloadFromToolExecuteResult(toolCallId, output));
+		},
+		onStageStatusReported: ({ output }) => {
+			const report = readIngestAgentStageStatusReport(output);
+			stageStatusReport = report;
+			reportedStageStatus = report?.status ?? null;
 		},
 	});
 
@@ -132,7 +173,11 @@ export async function runExtractionPass(
 				system: systemPrompt,
 				messages: [{ role: "user", content: userPrompt }],
 				tools: tools as ToolSet,
-				stopWhen: stepCountIs(INGEST_EXTRACTION_MAX_STEPS),
+				stopWhen: buildIngestExtractionStopWhen(INGEST_EXTRACTION_MAX_STEPS),
+				prepareStep: buildExtractionPrepareStep(workspace, {
+					expectedQuestionCount,
+					shouldFinalize: () => stoppedAfterDuplicateAdd,
+				}),
 				providerOptions: buildProviderOptions(config),
 			},
 		);
@@ -196,7 +241,20 @@ export async function runExtractionPass(
 			);
 		}
 
+		if (stoppedAfterDuplicateAdd) {
+			onWarning(
+				"Extraction agent retried an already-registered question; stopped the tool loop and kept the workspace result.",
+			);
+		}
+
 		const extractionResult = workspace.buildResult();
+		const resolvedStageStatus = resolveIngestAgentRunStatus({
+			reported: stageStatusReport,
+			toolFailureMessages,
+			hasSuccessfulWork: extractionResult.questions.length > 0,
+			fallbackMessage: `Extracted ${extractionResult.questions.length} question(s) without an explicit stage report.`,
+		});
+
 		if (extractionResult.questions.length > 1) {
 			onWarning(
 				`Extracted ${extractionResult.questions.length} questions — verify the count matches the source exam.`,
@@ -211,15 +269,22 @@ export async function runExtractionPass(
 
 		agentRuns.result(run, extractionResult, streamState.rawText, {
 			toolQuestionCount: workspace.listQuestions().length,
+			stageStatusMessage: resolvedStageStatus.message,
 		});
-		agentRuns.lifecycle(run, "done", {
+		agentRuns.lifecycle(run, resolvedStageStatus.status as AgentRunStatus, {
 			meta: {
 				examName: extractionResult.examName,
 				questionCount: extractionResult.questions.length,
 				topicCount: extractionResult.topics.length,
+				stageStatusMessage: resolvedStageStatus.message,
+				reportedStageStatus,
 			},
 		});
-		return extractionResult;
+		return {
+			result: extractionResult,
+			stageStatus: resolvedStageStatus.status,
+			stageStatusMessage: resolvedStageStatus.message,
+		};
 	} catch (error) {
 		log.error("AI extraction pass failed", error, {
 			stage: stageId,
