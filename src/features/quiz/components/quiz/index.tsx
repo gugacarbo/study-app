@@ -1,5 +1,10 @@
 import { useSelector } from "@tanstack/react-store";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useRegisterPageChatContext } from "@/features/ai/context/page-chat-context";
+import type {
+	ClientToolDefinition,
+	PageChatContextRegistration,
+} from "@/features/ai/context/page-chat-registry";
 import { Card, CardContent } from "@/components/ui/card";
 import { QuizExplanation } from "../quiz-explanation";
 import { QuizLoading } from "../quiz-loading";
@@ -57,6 +62,53 @@ export function Quiz({ examId, topic }: { examId?: number; topic?: string }) {
 		examId,
 		topic,
 	});
+
+	const currentQuestion = st.hasStarted
+		? (questions?.[st.currentQuestionIndex] as QuestionWithId | undefined)
+		: undefined;
+
+	useRegisterPageChatContext(
+		useMemo((): PageChatContextRegistration => {
+			const clientTools: ClientToolDefinition[] = [
+				{
+					name: "reveal_hint",
+					description: "Revela uma dica sobre a questão atual do quiz.",
+					parameters: { type: "object", properties: {} },
+				},
+				{
+					name: "go_to_question",
+					description:
+						"Navega para uma questão específica do quiz (índice 1-based).",
+					parameters: {
+						type: "object",
+						properties: {
+							index: { type: "number" },
+						},
+						required: ["index"],
+					},
+				},
+			];
+
+			return {
+				summary:
+					st.hasStarted && currentQuestion
+						? `Questão ${st.currentQuestionIndex + 1}/${st.total}. Score: ${st.score}/${st.total}. ${currentQuestion.question.slice(0, 160)}`
+						: `Quiz com ${questions?.length ?? 0} questões`,
+				examId: examId !== undefined ? String(examId) : undefined,
+				questionId: currentQuestion ? String(currentQuestion.id) : undefined,
+				clientTools,
+			};
+		}, [
+				st.hasStarted,
+				st.currentQuestionIndex,
+				st.total,
+				st.score,
+				currentQuestion,
+				questions?.length,
+				examId,
+			],
+		),
+	);
 
 	if (!init || !questions) return <QuizLoading withButton />;
 

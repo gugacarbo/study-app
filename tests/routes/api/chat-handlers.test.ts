@@ -41,6 +41,13 @@ vi.mock("ai", async (importOriginal) => {
 	return {
 		...actual,
 		convertToModelMessages: convertToModelMessagesMock,
+		createUIMessageStreamResponse: vi.fn(
+			() =>
+				new Response("stream", {
+					status: 200,
+					headers: { "Content-Type": "text/event-stream" },
+				}),
+		),
 	};
 });
 
@@ -89,12 +96,12 @@ describe("handleChatPost", () => {
 			{ role: "user", content: "Hello" },
 		]);
 		loggedStreamTextMock.mockReturnValue({
-			toUIMessageStreamResponse: vi.fn(
-				() =>
-					new Response("stream", {
-						status: 200,
-						headers: { "Content-Type": "text/event-stream" },
-					}),
+			toUIMessageStream: vi.fn(() =>
+				new ReadableStream({
+					start(controller) {
+						controller.close();
+					},
+				}),
 			),
 		});
 	});
@@ -156,5 +163,27 @@ describe("handleChatPost", () => {
 			expect.any(DBQueries),
 			9,
 		);
+	});
+
+	it("includes pageContext in the chat system prompt", async () => {
+		await handleChatPost(
+			createChatRequest({
+				...validBody,
+				metadata: {
+					pageContext: {
+						contextKey: "exam:7",
+						pageType: "exam",
+						label: "Prova 7",
+						route: "/exams/7",
+						examId: "7",
+					},
+				},
+			}),
+		);
+
+		expect(loggedStreamTextMock).toHaveBeenCalledTimes(1);
+		const callArgs = loggedStreamTextMock.mock.calls[0];
+		expect(callArgs?.[1]?.system).toContain("Prova 7");
+		expect(callArgs?.[1]?.system).toContain("Exam ID: 7");
 	});
 });

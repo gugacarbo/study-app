@@ -1,3 +1,5 @@
+import type { PageChatContextPayload } from "@/features/ai/context/page-chat-context";
+
 const BASE_CHAT_SYSTEM_PROMPT = `You are a helpful study assistant for this app.
 
 When the user asks for factual data from the app database (exams, questions, answer keys, attempts), call the available tools first instead of guessing.
@@ -12,16 +14,49 @@ Prefer the reviewer answer when available, then keep your final response concise
 
 export interface ChatSystemPromptOptions {
 	reviewMode?: boolean;
+	pageContext?: PageChatContextPayload | null;
+}
+
+function buildPageContextBlock(pageContext: PageChatContextPayload): string {
+	const lines = [
+		"## Current page context",
+		`- Page: ${pageContext.label}`,
+		`- Route: ${pageContext.route}`,
+		`- Page type: ${pageContext.pageType}`,
+	];
+
+	if (pageContext.examId) {
+		lines.push(`- Exam ID: ${pageContext.examId}`);
+	}
+	if (pageContext.questionId) {
+		lines.push(`- Question ID: ${pageContext.questionId}`);
+	}
+	if (pageContext.summary) {
+		lines.push(`- Summary: ${pageContext.summary}`);
+	}
+
+	lines.push(
+		"",
+		"When calling database tools, prefer filters matching the current context (e.g. list_questions with the current examId when available).",
+	);
+
+	return lines.join("\n");
 }
 
 export function buildChatSystemPrompt(
 	options?: ChatSystemPromptOptions,
 ): string {
-	if (!options?.reviewMode) {
-		return BASE_CHAT_SYSTEM_PROMPT;
+	const parts = [BASE_CHAT_SYSTEM_PROMPT];
+
+	if (options?.pageContext) {
+		parts.push(buildPageContextBlock(options.pageContext));
 	}
 
-	return `${BASE_CHAT_SYSTEM_PROMPT}\n${REVIEW_MODE_INSTRUCTION}`;
+	if (options?.reviewMode) {
+		parts.push(REVIEW_MODE_INSTRUCTION);
+	}
+
+	return parts.join("\n");
 }
 
 export const CHAT_SYSTEM_PROMPT = BASE_CHAT_SYSTEM_PROMPT;

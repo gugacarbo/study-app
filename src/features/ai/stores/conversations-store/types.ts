@@ -7,6 +7,7 @@ export interface Conversation {
 	createdAt: number;
 	updatedAt: number;
 	messageCount: number;
+	contextKey: string | null;
 }
 
 export interface ConversationsState {

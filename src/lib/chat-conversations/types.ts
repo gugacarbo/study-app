@@ -20,6 +20,7 @@ export interface ChatConversationSummary {
 	id: string;
 	title: string;
 	messageCount: number;
+	contextKey: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -29,6 +30,7 @@ export interface ChatConversationRecord {
 	title: string;
 	r2_key: string;
 	message_count: number;
+	context_key: string | null;
 	created_at: string | null;
 	updated_at: string | null;
 }

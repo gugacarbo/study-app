@@ -31,6 +31,7 @@ function row(
 		title: "New Chat",
 		r2_key: `chats/${overrides.id}.json`,
 		message_count: 0,
+		context_key: null,
 		created_at: "2026-01-01T00:00:00Z",
 		updated_at: "2026-01-01T00:00:00Z",
 		...overrides,
@@ -59,6 +60,7 @@ describe("ChatConversationStorage", () => {
 					title: data.title,
 					r2_key: data.r2Key,
 					message_count: data.messageCount ?? 0,
+					context_key: data.contextKey ?? null,
 				}));
 			},
 		);

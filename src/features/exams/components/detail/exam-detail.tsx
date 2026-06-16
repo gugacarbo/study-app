@@ -4,6 +4,9 @@ import { useStore } from "@tanstack/react-store";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+	useRegisterPageChatContext,
+} from "@/features/ai/context/page-chat-context";
+import {
 	areExplainQuestionsExamUiEqual,
 	areExplainQuestionsExamViewsEqual,
 	areImproveQuestionsExamUiEqual,
@@ -96,6 +99,37 @@ export function ExamDetail({ examId }: ExamDetailProps) {
 	} = useQuestionEditing({ examId });
 
 	const { stats } = exam;
+
+	const selectedQuestionId = useMemo(() => {
+		const expanded = [...expandedQuestions];
+		return expanded.length > 0 ? expanded[0] : null;
+	}, [expandedQuestions]);
+
+	useRegisterPageChatContext(
+		useMemo(
+			() => ({
+				summary: `${exam.name}: ${exam.questions.length} questões${selectedQuestionId ? `, questão expandida #${selectedQuestionId}` : ""}`,
+				examId: String(examId),
+				questionId:
+					selectedQuestionId !== null ? String(selectedQuestionId) : undefined,
+				clientTools: [
+					{
+						name: "scroll_to_question",
+						description:
+							"Rola a lista de questões até a questão indicada pelo ID.",
+						parameters: {
+							type: "object",
+							properties: {
+								questionId: { type: "number" },
+							},
+							required: ["questionId"],
+						},
+					},
+				],
+			}),
+			[exam.name, exam.questions.length, examId, selectedQuestionId],
+		),
+	);
 
 	const improveQuestionsQuestion = useMemo(() => {
 		const questionId = improveQuestionsUi.questionDialogQuestionId;

@@ -7,8 +7,8 @@ import {
 } from "./sync";
 import { conversationsStore } from "./types";
 
-export async function createConversation(): Promise<string> {
-	return await createConversationOnServer();
+export async function createConversation(contextKey?: string | null): Promise<string> {
+	return await createConversationOnServer(undefined, contextKey);
 }
 
 export async function deleteConversation(id: string): Promise<void> {

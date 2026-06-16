@@ -29,6 +29,7 @@ function toClientConversation(summary: ChatConversationSummary): Conversation {
 		id: summary.id,
 		title: summary.title,
 		messageCount: summary.messageCount,
+		contextKey: summary.contextKey,
 		createdAt: Date.parse(summary.createdAt) || Date.now(),
 		updatedAt: Date.parse(summary.updatedAt) || Date.now(),
 	};
@@ -153,9 +154,13 @@ export async function flushConversationSave(id: string): Promise<void> {
 
 export async function createConversationOnServer(
 	title?: string,
+	contextKey?: string | null,
 ): Promise<string> {
 	const { conversation } = await createChatConversation({
-		data: title ? { title } : {},
+		data: {
+			...(title ? { title } : {}),
+			...(contextKey !== undefined ? { contextKey } : {}),
+		},
 	});
 	const clientConversation = toClientConversation(conversation);
 	fullMessagesCache.set(clientConversation.id, []);

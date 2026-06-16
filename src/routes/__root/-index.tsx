@@ -1,6 +1,7 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { HeadContent, Link, ScriptOnce, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { AssistantDevToolsPortal } from "@/features/ai/components/assistant-ui/assistant-devtools-portal";
 import { getLayoutUIScript } from "@/features/ai/stores/ui-store";
 import appCss from "../../globals.css?url";
 import { RootNav } from "./-nav";
@@ -58,6 +59,7 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
 							{children}
 						</main>
 					</div>
+					<AssistantDevToolsPortal />
 					<TanStackDevtools
 						config={{ position: "bottom-right" }}
 						plugins={[

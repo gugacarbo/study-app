@@ -8,6 +8,7 @@ import {
 	navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { BackgroundProcessIndicator } from "@/features/background-processes/components/process-indicator";
+import { HeaderChatWidget } from "@/features/ai/components/chat/header-chat-widget";
 import ThemeToggle from "@/features/theme/components/theme-toggle";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 
@@ -49,6 +50,7 @@ export function RootNav() {
 				</NavigationMenu>
 				<div className="ml-auto flex items-center gap-2">
 					<BackgroundProcessIndicator />
+					{pathname !== "/chat" ? <HeaderChatWidget /> : null}
 					<ThemeToggle />
 				</div>
 			</div>

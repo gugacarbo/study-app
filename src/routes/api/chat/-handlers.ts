@@ -1,12 +1,13 @@
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import type { D1Database } from "@cloudflare/workers-types";
-import { convertToModelMessages, stepCountIs, type ToolSet } from "ai";
+import { convertToModelMessages, createUIMessageStreamResponse, stepCountIs, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "assistant-stream";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-headers";
+import { splitThinkTagsInUIMessageStream } from "@/features/ai/lib/split-think-tags-ui-stream";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import {
 	type ResolvedModelConfig,
@@ -24,6 +25,31 @@ import {
 import { summarizeSearchResultSnippets } from "./-tools";
 
 const AI_TIMEOUT_MS = 60_000;
+
+function parsePageContextFromMetadata(
+	metadata: Record<string, unknown> | undefined,
+): import("@/features/ai/context/page-chat-context").PageChatContextPayload | null {
+	const raw = metadata?.pageContext;
+	if (!raw || typeof raw !== "object") return null;
+
+	const record = raw as Record<string, unknown>;
+	if (typeof record.contextKey !== "string") return null;
+	if (typeof record.pageType !== "string") return null;
+	if (typeof record.label !== "string") return null;
+	if (typeof record.route !== "string") return null;
+
+	return {
+		contextKey: record.contextKey,
+		pageType: record.pageType,
+		label: record.label,
+		route: record.route,
+		...(typeof record.examId === "string" ? { examId: record.examId } : {}),
+		...(typeof record.questionId === "string"
+			? { questionId: record.questionId }
+			: {}),
+		...(typeof record.summary === "string" ? { summary: record.summary } : {}),
+	};
+}
 
 function mergeChatTools(
 	serverTools: ToolSet,
@@ -133,7 +159,8 @@ async function runChatStream({
 		parseClientToolsFromRequest(body),
 	);
 
-	const chatSystemPrompt = buildChatSystemPrompt({ reviewMode });
+	const pageContext = parsePageContextFromMetadata(body.metadata);
+	const chatSystemPrompt = buildChatSystemPrompt({ reviewMode, pageContext });
 	const chatCallId = createLlmLogCallId("chat");
 
 	const result = loggedStreamText(
@@ -159,10 +186,14 @@ async function runChatStream({
 		db,
 	);
 
-	return result.toUIMessageStreamResponse({
-		originalMessages: messages,
+	return createUIMessageStreamResponse({
+		stream: splitThinkTagsInUIMessageStream(
+			result.toUIMessageStream({
+				originalMessages: messages,
+				onFinish: cleanup,
+			}),
+		),
 		headers: mergeStreamResponseHeaders(),
-		onFinish: cleanup,
 	});
 }
 

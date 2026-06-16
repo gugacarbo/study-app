@@ -64,11 +64,16 @@ export const getChatConversation = createServerFn({ method: "POST" })
 	});
 
 export const createChatConversation = createServerFn({ method: "POST" })
-	.inputValidator(z.object({ title: z.string().optional() }))
+	.inputValidator(
+		z.object({
+			title: z.string().optional(),
+			contextKey: z.string().nullable().optional(),
+		}),
+	)
 	.handler(async (ctx) => {
 		const { data } = ctx;
 		const storage = await getStorage(ctx);
-		const conversation = await storage.create(data.title);
+		const conversation = await storage.create(data.title, data.contextKey);
 		return { conversation };
 	});
 

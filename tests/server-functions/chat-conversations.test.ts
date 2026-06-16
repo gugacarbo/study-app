@@ -11,6 +11,7 @@ function row(
 		title: "New Chat",
 		r2_key: `chats/${overrides.id}.json`,
 		message_count: 0,
+		context_key: null,
 		created_at: "2026-01-01T00:00:00Z",
 		updated_at: "2026-01-01T00:00:00Z",
 		...overrides,

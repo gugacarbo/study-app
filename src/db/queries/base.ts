@@ -189,6 +189,7 @@ export interface DBQueries {
 		title: string;
 		r2Key: string;
 		messageCount?: number;
+		contextKey?: string | null;
 	}): Promise<void>;
 	updateChatConversation(
 		id: string,

@@ -18,6 +18,7 @@ function toSummary(row: ChatConversationRecord): ChatConversationSummary {
 		id: row.id,
 		title: row.title,
 		messageCount: row.message_count,
+		contextKey: row.context_key,
 		createdAt: row.created_at ?? "",
 		updatedAt: row.updated_at ?? "",
 	};
@@ -83,7 +84,10 @@ export class ChatConversationStorage {
 		};
 	}
 
-	async create(title = "New Chat"): Promise<ChatConversationSummary> {
+	async create(
+		title = "New Chat",
+		contextKey?: string | null,
+	): Promise<ChatConversationSummary> {
 		const id = generateConversationId();
 		const r2Key = buildR2Key(id);
 
@@ -93,6 +97,7 @@ export class ChatConversationStorage {
 			title,
 			r2Key,
 			messageCount: 0,
+			contextKey: contextKey ?? null,
 		});
 
 		const row = await this.queries.getChatConversationById(id);

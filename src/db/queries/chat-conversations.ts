@@ -32,6 +32,7 @@ export function insertChatConversation(
 		title: string;
 		r2Key: string;
 		messageCount?: number;
+		contextKey?: string | null;
 	},
 ): Promise<void> {
 	return this.db
@@ -41,6 +42,7 @@ export function insertChatConversation(
 			title: data.title,
 			r2_key: data.r2Key,
 			message_count: data.messageCount ?? 0,
+			context_key: data.contextKey ?? null,
 		})
 		.run()
 		.then(() => undefined);

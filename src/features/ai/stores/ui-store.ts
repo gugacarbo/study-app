@@ -3,6 +3,11 @@ import { Store } from "@tanstack/store";
 export interface LayoutUIState {
 	chatSidebarOpen: boolean;
 	adminSidebarOpen: boolean;
+	headerChatOpen: boolean;
+	headerChatView: "popover" | "sheet";
+	headerChatConversationsOpen: boolean;
+	headerChatStreaming: boolean;
+	headerChatError: boolean;
 }
 
 const STORAGE_KEY = "study-app:layout-ui";
@@ -14,6 +19,11 @@ const LAYOUT_UI_HYDRATED_KEY = "__STUDY_APP_LAYOUT_UI_HYDRATED__";
 const INITIAL_STATE: LayoutUIState = {
 	chatSidebarOpen: true,
 	adminSidebarOpen: true,
+	headerChatOpen: false,
+	headerChatView: "popover",
+	headerChatConversationsOpen: false,
+	headerChatStreaming: false,
+	headerChatError: false,
 };
 
 function parseSidebarOpen(value: unknown, fallback: boolean): boolean {
@@ -54,6 +64,18 @@ function loadInitialState(): LayoutUIState {
 			parsed.adminSidebarOpen,
 			INITIAL_STATE.adminSidebarOpen,
 		),
+		headerChatOpen:
+			typeof parsed.headerChatOpen === "boolean"
+				? parsed.headerChatOpen
+				: INITIAL_STATE.headerChatOpen,
+		headerChatView:
+			parsed.headerChatView === "sheet" ? "sheet" : INITIAL_STATE.headerChatView,
+		headerChatConversationsOpen: parseSidebarOpen(
+			parsed.headerChatConversationsOpen,
+			INITIAL_STATE.headerChatConversationsOpen,
+		),
+		headerChatStreaming: INITIAL_STATE.headerChatStreaming,
+		headerChatError: INITIAL_STATE.headerChatError,
 	};
 }
 
@@ -116,5 +138,48 @@ export function setAdminSidebarOpen(open: boolean): void {
 	getLayoutUIStore().setState((state) => ({
 		...state,
 		adminSidebarOpen: open,
+	}));
+}
+
+export function setHeaderChatOpen(open: boolean): void {
+	getLayoutUIStore().setState((state) => ({ ...state, headerChatOpen: open }));
+}
+
+export function toggleHeaderChatOpen(): void {
+	getLayoutUIStore().setState((state) => ({
+		...state,
+		headerChatOpen: !state.headerChatOpen,
+	}));
+}
+
+export function setHeaderChatView(view: "popover" | "sheet"): void {
+	getLayoutUIStore().setState((state) => ({ ...state, headerChatView: view }));
+}
+
+export function setHeaderChatConversationsOpen(open: boolean): void {
+	getLayoutUIStore().setState((state) => ({
+		...state,
+		headerChatConversationsOpen: open,
+	}));
+}
+
+export function toggleHeaderChatConversationsOpen(): void {
+	getLayoutUIStore().setState((state) => ({
+		...state,
+		headerChatConversationsOpen: !state.headerChatConversationsOpen,
+	}));
+}
+
+export function setHeaderChatStreaming(streaming: boolean): void {
+	getLayoutUIStore().setState((state) => ({
+		...state,
+		headerChatStreaming: streaming,
+	}));
+}
+
+export function setHeaderChatError(hasError: boolean): void {
+	getLayoutUIStore().setState((state) => ({
+		...state,
+		headerChatError: hasError,
 	}));
 }

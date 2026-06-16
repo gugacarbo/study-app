@@ -246,11 +246,13 @@ export const chatConversations = sqliteTable(
 		title: text("title").notNull(),
 		r2_key: text("r2_key").notNull(),
 		message_count: integer("message_count").notNull().default(0),
+		context_key: text("context_key"),
 		created_at: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updated_at: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [
 		index("idx_chat_conversations_updated_at").on(table.updated_at),
+		index("idx_chat_conversations_context_key").on(table.context_key),
 		uniqueIndex("uq_chat_conversations_r2_key").on(table.r2_key),
 	],
 );
