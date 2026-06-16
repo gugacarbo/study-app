@@ -1,0 +1,2 @@
+export const INGEST_EXTRACTION_MAX_STEPS = 15;
+export const INGEST_PER_QUESTION_MAX_STEPS = 12;
