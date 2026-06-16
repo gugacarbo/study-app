@@ -28,7 +28,9 @@ import {
 	applyAllReadyImproveQuestionsRuns,
 	canApplyImproveQuestionsRun,
 	canContinueImproveQuestionsRun,
+	clearImproveQuestionsBatch,
 	continueImproveQuestionsRun,
+	dismissImproveQuestionsRun,
 	MAX_IMPROVE_QUESTIONS_ATTEMPTS,
 	startQueuedImproveQuestions,
 	getImproveQuestionsRun,
@@ -322,5 +324,72 @@ describe("applyAllReadyImproveQuestionsRuns", () => {
 		expect(result).toEqual({ applied: 1, failed: 0, errors: [] });
 		expect(updateQuestionMock).toHaveBeenCalledTimes(1);
 		expect(getImproveQuestionsRun(1)).toBeNull();
+	});
+});
+
+describe("clearImproveQuestionsBatch", () => {
+	it("removes completed runs for the exam and clears review UI state", () => {
+		backgroundProcessStore.setState(() => ({
+			processes: [
+				{
+					...createQueuedProcess(),
+					status: "awaiting_review",
+					phase: "done",
+				},
+				{
+					...createQueuedProcess(),
+					id: improveQuestionsProcessId(2),
+					questionId: 2,
+					status: "awaiting_review",
+					phase: "done",
+				},
+			],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: { 10: { maxWorkers: 2 } },
+			improveQuestionsUiByExam: {
+				10: { batchDialogOpen: true, questionDialogQuestionId: 1 },
+			},
+			explainQuestionsBatchByExam: {},
+			explainQuestionsUiByExam: {},
+		}));
+
+		clearImproveQuestionsBatch(10);
+
+		expect(backgroundProcessStore.state.processes).toHaveLength(0);
+		expect(backgroundProcessStore.state.improveQuestionsBatchByExam[10]).toBeUndefined();
+		expect(backgroundProcessStore.state.improveQuestionsUiByExam[10]).toEqual({
+			batchDialogOpen: true,
+			questionDialogQuestionId: null,
+		});
+		expect(runNextQueuedMock).toHaveBeenCalled();
+	});
+});
+
+describe("dismissImproveQuestionsRun", () => {
+	it("removes a completed run without aborting", () => {
+		backgroundProcessStore.setState(() => ({
+			processes: [
+				{
+					...createQueuedProcess(),
+					status: "awaiting_review",
+					phase: "done",
+				},
+			],
+			focusedProcessId: null,
+			improveQuestionsBatchByExam: {},
+			improveQuestionsUiByExam: {
+				10: { batchDialogOpen: true, questionDialogQuestionId: 1 },
+			},
+			explainQuestionsBatchByExam: {},
+			explainQuestionsUiByExam: {},
+		}));
+
+		dismissImproveQuestionsRun(1);
+
+		expect(getImproveQuestionsRun(1)).toBeNull();
+		expect(backgroundProcessStore.state.improveQuestionsUiByExam[10]).toEqual({
+			batchDialogOpen: true,
+			questionDialogQuestionId: null,
+		});
 	});
 });

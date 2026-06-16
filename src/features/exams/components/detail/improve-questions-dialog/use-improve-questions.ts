@@ -9,6 +9,7 @@ import {
 	canContinueImproveQuestionsRun,
 	canSendImproveQuestionsFollowUp,
 	continueImproveQuestionsRun,
+	dismissImproveQuestionsRun,
 	getImproveQuestionsRun,
 	getRunPreviewQuestion,
 	improveQuestionsProcessId,
@@ -110,6 +111,11 @@ export function useImproveQuestions({
 		onOpenChange(false);
 	}, [questionId, onOpenChange]);
 
+	const handleDismiss = useCallback(() => {
+		dismissImproveQuestionsRun(questionId);
+		onOpenChange(false);
+	}, [questionId, onOpenChange]);
+
 	const handleContinue = useCallback(() => {
 		continueImproveQuestionsRun(questionId);
 	}, [questionId]);
@@ -153,6 +159,7 @@ export function useImproveQuestions({
 		onRevertAll: handleRevertAll,
 		onApply: handleApply,
 		onCancel: handleCancel,
+		onDismiss: handleDismiss,
 		onContinue: handleContinue,
 		onSendFollowUp: handleSendFollowUp,
 		onOpenChange: handleOpenChange,

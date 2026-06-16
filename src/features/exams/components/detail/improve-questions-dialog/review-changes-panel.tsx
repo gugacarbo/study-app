@@ -1,14 +1,19 @@
 import { ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type {
-	ChangeDecision,
-	QuestionChange,
-} from "@/features/ai/agents/improve-questions/contracts";
+import type { ChangeDecision } from "@/features/ai/agents/improve-questions/contracts";
 import { cn } from "@/lib/utils";
 
+export interface ReviewableChange {
+	id: string;
+	label: string;
+	before: string;
+	after: string;
+	decision: ChangeDecision;
+}
+
 interface ReviewChangesPanelProps {
-	changes: QuestionChange[];
+	changes: ReviewableChange[];
 	onDecision: (id: string, decision: ChangeDecision) => void;
 	onKeepAll: () => void;
 	onRevertAll: () => void;

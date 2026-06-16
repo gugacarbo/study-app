@@ -37,9 +37,11 @@ export function ImproveQuestionsBatchDialog({
 				<DialogHeader className="shrink-0">
 					<DialogTitle>Melhorar questões com agente</DialogTitle>
 					<DialogDescription>
-						{batch.showAgentPanel
-							? "Acompanhe o progresso dos agentes. Clique em um agente para revisar as melhorias."
-							: "Selecione as questões e defina quantos agentes rodam em paralelo."}
+						{batch.isBatchComplete
+							? "Execução concluída. Clique em um agente para revisar as melhorias."
+							: batch.showAgentPanel
+								? "Acompanhe o progresso dos agentes. Clique em um agente para revisar as melhorias."
+								: "Selecione as questões e defina quantos agentes rodam em paralelo."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -112,6 +114,16 @@ export function ImproveQuestionsBatchDialog({
 					>
 						Fechar
 					</Button>
+					{batch.isBatchComplete ? (
+						<Button
+							type="button"
+							variant="outline"
+							onClick={batch.handleClear}
+							disabled={batch.applyingAll}
+						>
+							Limpar execução
+						</Button>
+					) : null}
 					{batch.showAgentPanel && batch.readyToApplyCount > 0 && (
 						<Button
 							type="button"

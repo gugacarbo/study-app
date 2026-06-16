@@ -40,6 +40,7 @@ export function ImproveQuestionsDialog({
 	onRevertAll,
 	onApply,
 	onCancel,
+	onDismiss,
 	onContinue,
 	canContinue,
 	canSendFollowUp,
@@ -55,6 +56,7 @@ export function ImproveQuestionsDialog({
 	const canApply = showReview && applyCount > 0 && !applying;
 	const canRevert = showReview && hasDiff && !applying;
 	const isRunning = agentStatus === "running" || isStreaming;
+	const canDismiss = showReview && !isRunning && !applying;
 
 	useEffect(() => {
 		if (!open) {
@@ -186,14 +188,25 @@ export function ImproveQuestionsDialog({
 
 				<DialogFooter className="gap-2 sm:justify-between">
 					<div className="flex gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onCancel}
-							disabled={applying || isRunning}
-						>
-							Cancel
-						</Button>
+						{canDismiss ? (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onDismiss}
+								disabled={applying}
+							>
+								Limpar execução
+							</Button>
+						) : (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onCancel}
+								disabled={applying || isRunning}
+							>
+								Cancel
+							</Button>
+						)}
 						{canContinue && (
 							<Button
 								type="button"

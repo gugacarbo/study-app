@@ -5,6 +5,7 @@ import {
 	areImproveQuestionsExamViewsEqual,
 	backgroundProcessStore,
 	canApplyImproveQuestionsRun,
+	clearImproveQuestionsBatch,
 	continueImproveQuestionsRun,
 	selectImproveQuestionsExamViews,
 	startImproveQuestionsBatch,
@@ -74,11 +75,11 @@ export function useImproveQuestionsBatch({
 		[examProcessViews],
 	);
 
-	const showAgentPanel = useMemo(
-		() =>
-			isBatchRunning ||
-			agentItems.some((item) => item.displayStatus !== "done"),
-		[isBatchRunning, agentItems],
+	const showAgentPanel = agentItems.length > 0;
+
+	const isBatchComplete = useMemo(
+		() => showAgentPanel && !isBatchRunning,
+		[showAgentPanel, isBatchRunning],
 	);
 
 	const finishedCount = useMemo(
@@ -174,6 +175,10 @@ export function useImproveQuestionsBatch({
 		}
 	}, [agentItems, applyingAll, readyToApplyCount]);
 
+	const handleClear = useCallback(() => {
+		clearImproveQuestionsBatch(examId);
+	}, [examId]);
+
 	return {
 		selectAll,
 		selectedIds,
@@ -185,10 +190,12 @@ export function useImproveQuestionsBatch({
 		handleStart,
 		handleContinue,
 		handleApplyAll,
+		handleClear,
 		applyingAll,
 		readyToApplyCount,
 		agentItems,
 		isBatchRunning,
+		isBatchComplete,
 		showAgentPanel,
 		finishedCount,
 		processingCount,

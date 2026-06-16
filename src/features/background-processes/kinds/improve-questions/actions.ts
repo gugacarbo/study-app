@@ -837,6 +837,52 @@ export function cancelImproveQuestionsRun(questionId: number): void {
 	runNextQueued();
 }
 
+export function dismissImproveQuestionsRun(questionId: number): void {
+	const process = getImproveQuestionsProcess(questionId);
+	if (!process) return;
+
+	if (
+		process.isStreaming ||
+		process.status === "running" ||
+		process.status === "queued"
+	) {
+		cancelImproveQuestionsRun(questionId);
+		return;
+	}
+
+	const { examId } = process;
+	removeProcess(improveQuestionsProcessId(questionId));
+	maybeClearImproveQuestionsBatchConfig(examId);
+	const ui = backgroundProcessStore.state.improveQuestionsUiByExam[examId];
+	if (ui?.questionDialogQuestionId === questionId) {
+		patchImproveQuestionsExamUi(examId, { questionDialogQuestionId: null });
+	}
+	runNextQueued();
+}
+
+export function clearImproveQuestionsBatch(examId: number): void {
+	const targets = backgroundProcessStore.state.processes.filter(
+		(process): process is ImproveQuestionsBackgroundProcess =>
+			isImproveQuestionsProcess(process) && process.examId === examId,
+	);
+
+	for (const process of targets) {
+		if (
+			process.isStreaming ||
+			process.status === "running" ||
+			process.status === "queued"
+		) {
+			cancelImproveQuestionsRun(process.questionId);
+			continue;
+		}
+		removeProcess(process.id);
+	}
+
+	maybeClearImproveQuestionsBatchConfig(examId);
+	patchImproveQuestionsExamUi(examId, { questionDialogQuestionId: null });
+	runNextQueued();
+}
+
 export function setImproveQuestionsDecision(
 	questionId: number,
 	changeId: string,

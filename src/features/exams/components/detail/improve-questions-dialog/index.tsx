@@ -41,6 +41,7 @@ export function ImproveQuestionsDialog({
 			onRevertAll={state.onRevertAll}
 			onApply={state.onApply}
 			onCancel={state.onCancel}
+			onDismiss={state.onDismiss}
 			onContinue={state.onContinue}
 			canContinue={state.canContinue}
 			canSendFollowUp={state.canSendFollowUp}
