@@ -12,12 +12,6 @@ import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-strea
 import { createPipelineAgentEmitter } from "@/features/ai/pipeline/server/agent-emitter";
 import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
-import {
-	type IngestAgentReportedStatus,
-	type IngestAgentStageStatusReport,
-	readIngestAgentStageStatusReport,
-	resolveIngestAgentRunStatus,
-} from "@/features/ai/tools/ingest-stage-status";
 import type {
 	ExtractionWorkspaceQuestion,
 	ExtractionWorkspaceState,
@@ -57,8 +51,6 @@ export async function reviewSingleQuestion(
 	const workspace = createExtractionWorkspace(
 		createReviewWorkspaceState(question, index),
 	);
-	let stageStatusReport: IngestAgentStageStatusReport | null = null;
-	let reportedStageStatus: IngestAgentReportedStatus | null = null;
 	const toolFailureMessages: string[] = [];
 	let hasSuccessfulUpdate = false;
 	let updateCallCount = 0;
@@ -141,18 +133,6 @@ export async function reviewSingleQuestion(
 					meta: { ...questionMeta, toolCallId },
 				});
 			},
-			onStageStatusReported: async ({ toolCallId, output }) => {
-				const report = readIngestAgentStageStatusReport(output);
-				stageStatusReport = report;
-				reportedStageStatus = report?.status ?? null;
-				emitPartial({
-					eventType: "tool-result",
-					name: "report_agent_stage_status",
-					content: output,
-					state: "complete",
-					meta: { ...questionMeta, toolCallId },
-				});
-			},
 		});
 		const combinedTools: ToolSet = {
 			...workspaceTools,
@@ -184,11 +164,7 @@ export async function reviewSingleQuestion(
 			isSuccess: ({ toolFailureMessages: pipelineFailures, streamState }) => {
 				const noFailures =
 					toolFailureMessages.length === 0 && pipelineFailures.length === 0;
-				if (
-					hasSuccessfulUpdate ||
-					stageStatusReport != null ||
-					hasWorkspaceUpdate()
-				) {
+				if (hasSuccessfulUpdate || hasWorkspaceUpdate()) {
 					return true;
 				}
 				if (noFailures && (toolsComplete || stoppedAfterNoOpUpdate)) {
@@ -200,6 +176,9 @@ export async function reviewSingleQuestion(
 				toolFailureMessages[0] ??
 				pipelineFailures[0] ??
 				"Reviewer could not apply a valid review.",
+			stageStatus: {
+				hasSuccessfulWork: () => hasSuccessfulUpdate || hasWorkspaceUpdate(),
+			},
 		});
 
 		if (!agentResult.success) {
@@ -229,14 +208,10 @@ export async function reviewSingleQuestion(
 		}
 
 		const reviewedQuestion = readReviewedQuestion(workspace);
-		const resolvedStageStatus = resolveIngestAgentRunStatus({
-			reported: stageStatusReport,
-			toolFailureMessages,
-			hasSuccessfulWork: hasSuccessfulUpdate || stageStatusReport != null,
-			fallbackMessage: hasSuccessfulUpdate
-				? "Review applied changes without an explicit stage report."
-				: "Review completed without changes and without an explicit stage report.",
-		});
+		const resolvedStageStatus = agentResult.resolvedStageStatus ?? {
+			status: "done" as const,
+			message: "Review stage finished.",
+		};
 
 		emitPartial({
 			eventType: "result",
@@ -245,15 +220,6 @@ export async function reviewSingleQuestion(
 			meta: {
 				...questionMeta,
 				stageStatusMessage: resolvedStageStatus.message,
-			},
-		});
-		emitPartial({
-			eventType: "lifecycle",
-			status: resolvedStageStatus.status,
-			meta: {
-				...questionMeta,
-				stageStatusMessage: resolvedStageStatus.message,
-				reportedStageStatus,
 			},
 		});
 

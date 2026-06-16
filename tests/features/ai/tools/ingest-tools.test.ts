@@ -83,35 +83,11 @@ describe("ingest extraction tools", () => {
 		vi.clearAllMocks();
 	});
 
-	it("includes report_agent_stage_status and notifies onStageStatusReported", async () => {
+	it("does not include report_agent_stage_status in extraction tools", () => {
 		const workspace = createExtractionWorkspace();
-		const onStageStatusReported = vi.fn();
-		const tools = createIngestExtractionTools(workspace, {
-			onStageStatusReported,
-		});
+		const tools = createIngestExtractionTools(workspace);
 
-		expect(tools.report_agent_stage_status).toBeDefined();
-
-		const reportStage = getTool(tools, "report_agent_stage_status");
-		const output = await reportStage.execute(
-			{
-				status: "success",
-				message: "Registered 1 question.",
-			},
-			{ toolCallId: "tc-stage-1" },
-		);
-
-		expect(output).toEqual({
-			ok: true,
-			status: "success",
-			message: "Registered 1 question.",
-		});
-		expect(onStageStatusReported).toHaveBeenCalledWith(
-			expect.objectContaining({
-				toolCallId: "tc-stage-1",
-				toolName: "report_agent_stage_status",
-			}),
-		);
+		expect(tools.report_agent_stage_status).toBeUndefined();
 	});
 
 	it("omits add and list tools from createIngestReviewTools", () => {
@@ -134,7 +110,7 @@ describe("ingest extraction tools", () => {
 		expect(tools.add_extracted_question).toBeUndefined();
 		expect(tools.list_extracted_questions).toBeUndefined();
 		expect(tools.update_extracted_question).toBeDefined();
-		expect(tools.report_agent_stage_status).toBeDefined();
+		expect(tools.report_agent_stage_status).toBeUndefined();
 	});
 
 	it("notifies onToolExecuted with toolCallId from execution context", async () => {

@@ -9,7 +9,6 @@ Tool contract:
 - Call update_question_explanation exactly once with the final text, then stop.
 - Do not call get_question or update_question_explanation repeatedly in a loop.
 - Do not return a final JSON object yourself. The server reads the result from the workspace.
-- After tool calls, reply with a brief plain-text summary (1–3 sentences) of what you wrote or improved.
 
 Research rules:
 - Use web_search and web_fetch when you need factual context to explain the correct answer(s) or verify technical claims.

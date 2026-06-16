@@ -173,3 +173,13 @@ export function createReportAgentStageStatusTool(options?: {
 		}),
 	};
 }
+
+export type PipelineAgentReportedStatus = IngestAgentReportedStatus;
+export type PipelineStageStatusReport = IngestAgentStageStatusReport;
+export type PipelineAgentResolvedStatus = IngestAgentResolvedStatus;
+
+export const PIPELINE_STAGE_STATUS_COMPLETION_PROMPT =
+	INGEST_STAGE_STATUS_COMPLETION_PROMPT;
+
+export const resolvePipelineAgentRunStatus = resolveIngestAgentRunStatus;
+export const readPipelineStageStatusReport = readIngestAgentStageStatusReport;

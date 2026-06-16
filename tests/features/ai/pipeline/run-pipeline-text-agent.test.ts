@@ -62,7 +62,7 @@ describe("runPipelineTextAgent", () => {
 	});
 
 	it("emits pending, running, token, and done lifecycle events on success", async () => {
-		const { params, emit } = baseParams();
+		const { params, emit } = baseParams({ stageStatus: { enabled: false } });
 
 		streamTextWithCompatibilityFallbackMock.mockImplementationOnce(
 			async ({ onStreamPart }) => {
@@ -103,7 +103,7 @@ describe("runPipelineTextAgent", () => {
 	});
 
 	it("backfills streamed text when generateText fallback returns text only", async () => {
-		const { params, emit } = baseParams();
+		const { params, emit } = baseParams({ stageStatus: { enabled: false } });
 
 		streamTextWithCompatibilityFallbackMock.mockImplementationOnce(async () => ({
 			text: "Fallback response",
@@ -136,6 +136,7 @@ describe("runPipelineTextAgent", () => {
 		const onRecoverableError = vi.fn();
 		const result = await runPipelineTextAgent({
 			...params,
+			stageStatus: { enabled: false },
 			onRecoverableError,
 		});
 
@@ -152,7 +153,10 @@ describe("runPipelineTextAgent", () => {
 	});
 
 	it("omits prompts in pending lifecycle when includePromptsInPending is false", async () => {
-		const { params, emit } = baseParams({ includePromptsInPending: false });
+		const { params, emit } = baseParams({
+			includePromptsInPending: false,
+			stageStatus: { enabled: false },
+		});
 
 		streamTextWithCompatibilityFallbackMock.mockImplementationOnce(async () => ({
 			text: "ok",
@@ -168,5 +172,83 @@ describe("runPipelineTextAgent", () => {
 		});
 		expect(emit.mock.calls[0]?.[0]).not.toHaveProperty("systemPrompt");
 		expect(emit.mock.calls[0]?.[0]).not.toHaveProperty("userPrompt");
+	});
+
+	it("fails strict mode when report_agent_stage_status is missing", async () => {
+		const { params, emit } = baseParams({
+			stageStatus: { enabled: true, required: true },
+		});
+
+		streamTextWithCompatibilityFallbackMock.mockImplementationOnce(async () => ({
+			text: "Ready",
+			usage,
+			usedGenerateTextFallback: false,
+		}));
+
+		const result = await runPipelineTextAgent(params);
+
+		expect(result.success).toBe(false);
+		expect(result.reason).toBe(
+			"Agent finished without calling report_agent_stage_status.",
+		);
+		expect(emit.mock.calls.at(-1)?.[0]).toMatchObject({
+			eventType: "lifecycle",
+			status: "error",
+		});
+	});
+
+	it("emits resolved lifecycle when stage status is reported", async () => {
+		const { params, emit } = baseParams({
+			stageStatus: { enabled: true, required: true },
+		});
+
+		streamTextWithCompatibilityFallbackMock.mockImplementationOnce(
+			async ({ request, onStreamPart }) => {
+				const tools = request.tools as Record<
+					string,
+					{ execute?: (input: unknown, ctx?: { toolCallId?: string }) => Promise<unknown> }
+				>;
+				const reportStage = tools.report_agent_stage_status;
+				const stageInput = {
+					status: "success",
+					message: "Connection test passed.",
+				};
+				const stageOutput = {
+					ok: true,
+					status: "success",
+					message: "Connection test passed.",
+				};
+				await reportStage?.execute?.(stageInput, { toolCallId: "tc-stage" });
+				onStreamPart?.({
+					type: "tool-result",
+					toolCallId: "tc-stage",
+					toolName: "report_agent_stage_status",
+					input: stageInput,
+					output: stageOutput,
+				});
+				onStreamPart?.({ type: "text-delta", text: "Ready" });
+				return {
+					text: "Ready",
+					usage,
+					usedGenerateTextFallback: false,
+				};
+			},
+		);
+
+		const result = await runPipelineTextAgent(params);
+
+		expect(result.success).toBe(true);
+		expect(result.resolvedStageStatus).toEqual({
+			status: "done",
+			message: "Connection test passed.",
+		});
+		expect(emit.mock.calls.at(-1)?.[0]).toMatchObject({
+			eventType: "lifecycle",
+			status: "done",
+			meta: {
+				stageStatusMessage: "Connection test passed.",
+				reportedStageStatus: "success",
+			},
+		});
 	});
 });

@@ -169,6 +169,9 @@ export async function explainQuestionById(
 			(hasSuccessfulUpdate
 				? undefined
 				: "Explanation agent finished without calling update_question_explanation."),
+		stageStatus: {
+			hasSuccessfulWork: hasWorkspaceUpdate,
+		},
 	});
 
 	if (!pipelineResult.success) {
@@ -181,6 +184,10 @@ export async function explainQuestionById(
 	}
 
 	const generated = readGeneratedExplanation(workspace, questionId);
+	const resolvedStageStatus = pipelineResult.resolvedStageStatus ?? {
+		status: "done" as const,
+		message: "Explanation stage finished.",
+	};
 
 	emit({
 		eventType: "result",
@@ -189,7 +196,10 @@ export async function explainQuestionById(
 		label: run.label,
 		finalObject: generated,
 		rawText: pipelineResult.rawText,
-		meta: baseMeta,
+		meta: {
+			...baseMeta,
+			stageStatusMessage: resolvedStageStatus.message,
+		},
 	});
 
 	return {

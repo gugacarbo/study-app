@@ -16,13 +16,6 @@ import {
 	createExplanationTools,
 	createExplanationWorkspace,
 } from "@/features/ai/tools/explanation-tools";
-import {
-	createReportAgentStageStatusTool,
-	type IngestAgentReportedStatus,
-	type IngestAgentStageStatusReport,
-	readIngestAgentStageStatusReport,
-	resolveIngestAgentRunStatus,
-} from "@/features/ai/tools/ingest-stage-status";
 import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ProviderConfig } from "@/lib/validation";
 import { buildSystemPrompt } from "../system-prompt";
@@ -55,8 +48,6 @@ export async function explainSingleQuestion(
 	const userPrompt = buildExplanationUserPrompt(question, index);
 	const workspace = createExplanationWorkspace([question]);
 	const toolFailureMessages: string[] = [];
-	let stageStatusReport: IngestAgentStageStatusReport | null = null;
-	let reportedStageStatus: IngestAgentReportedStatus | null = null;
 	let hasSuccessfulUpdate = false;
 	let updateCallCount = 0;
 	let toolsComplete = false;
@@ -116,23 +107,8 @@ export async function explainSingleQuestion(
 				});
 			},
 		});
-		const stageStatusTools = createReportAgentStageStatusTool({
-			onToolExecuted: async ({ toolCallId, output }) => {
-				const report = readIngestAgentStageStatusReport(output);
-				stageStatusReport = report;
-				reportedStageStatus = report?.status ?? null;
-				emitPartial({
-					eventType: "tool-result",
-					name: "report_agent_stage_status",
-					content: output,
-					state: "complete",
-					meta: { ...questionMeta, toolCallId },
-				});
-			},
-		});
 		const combinedTools: ToolSet = {
 			...explanationTools,
-			...stageStatusTools,
 			...(options.tools as ToolSet | undefined),
 		};
 
@@ -165,6 +141,11 @@ export async function explainSingleQuestion(
 			failureReason: () =>
 				toolFailureMessages[0] ??
 				"Explanation agent could not apply a valid explanation update.",
+			stageStatus: {
+				hasSuccessfulWork: () =>
+					hasSuccessfulUpdate ||
+					workspaceHasCompleteExplanation(workspace, question.id),
+			},
 		});
 
 		if (!agentResult.success) {
@@ -201,16 +182,10 @@ export async function explainSingleQuestion(
 		}
 
 		const generated = readGeneratedExplanation(workspace, question.id);
-		const resolvedStageStatus = resolveIngestAgentRunStatus({
-			reported: stageStatusReport,
-			toolFailureMessages,
-			hasSuccessfulWork:
-				hasSuccessfulUpdate ||
-				workspaceHasCompleteExplanation(workspace, question.id),
-			fallbackMessage: hasSuccessfulUpdate
-				? "Explanation written without an explicit stage report."
-				: "Explanation stage finished without an explicit stage report.",
-		});
+		const resolvedStageStatus = agentResult.resolvedStageStatus ?? {
+			status: "done" as const,
+			message: "Explanation stage finished.",
+		};
 
 		emitPartial({
 			eventType: "result",
@@ -219,15 +194,6 @@ export async function explainSingleQuestion(
 			meta: {
 				...questionMeta,
 				stageStatusMessage: resolvedStageStatus.message,
-			},
-		});
-		emitPartial({
-			eventType: "lifecycle",
-			status: resolvedStageStatus.status,
-			meta: {
-				...questionMeta,
-				stageStatusMessage: resolvedStageStatus.message,
-				reportedStageStatus,
 			},
 		});
 

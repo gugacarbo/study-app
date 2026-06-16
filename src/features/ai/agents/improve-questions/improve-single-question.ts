@@ -2,8 +2,8 @@ import type { ToolSet } from "ai";
 import { IMPROVE_QUESTIONS_MAX_STEPS } from "@/features/ai/core/agent-limits";
 import { payloadFromToolExecuteResult } from "@/features/ai/core/ai-stream-handler";
 import {
-	buildImproveQuestionsPrepareStep,
 	buildImproveQuestionsStopWhen,
+	buildPostUpdatePrepareStep,
 } from "@/features/ai/core/tool-agent-stop-when";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
@@ -196,19 +196,28 @@ export async function improveSingleQuestion(
 		messages: conversationMessages,
 		tools: combinedTools,
 		stopWhen: buildImproveQuestionsStopWhen(IMPROVE_QUESTIONS_MAX_STEPS),
-		prepareStep: buildImproveQuestionsPrepareStep(() => toolsComplete),
+		prepareStep: buildPostUpdatePrepareStep(() => toolsComplete),
 		meta: baseMeta,
 		requestSummary: isFollowUp
 			? `questionId=${question.id} followUp`
 			: `questionId=${question.id}`,
 		includePromptsInPending: !isFollowUp,
-		isSuccess: ({ toolFailureMessages }) => {
-			if (hasSuccessfulUpdate || hasWorkspaceUpdate()) return true;
-			return toolFailureMessages.length === 0;
+		isSuccess: ({ toolFailureMessages: pipelineFailures }) => {
+			if (hasSuccessfulUpdate || hasWorkspaceUpdate()) {
+				return true;
+			}
+			return (
+				toolFailureMessages.length === 0 && pipelineFailures.length === 0
+			);
 		},
-		failureReason: ({ toolFailureMessages }) =>
+		failureReason: ({ toolFailureMessages: pipelineFailures }) =>
 			toolFailureMessages[0] ??
+			pipelineFailures[0] ??
 			"Improve-options agent could not apply a valid update.",
+		stageStatus: {
+			hasSuccessfulWork: () =>
+				hasSuccessfulUpdate || hasWorkspaceUpdate(),
+		},
 	});
 
 	if (!pipelineResult.success) {
@@ -246,6 +255,11 @@ export async function improveSingleQuestion(
 		});
 	}
 
+	const resolvedStageStatus = pipelineResult.resolvedStageStatus ?? {
+		status: "done" as const,
+		message: "Improve-questions stage finished.",
+	};
+
 	emit({
 		eventType: "result",
 		stageId: run.stageId,
@@ -253,7 +267,10 @@ export async function improveSingleQuestion(
 		label: run.label,
 		finalObject: improvedQuestion,
 		rawText: pipelineResult.rawText,
-		meta: baseMeta,
+		meta: {
+			...baseMeta,
+			stageStatusMessage: resolvedStageStatus.message,
+		},
 	});
 
 	return {
@@ -261,7 +278,7 @@ export async function improveSingleQuestion(
 		agentRun: buildAgentRunSummary({
 			agentRunId,
 			label,
-			status: "done",
+			status: resolvedStageStatus.status === "error" ? "error" : "done",
 			systemPrompt,
 			userPrompt,
 			rawText: pipelineResult.rawText,

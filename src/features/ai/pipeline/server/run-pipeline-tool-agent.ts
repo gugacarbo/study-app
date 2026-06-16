@@ -2,7 +2,6 @@ import type { PrepareStepFunction, StopCondition, ToolSet } from "ai";
 import {
 	type AiStreamState,
 	createAiStreamState,
-	createToolResultEmitter,
 } from "@/features/ai/core/ai-stream-handler";
 import {
 	readToolFailureMessage,
@@ -10,6 +9,19 @@ import {
 } from "@/features/ai/core/tool-agent-run";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
+import {
+	appendPipelineStageStatusPrompt,
+	createPipelineStageStatusTracker,
+	mergePipelineStageStatusStopWhen,
+	mergePipelineStageStatusTools,
+	resolvePipelineStageStatusConfig,
+	resolvePipelineStageStatusOutcome,
+	type PipelineAgentReportedStatus,
+	type PipelineAgentResolvedStatus,
+	type PipelineStageStatusOptions,
+	type PipelineStageStatusReport,
+} from "@/features/ai/pipeline/server/pipeline-stage-status";
+import { readIngestAgentStageStatusReport } from "@/features/ai/tools/ingest-stage-status";
 import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ProviderConfig } from "@/lib/validation";
 
@@ -19,6 +31,12 @@ export interface PipelineToolAgentResult {
 	rawText: string;
 	streamState: AiStreamState;
 	toolFailureMessages: string[];
+	stageStatusReport: PipelineStageStatusReport | null;
+	reportedStageStatus: PipelineAgentReportedStatus | null;
+	resolvedStageStatus: {
+		status: PipelineAgentResolvedStatus;
+		message: string;
+	} | null;
 }
 
 export interface RunPipelineToolAgentParams {
@@ -37,6 +55,7 @@ export interface RunPipelineToolAgentParams {
 	meta?: Record<string, unknown>;
 	requestSummary?: string;
 	includePromptsInPending?: boolean;
+	stageStatus?: PipelineStageStatusOptions;
 	onRecoverableError?: (message: string) => void;
 	isSuccess: (ctx: {
 		streamState: AiStreamState;
@@ -92,14 +111,51 @@ function shouldIncludePromptsInPending(
 	return messages.length === 1 && messages[0]?.role === "user";
 }
 
+function buildStageStatusFailureResult(params: {
+	reason: string;
+	rawText: string;
+	streamState: AiStreamState;
+	toolFailureMessages: string[];
+	stageStatusTracker: ReturnType<typeof createPipelineStageStatusTracker>;
+	resolvedStageStatus: {
+		status: PipelineAgentResolvedStatus;
+		message: string;
+	} | null;
+}): PipelineToolAgentResult {
+	return {
+		success: false,
+		reason: params.reason,
+		rawText: params.rawText,
+		streamState: params.streamState,
+		toolFailureMessages: params.toolFailureMessages,
+		stageStatusReport: params.stageStatusTracker.stageStatusReport,
+		reportedStageStatus: params.stageStatusTracker.reportedStageStatus,
+		resolvedStageStatus: params.resolvedStageStatus,
+	};
+}
+
 export async function runPipelineToolAgent(
 	params: RunPipelineToolAgentParams,
 ): Promise<PipelineToolAgentResult> {
 	const streamState = createAiStreamState();
 	const toolFailureMessages: string[] = [];
 	const toolNamesById = new Map<string, string>();
+	const stageStatusConfig = resolvePipelineStageStatusConfig(params.stageStatus);
+	const stageStatusTracker = createPipelineStageStatusTracker();
 	const { run, emit, meta } = params;
 	const userPrompt = resolveUserPrompt(params.messages);
+	const systemPrompt = appendPipelineStageStatusPrompt(
+		params.systemPrompt,
+		stageStatusConfig.enabled && stageStatusConfig.appendPrompt,
+	);
+	const tools = mergePipelineStageStatusTools(
+		params.tools,
+		stageStatusConfig.enabled,
+	);
+	const stopWhen = mergePipelineStageStatusStopWhen(
+		params.stopWhen,
+		stageStatusConfig.enabled,
+	);
 
 	emitRunEvent(
 		emit,
@@ -112,7 +168,7 @@ export async function runPipelineToolAgent(
 				params.includePromptsInPending,
 			)
 				? {
-						systemPrompt: params.systemPrompt,
+						systemPrompt,
 						userPrompt,
 					}
 				: {}),
@@ -183,9 +239,16 @@ export async function runPipelineToolAgent(
 		if (toolFailure) {
 			toolFailureMessages.push(toolFailure);
 		}
-	};
 
-	const emitToolResult = createToolResultEmitter(handleToolResult, streamState);
+		if (readIngestAgentStageStatusReport(toolResult.content)) {
+			stageStatusTracker.trackToolResult(
+				"report_agent_stage_status",
+				toolResult.content,
+			);
+		} else {
+			stageStatusTracker.trackToolResult(toolName, toolResult.content);
+		}
+	};
 
 	try {
 		await runToolAgentStream({
@@ -194,10 +257,10 @@ export async function runPipelineToolAgent(
 			callId: run.agentRunId,
 			requestSummary: params.requestSummary ?? run.label,
 			metadata: params.meta,
-			systemPrompt: params.systemPrompt,
+			systemPrompt,
 			messages: params.messages,
-			tools: params.tools,
-			stopWhen: params.stopWhen,
+			tools,
+			stopWhen,
 			prepareStep: params.prepareStep,
 			streamState,
 			onRecoverableError: (message) => {
@@ -232,7 +295,7 @@ export async function runPipelineToolAgent(
 					emitRunEvent(emit, run, { eventType: "token", tokens: usage }, meta);
 				},
 				onToolCall: handleToolCall,
-				onToolResult: emitToolResult,
+				onToolResult: handleToolResult,
 			},
 		});
 
@@ -250,22 +313,64 @@ export async function runPipelineToolAgent(
 				meta,
 			);
 
-			return {
-				success: false,
+			return buildStageStatusFailureResult({
 				reason,
 				rawText: streamState.rawText,
 				streamState,
 				toolFailureMessages,
-			};
+				stageStatusTracker,
+				resolvedStageStatus: null,
+			});
 		}
 
-		emitRunEvent(emit, run, { eventType: "lifecycle", status: "done" }, meta);
+		const { resolvedStageStatus, strictFailureReason } =
+			resolvePipelineStageStatusOutcome({
+				config: stageStatusConfig,
+				stageStatusReport: stageStatusTracker.stageStatusReport,
+				toolFailureMessages,
+				streamState,
+			});
+
+		if (strictFailureReason) {
+			emitRunEvent(
+				emit,
+				run,
+				{ eventType: "lifecycle", status: "error", error: strictFailureReason },
+				meta,
+			);
+
+			return buildStageStatusFailureResult({
+				reason: strictFailureReason,
+				rawText: streamState.rawText,
+				streamState,
+				toolFailureMessages,
+				stageStatusTracker,
+				resolvedStageStatus,
+			});
+		}
+
+		emitRunEvent(
+			emit,
+			run,
+			{
+				eventType: "lifecycle",
+				status: resolvedStageStatus.status,
+				meta: {
+					stageStatusMessage: resolvedStageStatus.message,
+					reportedStageStatus: stageStatusTracker.reportedStageStatus,
+				},
+			},
+			meta,
+		);
 
 		return {
 			success: true,
 			rawText: streamState.rawText,
 			streamState,
 			toolFailureMessages,
+			stageStatusReport: stageStatusTracker.stageStatusReport,
+			reportedStageStatus: stageStatusTracker.reportedStageStatus,
+			resolvedStageStatus,
 		};
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : "unknown error";
@@ -277,12 +382,13 @@ export async function runPipelineToolAgent(
 			meta,
 		);
 
-		return {
-			success: false,
+		return buildStageStatusFailureResult({
 			reason,
 			rawText: streamState.rawText,
 			streamState,
 			toolFailureMessages,
-		};
+			stageStatusTracker,
+			resolvedStageStatus: null,
+		});
 	}
 }

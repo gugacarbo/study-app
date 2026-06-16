@@ -61,55 +61,6 @@ function repeatedSuccessfulToolCallInLastSteps(
 	};
 }
 
-function workspaceUpdateSucceeded(
-	updateToolName: string,
-): StopCondition<ToolSet> {
-	return toolResultMatches(
-		updateToolName,
-		(output) =>
-			output.ok === true &&
-			Array.isArray(output.updatedFields) &&
-			output.updatedFields.length > 0,
-	);
-}
-
-function workspaceUpdateNoOp(updateToolName: string): StopCondition<ToolSet> {
-	return toolResultMatches(
-		updateToolName,
-		(output) =>
-			output.ok === true &&
-			Array.isArray(output.updatedFields) &&
-			output.updatedFields.length === 0,
-	);
-}
-
-function buildWorkspaceAgentStopWhen(
-	maxSteps: number,
-	options: {
-		updateToolName: string;
-		readToolNames?: string[];
-		stopOnRepeatedUpdate?: boolean;
-	},
-) {
-	const conditions: Array<StopCondition<ToolSet>> = [
-		stepCountIs(maxSteps),
-		workspaceUpdateSucceeded(options.updateToolName),
-		workspaceUpdateNoOp(options.updateToolName),
-	];
-
-	for (const readToolName of options.readToolNames ?? []) {
-		conditions.push(repeatedToolCallInLastSteps(readToolName));
-	}
-
-	if (options.stopOnRepeatedUpdate !== false) {
-		conditions.push(
-			repeatedSuccessfulToolCallInLastSteps(options.updateToolName),
-		);
-	}
-
-	return conditions;
-}
-
 export function buildPostUpdatePrepareStep(
 	shouldFinalize: () => boolean,
 ): PrepareStepFunction<ToolSet> {
@@ -176,7 +127,6 @@ export function buildIngestExtractionStopWhen(
 ) {
 	const conditions: Array<StopCondition<ToolSet>> = [
 		stepCountIs(maxSteps),
-		ingestStageStatusReported,
 		ingestExtractionDuplicateAddDetected,
 		repeatedToolCallInLastSteps("list_extracted_questions"),
 	];
@@ -193,7 +143,6 @@ export function buildIngestExtractionStopWhen(
 export function buildIngestReviewStopWhen(maxSteps: number) {
 	return [
 		stepCountIs(maxSteps),
-		ingestStageStatusReported,
 		ingestReviewUpdateNoOpDetected,
 		repeatedSuccessfulToolCallInLastSteps("update_extracted_question"),
 	] satisfies Array<StopCondition<ToolSet>>;
@@ -207,44 +156,6 @@ function stepUsedTool(
 		step.toolResults.some((result) => result.toolName === toolName),
 	);
 }
-
-function repeatedFailedToolCallInLastSteps(
-	toolName: string,
-	stepCount = 2,
-): StopCondition<ToolSet> {
-	return ({ steps }) => {
-		if (steps.length < stepCount) return false;
-
-		return steps.slice(-stepCount).every((step) =>
-			step.toolResults.some((result) => {
-				if (result.toolName !== toolName) return false;
-				const output = readToolOutput(result.output);
-				return output?.ok === false;
-			}),
-		);
-	};
-}
-
-function stepUsedToolWithOutput(
-	steps: Array<{ toolResults: Array<{ toolName: string; output: unknown }> }>,
-	toolName: string,
-	predicate: (output: Record<string, unknown>) => boolean,
-): boolean {
-	return steps.some((step) =>
-		step.toolResults.some((result) => {
-			if (result.toolName !== toolName) return false;
-			const output = readToolOutput(result.output);
-			return output != null && predicate(output);
-		}),
-	);
-}
-
-const IMPROVE_TOOLS_AFTER_SPELL_CHECK = [
-	"update_question_options",
-	"get_question",
-	"web_search",
-	"web_fetch",
-] as const;
 
 export function buildIngestReviewPrepareStep(options: {
 	shouldFinalize: () => boolean;
@@ -263,44 +174,11 @@ export function buildIngestReviewPrepareStep(options: {
 }
 
 export function buildIngestExplanationStopWhen(maxSteps: number) {
-	return [stepCountIs(maxSteps), ingestStageStatusReported] satisfies Array<
-		StopCondition<ToolSet>
-	>;
+	return [stepCountIs(maxSteps)] satisfies Array<StopCondition<ToolSet>>;
 }
 
 export function buildImproveQuestionsStopWhen(maxSteps: number) {
-	return [
-		...buildWorkspaceAgentStopWhen(maxSteps, {
-			updateToolName: "update_question_options",
-			readToolNames: ["get_question"],
-		}),
-		repeatedToolCallInLastSteps("check_spelling", 2),
-		repeatedFailedToolCallInLastSteps("update_question_options", 2),
-	];
-}
-
-export function buildImproveQuestionsPrepareStep(
-	shouldFinalize: () => boolean,
-): PrepareStepFunction<ToolSet> {
-	return (options) => {
-		if (shouldFinalize()) {
-			return {};
-		}
-
-		const spellCheckUsed = stepUsedToolWithOutput(
-			options.steps,
-			"check_spelling",
-			(output) => output.ok === true,
-		);
-
-		if (spellCheckUsed) {
-			return {
-				activeTools: [...IMPROVE_TOOLS_AFTER_SPELL_CHECK],
-			};
-		}
-
-		return {};
-	};
+	return [stepCountIs(maxSteps)] satisfies Array<StopCondition<ToolSet>>;
 }
 
 export const ingestReviewUpdateNoOpDetected = toolResultMatches(

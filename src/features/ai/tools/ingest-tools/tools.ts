@@ -1,9 +1,5 @@
 import { type ToolExecutionOptions, type ToolSet, tool, zodSchema } from "ai";
 import { z } from "zod";
-import {
-	createReportAgentStageStatusTool,
-	type IngestStageStatusToolEvent,
-} from "@/features/ai/tools/ingest-stage-status";
 import type { Question } from "@/lib/validation";
 import {
 	type ExtractionQuestionFields,
@@ -114,9 +110,6 @@ type IngestToolExecutedEvent = {
 
 export type IngestExtractionToolsOptions = {
 	onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void>;
-	onStageStatusReported?: (
-		event: IngestStageStatusToolEvent,
-	) => void | Promise<void>;
 };
 
 async function notifyToolExecuted(
@@ -165,12 +158,7 @@ export function createIngestExtractionTools(
 	workspace: ExtractionWorkspaceApi,
 	options?: IngestExtractionToolsOptions,
 ): ToolSet {
-	const stageStatusTools = createReportAgentStageStatusTool({
-		onToolExecuted: options?.onStageStatusReported,
-	});
-
 	return {
-		...stageStatusTools,
 		add_extracted_question: tool({
 			description:
 				"Add one extracted exam question to the current ingest workspace.",

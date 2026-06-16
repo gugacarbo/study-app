@@ -45,9 +45,10 @@ const connectionTestHandler = createJobApiRoute({
 
 		progress.step(25, "Preparing AI model...");
 
-		const system = "You are a connection test assistant. Respond concisely.";
+		const system =
+			"You are a connection test assistant. Respond concisely. After your reply, call report_agent_stage_status once with status success and a short message confirming the connection test outcome.";
 		const userMsg =
-			'Say: "Connection successful using model: <model-name>" and include only one short line.';
+			'Say: "Connection successful using model: <model-name>" and include only one short line, then report the stage status.';
 
 		const run = agentRuns.createRun(
 			CONNECTION_TEST_STAGE_ID,

@@ -17,30 +17,6 @@ vi.mock("@/features/ai/adapters/provider-model", () => ({
 	getAiModel: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
-	return {
-		...actual,
-		processAiStreamPart(
-			chunk: Parameters<typeof actual.processAiStreamPart>[0],
-			handlers: Parameters<typeof actual.processAiStreamPart>[1],
-			state: Parameters<typeof actual.processAiStreamPart>[2],
-		) {
-			const { onToolResult, ...restHandlers } = handlers;
-			if (onToolResult) {
-				return actual.processAiStreamPart(
-					chunk,
-					restHandlers,
-					state,
-					onToolResult,
-				);
-			}
-			return actual.processAiStreamPart(chunk, handlers, state);
-		},
-	};
-});
-
 import { reviewSingleQuestion } from "@/features/ai/agents/ingest/review-extraction/review-question";
 import {
 	createExtractionWorkspace,
@@ -58,6 +34,24 @@ function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
 	const tool = tools?.[name] as ExecutableTool | undefined;
 	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
 	return tool;
+}
+
+async function yieldStageStatusReport(
+	tools: ToolSet | undefined,
+	message: string,
+	toolCallId = "tc-stage-status",
+): Promise<TextStreamPart<ToolSet>> {
+	const reportStage = getTool(tools, "report_agent_stage_status");
+	const input = { status: "success", message };
+	const output = { ok: true, status: "success", message };
+	await reportStage.execute(input, { toolCallId });
+	return {
+		type: "tool-result",
+		toolCallId,
+		toolName: "report_agent_stage_status",
+		input,
+		output,
+	} as TextStreamPart<ToolSet>;
 }
 
 describe("reviewSingleQuestion", () => {
@@ -96,6 +90,11 @@ describe("reviewSingleQuestion", () => {
 							updatedFields: ["answers", "options"],
 						},
 					} as TextStreamPart<ToolSet>;
+
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Review applied corrections.",
+					);
 
 					yield {
 						type: "finish-step",
@@ -228,8 +227,7 @@ describe("reviewSingleQuestion", () => {
 				state: "complete",
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			6,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "token",
 				agentRunId: "review-q1",
@@ -240,28 +238,21 @@ describe("reviewSingleQuestion", () => {
 				},
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			7,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "lifecycle",
 				status: "done",
 				agentRunId: "review-q1",
+				meta: expect.objectContaining({
+					reportedStageStatus: "success",
+				}),
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			8,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "result",
 				agentRunId: "review-q1",
 				rawText: expect.stringContaining("[tool:update_extracted_question]"),
-			}),
-		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			9,
-			expect.objectContaining({
-				eventType: "lifecycle",
-				status: "done",
-				agentRunId: "review-q1",
 			}),
 		);
 	});
@@ -303,6 +294,10 @@ describe("reviewSingleQuestion", () => {
 							updatedFields: ["answers"],
 						},
 					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Review updated answers.",
+					);
 				})(),
 			};
 		});
@@ -349,14 +344,10 @@ describe("reviewSingleQuestion", () => {
 
 			return {
 				fullStream: (async function* () {
-					await updateQuestion.execute({
-						questionId: "q1",
-						question: null,
-						options: null,
-						answers: null,
-						topic: null,
-						explanation: null,
-					});
+					await updateQuestion.execute(
+						{ questionId: "q1" },
+						{ toolCallId: "tool-review-noop-1" },
+					);
 					yield {
 						type: "tool-result",
 						toolCallId: "tool-review-noop-1",
@@ -375,6 +366,10 @@ describe("reviewSingleQuestion", () => {
 							updatedFields: [],
 						},
 					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"No changes needed.",
+					);
 				})(),
 			};
 		});
@@ -405,7 +400,8 @@ describe("reviewSingleQuestion", () => {
 			},
 		);
 
-		expect(result).toEqual({
+		expect(result).toMatchObject({
+			success: true,
 			question: {
 				question: "O que e cache?",
 				options: ["A", "B"],
@@ -414,7 +410,6 @@ describe("reviewSingleQuestion", () => {
 				explanation: "",
 				topic: "Arquitetura",
 			},
-			success: true,
 		});
 	});
 
@@ -562,6 +557,10 @@ describe("reviewSingleQuestion", () => {
 							topic: "Arvores Binarias",
 						},
 						{ toolCallId: "tool-update-only" },
+					);
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Review updated topic.",
 					);
 					yield {
 						type: "finish-step",

@@ -5,6 +5,7 @@ import {
 	type AiStreamHandlers,
 	type AiStreamState,
 	createAiStreamState,
+	flushAiStreamThinkTagDeltas,
 	isAiStreamRunErrorChunk,
 	isRecoverableStreamPartError,
 	processAiStreamPart,
@@ -100,6 +101,8 @@ export async function runToolAgentStream(
 
 		processAiStreamPart(chunk, params.handlers, streamState);
 	}
+
+	flushAiStreamThinkTagDeltas(params.handlers, streamState);
 
 	return streamState;
 }

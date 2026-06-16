@@ -17,31 +17,6 @@ vi.mock("@/features/ai/adapters/provider-model", () => ({
 	getAiModel: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
-	return {
-		...actual,
-		isRecoverableStreamPartError: actual.isRecoverableStreamPartError,
-		processAiStreamPart(
-			chunk: Parameters<typeof actual.processAiStreamPart>[0],
-			handlers: Parameters<typeof actual.processAiStreamPart>[1],
-			state: Parameters<typeof actual.processAiStreamPart>[2],
-		) {
-			const { onToolResult, ...restHandlers } = handlers;
-			if (onToolResult) {
-				return actual.processAiStreamPart(
-					chunk,
-					restHandlers,
-					state,
-					onToolResult,
-				);
-			}
-			return actual.processAiStreamPart(chunk, handlers, state);
-		},
-	};
-});
-
 
 import { runExtractionPass } from "@/routes/api/ingest/-extraction-pass";
 
@@ -56,6 +31,24 @@ function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
 	const tool = tools?.[name] as ExecutableTool | undefined;
 	if (!tool?.execute) throw new Error(`Tool ${name} not found`);
 	return tool;
+}
+
+async function yieldStageStatusReport(
+	tools: ToolSet | undefined,
+	message: string,
+	toolCallId = "tc-stage-status",
+): Promise<TextStreamPart<ToolSet>> {
+	const reportStage = getTool(tools, "report_agent_stage_status");
+	const input = { status: "success", message };
+	const output = { ok: true, status: "success", message };
+	await reportStage.execute(input, { toolCallId });
+	return {
+		type: "tool-result",
+		toolCallId,
+		toolName: "report_agent_stage_status",
+		input,
+		output,
+	} as TextStreamPart<ToolSet>;
 }
 
 function mockStreamParts(parts: TextStreamPart<ToolSet>[]) {
@@ -119,6 +112,10 @@ describe("runExtractionPass", () => {
 						},
 						output: { ok: true },
 					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question.",
+					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
 			};
@@ -170,8 +167,7 @@ describe("runExtractionPass", () => {
 			expect.stringContaining("[tool:add_extracted_question]"),
 			{
 				toolQuestionCount: 1,
-				stageStatusMessage:
-					"Extracted 1 question(s) without an explicit stage report.",
+				stageStatusMessage: "Extracted 1 question.",
 			},
 		);
 		expect(agentRuns.toolCall).toHaveBeenCalledWith(
@@ -217,6 +213,10 @@ describe("runExtractionPass", () => {
 						question: "Questao corrigida",
 						topic: "Topico 2",
 					});
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Updated extracted question.",
+					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
 			};
@@ -291,6 +291,10 @@ describe("runExtractionPass", () => {
 						},
 						output: { ok: true, questionId: "q1" },
 					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question.",
+					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
 			};
@@ -337,6 +341,10 @@ describe("runExtractionPass", () => {
 						answer: "B",
 						topic: "Geral",
 					});
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 2 questions.",
+					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
 			};
@@ -453,6 +461,10 @@ describe("runExtractionPass", () => {
 						type: "error",
 						error: "text part dde5bf33-a114-4841-b717-7d9f17785d67 not found",
 					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question.",
+					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
 			};
@@ -508,6 +520,10 @@ describe("runExtractionPass", () => {
 							scoringMode: "exact",
 						},
 						{ toolCallId: "tc-2" },
+					);
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question.",
 					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
@@ -586,6 +602,10 @@ describe("runExtractionPass", () => {
 						},
 						output: { ok: true, questionId: "q1" },
 					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question.",
+					);
 				})(),
 				toUIMessageStream: vi.fn(() => (async function* () {})()),
 			};

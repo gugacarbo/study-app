@@ -55,12 +55,20 @@ function extractNumericValue(value: unknown): number | null {
 	return null;
 }
 
+function hasStageStatusReport(toolCalls: BenchmarkToolCallRecord[]): boolean {
+	return toolCalls.some((call) => call.name === "report_agent_stage_status");
+}
+
 export function validateBenchmarkPhase(
 	phaseId: BenchmarkPhaseId,
 	response: string,
 	toolCalls: BenchmarkToolCallRecord[],
 ): boolean {
 	const trimmed = response.trim();
+
+	if (!hasStageStatusReport(toolCalls)) {
+		return false;
+	}
 
 	switch (phaseId) {
 		case "text_baseline":

@@ -64,7 +64,11 @@ describe("runPipelineToolAgent", () => {
 	});
 
 	it("emits pending, running, token, and done lifecycle events on success", async () => {
-		const { params, emit } = baseParams();
+		const { params, emit } = baseParams({
+			stageStatus: { enabled: false },
+			isSuccess: ({ streamState }: { streamState: { rawText: string } }) =>
+				streamState.rawText.length > 0,
+		});
 
 		runToolAgentStreamMock.mockImplementationOnce(async (streamParams) => {
 			streamParams.handlers.onTextDelta?.("Hello");
@@ -104,6 +108,7 @@ describe("runPipelineToolAgent", () => {
 
 	it("forwards tool-call and tool-result events through emit", async () => {
 		const { params, emit } = baseParams({
+			stageStatus: { enabled: false },
 			isSuccess: () => true,
 		});
 
@@ -141,6 +146,7 @@ describe("runPipelineToolAgent", () => {
 
 	it("returns success false with reason when isSuccess is false", async () => {
 		const { params, emit } = baseParams({
+			stageStatus: { enabled: false },
 			isSuccess: () => false,
 			failureReason: () => "No successful tool update.",
 		});
@@ -166,6 +172,7 @@ describe("runPipelineToolAgent", () => {
 
 	it("collects tool failure messages and uses the first as default reason", async () => {
 		const { params } = baseParams({
+			stageStatus: { enabled: false },
 			isSuccess: ({ toolFailureMessages }) => toolFailureMessages.length === 0,
 		});
 
@@ -186,7 +193,7 @@ describe("runPipelineToolAgent", () => {
 	});
 
 	it("emits lifecycle error and returns success false when the stream throws", async () => {
-		const { params, emit } = baseParams();
+		const { params, emit } = baseParams({ stageStatus: { enabled: false } });
 
 		runToolAgentStreamMock.mockRejectedValueOnce(
 			new Error("AI provider returned error: rate limited"),
@@ -207,6 +214,7 @@ describe("runPipelineToolAgent", () => {
 
 	it("emits warning events for recoverable stream errors", async () => {
 		const { params, emit } = baseParams({
+			stageStatus: { enabled: false },
 			isSuccess: () => true,
 		});
 
@@ -230,6 +238,7 @@ describe("runPipelineToolAgent", () => {
 
 	it("omits prompts in pending lifecycle for multi-message follow-up runs", async () => {
 		const { params, emit } = baseParams({
+			stageStatus: { enabled: false },
 			messages: [
 				{ role: "user", content: "First message" },
 				{ role: "assistant", content: "First reply" },
@@ -251,5 +260,86 @@ describe("runPipelineToolAgent", () => {
 		});
 		expect(emit.mock.calls[0]?.[0]).not.toHaveProperty("systemPrompt");
 		expect(emit.mock.calls[0]?.[0]).not.toHaveProperty("userPrompt");
+	});
+
+	it("injects stage status tool and appends completion prompt by default", async () => {
+		const { params } = baseParams({
+			stageStatus: { enabled: true, required: false },
+			isSuccess: () => true,
+		});
+
+		runToolAgentStreamMock.mockImplementationOnce(async (streamParams) => {
+			expect(streamParams.systemPrompt).toContain(
+				"call report_agent_stage_status exactly once",
+			);
+			expect(streamParams.tools).toHaveProperty("report_agent_stage_status");
+			expect(streamParams.stopWhen).toEqual(
+				expect.arrayContaining([expect.any(Function)]),
+			);
+			streamParams.streamState.rawText = "done";
+			return streamParams.streamState;
+		});
+
+		await runPipelineToolAgent(params);
+	});
+
+	it("fails strict mode when report_agent_stage_status is missing", async () => {
+		const { params, emit } = baseParams({ isSuccess: () => true });
+
+		runToolAgentStreamMock.mockImplementationOnce(async (streamParams) => {
+			streamParams.streamState.rawText = "done";
+			return streamParams.streamState;
+		});
+
+		const result = await runPipelineToolAgent(params);
+
+		expect(result.success).toBe(false);
+		expect(result.reason).toBe(
+			"Agent finished without calling report_agent_stage_status.",
+		);
+		expect(emit.mock.calls.at(-1)?.[0]).toMatchObject({
+			eventType: "lifecycle",
+			status: "error",
+			error: "Agent finished without calling report_agent_stage_status.",
+		});
+	});
+
+	it("emits resolved lifecycle with stageStatusMessage when stage status is reported", async () => {
+		const { params, emit } = baseParams({ isSuccess: () => true });
+
+		runToolAgentStreamMock.mockImplementationOnce(async (streamParams) => {
+			streamParams.handlers.onToolCall?.({
+				toolCallId: "tc-stage",
+				name: "report_agent_stage_status",
+				state: "input-complete",
+			});
+			streamParams.handlers.onToolResult?.({
+				toolCallId: "tc-stage",
+				content: {
+					ok: true,
+					status: "success",
+					message: "Improvements applied.",
+				},
+				state: "complete",
+			});
+			streamParams.streamState.rawText = "done";
+			return streamParams.streamState;
+		});
+
+		const result = await runPipelineToolAgent(params);
+
+		expect(result.success).toBe(true);
+		expect(result.resolvedStageStatus).toEqual({
+			status: "done",
+			message: "Improvements applied.",
+		});
+		expect(emit.mock.calls.at(-1)?.[0]).toMatchObject({
+			eventType: "lifecycle",
+			status: "done",
+			meta: {
+				stageStatusMessage: "Improvements applied.",
+				reportedStageStatus: "success",
+			},
+		});
 	});
 });

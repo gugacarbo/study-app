@@ -2,13 +2,30 @@ import type { LanguageModelUsage, StopCondition, ToolSet } from "ai";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
 import {
+	type AiStreamHandlers,
 	type AiStreamState,
 	createAiStreamState,
+	createIncrementalToolChunkHandler,
+	flushAiStreamThinkTagDeltas,
 	processAiStreamPart,
 } from "@/features/ai/core/ai-stream-handler";
+import { readToolFailureMessage } from "@/features/ai/core/tool-agent-run";
 import { streamTextWithCompatibilityFallback } from "@/features/ai/core/stream-text-compat";
 import type { AgentRunDescriptor } from "@/features/ai/core/ui-message-job-stream";
 import type { AgentEventEmitter } from "@/features/ai/pipeline/types";
+import {
+	appendPipelineStageStatusPrompt,
+	createPipelineStageStatusTracker,
+	mergePipelineStageStatusStopWhen,
+	mergePipelineStageStatusTools,
+	resolvePipelineStageStatusConfig,
+	resolvePipelineStageStatusOutcome,
+	type PipelineAgentReportedStatus,
+	type PipelineAgentResolvedStatus,
+	type PipelineStageStatusOptions,
+	type PipelineStageStatusReport,
+} from "@/features/ai/pipeline/server/pipeline-stage-status";
+import { readIngestAgentStageStatusReport } from "@/features/ai/tools/ingest-stage-status";
 import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import { createLlmLogContext } from "@/lib/llm-logging";
 import type { ProviderConfig } from "@/lib/validation";
@@ -20,6 +37,12 @@ export interface PipelineTextAgentResult {
 	usage?: LanguageModelUsage;
 	usedGenerateTextFallback: boolean;
 	streamState: AiStreamState;
+	stageStatusReport: PipelineStageStatusReport | null;
+	reportedStageStatus: PipelineAgentReportedStatus | null;
+	resolvedStageStatus: {
+		status: PipelineAgentResolvedStatus;
+		message: string;
+	} | null;
 }
 
 export interface RunPipelineTextAgentParams {
@@ -38,6 +61,7 @@ export interface RunPipelineTextAgentParams {
 	stopWhen?:
 		| StopCondition<NoInfer<ToolSet>>
 		| Array<StopCondition<NoInfer<ToolSet>>>;
+	stageStatus?: PipelineStageStatusOptions;
 	onRecoverableError?: (message: string) => void;
 }
 
@@ -69,11 +93,48 @@ function emitRunEvent(
 	});
 }
 
+function buildStageStatusFailureResult(params: {
+	reason: string;
+	text: string;
+	usage?: LanguageModelUsage;
+	streamState: AiStreamState;
+	stageStatusTracker: ReturnType<typeof createPipelineStageStatusTracker>;
+	resolvedStageStatus: {
+		status: PipelineAgentResolvedStatus;
+		message: string;
+	} | null;
+}): PipelineTextAgentResult {
+	return {
+		success: false,
+		reason: params.reason,
+		text: params.text,
+		usage: params.usage,
+		usedGenerateTextFallback: false,
+		streamState: params.streamState,
+		stageStatusReport: params.stageStatusTracker.stageStatusReport,
+		reportedStageStatus: params.stageStatusTracker.reportedStageStatus,
+		resolvedStageStatus: params.resolvedStageStatus,
+	};
+}
+
 export async function runPipelineTextAgent(
 	params: RunPipelineTextAgentParams,
 ): Promise<PipelineTextAgentResult> {
 	const streamState = createAiStreamState();
+	const toolFailureMessages: string[] = [];
+	const toolNamesById = new Map<string, string>();
+	const stageStatusConfig = resolvePipelineStageStatusConfig(params.stageStatus);
+	const stageStatusTracker = createPipelineStageStatusTracker();
 	const { run, emit, meta } = params;
+	const systemPrompt = appendPipelineStageStatusPrompt(
+		params.systemPrompt,
+		stageStatusConfig.enabled && stageStatusConfig.appendPrompt,
+	);
+	const tools = mergePipelineStageStatusTools(params.tools ?? {}, stageStatusConfig.enabled);
+	const stopWhen = mergePipelineStageStatusStopWhen(
+		params.stopWhen,
+		stageStatusConfig.enabled,
+	);
 	let responseText = "";
 	let usage: LanguageModelUsage | undefined;
 
@@ -86,7 +147,7 @@ export async function runPipelineTextAgent(
 			...(params.includePromptsInPending === false
 				? {}
 				: {
-						systemPrompt: params.systemPrompt,
+						systemPrompt,
 						userPrompt: params.userPrompt,
 					}),
 		},
@@ -94,77 +155,153 @@ export async function runPipelineTextAgent(
 	);
 	emitRunEvent(emit, run, { eventType: "lifecycle", status: "running" }, meta);
 
+	const handleToolCall = (toolCall: {
+		toolCallId: string;
+		name?: string;
+		arguments?: string;
+		input?: unknown;
+		state: "awaiting-input" | "input-streaming" | "input-complete";
+	}) => {
+		if (
+			toolCall.state === "input-streaming" ||
+			toolCall.state === "awaiting-input"
+		) {
+			if (toolCall.name) {
+				toolNamesById.set(toolCall.toolCallId, toolCall.name);
+			}
+			return;
+		}
+
+		if (toolCall.name) {
+			toolNamesById.set(toolCall.toolCallId, toolCall.name);
+		}
+
+		emitRunEvent(
+			emit,
+			run,
+			{
+				eventType: "tool-call",
+				name: toolCall.name,
+				arguments: toolCall.arguments,
+				input: toolCall.input,
+				state: toolCall.state,
+				meta: { toolCallId: toolCall.toolCallId },
+			},
+			meta,
+		);
+	};
+
+	const handleToolResult = (toolResult: {
+		toolCallId: string;
+		content?: unknown;
+		error?: string;
+		state: "streaming" | "complete" | "error";
+	}) => {
+		const toolName = toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+
+		emitRunEvent(
+			emit,
+			run,
+			{
+				eventType: "tool-result",
+				name: toolName,
+				content: toolResult.content,
+				error: toolResult.error,
+				state: toolResult.state,
+				meta: { toolCallId: toolResult.toolCallId },
+			},
+			meta,
+		);
+
+		const toolFailure = readToolFailureMessage(toolResult.content);
+		if (toolFailure) {
+			toolFailureMessages.push(toolFailure);
+		}
+
+		if (readIngestAgentStageStatusReport(toolResult.content)) {
+			stageStatusTracker.trackToolResult(
+				"report_agent_stage_status",
+				toolResult.content,
+			);
+		} else {
+			stageStatusTracker.trackToolResult(toolName, toolResult.content);
+		}
+	};
+
+	const streamHandlers: AiStreamHandlers = {
+		onTextDelta: (delta) => {
+			responseText += delta;
+			emitRunEvent(emit, run, { eventType: "token", rawText: delta }, meta);
+		},
+		onReasoningDelta: (delta) => {
+			emitRunEvent(
+				emit,
+				run,
+				{
+					eventType: "token",
+					rawText: delta,
+					meta: { kind: "reasoning" },
+				},
+				meta,
+			);
+		},
+		onUsage: (nextUsage) => {
+			usage = nextUsage;
+			emitRunEvent(
+				emit,
+				run,
+				{ eventType: "token", tokens: nextUsage },
+				meta,
+			);
+		},
+		onToolCall: handleToolCall,
+		onToolResult: handleToolResult,
+	};
+
 	const llmLogContext = createLlmLogContext(params.scope, params.config, {
 		callId: run.agentRunId,
-		systemPrompt: params.systemPrompt,
+		systemPrompt,
 		requestSummary: params.requestSummary ?? params.userPrompt,
 		metadata: params.meta,
 	});
 
 	try {
+		const onStreamPart = createIncrementalToolChunkHandler(
+			streamHandlers,
+			streamState,
+		);
+
 		const generation = await streamTextWithCompatibilityFallback({
 			ctx: llmLogContext,
 			request: {
 				model: getAiModel(params.config),
-				system: params.systemPrompt,
+				system: systemPrompt,
 				messages: [{ role: "user" as const, content: params.userPrompt }],
-				tools: params.tools,
-				stopWhen: params.stopWhen,
+				tools: stageStatusConfig.enabled ? tools : params.tools,
+				stopWhen,
 				providerOptions: buildProviderOptions(params.config),
 				abortSignal: params.abortSignal,
 			},
-			onStreamPart: (chunk) => {
-				processAiStreamPart(
-					chunk,
-					{
-						onTextDelta: (delta) => {
-							responseText += delta;
-							emitRunEvent(
-								emit,
-								run,
-								{ eventType: "token", rawText: delta },
-								meta,
-							);
-						},
-						onReasoningDelta: (delta) => {
-							emitRunEvent(
-								emit,
-								run,
-								{
-									eventType: "token",
-									rawText: delta,
-									meta: { kind: "reasoning" },
-								},
-								meta,
-							);
-						},
-						onUsage: (nextUsage) => {
-							usage = nextUsage;
-							emitRunEvent(
-								emit,
-								run,
-								{ eventType: "token", tokens: nextUsage },
-								meta,
-							);
-						},
-					},
-					streamState,
-				);
-			},
+			onStreamPart,
 		});
+
+		flushAiStreamThinkTagDeltas(streamHandlers, streamState);
 
 		if (
 			generation.usedGenerateTextFallback &&
 			responseText.trim().length === 0 &&
 			generation.text.length > 0
 		) {
-			responseText = generation.text;
-			emitRunEvent(
-				emit,
-				run,
-				{ eventType: "token", rawText: generation.text },
-				meta,
+			processAiStreamPart(
+				{
+					type: "text-delta",
+					text: generation.text,
+				} as Parameters<typeof processAiStreamPart>[0],
+				streamHandlers,
+				streamState,
 			);
+			flushAiStreamThinkTagDeltas(streamHandlers, streamState);
+			responseText = streamState.rawText;
 		}
 
 		if (!usage && generation.usage) {
@@ -177,9 +314,48 @@ export async function runPipelineTextAgent(
 			);
 		}
 
-		const text = generation.text || responseText.trim();
+		const text =
+			responseText.trim() || streamState.rawText.trim() || generation.text.trim();
 
-		emitRunEvent(emit, run, { eventType: "lifecycle", status: "done" }, meta);
+		const { resolvedStageStatus, strictFailureReason } =
+			resolvePipelineStageStatusOutcome({
+				config: stageStatusConfig,
+				stageStatusReport: stageStatusTracker.stageStatusReport,
+				toolFailureMessages,
+				streamState,
+			});
+
+		if (strictFailureReason) {
+			emitRunEvent(
+				emit,
+				run,
+				{ eventType: "lifecycle", status: "error", error: strictFailureReason },
+				meta,
+			);
+
+			return buildStageStatusFailureResult({
+				reason: strictFailureReason,
+				text,
+				usage: usage ?? generation.usage,
+				streamState,
+				stageStatusTracker,
+				resolvedStageStatus,
+			});
+		}
+
+		emitRunEvent(
+			emit,
+			run,
+			{
+				eventType: "lifecycle",
+				status: resolvedStageStatus.status,
+				meta: {
+					stageStatusMessage: resolvedStageStatus.message,
+					reportedStageStatus: stageStatusTracker.reportedStageStatus,
+				},
+			},
+			meta,
+		);
 
 		return {
 			success: true,
@@ -187,6 +363,9 @@ export async function runPipelineTextAgent(
 			usage: usage ?? generation.usage,
 			usedGenerateTextFallback: generation.usedGenerateTextFallback,
 			streamState,
+			stageStatusReport: stageStatusTracker.stageStatusReport,
+			reportedStageStatus: stageStatusTracker.reportedStageStatus,
+			resolvedStageStatus,
 		};
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : "unknown error";
@@ -199,13 +378,13 @@ export async function runPipelineTextAgent(
 			meta,
 		);
 
-		return {
-			success: false,
+		return buildStageStatusFailureResult({
 			reason,
 			text: responseText.trim() || streamState.rawText,
 			usage,
-			usedGenerateTextFallback: false,
 			streamState,
-		};
+			stageStatusTracker,
+			resolvedStageStatus: null,
+		});
 	}
 }

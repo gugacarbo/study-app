@@ -11,18 +11,10 @@ import type { createAgentRunWriter } from "@/features/ai/core/ui-message-job-str
 import { createAgentEventEmitter } from "@/features/ai/pipeline/server/agent-emitter";
 import type { PipelineLogger } from "@/features/ai/pipeline/server/pipeline-logger";
 import { runPipelineToolAgent } from "@/features/ai/pipeline/server/run-pipeline-tool-agent";
-import type { IngestAgentResolvedStatus } from "@/features/ai/tools/ingest-stage-status";
-import {
-	type IngestAgentReportedStatus,
-	type IngestAgentStageStatusReport,
-	readIngestAgentStageStatusReport,
-	resolveIngestAgentRunStatus,
-} from "@/features/ai/tools/ingest-stage-status";
 import {
 	createExtractionWorkspace,
 	createIngestExtractionTools,
 } from "@/features/ai/tools/ingest-tools";
-import type { AgentRunStatus } from "@/features/ai/types/ui-message-data-parts";
 import type { ExamIngestResponse, ProviderConfig } from "@/lib/validation";
 import {
 	buildExtractionUserPrompt,
@@ -42,7 +34,7 @@ interface ExtractionPassParams {
 
 export interface ExtractionPassResult {
 	result: ExamIngestResponse;
-	stageStatus: IngestAgentResolvedStatus;
+	stageStatus: "done" | "warning" | "error" | "skipped";
 	stageStatusMessage: string;
 }
 
@@ -74,8 +66,6 @@ export async function runExtractionPass(
 	});
 	const workspace = createExtractionWorkspace({ examName });
 	let stoppedAfterDuplicateAdd = false;
-	let stageStatusReport: IngestAgentStageStatusReport | null = null;
-	let reportedStageStatus: IngestAgentReportedStatus | null = null;
 	const toolFailureMessages: string[] = [];
 
 	const tools = createIngestExtractionTools(workspace, {
@@ -92,11 +82,6 @@ export async function runExtractionPass(
 			) {
 				stoppedAfterDuplicateAdd = true;
 			}
-		},
-		onStageStatusReported: async ({ output }) => {
-			const report = readIngestAgentStageStatusReport(output);
-			stageStatusReport = report;
-			reportedStageStatus = report?.status ?? null;
 		},
 	});
 
@@ -133,6 +118,9 @@ export async function runExtractionPass(
 		failureReason: () =>
 			toolFailureMessages[0] ??
 			"No questions were extracted during the initial ingest pass.",
+		stageStatus: {
+			hasSuccessfulWork: () => workspace.listQuestions().length > 0,
+		},
 	});
 
 	if (!agentResult.success) {
@@ -158,12 +146,10 @@ export async function runExtractionPass(
 	}
 
 	const extractionResult = workspace.buildResult();
-	const resolvedStageStatus = resolveIngestAgentRunStatus({
-		reported: stageStatusReport,
-		toolFailureMessages,
-		hasSuccessfulWork: extractionResult.questions.length > 0,
-		fallbackMessage: `Extracted ${extractionResult.questions.length} question(s) without an explicit stage report.`,
-	});
+	const resolvedStageStatus = agentResult.resolvedStageStatus ?? {
+		status: "done" as const,
+		message: `Extracted ${extractionResult.questions.length} question(s).`,
+	};
 
 	if (extractionResult.questions.length > 1) {
 		onWarning(
@@ -180,15 +166,6 @@ export async function runExtractionPass(
 	agentRuns.result(run, extractionResult, agentResult.rawText, {
 		toolQuestionCount: workspace.listQuestions().length,
 		stageStatusMessage: resolvedStageStatus.message,
-	});
-	agentRuns.lifecycle(run, resolvedStageStatus.status as AgentRunStatus, {
-		meta: {
-			examName: extractionResult.examName,
-			questionCount: extractionResult.questions.length,
-			topicCount: extractionResult.topics.length,
-			stageStatusMessage: resolvedStageStatus.message,
-			reportedStageStatus,
-		},
 	});
 
 	return {

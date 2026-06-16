@@ -1,4 +1,3 @@
-import { INGEST_STAGE_STATUS_COMPLETION_PROMPT } from "@/features/ai/tools/ingest-stage-status";
 import type { ExtractionQuestionId } from "@/features/ai/tools/ingest-tools";
 import { formatExtractionQuestionId } from "@/features/ai/tools/ingest-tools";
 import type { Question } from "@/lib/validation";
@@ -32,20 +31,16 @@ Your only task is to verify and correct one question object while preserving the
 Tool contract:
 - The review workspace already contains this question as questionId "${workspaceQuestionId}". The user prompt includes a full snapshot — do not call list_extracted_questions.
 - Use update_extracted_question only when a field actually needs correction.
-- Use report_agent_stage_status once at the end to report the review outcome.
 - When calling update_extracted_question, always pass questionId "${workspaceQuestionId}" and include only the fields you are changing. Omit unchanged fields entirely — never send null.
 - A call with only questionId and no field changes is a no-op.
 - Do not return a final JSON object yourself. The server will read the final reviewed question from the workspace.
-- Before calling report_agent_stage_status, reply with a brief plain-text summary (1–3 sentences) of what you checked and what you changed, or state that no changes were needed.
-- Do not output markdown, code fences, or JSON outside that final summary.
+- Do not output markdown, code fences, or JSON outside tool workflow commentary.
 
 Completion behavior:
 - Compare the snapshot and source excerpt in the user prompt against the workspace question.
-- After one successful update_extracted_question call, stop calling workspace tools and report the stage status.
-- If the question is already correct, report the stage status without calling update_extracted_question.
+- After one successful update_extracted_question call, stop calling workspace tools.
+- If the question is already correct, finish without calling update_extracted_question.
 - Never call update_extracted_question repeatedly in a loop.
-
-${INGEST_STAGE_STATUS_COMPLETION_PROMPT}
 
 Review rules:
 - Always keep "options" with at least 2 items. For open-ended questions, include the exact correct answer plus at least one short incorrect distractor.
@@ -113,8 +108,7 @@ export function buildReviewerUserPrompt(
 		"Workflow:",
 		`- Compare the snapshot and source excerpt below against the workspace question (questionId "${workspaceQuestionId}").`,
 		`- Call update_extracted_question with questionId "${workspaceQuestionId}" only for fields that need correction. Omit unchanged fields; never pass null.`,
-		"- If the question is already correct, report the stage status without calling update_extracted_question.",
-		"- End with a brief plain-text summary, then call report_agent_stage_status.",
+		"- If the question is already correct, finish without calling update_extracted_question.",
 		"",
 		...formatQuestionSnapshot(question),
 		"",

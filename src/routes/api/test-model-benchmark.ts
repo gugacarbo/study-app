@@ -173,7 +173,7 @@ async function runBenchmarkPhase(
 			...agentParams,
 			messages: [{ role: "user" as const, content: phase.userMsg }],
 			tools: tools as ToolSet,
-			stopWhen: stepCountIs(2),
+			stopWhen: stepCountIs(3),
 			isSuccess: () => true,
 		});
 		response = result.rawText;
@@ -202,7 +202,6 @@ async function runBenchmarkPhase(
 	agentRuns.result(run, { response, passed, metrics }, response, {
 		benchmarkPhase: metrics,
 	});
-	agentRuns.lifecycle(run, "done");
 
 	writeJobProgress(writer, {
 		step: `${phase.label}: ${passed ? "passed" : "failed"}`,

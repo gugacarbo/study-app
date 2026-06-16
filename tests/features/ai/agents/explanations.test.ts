@@ -1,4 +1,4 @@
-import type { ToolSet } from "ai";
+import type { TextStreamPart, ToolSet } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { streamTextMock } = vi.hoisted(() => ({
@@ -32,6 +32,24 @@ function getTool(tools: ToolSet | undefined, name: string): ExecutableTool {
 	return tool;
 }
 
+async function yieldStageStatusReport(
+	tools: ToolSet | undefined,
+	message: string,
+	toolCallId = "tc-stage-status",
+): Promise<TextStreamPart<ToolSet>> {
+	const reportStage = getTool(tools, "report_agent_stage_status");
+	const input = { status: "success", message };
+	const output = { ok: true, status: "success", message };
+	await reportStage.execute(input);
+	return {
+		type: "tool-result",
+		toolCallId,
+		toolName: "report_agent_stage_status",
+		input,
+		output,
+	} as TextStreamPart<ToolSet>;
+}
+
 function mockSuccessfulExplanationRun(questionId: number) {
 	streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
 		const updateExplanation = getTool(
@@ -45,6 +63,10 @@ function mockSuccessfulExplanationRun(questionId: number) {
 					explanation: `Curta ${questionId}`,
 					deepExplanation: `Longa ${questionId}`,
 				});
+				yield await yieldStageStatusReport(
+					options?.tools,
+					`Explanation saved for question ${questionId}.`,
+				);
 			})(),
 		};
 	});
@@ -220,6 +242,10 @@ describe("runQuestionExplanations", () => {
 						explanation: `Curta ${questionId}`,
 						deepExplanation: `Longa ${questionId}`,
 					});
+					yield await yieldStageStatusReport(
+						options?.tools,
+						`Explanation saved for question ${questionId}.`,
+					);
 				})(),
 			};
 		});

@@ -17,30 +17,6 @@ vi.mock("@/features/ai/adapters/provider-model", () => ({
 	getAiModel: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@/features/ai/core/ai-stream-handler", async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import("@/features/ai/core/ai-stream-handler")>();
-	return {
-		...actual,
-		processAiStreamPart(
-			chunk: Parameters<typeof actual.processAiStreamPart>[0],
-			handlers: Parameters<typeof actual.processAiStreamPart>[1],
-			state: Parameters<typeof actual.processAiStreamPart>[2],
-		) {
-			const { onToolResult, ...restHandlers } = handlers;
-			if (onToolResult) {
-				return actual.processAiStreamPart(
-					chunk,
-					restHandlers,
-					state,
-					onToolResult,
-				);
-			}
-			return actual.processAiStreamPart(chunk, handlers, state);
-		},
-	};
-});
-
 import type { DraftQuestion } from "@/features/ai/agents/improve-questions/contracts";
 import { improveSingleQuestion } from "@/features/ai/agents/improve-questions/improve-single-question";
 
@@ -140,6 +116,32 @@ describe("improveSingleQuestion", () => {
 						},
 					} as TextStreamPart<ToolSet>;
 
+					const reportStageStatus = getTool(
+						options?.tools,
+						"report_agent_stage_status",
+					);
+					await reportStageStatus.execute(
+						{
+							status: "success",
+							message: "Refinei os distratores e melhorei a explicacao.",
+						},
+						{ toolCallId: "tool-3" },
+					);
+					yield {
+						type: "tool-result",
+						toolCallId: "tool-3",
+						toolName: "report_agent_stage_status",
+						input: {
+							status: "success",
+							message: "Refinei os distratores e melhorei a explicacao.",
+						},
+						output: {
+							ok: true,
+							status: "success",
+							message: "Refinei os distratores e melhorei a explicacao.",
+						},
+					} as TextStreamPart<ToolSet>;
+
 					yield {
 						type: "finish-step",
 						usage: {
@@ -211,6 +213,9 @@ describe("improveSingleQuestion", () => {
 				tools: expect.objectContaining({
 					get_question: expect.objectContaining({ execute: expect.any(Function) }),
 					update_question_options: expect.objectContaining({
+						execute: expect.any(Function),
+					}),
+					report_agent_stage_status: expect.objectContaining({
 						execute: expect.any(Function),
 					}),
 					web_search: expect.objectContaining({ execute: expect.any(Function) }),
@@ -315,8 +320,21 @@ describe("improveSingleQuestion", () => {
 				state: "complete",
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			8,
+		expect(onAgentEvent).toHaveBeenCalledWith(
+			expect.objectContaining({
+				eventType: "tool-result",
+				stageId: "improve-questions",
+				agentRunId: "improve-q7",
+				name: "report_agent_stage_status",
+				content: {
+					ok: true,
+					status: "success",
+					message: "Refinei os distratores e melhorei a explicacao.",
+				},
+				state: "complete",
+			}),
+		);
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "token",
 				stageId: "improve-questions",
@@ -328,22 +346,27 @@ describe("improveSingleQuestion", () => {
 				},
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			9,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "lifecycle",
 				stageId: "improve-questions",
 				status: "done",
 				agentRunId: "improve-q7",
+				meta: expect.objectContaining({
+					stageStatusMessage: "Refinei os distratores e melhorei a explicacao.",
+					reportedStageStatus: "success",
+				}),
 			}),
 		);
-		expect(onAgentEvent).toHaveBeenNthCalledWith(
-			10,
+		expect(onAgentEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				eventType: "result",
 				stageId: "improve-questions",
 				agentRunId: "improve-q7",
 				finalObject: expect.objectContaining({ id: 7 }),
+				meta: expect.objectContaining({
+					stageStatusMessage: "Refinei os distratores e melhorei a explicacao.",
+				}),
 			}),
 		);
 	});
@@ -368,6 +391,33 @@ describe("improveSingleQuestion", () => {
 						input: { id: 7 },
 						output: undefined,
 					} as TextStreamPart<ToolSet>;
+
+					const reportStageStatus = getTool(
+						options?.tools,
+						"report_agent_stage_status",
+					);
+					await reportStageStatus.execute(
+						{
+							status: "success",
+							message: "No changes needed.",
+						},
+						{ toolCallId: "tool-2" },
+					);
+					yield {
+						type: "tool-result",
+						toolCallId: "tool-2",
+						toolName: "report_agent_stage_status",
+						input: {
+							status: "success",
+							message: "No changes needed.",
+						},
+						output: {
+							ok: true,
+							status: "success",
+							message: "No changes needed.",
+						},
+					} as TextStreamPart<ToolSet>;
+
 					yield {
 						type: "finish-step",
 						usage: {
