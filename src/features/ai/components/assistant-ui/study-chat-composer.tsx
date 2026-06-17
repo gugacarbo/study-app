@@ -10,13 +10,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { ModelSelect } from "@/features/ai/components/model-select";
 import {
 	Tooltip,
 	TooltipContent,
@@ -101,33 +95,20 @@ function StudyChatComposerAction({
 		<div className="aui-composer-action-wrapper relative flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<ComposerAddAttachment />
-				<Select
+				<ModelSelect
+					models={models}
 					value={selectValue}
-					disabled={!hasModels}
 					onValueChange={(value) => {
 						const modelId = Number.parseInt(value, 10);
 						if (Number.isFinite(modelId) && modelId > 0) {
 							onSelectedModelChange(modelId);
 						}
 					}}
-				>
-					<SelectTrigger
-						size="sm"
-						className="h-8 max-w-48 text-xs"
-						aria-label="Select model"
-					>
-						<SelectValue
-							placeholder={hasModels ? "Select model" : "No models available"}
-						/>
-					</SelectTrigger>
-					<SelectContent align="start" side="top">
-						{models.map((model) => (
-							<SelectItem key={model.id} value={String(model.id)}>
-								{model.displayName} ({model.providerName})
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					triggerSize="sm"
+					triggerClassName="h-8 max-w-48 text-xs"
+					contentAlign="start"
+					contentSide="top"
+				/>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button

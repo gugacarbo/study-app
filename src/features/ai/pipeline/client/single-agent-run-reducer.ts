@@ -2,7 +2,10 @@ import type { UIMessage } from "ai";
 import type { ExplainQuestionAgentEvent } from "@/features/ai/agents/explanations/contracts";
 import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
 import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
-import { INGEST_STAGE_STATUS_TOOL } from "@/features/ai/tools/ingest-stage-status";
+import {
+	INGEST_STAGE_STATUS_TOOL,
+	readIngestAgentStageStatusReport,
+} from "@/features/ai/tools/ingest-stage-status";
 import type {
 	AgentRunDataPart,
 	AgentRunEventType,
@@ -290,6 +293,17 @@ function readAssistantText(messages: UIMessage[]): string {
 
 function isStageStatusToolName(toolName: string | undefined): boolean {
 	return toolName === INGEST_STAGE_STATUS_TOOL;
+}
+
+function resolveReducerToolName(
+	name: string | undefined,
+	...payloads: unknown[]
+): string | undefined {
+	if (isStageStatusToolName(name)) return name;
+	if (payloads.some((payload) => readIngestAgentStageStatusReport(payload))) {
+		return INGEST_STAGE_STATUS_TOOL;
+	}
+	return name;
 }
 
 function readStageStatusMessageFromRecord(
@@ -766,7 +780,13 @@ function applyAgentMetadata(
 			event.eventType === "result" && event.rawText
 				? event.rawText
 				: nextOutputText,
-		error: event.error ?? state.error,
+		error:
+			event.error ??
+			(event.eventType === "lifecycle" &&
+			isTerminalLifecycleStatus(event.status) &&
+			!event.error
+				? null
+				: state.error),
 		warnings: nextWarnings,
 	});
 }
@@ -916,29 +936,45 @@ export function reduceAgentEvent(
 
 	let nextState = applyAgentMetadata(state, event);
 	nextState = applyStageStatusFinalMessageFromEvent(nextState, event);
+	const toolName = resolveReducerToolName(
+		event.name,
+		event.input,
+		event.content,
+		event.output,
+	);
+	const toolEvent =
+		toolName === event.name ? event : { ...event, name: toolName };
 
-	if (event.eventType === "tool-call") {
-		if (isStageStatusToolName(event.name)) {
-			return nextState;
+	if (toolEvent.eventType === "tool-call") {
+		if (isStageStatusToolName(toolEvent.name)) {
+			return appendAssistantToolPart(
+				nextState,
+				createDynamicToolFromCallEvent(nextState, toolEvent),
+			);
 		}
 
 		nextState = appendAssistantToolPart(
 			nextState,
-			createDynamicToolFromCallEvent(nextState, event),
+			createDynamicToolFromCallEvent(nextState, toolEvent),
 		);
 	}
 
-	if (event.eventType === "tool-result") {
-		if (isStageStatusToolName(event.name)) {
-			const message = readStageStatusMessageFromToolEvent(event);
-			return message
-				? appendStageStatusFinalMessage(nextState, message)
-				: nextState;
+	if (toolEvent.eventType === "tool-result") {
+		if (isStageStatusToolName(toolEvent.name)) {
+			const message = readStageStatusMessageFromToolEvent(toolEvent);
+			let resultState = appendAssistantToolPart(
+				nextState,
+				createDynamicToolFromResultEvent(nextState, toolEvent),
+			);
+			if (message) {
+				resultState = appendStageStatusFinalMessage(resultState, message);
+			}
+			return resultState;
 		}
 
 		nextState = appendAssistantToolPart(
 			nextState,
-			createDynamicToolFromResultEvent(nextState, event),
+			createDynamicToolFromResultEvent(nextState, toolEvent),
 		);
 	}
 

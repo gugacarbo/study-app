@@ -636,4 +636,151 @@ describe("runExtractionPass", () => {
 			expect.objectContaining({ toolCallId: "tc-stream-1" }),
 		);
 	});
+
+	it("does not stop before report_agent_stage_status when the target count is reached", async () => {
+		streamTextMock.mockImplementation((options?: {
+			tools?: ToolSet;
+			stopWhen?: Array<(ctx: { steps: unknown[] }) => boolean>;
+		}) => {
+			const stopWhen = options?.stopWhen ?? [];
+			const addStep = {
+				toolResults: [
+					{
+						toolName: "add_extracted_question",
+						output: { ok: true, questionId: "q1", totalQuestions: 1 },
+					},
+				],
+			};
+
+			expect(
+				stopWhen.some((condition) => condition({ steps: [addStep] })),
+			).toBe(false);
+
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
+					await addQuestion.execute(
+						{
+							question: "Qual e a derivada de f(x) = x²?",
+							options: ["1", "2x"],
+							answer: "2x",
+							topic: "Calculo",
+						},
+						{ toolCallId: "tc-1" },
+					);
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question.",
+					);
+				})(),
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
+
+		const pass = await runExtractionPass({
+			text: "1. Qual e a derivada de f(x) = x²?\na) 1\nb) 2x",
+			fileName: "single-question.md",
+			config: {
+				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
+				apiKey: "test-key",
+			},
+			agentRuns: createAgentRunsMock(),
+			onWarning: vi.fn(),
+			log: { error: vi.fn() },
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		expect(pass.stageStatusMessage).toBe("Extracted 1 question.");
+	});
+
+	it("succeeds after a retry loop when the target question is already registered", async () => {
+		streamTextMock.mockImplementation((options?: { tools?: ToolSet }) => {
+			const addQuestion = getTool(options?.tools, "add_extracted_question");
+			return {
+				fullStream: (async function* () {
+					await addQuestion.execute(
+						{
+							question: "1. Qual é a derivada de f(x) = x²?",
+							options: ["1", "2x", "x²", "2"],
+							answers: ["2x"],
+						},
+						{ toolCallId: "tc-1" },
+					);
+					yield {
+						type: "tool-result",
+						toolCallId: "tc-1",
+						toolName: "add_extracted_question",
+						input: {
+							question: "1. Qual é a derivada de f(x) = x²?",
+							options: ["1", "2x", "x²", "2"],
+							answers: ["2x"],
+						},
+						output: {
+							ok: true,
+							added: true,
+							questionId: "q1",
+							totalQuestions: 1,
+						},
+					} as TextStreamPart<ToolSet>;
+					await addQuestion.execute(
+						{
+							questionText: "Qual é a derivada de f(x) = x²?",
+							options: '["1", "2x", "x²", "2"]',
+							answers: '["2x"]',
+							topic: "Cálculo Diferencial",
+						},
+						{ toolCallId: "tc-2" },
+					);
+					yield {
+						type: "tool-result",
+						toolCallId: "tc-2",
+						toolName: "add_extracted_question",
+						input: {
+							questionText: "Qual é a derivada de f(x) = x²?",
+							options: '["1", "2x", "x²", "2"]',
+							answers: '["2x"]',
+							topic: "Cálculo Diferencial",
+						},
+						output: {
+							ok: true,
+							alreadyExists: true,
+							questionId: "q1",
+							totalQuestions: 1,
+							message:
+								"All expected source questions are already registered. Call report_agent_stage_status to finish this stage.",
+						},
+					} as TextStreamPart<ToolSet>;
+					yield await yieldStageStatusReport(
+						options?.tools,
+						"Extracted 1 question about derivatives.",
+						"tc-stage",
+					);
+				})(),
+				toUIMessageStream: vi.fn(() => (async function* () {})()),
+			};
+		});
+
+		const pass = await runExtractionPass({
+			text: "1. Qual é a derivada de f(x) = x²?\n   a) 1\n   b) 2x\n   c) x²\n   d) 2",
+			fileName: "single-question.md",
+			config: {
+				model: "openai/gpt-4o-mini",
+				baseUrl: "https://openrouter.ai/api/v1",
+				apiKey: "test-key",
+			},
+			agentRuns: createAgentRunsMock(),
+			onWarning: vi.fn(),
+			log: { error: vi.fn() },
+			stageId: "initial_extraction",
+			stageLabel: "Initial extraction agent",
+		});
+
+		expect(pass.result.questions).toHaveLength(1);
+		expect(pass.stageStatus).toBe("done");
+		expect(pass.stageStatusMessage).toBe(
+			"Extracted 1 question about derivatives.",
+		);
+	});
 });

@@ -23,7 +23,7 @@ import {
 	type TokenTotals,
 	TokenTotalsBadge,
 } from "@/features/ai/components/token-totals-badge";
-import { serializeBenchmarkJson } from "@/features/ai/lib/build-benchmark-json";
+import { serializeModelTestExport } from "@/features/ai/lib/build-model-test-export";
 import { filterBenchmarkMessagesByPhase } from "@/features/ai/lib/filter-benchmark-messages";
 import {
 	type BenchmarkPhaseMetrics,
@@ -59,7 +59,10 @@ type TestConnectionDialogProps = {
 	testError: string;
 	logs?: PipelineLogEntry[];
 	stepText?: string;
+	modelId?: number | null;
 	modelLabel?: string;
+	userPrompt?: string;
+	responseText?: string;
 	inputCostPerMillion?: number | null;
 	outputCostPerMillion?: number | null;
 	onRetest?: () => void;
@@ -437,7 +440,10 @@ export function TestConnectionDialog({
 	testError,
 	logs = [],
 	stepText,
+	modelId,
 	modelLabel,
+	userPrompt,
+	responseText,
 	inputCostPerMillion,
 	outputCostPerMillion,
 	onRetest,
@@ -464,21 +470,33 @@ export function TestConnectionDialog({
 		) : isStreaming ? (
 			<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
 		) : null;
-	const benchmarkJson = isBenchmark
-		? serializeBenchmarkJson({
-				modelLabel,
-				testStatus,
-				testProgress,
-				testStep,
-				testError,
-				tokenTotals,
-				streamMetrics,
-				phases: phaseMetrics,
-				messages: testMessages,
-				inputCostPerMillion,
-				outputCostPerMillion,
-			})
-		: "";
+	const exportJson =
+		testStatus !== "idle"
+			? serializeModelTestExport({
+					testMode,
+					modelId,
+					modelLabel,
+					testStatus,
+					testProgress,
+					testStep,
+					testError,
+					tokenTotals,
+					streamMetrics,
+					phaseMetrics,
+					messages: testMessages,
+					logs,
+					userPrompt,
+					responseText,
+					inputCostPerMillion,
+					outputCostPerMillion,
+				})
+			: "";
+	const canCopyExport =
+		exportJson.length > 0 &&
+		(testMessages.length > 0 ||
+			Boolean(responseText?.trim()) ||
+			Boolean(testError.trim()) ||
+			logs.length > 0);
 	const failedPhaseCount = phaseMetrics.filter(
 		(phase) => phase.passed === false,
 	).length;
@@ -507,16 +525,17 @@ export function TestConnectionDialog({
 		}
 	}, [testStatus]);
 
-	const copyBenchmarkJson = () => {
+	const copyTestExport = () => {
 		if (
-			!benchmarkJson ||
+			!canCopyExport ||
+			!exportJson ||
 			typeof navigator === "undefined" ||
 			!navigator.clipboard
 		) {
 			return;
 		}
 
-		navigator.clipboard.writeText(benchmarkJson).then(() => {
+		navigator.clipboard.writeText(exportJson).then(() => {
 			setIsCopied(true);
 			window.setTimeout(() => setIsCopied(false), 2500);
 		});
@@ -548,24 +567,48 @@ export function TestConnectionDialog({
 										: "Streams a short prompt to verify provider connectivity."}
 							</DialogDescription>
 						</div>
-						{tokenTotals || hasStreamMetrics ? (
-							<div className="flex flex-wrap items-center justify-end gap-2">
-								<StreamPerfBadges
-									streamMetrics={streamMetrics}
-									isStreaming={isStreaming}
-								/>
-								{tokenTotals ? (
-									<TokenTotalsBadge tokenTotals={tokenTotals} />
-								) : null}
-								{tokenTotals ? (
-									<CostBreakdown
-										tokenTotals={tokenTotals}
-										inputCostPerMillion={inputCostPerMillion}
-										outputCostPerMillion={outputCostPerMillion}
+						<div className="flex flex-wrap items-center justify-end gap-2">
+							{tokenTotals || hasStreamMetrics ? (
+								<>
+									<StreamPerfBadges
+										streamMetrics={streamMetrics}
+										isStreaming={isStreaming}
 									/>
-								) : null}
-							</div>
-						) : null}
+									{tokenTotals ? (
+										<TokenTotalsBadge tokenTotals={tokenTotals} />
+									) : null}
+									{tokenTotals ? (
+										<CostBreakdown
+											tokenTotals={tokenTotals}
+											inputCostPerMillion={inputCostPerMillion}
+											outputCostPerMillion={outputCostPerMillion}
+										/>
+									) : null}
+								</>
+							) : null}
+							{testStatus !== "idle" ? (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-7 px-2 text-[0.7rem]"
+									onClick={copyTestExport}
+									disabled={!canCopyExport}
+								>
+									{isCopied ? (
+										<>
+											<CheckIcon className="size-3.5" />
+											Copied
+										</>
+									) : (
+										<>
+											<CopyIcon className="size-3.5" />
+											Copy request & response
+										</>
+									)}
+								</Button>
+							) : null}
+						</div>
 					</div>
 					{testStatus !== "error" ? (
 						<div className="space-y-2 rounded-md border border-border bg-background p-3">
@@ -696,26 +739,6 @@ export function TestConnectionDialog({
 						>
 							Close
 						</Button>
-						{isBenchmark ? (
-							<Button
-								type="button"
-								variant="outline"
-								onClick={copyBenchmarkJson}
-								disabled={!benchmarkJson}
-							>
-								{isCopied ? (
-									<>
-										<CheckIcon className="size-4" />
-										Copied
-									</>
-								) : (
-									<>
-										<CopyIcon className="size-4" />
-										Copy JSON
-									</>
-								)}
-							</Button>
-						) : null}
 						<Button type="button" onClick={onRetest}>
 							Test again
 						</Button>

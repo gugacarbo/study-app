@@ -1,8 +1,8 @@
 ---
-status: proposed # proposed | accepted | deprecated | superseded
+status: proposed            # proposed | accepted | deprecated | superseded
 date: AAAA-MM-DD
-builds-on: [] # ADRs relacionados: ADR-NNNN ou repo:ADR-NNNN
-superseded-by: null # escalar; preenchido no ADR antigo no commit que aceita o novo
+builds-on: []               # ADRs relacionados: ADR-NNNN ou repo:ADR-NNNN
+superseded-by: null         # escalar; preenchido no ADR antigo no commit que aceita o novo
 deciders: []
 ---
 
@@ -18,39 +18,32 @@ deciders: []
 # <título da decisão, voz ativa — vira o title derivado>
 
 ## Contexto e problema
-
 <!-- Que situação força uma decisão? Por que agora?
      ⚠️ DECISÃO ≠ ESTADO ATUAL: este doc registra a decisão datada.
      O estado atual decorrente vive em docs/context/ e aponta para cá. -->
 
 ## Direcionadores da decisão
-
 <!-- Forças em jogo: requisitos, restrições, custo, prazo, risco. -->
 
 ## Opções consideradas
 
 ### Opção 1 — <nome>
-
 **Prós:**
 **Contras:**
 
 ### Opção 2 — <nome>
-
 **Prós:**
 **Contras:**
 
 ## Decisão
-
 <!-- A escolha em uma frase + justificativa em um parágrafo.
      Backend integrável? Posicione no eixo comum: acoplamento da escrita ×
      tratamento de falha parcial (síncrono+compensação vs. assíncrono+reconciler). -->
 
 ## Consequências
-
 <!-- Positivas, negativas, e o que passa a ser proibido/obrigatório. -->
 
 ## Confirmação
-
 <!-- Como verificar que a decisão está sendo respeitada NA PRÁTICA:
      comando, query, inspeção. É o loop do agente para esta decisão. -->
 
@@ -59,7 +52,6 @@ deciders: []
 ```
 
 ## Notas
-
 <!-- ⚠️ Não inventar: decisão de negócio não tomada → issue tracker, não ADR.
      Critério mecânico: typo/link → pode editar; mudou QUALQUER aspecto da
      decisão → ADR novo que supersede. -->

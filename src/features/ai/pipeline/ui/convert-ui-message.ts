@@ -2,6 +2,7 @@ import type { ThreadMessageLike } from "@assistant-ui/react";
 import type { UIMessage } from "ai";
 import { getToolName, isToolUIPart } from "ai";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { INGEST_STAGE_STATUS_TOOL } from "@/features/ai/tools/ingest-stage-status";
 
 type ThreadContentPart = Exclude<ThreadMessageLike["content"], string>[number];
 
@@ -95,6 +96,9 @@ function mapMessageParts(parts: UIMessage["parts"]): ThreadContentPart[] {
 
 		if (isToolUIPart(part)) {
 			const toolName = getToolName(part);
+			if (toolName === INGEST_STAGE_STATUS_TOOL) {
+				continue;
+			}
 			const argsText = stringifyToolArgs(part.input);
 			const { result, isError } = readToolResultFromPart(part);
 
@@ -158,6 +162,12 @@ export function hasVisibleMessageContent(
 	return message.parts.some((part) => {
 		if (part.type === "text" || part.type === "reasoning") {
 			return part.text.trim().length > 0;
+		}
+		if (
+			part.type === "dynamic-tool" &&
+			part.toolName === INGEST_STAGE_STATUS_TOOL
+		) {
+			return false;
 		}
 		return true;
 	});

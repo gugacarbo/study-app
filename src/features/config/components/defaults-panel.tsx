@@ -4,13 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { SelectItem } from "@/components/ui/select";
+import { ModelSelect } from "@/features/ai/components/model-select";
 import {
 	backgroundProcessStore,
 	connectionTestProcessId,
@@ -97,11 +92,6 @@ export function DefaultsPanel() {
 		},
 	});
 
-	const modelOptions = models.map((model) => ({
-		value: String(model.id),
-		label: `${model.displayName} (${model.providerName})`,
-	}));
-
 	return (
 		<div className="space-y-6">
 			<Card>
@@ -111,34 +101,26 @@ export function DefaultsPanel() {
 				<CardContent className="space-y-4">
 					<div className="space-y-2 max-w-md">
 						<Label>Global default</Label>
-						<Select
+						<ModelSelect
+							models={models}
 							value={
 								settings?.defaultModelId
 									? String(settings.defaultModelId)
-									: undefined
+									: ""
 							}
 							onValueChange={(value) =>
 								defaultMutation.mutate(Number.parseInt(value, 10))
 							}
-						>
-							<SelectTrigger>
-								<SelectValue placeholder="Select default model" />
-							</SelectTrigger>
-							<SelectContent>
-								{modelOptions.map((option) => (
-									<SelectItem key={option.value} value={option.value}>
-										{option.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+							placeholder="Select default model"
+						/>
 					</div>
 
 					<div className="grid gap-4 md:grid-cols-2">
 						{AI_AGENT_TASKS.map((agent) => (
 							<div key={agent} className="space-y-2">
 								<Label>{AGENT_LABELS[agent]}</Label>
-								<Select
+								<ModelSelect
+									models={models}
 									value={
 										settings?.agentModels[agent]
 											? String(settings.agentModels[agent])
@@ -151,19 +133,11 @@ export function DefaultsPanel() {
 												value === "default" ? null : Number.parseInt(value, 10),
 										})
 									}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Use global default" />
-									</SelectTrigger>
-									<SelectContent>
+									placeholder="Use global default"
+									leadingItems={
 										<SelectItem value="default">Use global default</SelectItem>
-										{modelOptions.map((option) => (
-											<SelectItem key={option.value} value={option.value}>
-												{option.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+									}
+								/>
 							</div>
 						))}
 					</div>
@@ -177,18 +151,11 @@ export function DefaultsPanel() {
 				<CardContent className="space-y-4 max-w-md">
 					<div className="space-y-2">
 						<Label>Model to test</Label>
-						<Select value={testModelId} onValueChange={setTestModelId}>
-							<SelectTrigger>
-								<SelectValue placeholder="Select model" />
-							</SelectTrigger>
-							<SelectContent>
-								{modelOptions.map((option) => (
-									<SelectItem key={option.value} value={option.value}>
-										{option.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+						<ModelSelect
+							models={models}
+							value={testModelId}
+							onValueChange={setTestModelId}
+						/>
 					</div>
 					<Button
 						type="button"

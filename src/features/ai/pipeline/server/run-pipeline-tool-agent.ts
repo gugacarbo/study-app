@@ -21,9 +21,34 @@ import {
 	type PipelineStageStatusOptions,
 	type PipelineStageStatusReport,
 } from "@/features/ai/pipeline/server/pipeline-stage-status";
-import { readIngestAgentStageStatusReport } from "@/features/ai/tools/ingest-stage-status";
+import {
+	readIngestAgentStageStatusReport,
+	INGEST_STAGE_STATUS_TOOL,
+} from "@/features/ai/tools/ingest-stage-status";
 import type { AgentRunDataPart } from "@/features/ai/types/ui-message-data-parts";
 import type { ProviderConfig } from "@/lib/validation";
+
+function resolvePipelineToolName(
+	toolCallId: string,
+	content: unknown,
+	toolNamesById: Map<string, string>,
+	input?: unknown,
+): string {
+	const mapped = toolNamesById.get(toolCallId);
+	if (mapped) return mapped;
+	if (readIngestAgentStageStatusReport(content)) {
+		return INGEST_STAGE_STATUS_TOOL;
+	}
+	if (
+		typeof input === "object" &&
+		input !== null &&
+		typeof (input as { message?: unknown }).message === "string" &&
+		typeof (input as { status?: unknown }).status === "string"
+	) {
+		return INGEST_STAGE_STATUS_TOOL;
+	}
+	return "unknown_tool";
+}
 
 export interface PipelineToolAgentResult {
 	success: boolean;
@@ -196,14 +221,30 @@ export async function runPipelineToolAgent(
 
 		if (toolCall.name) {
 			toolNamesById.set(toolCall.toolCallId, toolCall.name);
+		} else if (
+			toolCall.input &&
+			typeof toolCall.input === "object" &&
+			typeof (toolCall.input as { message?: unknown }).message === "string" &&
+			typeof (toolCall.input as { status?: unknown }).status === "string"
+		) {
+			toolNamesById.set(toolCall.toolCallId, INGEST_STAGE_STATUS_TOOL);
 		}
+
+		const resolvedName =
+			toolCall.name ??
+			(toolCall.input &&
+			typeof toolCall.input === "object" &&
+			typeof (toolCall.input as { message?: unknown }).message === "string" &&
+			typeof (toolCall.input as { status?: unknown }).status === "string"
+				? INGEST_STAGE_STATUS_TOOL
+				: undefined);
 
 		emitRunEvent(
 			emit,
 			run,
 			{
 				eventType: "tool-call",
-				name: toolCall.name,
+				name: resolvedName,
 				arguments: toolCall.arguments,
 				input: toolCall.input,
 				state: toolCall.state,
@@ -219,7 +260,11 @@ export async function runPipelineToolAgent(
 		error?: string;
 		state: "streaming" | "complete" | "error";
 	}) => {
-		const toolName = toolNamesById.get(toolResult.toolCallId) ?? "unknown_tool";
+		const toolName = resolvePipelineToolName(
+			toolResult.toolCallId,
+			toolResult.content,
+			toolNamesById,
+		);
 
 		emitRunEvent(
 			emit,

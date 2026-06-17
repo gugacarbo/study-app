@@ -238,7 +238,7 @@ describe("single-agent-run-reducer", () => {
 		]);
 	});
 
-	it("appends stage status tool message as final assistant text and hides the tool", () => {
+	it("appends stage status tool message as final assistant text and keeps the tool in messages", () => {
 		let state = createAgentRunState({
 			agentRunId: "run-1",
 			label: "Improve question",
@@ -281,7 +281,21 @@ describe("single-agent-run-reducer", () => {
 		);
 
 		expect(assistant?.parts).toEqual([
-			{ type: "text", text: "" },
+			{
+				type: "dynamic-tool",
+				toolCallId: "call-stage",
+				toolName: "report_agent_stage_status",
+				state: "output-available",
+				input: {
+					status: "success",
+					message: "Refinei os distratores e melhorei a explicacao.",
+				},
+				output: {
+					ok: true,
+					status: "success",
+					message: "Refinei os distratores e melhorei a explicacao.",
+				},
+			},
 			{
 				type: "text",
 				text: "Refinei os distratores e melhorei a explicacao.",
@@ -330,8 +344,49 @@ describe("single-agent-run-reducer", () => {
 		const finalTextParts = assistant?.parts.filter((part) => part.type === "text");
 
 		expect(finalTextParts).toEqual([
-			{ type: "text", text: "" },
 			{ type: "text", text: "Stage completed successfully." },
+		]);
+	});
+
+	it("treats unknown_tool results as report_agent_stage_status when payload matches", () => {
+		let state = createAgentRunState({
+			agentRunId: "run-1",
+			label: "Initial extraction agent",
+		});
+
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "tool-result",
+				name: "unknown_tool",
+				content: {
+					ok: true,
+					status: "success",
+					message: "Extracted 1 question.",
+				},
+				state: "complete",
+				meta: { toolCallId: "call-stage" },
+			}),
+		);
+
+		const assistant = state.messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(assistant?.parts).toEqual([
+			{
+				type: "dynamic-tool",
+				toolCallId: "call-stage",
+				toolName: "report_agent_stage_status",
+				state: "output-available",
+				input: {},
+				output: {
+					ok: true,
+					status: "success",
+					message: "Extracted 1 question.",
+				},
+			},
+			{ type: "text", text: "Extracted 1 question." },
 		]);
 	});
 });

@@ -1,9 +1,11 @@
 import type { StepResult, ToolSet } from "ai";
 import { describe, expect, it } from "vitest";
 import {
+	buildExtractionPrepareStep,
 	buildImproveQuestionsStopWhen,
 	buildIngestExplanationStopWhen,
 	buildIngestExtractionStopWhen,
+	buildIngestReviewPrepareStep,
 	buildIngestReviewStopWhen,
 	chatBlockedListToolLoop,
 	chatDbSearchExhaustedStop,
@@ -603,12 +605,123 @@ describe("ingestExtractionTargetReached", () => {
 
 describe("ingest agent stopWhen builders", () => {
 	it("builds extraction, review, and explanation stop conditions", () => {
-		expect(buildIngestExtractionStopWhen(15)).toHaveLength(3);
-		expect(
-			buildIngestExtractionStopWhen(15, { expectedQuestionCount: 3 }),
-		).toHaveLength(4);
-		expect(buildIngestReviewStopWhen(12)).toHaveLength(3);
+		expect(buildIngestExtractionStopWhen(15)).toHaveLength(1);
+		expect(buildIngestReviewStopWhen(12)).toHaveLength(1);
 		expect(buildIngestExplanationStopWhen(12)).toHaveLength(1);
 		expect(buildImproveQuestionsStopWhen(12)).toHaveLength(1);
+	});
+});
+
+describe("buildExtractionPrepareStep", () => {
+	it("restricts to report_agent_stage_status after the expected question count is reached", () => {
+		const workspace = {
+			listQuestions: () => [{ id: "q1" }, { id: "q2" }],
+		};
+		const prepareStep = buildExtractionPrepareStep(workspace, {
+			expectedQuestionCount: 2,
+		});
+
+		expect(
+			prepareStep({
+				steps: [
+					createStep([
+						{
+							toolName: "add_extracted_question",
+							output: { ok: true, questionId: "q2", totalQuestions: 2 },
+						},
+					]),
+				],
+			} as Parameters<typeof prepareStep>[0]),
+		).toEqual({
+			activeTools: ["report_agent_stage_status"],
+			toolChoice: {
+				type: "tool",
+				toolName: "report_agent_stage_status",
+			},
+		});
+	});
+
+	it("stops tool calls after report_agent_stage_status succeeds", () => {
+		const workspace = {
+			listQuestions: () => [{ id: "q1" }],
+		};
+		const prepareStep = buildExtractionPrepareStep(workspace, {
+			expectedQuestionCount: 1,
+		});
+
+		expect(
+			prepareStep({
+				steps: [
+					createStep([
+						{
+							toolName: "report_agent_stage_status",
+							output: {
+								ok: true,
+								status: "success",
+								message: "Extracted 1 question.",
+							},
+						},
+					]),
+				],
+			} as Parameters<typeof prepareStep>[0]),
+		).toEqual({ toolChoice: "none" });
+	});
+
+	it("restricts to report_agent_stage_status after repeated list_extracted_questions", () => {
+		const prepareStep = buildExtractionPrepareStep({
+			listQuestions: () => [],
+		});
+
+		expect(
+			prepareStep({
+				steps: [
+					createStep([
+						{
+							toolName: "list_extracted_questions",
+							output: { ok: true, totalQuestions: 0, data: [] },
+						},
+					]),
+					createStep([
+						{
+							toolName: "list_extracted_questions",
+							output: { ok: true, totalQuestions: 0, data: [] },
+						},
+					]),
+				],
+			} as Parameters<typeof prepareStep>[0]),
+		).toEqual({
+			activeTools: ["report_agent_stage_status"],
+			toolChoice: {
+				type: "tool",
+				toolName: "report_agent_stage_status",
+			},
+		});
+	});
+});
+
+describe("buildIngestReviewPrepareStep", () => {
+	it("restricts to report_agent_stage_status after update_extracted_question", () => {
+		const prepareStep = buildIngestReviewPrepareStep({
+			shouldFinalize: () => false,
+		});
+
+		expect(
+			prepareStep({
+				steps: [
+					createStep([
+						{
+							toolName: "update_extracted_question",
+							output: { ok: true, questionId: "q1", updatedFields: ["topic"] },
+						},
+					]),
+				],
+			} as Parameters<typeof prepareStep>[0]),
+		).toEqual({
+			activeTools: ["report_agent_stage_status"],
+			toolChoice: {
+				type: "tool",
+				toolName: "report_agent_stage_status",
+			},
+		});
 	});
 });

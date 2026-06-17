@@ -86,7 +86,7 @@ function StageSeparator({ stage }: { stage: PipelineStageSeparator }) {
 }
 
 export function PipelineThread({
-	messages,
+	messages = [],
 	isRunning = false,
 	mode,
 	layout = "panel",

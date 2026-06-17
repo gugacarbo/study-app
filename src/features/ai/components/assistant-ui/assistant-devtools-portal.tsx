@@ -1,4 +1,5 @@
 import { DevToolsModal } from "@assistant-ui/react-devtools";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -6,7 +7,12 @@ import { createPortal } from "react-dom";
  * Radix popovers/sheets (transform + overflow) or other nested stacking contexts.
  */
 export function AssistantDevToolsPortal() {
-	if (!import.meta.env.DEV) return null;
-	if (typeof document === "undefined") return null;
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	if (!import.meta.env.DEV || !mounted) return null;
 	return createPortal(<DevToolsModal />, document.body);
 }

@@ -70,7 +70,7 @@ def _strip_comment(v):
     v = v.strip()
     if v.startswith("#"):
         return ""
-    return re.split(r"\s+#", v, 1)[0].strip()
+    return re.split(r"\s+#", v, maxsplit=1)[0].strip()
 
 
 def _clean(v):
@@ -130,6 +130,10 @@ def render_readme(label, rows):
 
 
 def main():
+    # Windows usa cp1252 no stdout redirecionado; mensagens têm não-ASCII ("·", "—").
+    for s in (sys.stdout, sys.stderr):
+        if hasattr(s, "reconfigure"):
+            s.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=".")
     ap.add_argument("--emit-index", action="store_true")
@@ -183,7 +187,8 @@ def main():
                 errors.append(f"{path}: id derivado duplicado '{did}' (também em {docs[did]['path']})")
                 continue
             ib = fm.get("implemented-by") or []
-            docs[did] = {"id": did, "path": str(path.relative_to(root)), "layer": layer,
+            # as_posix: no Windows str(Path) usa "\", divergindo do índice gerado no CI
+            docs[did] = {"id": did, "path": path.relative_to(root).as_posix(), "layer": layer,
                          "title": title, "status": st,
                          "builds-on": fm.get("builds-on") or [],
                          "superseded-by": fm.get("superseded-by"),

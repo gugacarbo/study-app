@@ -66,9 +66,12 @@ export async function runExtractionPass(
 	});
 	const workspace = createExtractionWorkspace({ examName });
 	let stoppedAfterDuplicateAdd = false;
+	let extractionTargetReached = false;
 	const toolFailureMessages: string[] = [];
 
 	const tools = createIngestExtractionTools(workspace, {
+		shouldBlockNewAdds: () =>
+			stoppedAfterDuplicateAdd || extractionTargetReached,
 		onToolExecuted: async ({ toolName, output }) => {
 			const toolFailure = readToolFailureMessage(output);
 			if (toolFailure) {
@@ -77,10 +80,24 @@ export async function runExtractionPass(
 			if (
 				toolName === "add_extracted_question" &&
 				typeof output === "object" &&
-				output !== null &&
-				(output as { alreadyExists?: boolean }).alreadyExists === true
+				output !== null
 			) {
-				stoppedAfterDuplicateAdd = true;
+				const result = output as {
+					alreadyExists?: boolean;
+					ok?: boolean;
+					totalQuestions?: number;
+				};
+				if (result.alreadyExists === true) {
+					stoppedAfterDuplicateAdd = true;
+				}
+				if (
+					result.ok === true &&
+					expectedQuestionCount != null &&
+					typeof result.totalQuestions === "number" &&
+					result.totalQuestions >= expectedQuestionCount
+				) {
+					extractionTargetReached = true;
+				}
 			}
 		},
 	});
@@ -94,12 +111,11 @@ export async function runExtractionPass(
 		systemPrompt,
 		messages: [{ role: "user", content: userPrompt }],
 		tools: tools as ToolSet,
-		stopWhen: buildIngestExtractionStopWhen(INGEST_EXTRACTION_MAX_STEPS, {
-			expectedQuestionCount,
-		}),
+		stopWhen: buildIngestExtractionStopWhen(INGEST_EXTRACTION_MAX_STEPS),
 		prepareStep: buildExtractionPrepareStep(workspace, {
 			expectedQuestionCount,
-			shouldFinalize: () => stoppedAfterDuplicateAdd,
+			shouldFinalize: () =>
+				stoppedAfterDuplicateAdd || extractionTargetReached,
 		}),
 		meta: { stageId, agentRunId: run.agentRunId },
 		requestSummary: stageLabel,
@@ -115,9 +131,13 @@ export async function runExtractionPass(
 			);
 		},
 		isSuccess: () => workspace.listQuestions().length > 0,
-		failureReason: () =>
-			toolFailureMessages[0] ??
-			"No questions were extracted during the initial ingest pass.",
+		failureReason: () => {
+			if (workspace.listQuestions().length > 0) return undefined;
+			return (
+				toolFailureMessages[0] ??
+				"No questions were extracted during the initial ingest pass."
+			);
+		},
 		stageStatus: {
 			hasSuccessfulWork: () => workspace.listQuestions().length > 0,
 		},

@@ -151,28 +151,55 @@ export function buildChatPrepareStep(
 	};
 }
 
-function repeatedSuccessfulToolCallInLastSteps(
+function lastStepsUsedTool(
+	steps: Array<{ toolResults: Array<{ toolName: string }> }>,
 	toolName: string,
 	stepCount = 2,
-): StopCondition<ToolSet> {
-	return ({ steps }) => {
-		if (steps.length < stepCount) return false;
+): boolean {
+	if (steps.length < stepCount) return false;
 
-		return steps.slice(-stepCount).every((step) =>
-			step.toolResults.some((result) => {
-				if (result.toolName !== toolName) return false;
-				const output = readToolOutput(result.output);
-				return output?.ok === true;
-			}),
-		);
+	return steps.slice(-stepCount).every((step) =>
+		step.toolResults.some((result) => result.toolName === toolName),
+	);
+}
+
+function stepReportedStageStatus(
+	steps: Array<{ toolResults: Array<{ toolName: string; output: unknown }> }>,
+): boolean {
+	return steps.some((step) =>
+		step.toolResults.some((result) => {
+			if (result.toolName !== INGEST_STAGE_STATUS_TOOL) return false;
+			const output = readToolOutput(result.output);
+			return output?.ok === true;
+		}),
+	);
+}
+
+function prepareStageStatusFinalization(
+	steps: Array<{ toolResults: Array<{ toolName: string; output: unknown }> }>,
+) {
+	if (stepReportedStageStatus(steps)) {
+		return { toolChoice: "none" as const };
+	}
+
+	return {
+		activeTools: [INGEST_STAGE_STATUS_TOOL],
+		toolChoice: {
+			type: "tool" as const,
+			toolName: INGEST_STAGE_STATUS_TOOL,
+		},
 	};
 }
 
 export function buildPostUpdatePrepareStep(
 	shouldFinalize: () => boolean,
 ): PrepareStepFunction<ToolSet> {
-	return () =>
-		shouldFinalize() ? { activeTools: [INGEST_STAGE_STATUS_TOOL] } : {};
+	return ({ steps }) => {
+		if (stepReportedStageStatus(steps)) {
+			return { toolChoice: "none" as const };
+		}
+		return shouldFinalize() ? prepareStageStatusFinalization(steps) : {};
+	};
 }
 
 export const ingestStageStatusReported = toolResultMatches(
@@ -212,47 +239,37 @@ export function buildExtractionPrepareStep(
 		shouldFinalize?: () => boolean;
 	},
 ): PrepareStepFunction<ToolSet> {
-	return () => {
+	return ({ steps }) => {
+		if (stepReportedStageStatus(steps)) {
+			return { toolChoice: "none" as const };
+		}
+
 		if (options?.shouldFinalize?.()) {
-			return { activeTools: [INGEST_STAGE_STATUS_TOOL] };
+			return prepareStageStatusFinalization(steps);
+		}
+
+		if (lastStepsUsedTool(steps, "list_extracted_questions")) {
+			return prepareStageStatusFinalization(steps);
 		}
 
 		const expectedQuestionCount = options?.expectedQuestionCount;
-		if (expectedQuestionCount == null) return {};
-
-		if (workspace.listQuestions().length >= expectedQuestionCount) {
-			return { activeTools: [INGEST_STAGE_STATUS_TOOL] };
+		if (
+			expectedQuestionCount != null &&
+			workspace.listQuestions().length >= expectedQuestionCount
+		) {
+			return prepareStageStatusFinalization(steps);
 		}
 
 		return {};
 	};
 }
 
-export function buildIngestExtractionStopWhen(
-	maxSteps: number,
-	options?: { expectedQuestionCount?: number },
-) {
-	const conditions: Array<StopCondition<ToolSet>> = [
-		stepCountIs(maxSteps),
-		ingestExtractionDuplicateAddDetected,
-		repeatedToolCallInLastSteps("list_extracted_questions"),
-	];
-
-	if (options?.expectedQuestionCount != null) {
-		conditions.push(
-			ingestExtractionTargetReached(options.expectedQuestionCount),
-		);
-	}
-
-	return conditions;
+export function buildIngestExtractionStopWhen(maxSteps: number) {
+	return [stepCountIs(maxSteps)] satisfies Array<StopCondition<ToolSet>>;
 }
 
 export function buildIngestReviewStopWhen(maxSteps: number) {
-	return [
-		stepCountIs(maxSteps),
-		ingestReviewUpdateNoOpDetected,
-		repeatedSuccessfulToolCallInLastSteps("update_extracted_question"),
-	] satisfies Array<StopCondition<ToolSet>>;
+	return [stepCountIs(maxSteps)] satisfies Array<StopCondition<ToolSet>>;
 }
 
 function stepUsedTool(
@@ -268,12 +285,26 @@ export function buildIngestReviewPrepareStep(options: {
 	shouldFinalize: () => boolean;
 }): PrepareStepFunction<ToolSet> {
 	return ({ steps }) => {
+		if (stepReportedStageStatus(steps)) {
+			return { toolChoice: "none" as const };
+		}
+
 		if (options.shouldFinalize()) {
-			return { activeTools: [INGEST_STAGE_STATUS_TOOL] };
+			return prepareStageStatusFinalization(steps);
 		}
 
 		if (stepUsedTool(steps, "update_extracted_question")) {
-			return { activeTools: [INGEST_STAGE_STATUS_TOOL] };
+			return prepareStageStatusFinalization(steps);
+		}
+
+		if (
+			lastStepsUsedTool(
+				steps,
+				"update_extracted_question",
+				2,
+			)
+		) {
+			return prepareStageStatusFinalization(steps);
 		}
 
 		return {};

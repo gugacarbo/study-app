@@ -68,4 +68,17 @@ describe("PipelineThread", () => {
 		expect(screen.getByText("Waiting for agent output...")).toBeTruthy();
 		expect(screen.getByText("Agent Stream")).toBeTruthy();
 	});
+
+	it("treats undefined messages as empty", () => {
+		render(
+			<PipelineThread
+				mode="readonly"
+				layout="panel"
+				messages={undefined as unknown as UIMessage[]}
+				emptyState="No messages yet."
+			/>,
+		);
+
+		expect(screen.getByText("No messages yet.")).toBeTruthy();
+	});
 });

@@ -110,6 +110,7 @@ type IngestToolExecutedEvent = {
 
 export type IngestExtractionToolsOptions = {
 	onToolExecuted?: (event: IngestToolExecutedEvent) => void | Promise<void>;
+	shouldBlockNewAdds?: () => boolean;
 };
 
 async function notifyToolExecuted(
@@ -176,26 +177,40 @@ export function createIngestExtractionTools(
 							message: string;
 					  };
 				try {
-					const existingCount = workspace.listQuestions().length;
-					const question = workspace.addQuestion(parsedInput);
-					const alreadyExists =
-						workspace.listQuestions().length === existingCount;
-					output = {
-						ok: true as const,
-						added: !alreadyExists,
-						questionId: question.questionId,
-						totalQuestions: workspace.listQuestions().length,
-						...(alreadyExists
-							? {
-									alreadyExists: true as const,
-									message:
-										"This question is already registered. Stop calling add_extracted_question. Use update_extracted_question only if a correction is needed.",
-								}
-							: {
-									message:
-										"Question registered. Continue only if more distinct source questions remain; otherwise stop.",
-								}),
-					};
+					if (options?.shouldBlockNewAdds?.()) {
+						const questions = workspace.listQuestions();
+						const lastQuestion = questions.at(-1);
+						output = {
+							ok: true as const,
+							added: false,
+							questionId: lastQuestion?.questionId ?? "q1",
+							totalQuestions: questions.length,
+							alreadyExists: true as const,
+							message:
+								"All expected source questions are already registered. Call report_agent_stage_status to finish this stage.",
+						};
+					} else {
+						const existingCount = workspace.listQuestions().length;
+						const question = workspace.addQuestion(parsedInput);
+						const alreadyExists =
+							workspace.listQuestions().length === existingCount;
+						output = {
+							ok: true as const,
+							added: !alreadyExists,
+							questionId: question.questionId,
+							totalQuestions: workspace.listQuestions().length,
+							...(alreadyExists
+								? {
+										alreadyExists: true as const,
+										message:
+											"This question is already registered. Stop calling add_extracted_question. Use update_extracted_question only if a correction is needed.",
+									}
+								: {
+										message:
+											"Question registered. Continue only if more distinct source questions remain; otherwise stop.",
+									}),
+						};
+					}
 				} catch (error) {
 					output = toToolFailure(error);
 				}

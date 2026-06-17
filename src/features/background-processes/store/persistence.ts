@@ -309,6 +309,7 @@ function hydratePersistedConnectionTestProcess(
 			typeof process.providerName === "string" ? process.providerName : null,
 		prompt: typeof process.prompt === "string" ? process.prompt : "",
 		response: typeof process.response === "string" ? process.response : "",
+		messages: Array.isArray(process.messages) ? process.messages : [],
 		error: typeof process.error === "string" ? process.error : null,
 	};
 

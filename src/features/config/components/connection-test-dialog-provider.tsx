@@ -202,10 +202,10 @@ export function ConnectionTestDialogProvider({
 	const testMessages = useMemo(() => {
 		if (!process) return [];
 		if (isModelBenchmarkProcess(process)) {
-			return process.messages;
+			return process.messages ?? [];
 		}
 		if (isConnectionTestProcess(process)) {
-			return process.messages;
+			return process.messages ?? [];
 		}
 		return [];
 	}, [process]);
@@ -215,6 +215,20 @@ export function ConnectionTestDialogProvider({
 			return process.phases;
 		}
 		return [];
+	}, [process]);
+
+	const userPrompt = useMemo(() => {
+		if (process && isConnectionTestProcess(process)) {
+			return process.prompt;
+		}
+		return undefined;
+	}, [process]);
+
+	const responseText = useMemo(() => {
+		if (process && isConnectionTestProcess(process)) {
+			return process.response;
+		}
+		return undefined;
 	}, [process]);
 
 	const modelLabel = selectedModel
@@ -239,6 +253,7 @@ export function ConnectionTestDialogProvider({
 					if (!open) setOpenModelId(null);
 				}}
 				testMode={testMode}
+				modelId={openModelId}
 				testStatus={testStatus}
 				testProgress={process?.progress ?? 0}
 				testStep={process?.step ?? ""}
@@ -249,6 +264,8 @@ export function ConnectionTestDialogProvider({
 				streamMetrics={process?.streamMetrics ?? null}
 				phaseMetrics={phaseMetrics}
 				testError={process?.error ?? ""}
+				userPrompt={userPrompt}
+				responseText={responseText}
 				modelLabel={modelLabel}
 				inputCostPerMillion={selectedModel?.inputCostPerMillion}
 				outputCostPerMillion={selectedModel?.outputCostPerMillion}

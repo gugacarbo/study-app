@@ -1,1 +1,77 @@
-[]
+[
+  {
+    "id": "ADR-0001",
+    "path": "docs/adr/0001-tanstack-start-cloudflare-workers.md",
+    "layer": "adr",
+    "title": "Usar TanStack Start em Cloudflare Workers",
+    "status": "accepted",
+    "builds-on": [],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0002",
+    "path": "docs/adr/0002-d1-drizzle-r2-storage.md",
+    "layer": "adr",
+    "title": "Usar D1 + Drizzle para metadados e R2 para blobs",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0003",
+    "path": "docs/adr/0003-vercel-ai-sdk-multi-provider.md",
+    "layer": "adr",
+    "title": "Usar Vercel AI SDK com providers configuráveis em D1",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
+      "ADR-0002",
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0004",
+    "path": "docs/adr/0004-better-auth-multi-user-magic-link.md",
+    "layer": "adr",
+    "title": "Usar Better Auth com multi-usuário e magic link",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
+      "ADR-0002"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0005",
+    "path": "docs/adr/0005-ui-message-stream-jobs.md",
+    "layer": "adr",
+    "title": "Usar UI Message Stream para jobs longos de IA",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
+      "ADR-0003"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0006",
+    "path": "docs/adr/0006-background-processes-cliente.md",
+    "layer": "adr",
+    "title": "Orquestrar jobs longos com background processes no cliente",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
+      "ADR-0005"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  }
+]

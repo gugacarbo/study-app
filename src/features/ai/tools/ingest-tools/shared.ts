@@ -61,13 +61,47 @@ function readExtractionAnswers(input: unknown): string[] {
 	return [];
 }
 
-function preprocessExtractionQuestionFields(input: unknown): unknown {
+function tryParseJsonString(value: string): unknown | undefined {
+	const trimmed = value.trim();
+	if (trimmed.length === 0) return undefined;
+	try {
+		return JSON.parse(trimmed);
+	} catch {
+		return undefined;
+	}
+}
+
+function normalizeExtractionQuestionInput(input: unknown): unknown {
 	if (typeof input !== "object" || input === null) return input;
 
-	const answers = readExtractionAnswers(input);
-	if (answers.length === 0) return input;
+	const obj = { ...(input as Record<string, unknown>) };
+	if (obj.question == null && typeof obj.questionText === "string") {
+		obj.question = obj.questionText;
+		delete obj.questionText;
+	}
 
-	const { answer: _answer, ...rest } = input as Record<string, unknown>;
+	for (const field of ["options", "answers"] as const) {
+		if (typeof obj[field] === "string") {
+			const parsed = tryParseJsonString(obj[field]);
+			if (Array.isArray(parsed)) {
+				obj[field] = parsed;
+			}
+		}
+	}
+
+	return obj;
+}
+
+function preprocessExtractionQuestionFields(input: unknown): unknown {
+	const normalized = normalizeExtractionQuestionInput(
+		stripNullObjectFields(input),
+	);
+	if (typeof normalized !== "object" || normalized === null) return normalized;
+
+	const answers = readExtractionAnswers(normalized);
+	if (answers.length === 0) return normalized;
+
+	const { answer: _answer, ...rest } = normalized as Record<string, unknown>;
 	return { ...rest, answers };
 }
 

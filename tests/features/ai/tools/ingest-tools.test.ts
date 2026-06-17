@@ -76,6 +76,19 @@ describe("ingest extraction tool schemas", () => {
 		expect(parsed.answers).toEqual(["B"]);
 		expect("answer" in parsed).toBe(false);
 	});
+
+	it("normalizes questionText and stringified option arrays", () => {
+		const parsed = extractionQuestionFieldsSchema.parse({
+			questionText: "Qual é a derivada de f(x) = x²?",
+			options: '["1", "2x", "x²", "2"]',
+			answers: '["2x"]',
+			topic: "Cálculo",
+		});
+
+		expect(parsed.question).toBe("Qual é a derivada de f(x) = x²?");
+		expect(parsed.options).toEqual(["1", "2x", "x²", "2"]);
+		expect(parsed.answers).toEqual(["2x"]);
+	});
 });
 
 describe("ingest extraction tools", () => {
@@ -88,6 +101,35 @@ describe("ingest extraction tools", () => {
 		const tools = createIngestExtractionTools(workspace);
 
 		expect(tools.report_agent_stage_status).toBeUndefined();
+	});
+
+	it("blocks new adds when shouldBlockNewAdds is enabled", async () => {
+		const workspace = createExtractionWorkspace();
+		let blockAdds = false;
+		const tools = createIngestExtractionTools(workspace, {
+			shouldBlockNewAdds: () => blockAdds,
+		});
+		const addQuestion = getTool(tools, "add_extracted_question");
+
+		await addQuestion.execute({
+			question: "1. Qual é a derivada de f(x) = x²?",
+			options: ["1", "2x"],
+			answers: ["2x"],
+		});
+		blockAdds = true;
+
+		const blocked = await addQuestion.execute({
+			questionText: "Qual é a derivada de f(x) = x²?",
+			options: ["1", "2x"],
+			answers: ["2x"],
+		});
+
+		expect(blocked).toMatchObject({
+			ok: true,
+			alreadyExists: true,
+			totalQuestions: 1,
+		});
+		expect(workspace.listQuestions()).toHaveLength(1);
 	});
 
 	it("omits add and list tools from createIngestReviewTools", () => {
