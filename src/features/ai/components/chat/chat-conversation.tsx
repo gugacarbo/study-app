@@ -11,6 +11,7 @@ import type { AiModelPublic } from "@/db/queries/types";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { createStudyChatComposer } from "@/features/ai/components/assistant-ui/study-chat-composer";
 import { ChatMessagePerfCache } from "@/features/ai/components/chat/chat-message-perf-cache";
+import { ChatRequestExportBridge } from "@/features/ai/components/chat/chat-request-export-bridge";
 import { ChatRuntimeStatsSync } from "@/features/ai/components/chat/chat-runtime-stats-sync";
 import { enrichMessagesWithChatPerf } from "@/features/ai/lib/chat-message-perf";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
@@ -179,6 +180,13 @@ export function ChatConversation({
 
 	return (
 		<StudyAssistantRuntimeProvider runtime={runtime}>
+			<ChatRequestExportBridge
+				conversationId={conversationId}
+				reviewMode={reviewMode}
+				modelId={selectedModelId}
+				pageContext={pageContext}
+				clientTools={clientTools}
+			/>
 			<ChatMessagePerfCache cacheRef={perfTimingsRef} />
 			<ChatRuntimeStatsSync
 				conversationId={conversationId}

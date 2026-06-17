@@ -17,6 +17,7 @@ import {
 } from "@/features/ai/stores/ui-store";
 import { CHAT_RUNTIME_MESSAGE_LIMIT } from "@/lib/chat-conversations/constants";
 import { updateConversationTitle } from "@/features/ai/stores/conversations-store";
+import { CopyChatRequestButton } from "@/features/ai/components/chat/copy-chat-request-button";
 import { ChatHeader } from "./chat-header";
 import { ChatSidebar } from "./chat-sidebar";
 
@@ -89,6 +90,12 @@ export function Chat() {
 							onCancelEditing={() => setEditingTitle(false)}
 							onTitleDraftChange={setTitleDraft}
 						/>
+						<div className="ms-auto flex items-center gap-1">
+							<CopyChatRequestButton
+								title="Copy conversation request JSON"
+								disabled={messages.length === 0}
+							/>
+						</div>
 					</header>
 					{isTruncated ? (
 						<div className="shrink-0 border-b bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">

@@ -3,6 +3,7 @@ import { Expand, Menu, Minimize2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatConversation } from "@/features/ai/components/chat/chat-conversation";
+import { CopyChatRequestButton } from "@/features/ai/components/chat/copy-chat-request-button";
 import { HeaderChatContextButton } from "@/features/ai/components/chat/header-chat-context-button";
 import {
 	type PageChatContext,
@@ -192,6 +193,7 @@ function HeaderChatPanelToolbar({
 				savedMessageCount={savedMessageCount}
 				isTruncated={isTruncated}
 			/>
+			<CopyChatRequestButton disabled={savedMessageCount === 0} />
 			<Button
 				type="button"
 				variant="ghost"
