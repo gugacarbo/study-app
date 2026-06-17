@@ -46,7 +46,7 @@ export function createQuestionListTools(queries: DBQueries): ToolSet {
 	return {
 		list_questions: tool({
 			description:
-				"List questions with optional filters and pagination. Includes answers only when includeAnswer=true.",
+				"List questions with optional filters and pagination. For subject/topic searches start with topic (exact DB topic field). If topic returns no rows, retry with textContains (substring match in question text) or examId from list_exams. Includes answers only when includeAnswer=true.",
 			inputSchema: zodSchema(listQuestionsInputSchema),
 			execute: async (input) => {
 				const normalizedFilters = normalizeQuestionsFilters(input);

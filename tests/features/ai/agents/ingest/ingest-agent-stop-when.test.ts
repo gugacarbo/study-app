@@ -5,6 +5,10 @@ import {
 	buildIngestExplanationStopWhen,
 	buildIngestExtractionStopWhen,
 	buildIngestReviewStopWhen,
+	chatBlockedListToolLoop,
+	chatDbSearchExhaustedStop,
+	chatDbSearchFoundResults,
+	buildChatStopWhen,
 	ingestExtractionDuplicateAddDetected,
 	ingestExtractionTargetReached,
 	ingestReviewUpdateNoOpDetected,
@@ -13,14 +17,16 @@ import {
 } from "@/features/ai/core/tool-agent-stop-when";
 
 function createStep(
-	toolResults: Array<{ toolName: string; output: unknown }>,
+	toolResults: Array<{ toolName: string; input?: unknown; output: unknown }>,
+	options?: { text?: string },
 ): StepResult<ToolSet> {
 	return {
+		text: options?.text ?? "",
 		toolResults: toolResults.map((result, index) => ({
 			type: "tool-result" as const,
 			toolCallId: `tc-${index}`,
 			toolName: result.toolName,
-			input: {},
+			input: result.input ?? {},
 			output: result.output,
 		})),
 	} as StepResult<ToolSet>;
@@ -105,13 +111,47 @@ describe("repeatedToolCallInLastSteps", () => {
 });
 
 describe("buildChatPrepareStep", () => {
-	it("disables list_questions after a successful final page", async () => {
+	it("escalates to list_answer_keys after empty topic question search", async () => {
 		const { buildChatPrepareStep } = await import(
 			"@/features/ai/core/tool-agent-stop-when"
 		);
 		const prepareStep = buildChatPrepareStep([
 			"list_questions",
+			"list_answer_keys",
 			"web_search",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						input: { topic: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: {
+								items: [],
+								pagination: { hasNextPage: false },
+							},
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({
+			activeTools: ["list_answer_keys"],
+			toolChoice: { type: "tool", toolName: "list_answer_keys" },
+		});
+	});
+
+	it("escalates to list_answer_keys after empty topic question search without tool input", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"list_answer_keys",
 		]);
 
 		const result = prepareStep({
@@ -131,7 +171,119 @@ describe("buildChatPrepareStep", () => {
 			],
 		} as never);
 
-		expect(result).toEqual({ activeTools: ["web_search"] });
+		expect(result).toEqual({
+			activeTools: ["list_answer_keys"],
+			toolChoice: { type: "tool", toolName: "list_answer_keys" },
+		});
+	});
+
+	it("disables list_questions after a successful result with items", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"list_answer_keys",
+			"web_search",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						output: {
+							ok: true,
+							data: {
+								items: [{ id: 1 }],
+								pagination: { hasNextPage: false },
+							},
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({ toolChoice: "none" });
+	});
+
+	it("disables web_search after any successful DB list tool call", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"list_answer_keys",
+			"web_search",
+			"web_fetch",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						input: { topic: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: {
+								items: [],
+								pagination: { hasNextPage: false },
+							},
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({
+			activeTools: ["list_answer_keys"],
+			toolChoice: { type: "tool", toolName: "list_answer_keys" },
+		});
+	});
+
+	it("forces text when search is exhausted", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"list_answer_keys",
+			"list_exams",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						input: { topic: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: { items: [], pagination: { hasNextPage: false } },
+						},
+					},
+					{
+						toolName: "list_answer_keys",
+						input: { textContains: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: { items: [], pagination: { hasNextPage: false } },
+						},
+					},
+					{
+						toolName: "list_exams",
+						input: { nameContains: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: { items: [], pagination: { hasNextPage: false } },
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({ toolChoice: "none" });
 	});
 
 	it("keeps list_questions available when pagination continues", async () => {
@@ -160,7 +312,235 @@ describe("buildChatPrepareStep", () => {
 			],
 		} as never);
 
+		expect(result).toEqual({ activeTools: ["list_questions"] });
+	});
+
+	it("forces text after list_answer_keys returns matching rows", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"list_answer_keys",
+			"web_search",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						input: { topic: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: { items: [], pagination: { hasNextPage: false } },
+						},
+					},
+				]),
+				createStep([
+					{
+						toolName: "list_answer_keys",
+						input: { textContains: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: {
+								items: [{ id: 237 }, { id: 232 }],
+								pagination: { hasNextPage: false },
+							},
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({ toolChoice: "none" });
+	});
+
+	it("does not force text again after the assistant already replied", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"list_answer_keys",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_answer_keys",
+						input: { textContains: "Sistemas Operacionais" },
+						output: {
+							ok: true,
+							data: {
+								items: [{ id: 237 }],
+								pagination: { hasNextPage: false },
+							},
+						},
+					},
+				]),
+				createStep([], {
+					text: "Encontrei 1 questão sobre Sistemas Operacionais.",
+				}),
+			],
+		} as never);
+
 		expect(result).toEqual({});
+	});
+});
+
+describe("chatDbSearchFoundResults", () => {
+	it("stops when list_answer_keys returns items", () => {
+		expect(
+			chatDbSearchFoundResults({
+				steps: [
+					createStep([
+						{
+							toolName: "list_answer_keys",
+							output: {
+								ok: true,
+								data: {
+									items: [{ id: 1 }, { id: 2 }],
+									pagination: { hasNextPage: false },
+								},
+							},
+						},
+					]),
+				],
+			}),
+		).toBe(true);
+	});
+
+	it("does not stop when list_questions returns an empty page", () => {
+		expect(
+			chatDbSearchFoundResults({
+				steps: [
+					createStep([
+						{
+							toolName: "list_questions",
+							output: {
+								ok: true,
+								data: {
+									items: [],
+									pagination: { hasNextPage: false },
+								},
+							},
+						},
+					]),
+				],
+			}),
+		).toBe(false);
+	});
+
+	it("does not stop when list_exams finds exams", () => {
+		expect(
+			chatDbSearchFoundResults({
+				steps: [
+					createStep([
+						{
+							toolName: "list_exams",
+							output: {
+								ok: true,
+								data: {
+									items: [{ id: 125 }],
+									pagination: { hasNextPage: false },
+								},
+							},
+						},
+					]),
+				],
+			}),
+		).toBe(false);
+	});
+});
+
+describe("buildChatStopWhen", () => {
+	it("only applies a step limit so the agent can answer after tool results", () => {
+		expect(buildChatStopWhen()).toHaveLength(1);
+		expect(buildChatStopWhen(6)).toHaveLength(1);
+	});
+
+	it("stops when the DB search escalation is exhausted", () => {
+		expect(
+			chatDbSearchExhaustedStop({
+				steps: [
+					createStep([
+						{
+							toolName: "list_questions",
+							input: { topic: "Sistemas Operacionais" },
+							output: {
+								ok: true,
+								data: { items: [], pagination: { hasNextPage: false } },
+							},
+						},
+						{
+							toolName: "list_answer_keys",
+							input: { textContains: "Sistemas Operacionais" },
+							output: {
+								ok: true,
+								data: { items: [], pagination: { hasNextPage: false } },
+							},
+						},
+						{
+							toolName: "list_exams",
+							input: { nameContains: "Sistemas Operacionais" },
+							output: {
+								ok: true,
+								data: { items: [], pagination: { hasNextPage: false } },
+							},
+						},
+					]),
+				],
+			}),
+		).toBe(true);
+	});
+
+	it("stops when the last step only has blocked duplicate list tool calls", () => {
+		expect(
+			chatBlockedListToolLoop({
+				steps: [
+					createStep([
+						{
+							toolName: "list_questions",
+							output: {
+								ok: false,
+								error: { code: "DUPLICATE_TOOL_CALL" },
+							},
+						},
+					]),
+				],
+			}),
+		).toBe(true);
+	});
+
+	it("does not stop on duplicate when textContains search is still pending", () => {
+		expect(
+			chatBlockedListToolLoop({
+				steps: [
+					createStep([
+						{
+							toolName: "list_questions",
+							input: { topic: "Sistemas Operacionais" },
+							output: {
+								ok: true,
+								data: { items: [], pagination: { hasNextPage: false } },
+							},
+						},
+					]),
+					createStep([
+						{
+							toolName: "list_questions",
+							input: { topic: "Sistemas Operacionais" },
+							output: {
+								ok: false,
+								error: { code: "DUPLICATE_TOOL_CALL" },
+							},
+						},
+					]),
+				],
+			}),
+		).toBe(false);
 	});
 });
 

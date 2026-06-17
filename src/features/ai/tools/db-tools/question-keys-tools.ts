@@ -41,7 +41,7 @@ export function createQuestionKeysTools(queries: DBQueries): ToolSet {
 	return {
 		list_answer_keys: tool({
 			description:
-				"List answer keys with short question excerpts and optional filters.",
+				"List answer keys with short question excerpts. For subject searches use textContains (matches question text); topic only matches the exact stored topic field and is not a substitute for textContains. After list_questions by topic returns empty, search here with the same text via textContains.",
 			inputSchema: zodSchema(listAnswerKeysInputSchema),
 			execute: async (input) =>
 				safeToolResult(() =>

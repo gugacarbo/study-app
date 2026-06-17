@@ -6,6 +6,15 @@ import {
 } from "ai";
 import {
 	CHAT_READ_ONLY_LIST_TOOLS,
+	applyChatDbSearchEscalationDisables,
+	chatDbListToolUsedSuccessfully,
+	chatDbSearchEscalationPending,
+	chatDbSearchExhausted,
+	chatDbSearchFoundResultsInStep,
+	chatDbSearchNeedsTextReply,
+	chatStepOnlyBlockedListToolResults,
+	chatTurnHasAssistantText,
+	getChatDbSearchEscalationPlan,
 	shouldDisableChatListToolAfterResult,
 } from "@/features/ai/lib/chat-tool-call-guards";
 import { INGEST_STAGE_STATUS_TOOL } from "@/features/ai/tools/ingest-stage-status";
@@ -48,7 +57,27 @@ export function repeatedToolCallInLastSteps(
 	};
 }
 
-export function buildChatStopWhen(maxSteps = 10) {
+export const chatDbSearchFoundResults: StopCondition<ToolSet> = ({ steps }) => {
+	const lastStep = steps.at(-1);
+	if (!lastStep) return false;
+	return chatDbSearchFoundResultsInStep(lastStep.toolResults);
+};
+
+export const chatDbSearchExhaustedStop: StopCondition<ToolSet> = ({ steps }) =>
+	chatDbSearchExhausted(steps);
+
+export const chatBlockedListToolLoop: StopCondition<ToolSet> = ({ steps }) => {
+	const lastStep = steps.at(-1);
+	if (!lastStep) return false;
+	if (chatDbSearchFoundResultsInStep(lastStep.toolResults)) return false;
+	if (!chatStepOnlyBlockedListToolResults(lastStep.toolResults)) return false;
+	if (chatDbSearchEscalationPending(steps)) return false;
+	return true;
+};
+
+const CHAT_WEB_TOOLS = ["web_search", "web_fetch"] as const;
+
+export function buildChatStopWhen(maxSteps = 8) {
 	return [stepCountIs(maxSteps)] satisfies Array<StopCondition<ToolSet>>;
 }
 
@@ -64,20 +93,61 @@ export function buildChatPrepareStep(
 			for (const result of step.toolResults) {
 				if (!readOnlyListTools.has(result.toolName)) continue;
 				if (
-					shouldDisableChatListToolAfterResult(result.toolName, result.output)
+					shouldDisableChatListToolAfterResult(
+						result.toolName,
+						result.output,
+						result.input,
+					)
 				) {
 					disabledListTools.add(result.toolName);
 				}
 			}
 		}
 
-		if (disabledListTools.size === 0) return {};
+		applyChatDbSearchEscalationDisables(steps, disabledListTools);
 
-		const activeTools = availableToolNames.filter(
+		const usedDbListTool = steps.some((step) =>
+			chatDbListToolUsedSuccessfully(step.toolResults),
+		);
+		if (usedDbListTool) {
+			for (const webTool of CHAT_WEB_TOOLS) {
+				disabledListTools.add(webTool);
+			}
+		}
+
+		if (chatTurnHasAssistantText(steps)) {
+			return {};
+		}
+
+		if (chatDbSearchNeedsTextReply(steps)) {
+			return { toolChoice: "none" as const };
+		}
+
+		const escalationPlan = getChatDbSearchEscalationPlan(
+			steps,
+			availableToolNames,
+			disabledListTools,
+		);
+		if (escalationPlan?.kind === "force_text") {
+			return { toolChoice: "none" as const };
+		}
+
+		const escalationTools = escalationPlan?.activeTools;
+		const activeTools = (escalationTools ?? availableToolNames).filter(
 			(name) => !disabledListTools.has(name),
 		);
 
-		return activeTools.length > 0 ? { activeTools } : {};
+		if (activeTools.length === 0) {
+			return { toolChoice: "none" as const };
+		}
+
+		if (escalationTools || disabledListTools.size > 0) {
+			return escalationPlan?.kind === "tools" && escalationPlan.toolChoice
+				? { activeTools, toolChoice: escalationPlan.toolChoice }
+				: { activeTools };
+		}
+
+		return {};
 	};
 }
 

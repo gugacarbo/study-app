@@ -42,7 +42,8 @@ function normalizeExamsFilters(input: {
 export function createExamTools(queries: DBQueries): ToolSet {
 	return {
 		list_exams: tool({
-			description: "List exams with optional filters and pagination.",
+			description:
+				"List exams with optional filters and pagination. Use nameContains to find exams by subject name when topic/textContains searches returned no questions.",
 			inputSchema: zodSchema(listExamsInputSchema),
 			execute: async (input) =>
 				safeToolResult<ExamRecord>(() =>

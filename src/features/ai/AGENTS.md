@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-16 (compact token display + per-message perf) -->
+<!-- Last updated: 2026-06-16 (chat DB search escalation + tool loop guards) -->
 
 Domain-driven AI integration layer. 60+ files across 13 subdirectories.
 
@@ -68,7 +68,9 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`core/agent-limits.ts`** — Named step limits (`INGEST_EXTRACTION_MAX_STEPS=15`, `INGEST_PER_QUESTION_MAX_STEPS=12`, `IMPROVE_QUESTIONS_MAX_STEPS=12`)
 - **`core/bridge-agent-run-event.ts`** — Bridges per-question agent events to UI Message Stream writers (lifecycle, tokens, tool calls)
 - **`core/tool-agent-run.ts`** — Shared stream loop for single-question tool agents (review, explanations); supports `stopWhen` arrays and `prepareStep`
-- **`core/tool-agent-stop-when.ts`** — Reusable `stopWhen` / `prepareStep` builders (duplicate add, repeated tool calls)
+- **`core/chat-agent-loop.ts`** — Chat `/api/chat` tool loop config (`wrapChatToolsWithCallGuards` + `stopWhen` / `prepareStep`); same pattern as pipeline tool agents
+- **`core/tool-agent-stop-when.ts`** — Reusable `stopWhen` / `prepareStep` builders (chat DB search escalation, ingest duplicate add, repeated tool calls)
+- **`lib/chat-tool-call-guards.ts`** — Per-turn duplicate call guards + ordered DB search escalation (`topic` → `textContains` → `list_exams` → `examId`)
 - **`lib/format-display-tokens.ts`** — Compact UI token counts (`999` → `1.0k` → `20k` → `1.0M`); use for all user-facing token displays
 - **`lib/think-tag-stream-parser.ts`** — Incremental think-tag parser for stream text deltas
 - **`lib/split-think-tags-ui-stream.ts`** — Chat UI message stream transformer for reasoning parts
