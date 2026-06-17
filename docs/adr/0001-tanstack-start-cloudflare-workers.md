@@ -20,11 +20,11 @@ App fullstack React com rotas tipadas, server functions e API streaming no mesmo
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
+| Opção                    | Veredito                                                            |
+| ------------------------ | ------------------------------------------------------------------- |
 | TanStack Start + Workers | **Escolhida** — bindings nativos, server functions, `nodejs_compat` |
-| Next.js / Vercel | D1/R2 awkward; vendor lock-in |
-| SPA + Worker separado | Dois deploys; streaming IA mais complexo |
+| Next.js / Vercel         | D1/R2 awkward; vendor lock-in                                       |
+| SPA + Worker separado    | Dois deploys; streaming IA mais complexo                            |
 
 ## Decisão
 
@@ -32,12 +32,14 @@ App fullstack React com rotas tipadas, server functions e API streaming no mesmo
 
 ### Rotas e domínio
 
-| Camada | Local | Regra |
-|--------|-------|--------|
-| Rotas (finas) | `src/routes/` | Delegam para `src/features/` |
-| Features | `src/features/{domain}/` | UI, store, hooks de domínio |
-| Admin | `src/routes/admin.*` | `/admin/*` — permissão `admin:access` (ADR-0004) |
-| API streaming | `src/routes/api/` | Só HTTP fino — lógica em `src/features/ai/` |
+| Camada        | Local                            | Regra                                                       |
+| ------------- | -------------------------------- | ----------------------------------------------------------- |
+| Rotas (finas) | `src/routes/{segment}/index.tsx` | Uma pasta por segmento de URL; delegam para `src/features/` |
+| Features      | `src/features/{domain}/`         | UI, store, hooks de domínio                                 |
+| Admin         | `src/routes/admin/`              | `/admin/*` — permissão `admin:access` (ADR-0004)            |
+| API streaming | `src/routes/api/`                | Só HTTP fino — lógica em `src/features/ai/`                 |
+
+Ex.: `/login` → `src/routes/login/index.tsx`; `/exams/$id` → `src/routes/exams/$id/index.tsx`. Detalhe → `docs/context/CONVENTIONS.md`.
 
 - Mutations: `createServerFn` + Zod em `src/functions/`
 - Streaming: rotas API delegam para `src/features/ai/`
@@ -56,12 +58,12 @@ src/functions/
 
 ### Componentes e hooks
 
-| Tipo | Local |
-|------|--------|
-| shadcn / primitivos | `src/components/ui/` |
+| Tipo                     | Local                                                |
+| ------------------------ | ---------------------------------------------------- |
+| shadcn / primitivos      | `src/components/ui/`                                 |
 | Composites cross-feature | `src/components/` (ex.: shells de quiz, exam-detail) |
-| Hooks compartilhados | `src/hooks/` |
-| Hooks de domínio | `src/features/{domain}/hooks/` |
+| Hooks compartilhados     | `src/hooks/`                                         |
+| Hooks de domínio         | `src/features/{domain}/hooks/`                       |
 
 ### Shell e devtools
 
@@ -77,7 +79,7 @@ Colocados ao lado do código: `*.test.ts` (lógica), `*.spec.tsx` (componentes).
 - Deploy: `npm run deploy` (`wrangler.jsonc` é fonte de bindings)
 - Após mudar bindings: `npm run cf-typegen`
 - Data loading: `useSuspenseQuery` + functions — não route loaders (exceto `beforeLoad`)
-- **Proibido:** editar `routeTree.gen.ts`; `#/*` em código novo; bibliotecas Node pesadas incompatíveis com Workers (ex.: `pdf-parse`)
+- **Proibido:** editar `routeTree.gen.ts`; rotas planas (`login.tsx`, `admin.foo.tsx`) — usar `{segment}/index.tsx`; `#/*` em código novo; bibliotecas Node pesadas incompatíveis com Workers (ex.: `pdf-parse`)
 
 ## Confirmação
 

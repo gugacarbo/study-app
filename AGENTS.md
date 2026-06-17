@@ -58,6 +58,7 @@ Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemente
 ## Gotchas
 
 - Legado em `.old_app/` — referência só; não portar glue custom (pipeline/reducers) sem spec
+- Rotas: pasta por segmento + `index.tsx` — ex. `/login` → `src/routes/login/index.tsx` (não `login.tsx`)
 - Server functions em `src/functions/` (não `server-functions/`); queries D1 modulares (não `DBQueries` mixin)
 - PKs de domínio: UUID `text` (SPEC-0001)
 - Hooks compartilhados → `src/hooks/`; hooks de domínio → `features/{domain}/hooks/`

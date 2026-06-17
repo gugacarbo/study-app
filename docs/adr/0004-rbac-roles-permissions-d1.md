@@ -24,12 +24,12 @@ Better Auth cuida de **autenticação** (sessão, magic link — ADR-0003). **Au
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| Tabelas D1 (`roles`, `permissions`, `user_roles`) | **Escolhida** |
-| Better Auth Admin plugin (`user.role` string) | Rejeitado — roles dinâmicas futuras, permissões granulares |
-| `ADMIN_EMAILS` como guard runtime | Rejeitado — só bootstrap no signup |
-| Organization plugin Better Auth | Rejeitado — multi-tenant org é outro modelo |
+| Opção                                             | Veredito                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| Tabelas D1 (`roles`, `permissions`, `user_roles`) | **Escolhida**                                              |
+| Better Auth Admin plugin (`user.role` string)     | Rejeitado — roles dinâmicas futuras, permissões granulares |
+| `ADMIN_EMAILS` como guard runtime                 | Rejeitado — só bootstrap no signup                         |
+| Organization plugin Better Auth                   | Rejeitado — multi-tenant org é outro modelo                |
 
 ## Decisão
 
@@ -37,31 +37,31 @@ Better Auth cuida de **autenticação** (sessão, magic link — ADR-0003). **Au
 
 Detalhe de colunas: SPEC-0001 (seção RBAC).
 
-| Tabela | Uso |
-|--------|-----|
-| `roles` | Catálogo — `key` unique (`user`, `admin` na v1) |
-| `permissions` | Catálogo — `key` unique (`app:use`, `admin:access` na v1) |
-| `role_permissions` | N:N role → permissions |
-| `user_roles` | N:N `user_id` → `roles` (FK `user.id` cascade) |
+| Tabela             | Uso                                                       |
+| ------------------ | --------------------------------------------------------- |
+| `roles`            | Catálogo — `key` unique (`user`, `admin` na v1)           |
+| `permissions`      | Catálogo — `key` unique (`app:use`, `admin:access` na v1) |
+| `role_permissions` | N:N role → permissions                                    |
+| `user_roles`       | N:N `user_id` → `roles` (FK `user.id` cascade)            |
 
 PKs: UUID `text` em `roles`, `permissions`; composite PK em junctions.
 
 **Seed v1** (migration inicial):
 
-| Role | Permissions |
-|------|-------------|
-| `user` | `app:use` |
+| Role    | Permissions               |
+| ------- | ------------------------- |
+| `user`  | `app:use`                 |
 | `admin` | `app:use`, `admin:access` |
 
 Todo usuário autenticado recebe role `user` no signup. Emails em `ADMIN_EMAILS` recebem **também** `admin` (hook pós-criação).
 
 ### Bootstrap (`ADMIN_EMAILS`)
 
-| Momento | Comportamento |
-|---------|----------------|
+| Momento                | Comportamento                                                      |
+| ---------------------- | ------------------------------------------------------------------ |
 | `user.create` (signup) | Atribuir role `user`; se email ∈ `ADMIN_EMAILS` → atribuir `admin` |
-| Login subsequente | Não reavaliar env — role só muda via `set-user-role` |
-| Env alterado | Não retroage em usuários existentes |
+| Login subsequente      | Não reavaliar env — role só muda via `set-user-role`               |
+| Env alterado           | Não retroage em usuários existentes                                |
 
 `ADMIN_EMAILS`: comma-separated, trim + lowercase.
 
@@ -79,12 +79,12 @@ Carregar de D1 em cada request autenticado (join `user_roles` → `role_permissi
 
 Guards em `src/functions/auth/`:
 
-| Guard | Regra |
-|-------|--------|
-| `requireSession` | Sessão válida + `app:use` |
+| Guard                 | Regra                             |
+| --------------------- | --------------------------------- |
+| `requireSession`      | Sessão válida + `app:use`         |
 | `requireAdminSession` | `requireSession` + `admin:access` |
 
-Rotas `src/routes/admin.*`: `beforeLoad` com `requireAdminSession` → falha **404**.
+Rotas em `src/routes/admin/` (ex.: `admin/index.tsx`, `admin/config/index.tsx`): `beforeLoad` com `requireAdminSession` → falha **404**.
 
 ### Atribuição de roles
 
@@ -106,13 +106,13 @@ Cross-tenant / superadmin: **fora v1** — exige ADR nova.
 
 ### v1 vs expansão futura
 
-| Capacidade | v1 |
-|------------|-----|
-| Roles no catálogo | Fixas (`user`, `admin`) — seed migration |
-| Permissions no catálogo | Fixas (`app:use`, `admin:access`) — seed migration |
-| UI criar role/permissão nova | **Não** — migration ou spec futura |
-| Atribuir role existente a usuário | **Sim** — `set-user-role` |
-| Múltiplas roles por usuário | **Sim** (schema) — v1 na prática `user` ± `admin` |
+| Capacidade                        | v1                                                 |
+| --------------------------------- | -------------------------------------------------- |
+| Roles no catálogo                 | Fixas (`user`, `admin`) — seed migration           |
+| Permissions no catálogo           | Fixas (`app:use`, `admin:access`) — seed migration |
+| UI criar role/permissão nova      | **Não** — migration ou spec futura                 |
+| Atribuir role existente a usuário | **Sim** — `set-user-role`                          |
+| Múltiplas roles por usuário       | **Sim** (schema) — v1 na prática `user` ± `admin`  |
 
 ## Consequências
 

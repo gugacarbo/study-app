@@ -10,8 +10,8 @@ TanStack Start + Router + Query · React 19 · Cloudflare Workers · D1 + Drizzl
 
 | Tipo | Local |
 |------|--------|
-| Rotas (finas) | `src/routes/` |
-| Admin (`/admin/*`) | `src/routes/admin.*` |
+| Rotas (finas) | `src/routes/` — uma pasta por segmento; ver abaixo |
+| Admin (`/admin/*`) | `src/routes/admin/` |
 | Domínio (UI + store + lógica) | `src/features/{domain}/` |
 | Server functions | `src/functions/` |
 | Schema + queries | `src/db/` (`queries/` modular por domínio) |
@@ -21,6 +21,27 @@ TanStack Start + Router + Query · React 19 · Cloudflare Workers · D1 + Drizzl
 | UI primitiva (shadcn) | `src/components/ui/` |
 | Composites cross-feature | `src/components/` |
 | Streaming / agents IA | `src/features/ai/` (rotas API delegam) |
+
+### `src/routes/` (file-based routing)
+
+Cada rota vive em **pasta com o nome do segmento**; o arquivo da rota é **`index.tsx`** (ou `index.ts` só para API).
+
+| URL | Arquivo |
+|-----|---------|
+| `/` | `src/routes/index.tsx` |
+| `/login` | `src/routes/login/index.tsx` |
+| `/exams` | `src/routes/exams/index.tsx` |
+| `/exams/$id` | `src/routes/exams/$id/index.tsx` |
+| `/admin` | `src/routes/admin/index.tsx` |
+| `/admin/config` | `src/routes/admin/config/index.tsx` |
+| `/api/chat` | `src/routes/api/chat/index.ts` |
+
+Regras:
+
+- **Proibido** arquivo plano no lugar da pasta (`login.tsx`, `admin.config.tsx`) — legado em `.old_app/` não é modelo
+- Raiz da árvore: `__root.tsx` (TanStack)
+- Módulos privados da rota (schema, handlers): mesmo diretório, prefixo `-` — ex.: `api/chat/-schema.ts`
+- Rotas permanecem finas: UI e lógica em `src/features/`; API pesada delega para `src/features/ai/` (ADR-0007)
 
 ### `src/functions/`
 
@@ -48,6 +69,12 @@ Não usar `#/*`. Testes usam `@/` como o app.
 | Diretórios | kebab-case |
 | Constantes | UPPER_SNAKE_CASE |
 | PKs de domínio | UUID `text` (SPEC-0001) |
+
+## Lint (Biome)
+
+- **150 linhas** por arquivo (máximo) — `nursery/noExcessiveLinesPerFile` em `biome.json`, severidade `error`
+- Arquivo grande → dividir em módulos menores (`features/`, `db/queries/`, helpers `-` na rota)
+- Exclusões só via `files.includes` em `biome.json` (ex.: `src/routeTree.gen.ts`, `src/styles.css`) — não `biome-ignore` para contornar tamanho
 
 ## Server functions (`src/functions/`)
 
@@ -83,6 +110,7 @@ Server: throw com mensagem descritiva. Client: try/catch + UI amigável. Recurso
 - Blobs grandes em D1 (limite ~1MB/row) → R2
 - `index` como React `key` (usar `id`; `biome-ignore` só se inevitável)
 - Editar `src/routeTree.gen.ts`
+- Rotas planas em `src/routes/` (`foo.tsx`, `admin.bar.tsx`) — usar `foo/index.tsx`, `admin/bar/index.tsx`
 - Misturar agents de domínios diferentes
 - Hover inline (`onMouseEnter`) → variantes shadcn Button
 - Importar de `.old_app/` no código novo
