@@ -2,6 +2,7 @@ import type { UIMessage } from "ai";
 import type { ExplainQuestionAgentEvent } from "@/features/ai/agents/explanations/contracts";
 import type { ImproveQuestionsAgentEvent } from "@/features/ai/agents/improve-questions/contracts";
 import { pickRicherToolResultContent } from "@/features/ai/core/ai-stream-handler";
+import { INGEST_STAGE_STATUS_TOOL } from "@/features/ai/tools/ingest-stage-status";
 import type {
 	AgentRunDataPart,
 	AgentRunEventType,
@@ -285,6 +286,107 @@ function readAssistantText(messages: UIMessage[]): string {
 		.filter((part) => part.type === "text")
 		.map((part) => part.text)
 		.join("");
+}
+
+function isStageStatusToolName(toolName: string | undefined): boolean {
+	return toolName === INGEST_STAGE_STATUS_TOOL;
+}
+
+function readStageStatusMessageFromRecord(
+	record: Record<string, unknown> | undefined,
+): string | null {
+	const message = record?.message;
+	if (typeof message !== "string") return null;
+	const trimmed = message.trim();
+	return trimmed.length > 0 ? trimmed : null;
+}
+
+function readStageStatusMessageFromMeta(
+	meta: Record<string, unknown> | undefined,
+): string | null {
+	const fromMeta = meta?.stageStatusMessage;
+	if (typeof fromMeta === "string" && fromMeta.trim().length > 0) {
+		return fromMeta.trim();
+	}
+	return null;
+}
+
+function readStageStatusMessageFromToolPayload(
+	payload: unknown,
+): string | null {
+	if (typeof payload !== "object" || payload === null) return null;
+	return readStageStatusMessageFromRecord(payload as Record<string, unknown>);
+}
+
+function readStageStatusMessageFromToolEvent(
+	event: ImproveQuestionsAgentEvent | ExplainQuestionAgentEvent,
+): string | null {
+	return (
+		readStageStatusMessageFromToolPayload(event.input) ??
+		readStageStatusMessageFromToolPayload(event.content) ??
+		readStageStatusMessageFromToolPayload(event.output)
+	);
+}
+
+function assistantAlreadyHasStageStatusMessage(
+	state: AgentRunState,
+	message: string,
+): boolean {
+	const assistant = state.messages.find((entry) => entry.role === "assistant");
+	if (!assistant) return false;
+
+	return assistant.parts.some(
+		(part) => part.type === "text" && part.text.trim() === message,
+	);
+}
+
+function appendStageStatusFinalMessage(
+	state: AgentRunState,
+	message: string,
+): AgentRunState {
+	const trimmed = message.trim();
+	if (!trimmed || assistantAlreadyHasStageStatusMessage(state, trimmed)) {
+		return state;
+	}
+
+	return withAssistantMessage(state, (assistantMessage) => ({
+		...assistantMessage,
+		parts: [...assistantMessage.parts, createTextPart(trimmed)],
+	}));
+}
+
+function isTerminalLifecycleStatus(status: string | undefined): boolean {
+	return (
+		status === "done" ||
+		status === "warning" ||
+		status === "error" ||
+		status === "skipped"
+	);
+}
+
+function applyStageStatusFinalMessageFromEvent(
+	state: AgentRunState,
+	event: ImproveQuestionsAgentEvent | ExplainQuestionAgentEvent,
+): AgentRunState {
+	const meta =
+		"meta" in event
+			? (event.meta as Record<string, unknown> | undefined)
+			: undefined;
+	const message = readStageStatusMessageFromMeta(meta);
+	if (!message) return state;
+
+	if (event.eventType === "result") {
+		return appendStageStatusFinalMessage(state, message);
+	}
+
+	if (
+		event.eventType === "lifecycle" &&
+		isTerminalLifecycleStatus(event.status)
+	) {
+		return appendStageStatusFinalMessage(state, message);
+	}
+
+	return state;
 }
 
 function syncPromptsIntoMessages(state: AgentRunState): AgentRunState {
@@ -813,8 +915,13 @@ export function reduceAgentEvent(
 	}
 
 	let nextState = applyAgentMetadata(state, event);
+	nextState = applyStageStatusFinalMessageFromEvent(nextState, event);
 
 	if (event.eventType === "tool-call") {
+		if (isStageStatusToolName(event.name)) {
+			return nextState;
+		}
+
 		nextState = appendAssistantToolPart(
 			nextState,
 			createDynamicToolFromCallEvent(nextState, event),
@@ -822,6 +929,13 @@ export function reduceAgentEvent(
 	}
 
 	if (event.eventType === "tool-result") {
+		if (isStageStatusToolName(event.name)) {
+			const message = readStageStatusMessageFromToolEvent(event);
+			return message
+				? appendStageStatusFinalMessage(nextState, message)
+				: nextState;
+		}
+
 		nextState = appendAssistantToolPart(
 			nextState,
 			createDynamicToolFromResultEvent(nextState, event),

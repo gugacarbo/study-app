@@ -237,4 +237,101 @@ describe("single-agent-run-reducer", () => {
 			},
 		]);
 	});
+
+	it("appends stage status tool message as final assistant text and hides the tool", () => {
+		let state = createAgentRunState({
+			agentRunId: "run-1",
+			label: "Improve question",
+		});
+
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "tool-call",
+				name: "report_agent_stage_status",
+				input: {
+					status: "success",
+					message: "Refinei os distratores e melhorei a explicacao.",
+				},
+				state: "input-complete",
+				meta: { toolCallId: "call-stage" },
+			}),
+		);
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "tool-result",
+				name: "report_agent_stage_status",
+				input: {
+					status: "success",
+					message: "Refinei os distratores e melhorei a explicacao.",
+				},
+				content: {
+					ok: true,
+					status: "success",
+					message: "Refinei os distratores e melhorei a explicacao.",
+				},
+				state: "complete",
+				meta: { toolCallId: "call-stage" },
+			}),
+		);
+
+		const assistant = state.messages.find(
+			(message) => message.role === "assistant",
+		);
+
+		expect(assistant?.parts).toEqual([
+			{ type: "text", text: "" },
+			{
+				type: "text",
+				text: "Refinei os distratores e melhorei a explicacao.",
+			},
+		]);
+	});
+
+	it("appends lifecycle stageStatusMessage without duplicating tool message", () => {
+		let state = createAgentRunState({
+			agentRunId: "run-1",
+			label: "Improve question",
+		});
+
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "tool-result",
+				name: "report_agent_stage_status",
+				input: {
+					status: "success",
+					message: "Stage completed successfully.",
+				},
+				content: {
+					ok: true,
+					status: "success",
+					message: "Stage completed successfully.",
+				},
+				state: "complete",
+				meta: { toolCallId: "call-stage" },
+			}),
+		);
+		state = reduceAgentEvent(
+			state,
+			agentEvent({
+				eventType: "lifecycle",
+				status: "done",
+				meta: {
+					stageStatusMessage: "Stage completed successfully.",
+				},
+			}),
+		);
+
+		const assistant = state.messages.find(
+			(message) => message.role === "assistant",
+		);
+		const finalTextParts = assistant?.parts.filter((part) => part.type === "text");
+
+		expect(finalTextParts).toEqual([
+			{ type: "text", text: "" },
+			{ type: "text", text: "Stage completed successfully." },
+		]);
+	});
 });
