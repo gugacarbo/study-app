@@ -273,9 +273,11 @@ function createComposerWithSuggestions(
 ) {
 	const BaseComposer = createStudyChatComposer(props);
 	return function ComposerWithSuggestions() {
+		const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+
 		return (
 			<div className="flex flex-col gap-2">
-				{suggestions.length > 0 ? (
+				{!hasMessages && suggestions.length > 0 ? (
 					<QuickSuggestions suggestions={suggestions} />
 				) : null}
 				<BaseComposer />
