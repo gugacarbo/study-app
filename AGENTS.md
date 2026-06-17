@@ -83,4 +83,4 @@ Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemente
 
 - Decisões: `docs/adr/` · Comportamento: `docs/specs/` (README gerado; layout → `docs/context/SPECS.md`)
 - Pendências e reservas de numeração: `docs/BACKLOG.md`
-- Validar: `scripts/docs-check` · Regenerar índices: `scripts/docs-check --emit-index`
+- Validar: `npm run docs-check` · Regenerar índices: `npm run docs-check:update`

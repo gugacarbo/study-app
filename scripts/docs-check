@@ -6,7 +6,7 @@ Uso:
   scripts/docs-check [--root .] [--emit-index] [--warn-only]
 
 O que faz:
-  1. Lê docs/adr/*.md e docs/specs/*.md.
+  1. Lê docs/adr/*.md (plano) e docs/specs/**/*.md (raiz + subpastas de domínio).
   2. DERIVA id do filename (docs/adr/0032-x.md → ADR-0032) e title do primeiro
      H1 do corpo (após o frontmatter; comentários HTML não contam).
   3. Valida frontmatter: só o subconjunto YAML suportado (escalar, lista
@@ -48,6 +48,7 @@ IGNORED_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build",
 TRASH_ALWAYS = [r"\.orig$", r"conflicted copy", r"^\.DS_Store$"]
 DUP_RE = re.compile(r"^(?P<base>.+?)(?: \d+| copy(?: \d+)?| \(\d+\))(?P<ext>\.\w+)$")
 FILENAME_RE = re.compile(r"^(\d{4})-[a-z0-9][a-z0-9-]*\.md$")
+DOMAIN_DIR_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 KEY_RE = re.compile(r"^([A-Za-z][\w-]*):\s*(.*)$")
 ITEM_RE = re.compile(r"^\s*-\s+(.*)$")
 VA_RE = re.compile(r"^\s*>\s*(?:⚠️\s*)?VERDADE ATUAL", re.M)
@@ -121,11 +122,46 @@ def first_h1(visible):
     return None
 
 
-def render_readme(label, rows):
+def iter_layer_paths(root, layer):
+    """ADR: só docs/adr/*.md. Specs: raiz + um nível docs/specs/{domínio}/*.md."""
+    folder = root / "docs" / layer
+    if not folder.exists():
+        return
+    if layer == "adr":
+        for path in sorted(folder.glob("*.md")):
+            yield path
+        return
+    for path in sorted(folder.glob("*.md")):
+        yield path
+    for subdir in sorted(p for p in folder.iterdir() if p.is_dir()):
+        if subdir.name in IGNORED_DIRS:
+            continue
+        if not DOMAIN_DIR_RE.match(subdir.name):
+            for path in sorted(subdir.rglob("*.md")):
+                if path.name != "README.md" and not path.name.endswith(".template.md"):
+                    yield ("error", path,
+                           f"pasta de domínio '{subdir.name}' fora do padrão kebab-case")
+            continue
+        for path in sorted(subdir.glob("*.md")):
+            yield path
+        for path in sorted(subdir.rglob("*.md")):
+            if path.parent == subdir:
+                continue
+            if path.name == "README.md" or path.name.endswith(".template.md"):
+                continue
+            yield ("error", path,
+                   "spec em subpasta aninhada — use só docs/specs/ ou docs/specs/{domínio}/")
+
+
+def render_readme(label, rows, *, link_base=None):
     lines = [f"# {label}", "", "<!-- GERADO por scripts/docs-check — não editar à mão -->", "",
              "| id | título | status |", "|---|---|---|"]
-    lines += [f"| [{d['id']}]({Path(d['path']).name}) | {d['title']} | {d['status']} |"
-              for d in sorted(rows, key=lambda d: d["id"])]
+    for d in sorted(rows, key=lambda d: d["id"]):
+        if link_base:
+            href = Path(d["path"]).relative_to(link_base).as_posix()
+        else:
+            href = Path(d["path"]).name
+        lines.append(f"| [{d['id']}]({href}) | {d['title']} | {d['status']} |")
     return "\n".join(lines) + "\n"
 
 
@@ -145,10 +181,12 @@ def main():
 
     # Coleta, derivação e validação por documento
     for layer, prefix in LAYERS.items():
-        folder = root / "docs" / layer
-        if not folder.exists():
-            continue
-        for path in sorted(folder.glob("*.md")):
+        for item in iter_layer_paths(root, layer):
+            if isinstance(item, tuple):
+                _, path, msg = item
+                errors.append(f"{path}: {msg}")
+                continue
+            path = item
             if path.name == "README.md" or path.name.endswith(".template.md"):
                 continue
             m = FILENAME_RE.match(path.name)
@@ -241,6 +279,20 @@ def main():
                     errors.append(f"{d['id']}: ## Verificação ainda com placeholder — "
                                   "preencha a evidência do DoD")
 
+    spec_nums = sorted(int(d["id"].split("-", 1)[1]) for d in docs.values() if d["layer"] == "specs")
+    if spec_nums:
+        expected = list(range(spec_nums[-1] + 1))
+        if spec_nums != expected:
+            missing = sorted(set(expected) - set(spec_nums))
+            extra = sorted(set(spec_nums) - set(expected))
+            detail = []
+            if missing:
+                detail.append(f"faltando: {', '.join(f'{n:04d}' for n in missing)}")
+            if extra:
+                detail.append(f"fora de sequência: {', '.join(f'{n:04d}' for n in extra)}")
+            errors.append("specs: numeração global não contígua a partir de 0000 "
+                          f"({'; '.join(detail)})")
+
     # Router dentro do teto
     router = root / "AGENTS.md"
     if router.exists():
@@ -270,8 +322,9 @@ def main():
     for layer, label in (("adr", "ADRs"), ("specs", "Specs")):
         folder = root / "docs" / layer
         if folder.exists():
+            link_base = folder if layer == "specs" else None
             readmes[folder / "README.md"] = render_readme(
-                label, [d for d in index if d["layer"] == layer])
+                label, [d for d in index if d["layer"] == layer], link_base=link_base)
 
     if args.emit_index:
         (root / "docs").mkdir(exist_ok=True)
@@ -292,11 +345,14 @@ def main():
         if ij.exists() and ij.read_text(encoding="utf-8") != index_text:
             errors.append("índices: docs/index.json divergente — rode scripts/docs-check --emit-index")
 
+    adr_count = sum(1 for d in docs.values() if d["layer"] == "adr")
+    spec_count = sum(1 for d in docs.values() if d["layer"] == "specs")
     for w in warnings:
         print(f"AVISO: {w}")
     for e in errors:
         print(f"ERRO:  {e}")
-    print(f"\n{len(docs)} docs · {len(errors)} erro(s) · {len(warnings)} aviso(s)")
+    print(f"\n{len(docs)} docs ({adr_count} ADRs · {spec_count} Specs) · "
+          f"{len(errors)} erro(s) · {len(warnings)} aviso(s)")
     sys.exit(0 if (args.warn_only or not errors) else 1)
 
 

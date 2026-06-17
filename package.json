@@ -27,7 +27,8 @@
     "db:reset": "wrangler d1 migrations apply study-app-db --local --reset",
     "db:reset:prod": "wrangler d1 migrations apply study-app-db --remote --reset",
     "postinstall": "npm run cf-typegen",
-    "docs-check": "python3 scripts/docs-check"
+    "docs-check": "python3 scripts/docs-check",
+    "docs-check:update": "python3 scripts/docs-check --emit-index"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.69",
@@ -85,11 +86,5 @@
     "vite": "^8.0.0",
     "vitest": "^4.1.5",
     "wrangler": "^4.93.1"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ]
   }
 }
