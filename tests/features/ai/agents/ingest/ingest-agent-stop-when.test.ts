@@ -104,6 +104,66 @@ describe("repeatedToolCallInLastSteps", () => {
 	});
 });
 
+describe("buildChatPrepareStep", () => {
+	it("disables list_questions after a successful final page", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"web_search",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						output: {
+							ok: true,
+							data: {
+								items: [],
+								pagination: { hasNextPage: false },
+							},
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({ activeTools: ["web_search"] });
+	});
+
+	it("keeps list_questions available when pagination continues", async () => {
+		const { buildChatPrepareStep } = await import(
+			"@/features/ai/core/tool-agent-stop-when"
+		);
+		const prepareStep = buildChatPrepareStep([
+			"list_questions",
+			"web_search",
+		]);
+
+		const result = prepareStep({
+			steps: [
+				createStep([
+					{
+						toolName: "list_questions",
+						output: {
+							ok: true,
+							data: {
+								items: [],
+								pagination: { hasNextPage: true },
+							},
+						},
+					},
+				]),
+			],
+		} as never);
+
+		expect(result).toEqual({});
+	});
+});
+
 describe("ingestStageStatusReported", () => {
 	it("stops when report_agent_stage_status succeeds", () => {
 		expect(

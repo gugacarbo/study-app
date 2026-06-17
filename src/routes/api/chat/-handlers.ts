@@ -1,6 +1,8 @@
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import type { D1Database } from "@cloudflare/workers-types";
-import { convertToModelMessages, createUIMessageStreamResponse, stepCountIs, type ToolSet } from "ai";
+import { convertToModelMessages, createUIMessageStreamResponse, type ToolSet } from "ai";
+import { buildChatPrepareStep, buildChatStopWhen } from "@/features/ai/core/tool-agent-stop-when";
+import { wrapChatToolsWithCallGuards } from "@/features/ai/lib/chat-tool-call-guards";
 import type { ToolJSONSchema } from "assistant-stream";
 import { getAiModel } from "@/features/ai/adapters/provider-model";
 import { buildProviderOptions } from "@/features/ai/adapters/provider-options";
@@ -155,10 +157,10 @@ async function runChatStream({
 		},
 	});
 
-	const tools = mergeChatTools(
-		resolvedTools.tools,
-		parseClientToolsFromRequest(body),
+	const tools = wrapChatToolsWithCallGuards(
+		mergeChatTools(resolvedTools.tools, parseClientToolsFromRequest(body)),
 	);
+	const chatToolNames = Object.keys(tools);
 
 	const pageContext = parsePageContextFromMetadata(body.metadata);
 	const chatSystemPrompt = buildChatSystemPrompt({ reviewMode, pageContext });
@@ -180,7 +182,8 @@ async function runChatStream({
 			system: chatSystemPrompt,
 			messages: await convertToModelMessages(messages),
 			tools,
-			stopWhen: stepCountIs(10),
+			stopWhen: buildChatStopWhen(),
+			prepareStep: buildChatPrepareStep(chatToolNames),
 			providerOptions: buildProviderOptions(providerConfig),
 			abortSignal: abortController.signal,
 		},

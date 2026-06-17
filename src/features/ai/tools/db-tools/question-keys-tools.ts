@@ -55,3 +55,5 @@ export function createQuestionKeysTools(queries: DBQueries): ToolSet {
 		}),
 	};
 }
+
+export { listAnswerKeysInputSchema };

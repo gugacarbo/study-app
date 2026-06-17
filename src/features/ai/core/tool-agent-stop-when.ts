@@ -4,6 +4,10 @@ import {
 	stepCountIs,
 	type ToolSet,
 } from "ai";
+import {
+	CHAT_READ_ONLY_LIST_TOOLS,
+	shouldDisableChatListToolAfterResult,
+} from "@/features/ai/lib/chat-tool-call-guards";
 import { INGEST_STAGE_STATUS_TOOL } from "@/features/ai/tools/ingest-stage-status";
 
 function readToolOutput(output: unknown): Record<string, unknown> | null {
@@ -41,6 +45,39 @@ export function repeatedToolCallInLastSteps(
 			.every((step) =>
 				step.toolResults.some((result) => result.toolName === toolName),
 			);
+	};
+}
+
+export function buildChatStopWhen(maxSteps = 10) {
+	return [stepCountIs(maxSteps)] satisfies Array<StopCondition<ToolSet>>;
+}
+
+export function buildChatPrepareStep(
+	availableToolNames: readonly string[],
+): PrepareStepFunction<ToolSet> {
+	const readOnlyListTools = new Set<string>(CHAT_READ_ONLY_LIST_TOOLS);
+
+	return ({ steps }) => {
+		const disabledListTools = new Set<string>();
+
+		for (const step of steps) {
+			for (const result of step.toolResults) {
+				if (!readOnlyListTools.has(result.toolName)) continue;
+				if (
+					shouldDisableChatListToolAfterResult(result.toolName, result.output)
+				) {
+					disabledListTools.add(result.toolName);
+				}
+			}
+		}
+
+		if (disabledListTools.size === 0) return {};
+
+		const activeTools = availableToolNames.filter(
+			(name) => !disabledListTools.has(name),
+		);
+
+		return activeTools.length > 0 ? { activeTools } : {};
 	};
 }
 
