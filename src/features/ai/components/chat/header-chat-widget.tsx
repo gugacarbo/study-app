@@ -5,16 +5,8 @@ import {
 	PopoverAnchor,
 	PopoverContent,
 } from "@/components/ui/popover";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/components/ui/sheet";
 import { HeaderChatButton } from "@/features/ai/components/chat/header-chat-button";
 import { CompactChatPanel } from "@/features/ai/components/chat/compact-chat-panel";
-import { ExpandedChatSheet } from "@/features/ai/components/chat/expanded-chat-sheet";
 import {
 	getLayoutUIStore,
 	setHeaderChatOpen,
@@ -70,33 +62,6 @@ export function HeaderChatWidget() {
 					<CompactChatPanel />
 				</PopoverContent>
 			</Popover>
-
-			{headerChatView === "sheet" ? (
-				<Sheet
-					modal={false}
-					open={headerChatOpen}
-					onOpenChange={(open) => {
-						if (open) setHeaderChatOpen(true);
-					}}
-				>
-					<SheetContent
-						side="right"
-						className="flex w-[600px] max-w-[600px] flex-col overflow-hidden p-0 sm:max-w-[600px]"
-						showCloseButton={false}
-						showOverlay={false}
-						onInteractOutside={(event) => event.preventDefault()}
-						onPointerDownOutside={(event) => event.preventDefault()}
-					>
-						<SheetHeader className="sr-only">
-							<SheetTitle>Chat expandido</SheetTitle>
-							<SheetDescription>
-								Painel de chat expandido na lateral da página.
-							</SheetDescription>
-						</SheetHeader>
-						<ExpandedChatSheet />
-					</SheetContent>
-				</Sheet>
-			) : null}
 		</>
 	);
 }

@@ -164,7 +164,7 @@ Use `usePipelineAssistantRuntime` when wiring assistant-ui thread state from pip
 | Folder                                   | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |
 | `components/assistant-ui/`               | Chat UI via `@assistant-ui/react` (thread, composer, tools, `StudyAssistantRuntimeProvider` + DevTools in dev, collapsible prompts on agent-run surfaces) |
-| `components/chat/`                       | Chat shell + header widget (`header-chat-widget`, compact/expanded panels); page context via `context/` |
+| `components/chat/`                       | Chat shell + header widget (`header-chat-dock` side layout, `header-chat-context-button`, compact/expanded panels); per-message perf footer; page context via `context/` |
 | `components/config/`                     | Connection test + benchmark dialogs (per-phase metrics)      |
 | `components/agent-run-detail-dialog.tsx` | Agent run inspector (system prompt, user prompt, response) |
 
@@ -177,4 +177,4 @@ Use `usePipelineAssistantRuntime` when wiring assistant-ui thread state from pip
 - **Benchmark tools:** `tools/benchmark-tools.ts` — synthetic tools for `/api/test-model-benchmark` (add_numbers, echo, delay_ms)
 - **Provider abstraction:** `getAiModel()` + `buildProviderOptions()` — swap providers without changing agents
 - **Store:** `conversations-store/` for multi-conversation chat; `context_key` groups page-scoped threads; persisted server-side via `server-functions/chat-conversations` (D1 index + R2 `chats/{id}.json` in `MEMORY_BUCKET`); runtime loads last `CHAT_RUNTIME_MESSAGE_LIMIT` messages
-- **Page chat:** routes register context with `registerPageChatContext()`; metadata `pageContext` sent to `/api/chat`; exam/quiz surfaces use header widget
+- **Page chat:** routes register context with `registerPageChatContext()`; metadata `pageContext` sent to `/api/chat`; `/api/chat` also streams `metadata.usage` + saves `metadata.custom.perf` (output tokens, duration, tok/s); exam/quiz surfaces use header widget

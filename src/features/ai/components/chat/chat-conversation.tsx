@@ -5,10 +5,14 @@ import {
 	useThreadTokenUsage,
 } from "@assistant-ui/react-ai-sdk";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { MessageTiming } from "@assistant-ui/core";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { AiModelPublic } from "@/db/queries/types";
 import { StudyAssistantRuntimeProvider } from "@/features/ai/components/assistant-ui/assistant-runtime-provider";
 import { createStudyChatComposer } from "@/features/ai/components/assistant-ui/study-chat-composer";
+import { ChatMessagePerfCache } from "@/features/ai/components/chat/chat-message-perf-cache";
+import { ChatRuntimeStatsSync } from "@/features/ai/components/chat/chat-runtime-stats-sync";
+import { enrichMessagesWithChatPerf } from "@/features/ai/lib/chat-message-perf";
 import { Thread } from "@/features/ai/components/assistant-ui/thread";
 import { WELCOME } from "@/features/ai/components/chat/chat-utils";
 import { useEnabledAiModels } from "@/features/ai/hooks/use-enabled-models";
@@ -90,6 +94,8 @@ export function ChatConversation({
 	const onErrorRef = useRef(onError);
 	onErrorRef.current = onError;
 
+	const perfTimingsRef = useRef<Record<string, MessageTiming>>({});
+
 	const initialMessages = useMemo(
 		() =>
 			getConversationMessages(conversationId).filter(
@@ -136,13 +142,24 @@ export function ChatConversation({
 		adapters: { history: historyAdapter },
 		onError: (error) => onError(errorToPipelineErrorState(error)),
 		onFinish: ({ messages }) => {
-			saveMessagesToConversation(conversationIdRef.current, messages);
+			const enriched = enrichMessagesWithChatPerf(
+				messages,
+				perfTimingsRef.current,
+			);
+			saveMessagesToConversation(conversationIdRef.current, enriched);
 			void flushConversationSave(conversationIdRef.current);
 		},
 	});
 
+	const selectedModel = models.find((model) => model.id === selectedModelId);
+
 	return (
 		<StudyAssistantRuntimeProvider runtime={runtime}>
+			<ChatMessagePerfCache cacheRef={perfTimingsRef} />
+			<ChatRuntimeStatsSync
+				conversationId={conversationId}
+				selectedModel={selectedModel}
+			/>
 			<ThreadRunningObserver onRunningChange={onRunningChange}>
 				<ChatThread
 					reviewMode={reviewMode}

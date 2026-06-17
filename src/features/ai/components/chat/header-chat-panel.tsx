@@ -3,6 +3,7 @@ import { Expand, Menu, Minimize2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChatConversation } from "@/features/ai/components/chat/chat-conversation";
+import { HeaderChatContextButton } from "@/features/ai/components/chat/header-chat-context-button";
 import {
 	type PageChatContext,
 	usePageChatContext,
@@ -82,6 +83,10 @@ export function HeaderChatPanel({
 		<div className="flex h-full min-h-0 flex-col">
 			<HeaderChatPanelToolbar
 				title={activeConversation?.title ?? "Chat"}
+				pageContext={pageContext}
+				conversationId={activeId}
+				savedMessageCount={activeConversation?.messageCount ?? 0}
+				isTruncated={isTruncated}
 				variant={variant}
 				conversationsOpen={conversationsOpen}
 				onToggleConversations={toggleHeaderChatConversationsOpen}
@@ -142,6 +147,10 @@ export function HeaderChatPanel({
 
 function HeaderChatPanelToolbar({
 	title,
+	pageContext,
+	conversationId,
+	savedMessageCount,
+	isTruncated,
 	variant,
 	conversationsOpen,
 	onToggleConversations,
@@ -151,6 +160,10 @@ function HeaderChatPanelToolbar({
 	pending,
 }: {
 	title: string;
+	pageContext: PageChatContext;
+	conversationId: string | null;
+	savedMessageCount: number;
+	isTruncated: boolean;
 	variant: "popover" | "sheet";
 	conversationsOpen: boolean;
 	onToggleConversations: () => void;
@@ -173,6 +186,12 @@ function HeaderChatPanelToolbar({
 				<Menu className="size-3.5" />
 			</Button>
 			<p className="min-w-0 flex-1 truncate text-xs font-medium">{title}</p>
+			<HeaderChatContextButton
+				pageContext={pageContext}
+				conversationId={conversationId}
+				savedMessageCount={savedMessageCount}
+				isTruncated={isTruncated}
+			/>
 			<Button
 				type="button"
 				variant="ghost"

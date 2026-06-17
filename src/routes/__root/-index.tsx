@@ -2,6 +2,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { HeadContent, Link, ScriptOnce, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { AssistantDevToolsPortal } from "@/features/ai/components/assistant-ui/assistant-devtools-portal";
+import { HeaderChatDock } from "@/features/ai/components/chat/header-chat-dock";
 import { getLayoutUIScript } from "@/features/ai/stores/ui-store";
 import appCss from "../../globals.css?url";
 import { RootNav } from "./-nav";
@@ -55,9 +56,12 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
 				<RootProviders>
 					<div className="flex h-full flex-col">
 						<RootNav />
-						<main className="mx-auto flex-1 overflow-y-auto px-4 py-5 max-w-5xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
-							{children}
-						</main>
+						<div className="flex min-h-0 flex-1 overflow-hidden">
+							<main className="mx-auto min-w-0 flex-1 overflow-y-auto px-4 py-5 max-w-5xl w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:max-w-full has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:min-h-0">
+								{children}
+							</main>
+							<HeaderChatDock />
+						</div>
 					</div>
 					<AssistantDevToolsPortal />
 					<TanStackDevtools

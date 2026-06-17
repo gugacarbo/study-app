@@ -41,6 +41,7 @@ import {
 	UserMessageAttachments,
 } from "@/features/ai/components/assistant-ui/attachment";
 import { MarkdownText } from "@/features/ai/components/assistant-ui/markdown-text";
+import { AssistantMessagePerfFooter } from "@/features/ai/components/assistant-ui/assistant-message-perf-footer";
 import { CollapsiblePromptMessage } from "@/features/ai/components/assistant-ui/prompt-message";
 import {
 	CollapsibleReasoningGroup,
@@ -466,6 +467,8 @@ const AssistantMessage: FC = () => {
 				</MessagePrimitive.GroupedParts>
 				<MessageError />
 			</div>
+
+			<AssistantMessagePerfFooter />
 
 			<div
 				data-slot="aui_assistant-message-footer"

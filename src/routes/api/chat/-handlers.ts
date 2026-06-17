@@ -8,6 +8,7 @@ import { buildChatSystemPrompt } from "@/features/ai/agents/chat";
 import { loggedStreamText } from "@/features/ai/core/logged-stream-text";
 import { mergeStreamResponseHeaders } from "@/features/ai/lib/stream-response-headers";
 import { splitThinkTagsInUIMessageStream } from "@/features/ai/lib/split-think-tags-ui-stream";
+import { extractChatMessageMetadata } from "@/features/ai/lib/chat-message-metadata";
 import { resolveToolsForAgent } from "@/features/ai/tools/tool-resolver";
 import {
 	type ResolvedModelConfig,
@@ -191,6 +192,7 @@ async function runChatStream({
 			result.toUIMessageStream({
 				originalMessages: messages,
 				onFinish: cleanup,
+				messageMetadata: ({ part }) => extractChatMessageMetadata(part),
 			}),
 		),
 		headers: mergeStreamResponseHeaders(),
