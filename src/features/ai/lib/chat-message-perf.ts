@@ -4,6 +4,7 @@ import {
 } from "@assistant-ui/react-ai-sdk";
 import type { MessageTiming } from "@assistant-ui/core";
 import type { UIMessage } from "ai";
+import { formatDisplayTokens } from "@/features/ai/lib/format-display-tokens";
 import { formatTokensPerSecond } from "@/features/ai/lib/stream-perf-metrics";
 
 export const CHAT_MESSAGE_PERF_CUSTOM_KEY = "perf";
@@ -12,6 +13,7 @@ export interface ChatMessagePerf {
 	outputTokens: number | null;
 	totalRequestMs: number | null;
 	tokensPerSecond: number | null;
+	completedAtMs: number | null;
 }
 
 export interface AssistantMessagePerfView extends ChatMessagePerf {
@@ -31,6 +33,7 @@ export function readSavedChatMessagePerf(
 		outputTokens: asTokenCount(perf.outputTokens),
 		totalRequestMs: asDurationMs(perf.totalRequestMs),
 		tokensPerSecond: asRate(perf.tokensPerSecond),
+		completedAtMs: asTimestampMs(perf.completedAtMs),
 	};
 }
 
@@ -42,15 +45,14 @@ export function buildChatMessagePerf(input: {
 	const outputTokens = usage?.outputTokens ?? null;
 	const totalRequestMs = input.timing?.totalStreamTime ?? null;
 
-	const tokensPerSecond =
-		outputTokens != null && totalRequestMs != null && totalRequestMs > 0
-			? outputTokens / (totalRequestMs / 1000)
-			: null;
+	const tokensPerSecond = computeTokensPerSecond(outputTokens, totalRequestMs);
+	const completedAtMs = resolveCompletedAtMs(input.timing);
 
 	if (
 		outputTokens == null &&
 		totalRequestMs == null &&
-		tokensPerSecond == null
+		tokensPerSecond == null &&
+		completedAtMs == null
 	) {
 		return null;
 	}
@@ -58,16 +60,15 @@ export function buildChatMessagePerf(input: {
 	return {
 		outputTokens,
 		totalRequestMs,
-		tokensPerSecond:
-			tokensPerSecond != null && Number.isFinite(tokensPerSecond)
-				? tokensPerSecond
-				: null,
+		tokensPerSecond,
+		completedAtMs,
 	};
 }
 
 export function getAssistantMessagePerfView(input: {
 	metadata: MessageMetadataLike;
 	role?: string;
+	completedAtMs?: number | null;
 }): AssistantMessagePerfView {
 	const savedPerf = readSavedChatMessagePerf(input.metadata);
 	const timing = input.metadata?.timing as MessageTiming | undefined;
@@ -82,19 +83,78 @@ export function getAssistantMessagePerfView(input: {
 	const outputTokens =
 		livePerf?.outputTokens ?? savedPerf?.outputTokens ?? null;
 	const totalRequestMs =
-		livePerf?.totalRequestMs ?? savedPerf?.totalRequestMs ?? null;
+		livePerf?.totalRequestMs ??
+		savedPerf?.totalRequestMs ??
+		asDurationMs(timing?.totalStreamTime) ??
+		null;
 	const tokensPerSecond =
-		livePerf?.tokensPerSecond ?? savedPerf?.tokensPerSecond ?? null;
+		livePerf?.tokensPerSecond ??
+		savedPerf?.tokensPerSecond ??
+		computeTokensPerSecond(outputTokens, totalRequestMs) ??
+		asRate(timing?.tokensPerSecond) ??
+		null;
+	const completedAtMs =
+		savedPerf?.completedAtMs ??
+		livePerf?.completedAtMs ??
+		resolveCompletedAtMs(timing) ??
+		asTimestampMs(input.completedAtMs) ??
+		null;
 
 	return {
 		outputTokens,
 		totalRequestMs,
 		tokensPerSecond,
+		completedAtMs,
 		hasData:
 			outputTokens != null ||
 			totalRequestMs != null ||
-			tokensPerSecond != null,
+			tokensPerSecond != null ||
+			completedAtMs != null,
 	};
+}
+
+export function attachChatMessagePerf(
+	message: UIMessage,
+	perf: ChatMessagePerf,
+): UIMessage {
+	const metadata = asRecord(message.metadata) ?? {};
+	const custom = asRecord(metadata.custom) ?? {};
+
+	return {
+		...message,
+		metadata: {
+			...metadata,
+			custom: {
+				...custom,
+				[CHAT_MESSAGE_PERF_CUSTOM_KEY]: finalizeChatMessagePerf(perf),
+			},
+		},
+	};
+}
+
+export function mergePreservedChatPerf(
+	existing: UIMessage,
+	incoming: UIMessage,
+): UIMessage {
+	const existingPerf = readSavedChatMessagePerf(
+		existing.metadata as MessageMetadataLike,
+	);
+	if (!existingPerf) return incoming;
+
+	const incomingPerf = readSavedChatMessagePerf(
+		incoming.metadata as MessageMetadataLike,
+	);
+	return attachChatMessagePerf(
+		incoming,
+		finalizeChatMessagePerf({
+			outputTokens: incomingPerf?.outputTokens ?? existingPerf.outputTokens,
+			totalRequestMs:
+				incomingPerf?.totalRequestMs ?? existingPerf.totalRequestMs,
+			tokensPerSecond:
+				incomingPerf?.tokensPerSecond ?? existingPerf.tokensPerSecond,
+			completedAtMs: incomingPerf?.completedAtMs ?? existingPerf.completedAtMs,
+		}),
+	);
 }
 
 export function enrichMessagesWithChatPerf(
@@ -110,19 +170,7 @@ export function enrichMessagesWithChatPerf(
 		});
 		if (!perf) return message;
 
-		const metadata = asRecord(message.metadata) ?? {};
-		const custom = asRecord(metadata.custom) ?? {};
-
-		return {
-			...message,
-			metadata: {
-				...metadata,
-				custom: {
-					...custom,
-					[CHAT_MESSAGE_PERF_CUSTOM_KEY]: perf,
-				},
-			},
-		};
+		return attachChatMessagePerf(message, perf);
 	});
 }
 
@@ -130,16 +178,27 @@ export function formatChatMessagePerfLine(perf: AssistantMessagePerfView): strin
 	const parts: string[] = [];
 
 	if (perf.outputTokens != null) {
-		parts.push(`${perf.outputTokens.toLocaleString("pt-BR")} saída`);
+		parts.push(`${formatDisplayTokens(perf.outputTokens)} saída`);
 	}
 	if (perf.totalRequestMs != null) {
-		parts.push(formatDurationMs(perf.totalRequestMs));
+		parts.push(`${formatDurationMs(perf.totalRequestMs)} lat.`);
 	}
 	if (perf.tokensPerSecond != null) {
 		parts.push(formatTokensPerSecond(perf.tokensPerSecond));
 	}
+	if (perf.completedAtMs != null) {
+		parts.push(formatChatMessagePerfTime(perf.completedAtMs));
+	}
 
 	return parts.join(" · ");
+}
+
+export function formatChatMessagePerfTime(ms: number): string {
+	if (!Number.isFinite(ms) || ms <= 0) return "—";
+	return new Date(ms).toLocaleTimeString("pt-BR", {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 }
 
 export function formatDurationMs(ms: number | null | undefined): string {
@@ -171,4 +230,46 @@ function asRate(value: unknown): number | null {
 	return typeof value === "number" && Number.isFinite(value) && value > 0
 		? value
 		: null;
+}
+
+function asTimestampMs(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) && value > 0
+		? value
+		: null;
+}
+
+function finalizeChatMessagePerf(perf: ChatMessagePerf): ChatMessagePerf {
+	const tokensPerSecond =
+		perf.tokensPerSecond ??
+		computeTokensPerSecond(perf.outputTokens, perf.totalRequestMs);
+
+	return {
+		...perf,
+		tokensPerSecond,
+	};
+}
+
+function computeTokensPerSecond(
+	outputTokens: number | null,
+	totalRequestMs: number | null,
+): number | null {
+	if (
+		outputTokens == null ||
+		totalRequestMs == null ||
+		totalRequestMs <= 0
+	) {
+		return null;
+	}
+
+	const rate = outputTokens / (totalRequestMs / 1000);
+	return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
+function resolveCompletedAtMs(
+	timing: MessageTiming | null | undefined,
+): number | null {
+	if (timing?.streamStartTime == null) return null;
+	const totalStreamTime = asDurationMs(timing.totalStreamTime);
+	if (totalStreamTime == null) return null;
+	return timing.streamStartTime + totalStreamTime;
 }

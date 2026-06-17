@@ -1,6 +1,6 @@
 # AI Feature Module
 
-<!-- Last updated: 2026-06-16 (page chat + pipeline stage status) -->
+<!-- Last updated: 2026-06-16 (compact token display + per-message perf) -->
 
 Domain-driven AI integration layer. 60+ files across 13 subdirectories.
 
@@ -69,6 +69,7 @@ Each agent has `index.ts` (exports) + `system-prompt.ts` (prompt definition) + d
 - **`core/bridge-agent-run-event.ts`** — Bridges per-question agent events to UI Message Stream writers (lifecycle, tokens, tool calls)
 - **`core/tool-agent-run.ts`** — Shared stream loop for single-question tool agents (review, explanations); supports `stopWhen` arrays and `prepareStep`
 - **`core/tool-agent-stop-when.ts`** — Reusable `stopWhen` / `prepareStep` builders (duplicate add, repeated tool calls)
+- **`lib/format-display-tokens.ts`** — Compact UI token counts (`999` → `1.0k` → `20k` → `1.0M`); use for all user-facing token displays
 - **`lib/think-tag-stream-parser.ts`** — Incremental think-tag parser for stream text deltas
 - **`lib/split-think-tags-ui-stream.ts`** — Chat UI message stream transformer for reasoning parts
 - **`core/map-with-concurrency.ts`** — Parallel mapper used by review/explanation batches

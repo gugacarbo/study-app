@@ -6,6 +6,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatDisplayTokenInOutSummary } from "@/features/ai/lib/format-display-tokens";
 import {
 	formatTokensPerSecond,
 	formatTtft,
@@ -115,7 +116,7 @@ function buildTooltip(
 		}
 		if (process.tokenTotals) {
 			parts.push(
-				`Tokens: ${process.tokenTotals.total.toLocaleString()} (in ${process.tokenTotals.prompt.toLocaleString()} / out ${process.tokenTotals.completion.toLocaleString()})`,
+				`Tokens: ${formatDisplayTokenInOutSummary(process.tokenTotals.prompt, process.tokenTotals.completion, process.tokenTotals.total)}`,
 			);
 		}
 		parts.push("Click to view details.");

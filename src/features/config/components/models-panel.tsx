@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatDisplayTokenValue } from "@/features/ai/lib/format-display-tokens";
 import {
 	Select,
 	SelectContent,
@@ -384,7 +385,8 @@ export function ModelsPanel() {
 											{model.providerName} · {model.modelId}
 										</p>
 										<p className="text-xs text-muted-foreground">
-											Context: {model.contextWindow ?? "—"} · Input: $
+											Context:{" "}
+											{formatDisplayTokenValue(model.contextWindow)} · Input: $
 											{model.inputCostPerMillion ?? 0}/M · Output: $
 											{model.outputCostPerMillion ?? 0}/M
 											{model.thinkingEffortLevels.length > 0

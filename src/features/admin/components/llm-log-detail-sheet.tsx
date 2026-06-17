@@ -11,6 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { LLMLogStatus } from "@/db/queries/types";
 import { getLlmLog } from "@/server-functions/llm-logs";
+import { formatDisplayTokenInOutSummary } from "@/features/ai/lib/format-display-tokens";
 
 interface LlmLogDetailSheetProps {
 	logId: number | null;
@@ -204,7 +205,7 @@ function formatTokenMeta(tokenMeta: string | null): string {
 		const input = parsed.inputTokens ?? 0;
 		const output = parsed.outputTokens ?? 0;
 		const total = parsed.totalTokens ?? input + output;
-		return `${total} (${input} in / ${output} out)`;
+		return formatDisplayTokenInOutSummary(input, output, total);
 	} catch {
 		return "—";
 	}

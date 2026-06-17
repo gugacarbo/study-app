@@ -23,6 +23,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatDisplayTokens } from "@/features/ai/lib/format-display-tokens";
 import type { AiModelPublic } from "@/db/queries/types";
 import {
 	ComposerAddAttachment,
@@ -152,9 +153,9 @@ function StudyChatComposerAction({
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuLabel className="text-[11px] text-muted-foreground">
-							input: {inputTokens.toLocaleString()} • output:{" "}
-							{outputTokens.toLocaleString()} • context:{" "}
-							{contextTokens.toLocaleString()} tokens
+							input: {formatDisplayTokens(inputTokens)} • output:{" "}
+							{formatDisplayTokens(outputTokens)} • context:{" "}
+							{formatDisplayTokens(contextTokens)} tokens
 						</DropdownMenuLabel>
 					</DropdownMenuContent>
 				</DropdownMenu>

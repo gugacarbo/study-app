@@ -12,6 +12,10 @@ import {
 import type { PageChatContext } from "@/features/ai/context/page-chat-context";
 import { getChatRuntimeStatsStore } from "@/features/ai/stores/chat-runtime-stats-store";
 import { CHAT_RUNTIME_MESSAGE_LIMIT } from "@/lib/chat-conversations/constants";
+import {
+	formatDisplayTokenValue,
+	formatDisplayTokens,
+} from "@/features/ai/lib/format-display-tokens";
 import { cn } from "@/lib/utils";
 
 interface HeaderChatContextButtonProps {
@@ -60,9 +64,9 @@ export function HeaderChatContextButton({
 
 	const contextUsageTitle =
 		contextTokens != null && runtimeStats?.contextWindow != null
-			? `${formatTokenNumber(contextTokens)} / ${formatTokenNumber(runtimeStats.contextWindow)} tokens (${contextUsagePercent ?? 0}%)`
+			? `${formatDisplayTokens(contextTokens)} / ${formatDisplayTokens(runtimeStats.contextWindow)} tokens (${contextUsagePercent ?? 0}%)`
 			: contextTokens != null
-				? `${formatTokenNumber(contextTokens)} tokens`
+				? `${formatDisplayTokens(contextTokens)} tokens`
 				: undefined;
 
 	return (
@@ -148,10 +152,10 @@ export function HeaderChatContextButton({
 										{contextTokens != null &&
 										runtimeStats?.contextWindow != null ? (
 											<>
-												{formatTokenNumber(contextTokens)}
+												{formatDisplayTokens(contextTokens)}
 												<span className="text-muted-foreground font-normal">
 													{" "}
-													/ {formatTokenNumber(runtimeStats.contextWindow)}
+													/ {formatDisplayTokens(runtimeStats.contextWindow)}
 												</span>
 												{contextUsagePercent != null ? (
 													<span className="text-muted-foreground font-normal">
@@ -161,7 +165,7 @@ export function HeaderChatContextButton({
 												) : null}
 											</>
 										) : (
-											formatTokenValue(contextTokens)
+											formatDisplayTokenValue(contextTokens)
 										)}
 									</span>
 								</div>
@@ -185,14 +189,14 @@ export function HeaderChatContextButton({
 							runtimeStats?.cachedInputTokens != null ? (
 								<p className="truncate text-[10px] text-muted-foreground">
 									{runtimeStats?.reasoningTokens != null
-										? `reasoning ${formatTokenNumber(runtimeStats.reasoningTokens)}`
+										? `reasoning ${formatDisplayTokens(runtimeStats.reasoningTokens)}`
 										: null}
 									{runtimeStats?.reasoningTokens != null &&
 									runtimeStats?.cachedInputTokens != null
 										? " · "
 										: null}
 									{runtimeStats?.cachedInputTokens != null
-										? `cache ${formatTokenNumber(runtimeStats.cachedInputTokens)}`
+										? `cache ${formatDisplayTokens(runtimeStats.cachedInputTokens)}`
 										: null}
 								</p>
 							) : null}
@@ -203,7 +207,7 @@ export function HeaderChatContextButton({
 								>
 									{runtimeStats.modelDisplayName}
 									{runtimeStats.contextWindow != null
-										? ` · janela ${formatTokenNumber(runtimeStats.contextWindow)}`
+										? ` · janela ${formatDisplayTokens(runtimeStats.contextWindow)}`
 										: null}
 								</p>
 							) : null}
@@ -275,11 +279,11 @@ function TokenLine({
 		<div className="flex items-baseline justify-between gap-2">
 			<span className="shrink-0 text-muted-foreground">{label}</span>
 			<span className="truncate text-right tabular-nums">
-				<span className="font-medium">{formatTokenValue(last)}</span>
+				<span className="font-medium">{formatDisplayTokenValue(last)}</span>
 				{showSession ? (
 					<span className="text-muted-foreground">
 						{" "}
-						· sessão {formatTokenNumber(session)}
+						· sessão {formatDisplayTokens(session)}
 					</span>
 				) : null}
 			</span>
@@ -318,12 +322,4 @@ function ContextRow({
 			</dd>
 		</div>
 	);
-}
-
-function formatTokenNumber(value: number): string {
-	return value.toLocaleString("pt-BR");
-}
-
-function formatTokenValue(value: number | null): string {
-	return value == null ? "—" : formatTokenNumber(value);
 }

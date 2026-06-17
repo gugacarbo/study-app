@@ -8,6 +8,7 @@ export function AssistantMessagePerfFooter() {
 	const status = useAuiState((state) => state.message.status);
 	const metadata = useAuiState((state) => state.message.metadata);
 	const role = useAuiState((state) => state.message.role);
+	const createdAt = useAuiState((state) => state.message.createdAt);
 
 	if (role !== "assistant") return null;
 	if (
@@ -18,14 +19,18 @@ export function AssistantMessagePerfFooter() {
 		return null;
 	}
 
-	const perf = getAssistantMessagePerfView({ metadata, role });
+	const perf = getAssistantMessagePerfView({
+		metadata,
+		role,
+		completedAtMs: createdAt?.getTime(),
+	});
 	if (!perf.hasData) return null;
 
 	const label = formatChatMessagePerfLine(perf);
 
 	return (
 		<p
-			className="ms-2 mt-0.5 truncate text-[10px] leading-none text-muted-foreground tabular-nums"
+			className="ms-2 mt-0.5 flex flex-wrap gap-x-1.5 text-[10px] leading-tight text-muted-foreground tabular-nums"
 			title={label}
 		>
 			{label}

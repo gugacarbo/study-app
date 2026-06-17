@@ -19,6 +19,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import type { LLMLogStatus } from "@/db/queries/types";
+import { formatDisplayTokens } from "@/features/ai/lib/format-display-tokens";
 import { listLlmLogs } from "@/server-functions/llm-logs";
 import { LlmLogDetailSheet } from "./llm-log-detail-sheet";
 
@@ -270,7 +271,7 @@ function formatTokenSummary(tokenMeta: string | null): string {
 		const total =
 			parsed.totalTokens ??
 			(parsed.inputTokens ?? 0) + (parsed.outputTokens ?? 0);
-		return String(total);
+		return formatDisplayTokens(total);
 	} catch {
 		return "—";
 	}

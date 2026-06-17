@@ -8,6 +8,7 @@ import {
 	PopoverTitle,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatDisplayTokens } from "@/features/ai/lib/format-display-tokens";
 
 export interface TokenTotals {
 	prompt: number;
@@ -61,7 +62,7 @@ export function TokenTotalsBadge({ tokenTotals }: TokenTotalsBadgeProps) {
 					onMouseEnter={handleOpen}
 					onMouseLeave={handleClose}
 				>
-					Tokens: {tokenTotals.total.toLocaleString()}
+					Tokens: {formatDisplayTokens(tokenTotals.total)}
 				</Badge>
 			</PopoverTrigger>
 			<PopoverContent
@@ -74,8 +75,8 @@ export function TokenTotalsBadge({ tokenTotals }: TokenTotalsBadgeProps) {
 				<PopoverHeader>
 					<PopoverTitle>Token usage</PopoverTitle>
 					<PopoverDescription className="flex flex-col gap-1">
-						<span>Input: {tokenTotals.prompt.toLocaleString()}</span>
-						<span>Output: {tokenTotals.completion.toLocaleString()}</span>
+						<span>Input: {formatDisplayTokens(tokenTotals.prompt)}</span>
+						<span>Output: {formatDisplayTokens(tokenTotals.completion)}</span>
 					</PopoverDescription>
 				</PopoverHeader>
 			</PopoverContent>

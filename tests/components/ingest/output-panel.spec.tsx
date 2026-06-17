@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import type { IngestPipelineStageViewModel } from "@/features/ingest/components/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { formatDisplayTokens } from "@/features/ai/lib/format-display-tokens";
 import { OutputPanel } from "@/features/ingest/components/output-panel";
 import {
 	buildAssistantMessage,
@@ -409,11 +410,11 @@ describe("OutputPanel", () => {
 
 		expect(
 			await screen.findByText(
-				`Input: ${tokenTotals.prompt.toLocaleString()}`,
+				`Input: ${formatDisplayTokens(tokenTotals.prompt)}`,
 			),
 		).toBeTruthy();
 		expect(
-			screen.getByText(`Output: ${tokenTotals.completion.toLocaleString()}`),
+			screen.getByText(`Output: ${formatDisplayTokens(tokenTotals.completion)}`),
 		).toBeTruthy();
 		expect(screen.getByText("Agents")).toBeTruthy();
 	});

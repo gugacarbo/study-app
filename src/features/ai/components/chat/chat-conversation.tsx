@@ -96,6 +96,35 @@ export function ChatConversation({
 
 	const perfTimingsRef = useRef<Record<string, MessageTiming>>({});
 
+	const persistEnrichedMessages = (
+		messages: Parameters<typeof enrichMessagesWithChatPerf>[0],
+		attempt = 0,
+	) => {
+		const assistantIds = messages
+			.filter((message) => message.role === "assistant")
+			.map((message) => message.id);
+		const timingReady =
+			assistantIds.length === 0 ||
+			assistantIds.every(
+				(id) => perfTimingsRef.current[id]?.totalStreamTime != null,
+			);
+
+		if (!timingReady && attempt < 30) {
+			window.setTimeout(
+				() => persistEnrichedMessages(messages, attempt + 1),
+				16,
+			);
+			return;
+		}
+
+		const enriched = enrichMessagesWithChatPerf(
+			messages,
+			perfTimingsRef.current,
+		);
+		saveMessagesToConversation(conversationIdRef.current, enriched);
+		void flushConversationSave(conversationIdRef.current);
+	};
+
 	const initialMessages = useMemo(
 		() =>
 			getConversationMessages(conversationId).filter(
@@ -142,12 +171,7 @@ export function ChatConversation({
 		adapters: { history: historyAdapter },
 		onError: (error) => onError(errorToPipelineErrorState(error)),
 		onFinish: ({ messages }) => {
-			const enriched = enrichMessagesWithChatPerf(
-				messages,
-				perfTimingsRef.current,
-			);
-			saveMessagesToConversation(conversationIdRef.current, enriched);
-			void flushConversationSave(conversationIdRef.current);
+			window.setTimeout(() => persistEnrichedMessages(messages), 0);
 		},
 	});
 

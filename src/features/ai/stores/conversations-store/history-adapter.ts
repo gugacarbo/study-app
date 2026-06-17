@@ -5,9 +5,23 @@ import type {
 	ThreadHistoryAdapter,
 } from "@assistant-ui/core";
 import type { UIMessage } from "ai";
+import { mergePreservedChatPerf } from "@/features/ai/lib/chat-message-perf";
 import { saveMessagesToConversation } from "./actions";
 import { getConversationMessages } from "./selectors";
 import { conversationsStore } from "./types";
+
+function applyStoredMessageUpdate(
+	existing: UIMessage[],
+	messageId: string,
+	incoming: UIMessage,
+): UIMessage[] {
+	const index = existing.findIndex((message) => message.id === messageId);
+	if (index < 0) return [...existing, incoming];
+
+	return existing.map((message, i) =>
+		i === index ? mergePreservedChatPerf(message, incoming) : message,
+	);
+}
 
 function toMessageRepository<TMessage>(
 	messages: TMessage[],
@@ -59,17 +73,11 @@ export function createConversationHistoryAdapter(
 						conversationsStore.state.messagesMap[conversationId] ?? []
 					).filter((message) => message.id !== "welcome");
 
-					const index = existing.findIndex(
-						(message) => message.id === messageId,
+					const updated = applyStoredMessageUpdate(
+						existing,
+						messageId,
+						item.message as unknown as UIMessage,
 					);
-					const updated =
-						index >= 0
-							? existing.map((message, i) =>
-									i === index
-										? (item.message as unknown as UIMessage)
-										: message,
-								)
-							: [...existing, item.message as unknown as UIMessage];
 
 					saveMessagesToConversation(conversationId, updated);
 				},
@@ -85,10 +93,10 @@ export function createConversationHistoryAdapter(
 						conversationsStore.state.messagesMap[conversationId] ?? []
 					).filter((message) => message.id !== "welcome");
 
-					const updated = existing.map((message) =>
-						message.id === localMessageId
-							? (item.message as unknown as UIMessage)
-							: message,
+					const updated = applyStoredMessageUpdate(
+						existing,
+						localMessageId,
+						item.message as unknown as UIMessage,
 					);
 					saveMessagesToConversation(conversationId, updated);
 				},
