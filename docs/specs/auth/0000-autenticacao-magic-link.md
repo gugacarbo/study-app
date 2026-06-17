@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0004, ADR-0010]
+builds-on: [ADR-0003, ADR-0004]
 implemented-by: []
 ---
 
@@ -29,7 +29,7 @@ Usuário autenticado acessa o app com email + magic link. Sem sessão válida, n
 ### Primeiro acesso (signup)
 
 1. Mesmo fluxo do login; Better Auth cria `user` se email não existir e domínio permitido.
-2. Hook pós-criação (`databaseHooks.user.create.after`): atribuir role `user` em `user_roles`; se email ∈ `ADMIN_EMAILS` → atribuir também role `admin` (ADR-0010).
+2. Hook pós-criação (`databaseHooks.user.create.after`): atribuir role `user` em `user_roles`; se email ∈ `ADMIN_EMAILS` → atribuir também role `admin` (ADR-0004).
 3. Novo usuário entra com conta vazia.
 
 ### Navegação autenticada
@@ -69,7 +69,7 @@ Demais rotas de página e `/api/*` (exceto auth) exigem sessão.
 | Client | `src/lib/auth-client.ts` — `authClient` |
 | Rota | `src/routes/api/auth/$.ts` → `auth.handler(request)` |
 | Domínio | `src/lib/auth-allowed-email-domain.ts` — validação allowlist |
-| RBAC bootstrap | `src/lib/rbac-bootstrap.ts` — roles no signup (ADR-0010) |
+| RBAC bootstrap | `src/lib/rbac-bootstrap.ts` — roles no signup (ADR-0004) |
 
 ### Allowlist de domínio (signup/login)
 

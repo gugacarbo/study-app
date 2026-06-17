@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0001, ADR-0002, ADR-0004, ADR-0007, ADR-0008, ADR-0010]
+builds-on: [ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0006]
 deciders: []
 ---
 
@@ -9,7 +9,7 @@ deciders: []
 
 ## Contexto e problema
 
-Ingestão, chat, explicações, revisão e benchmark dependem de LLMs com streaming e tool calling. Providers e modelos variam; API keys não podem ir para o browser. Configuração é **por usuário** (`user_id` da sessão).
+Ingestão, chat, explicações e benchmark dependem de LLMs com streaming e tool calling. Providers e modelos variam; API keys não podem ir para o browser. Configuração é **por usuário** (`user_id` da sessão).
 
 ## Direcionadores da decisão
 
@@ -38,12 +38,12 @@ Ingestão, chat, explicações, revisão e benchmark dependem de LLMs com stream
 - Agents, tools, adapters: `src/features/ai/`
 - **Rotas API** (`src/routes/api/*`): delegam para `src/features/ai/` — sem lógica pesada colada na rota
 - **UI:** `@assistant-ui/react` com streaming padrão da lib (thread, composer, markdown); data parts AI SDK v6 onde necessário
-- Telemetria: `llm_logs` com `user_id` — **obrigatório**, append-only (ADR-0007)
-- Config IA do usuário: UI em `/admin/config` — guard `admin:access` (ADR-0010)
+- Telemetria: `llm_logs` com `user_id` — **obrigatório**, append-only (ADR-0005)
+- Config IA do usuário: UI em `/admin/config` — guard `admin:access` (ADR-0004)
 
 ## Consequências
 
-- Keys criptografadas em D1 via `src/lib/config-encryption.ts` (ADR-0008)
+- Keys criptografadas em D1 via `src/lib/config-encryption.ts` (ADR-0006)
 - Testes mockam `@/features/ai/` ou `fetch` — nunca chamada real no CI
 - **Proibido:** SDK de IA em componentes client; API keys em vars de produção no `wrangler.jsonc`; portar 1:1 adaptações custom do legado em `.old_app/`; chamar LLM sem passar por `src/lib/llm-logging.ts`
 
@@ -59,4 +59,4 @@ npm run typecheck
 
 ## Notas
 
-UI de config: SPEC-0002. Cookbook de agents: `src/features/ai/AGENTS.md` (reescrever no greenfield).
+UI de config: SPEC-0002. Protocolo de jobs: ADR-0008. Cookbook de agents: `src/features/ai/AGENTS.md` (reescrever no greenfield).

@@ -23,24 +23,7 @@
   },
   {
     "id": "ADR-0003",
-    "path": "docs/adr/0003-vercel-ai-sdk-multi-provider.md",
-    "layer": "adr",
-    "title": "Usar Vercel AI SDK com providers configuráveis em D1",
-    "status": "accepted",
-    "builds-on": [
-      "ADR-0001",
-      "ADR-0002",
-      "ADR-0004",
-      "ADR-0007",
-      "ADR-0008",
-      "ADR-0010"
-    ],
-    "superseded-by": null,
-    "implemented-by": []
-  },
-  {
-    "id": "ADR-0004",
-    "path": "docs/adr/0004-better-auth-multi-user-magic-link.md",
+    "path": "docs/adr/0003-better-auth-multi-user-magic-link.md",
     "layer": "adr",
     "title": "Usar Better Auth com multi-usuário e magic link",
     "status": "accepted",
@@ -52,35 +35,21 @@
     "implemented-by": []
   },
   {
-    "id": "ADR-0005",
-    "path": "docs/adr/0005-ui-message-stream-jobs.md",
+    "id": "ADR-0004",
+    "path": "docs/adr/0004-rbac-roles-permissions-d1.md",
     "layer": "adr",
-    "title": "Usar UI Message Stream para jobs longos de IA",
+    "title": "Gestão de roles e permissões em D1 (RBAC)",
     "status": "accepted",
     "builds-on": [
-      "ADR-0001",
+      "ADR-0002",
       "ADR-0003"
     ],
     "superseded-by": null,
     "implemented-by": []
   },
   {
-    "id": "ADR-0006",
-    "path": "docs/adr/0006-background-processes-cliente.md",
-    "layer": "adr",
-    "title": "Orquestrar jobs longos no servidor (Queues + D1)",
-    "status": "accepted",
-    "builds-on": [
-      "ADR-0001",
-      "ADR-0002",
-      "ADR-0005"
-    ],
-    "superseded-by": null,
-    "implemented-by": []
-  },
-  {
-    "id": "ADR-0007",
-    "path": "docs/adr/0007-audit-log-llm-r2-append-only.md",
+    "id": "ADR-0005",
+    "path": "docs/adr/0005-audit-log-llm-r2-append-only.md",
     "layer": "adr",
     "title": "Registrar ações de LLM e R2 em log append-only",
     "status": "accepted",
@@ -93,39 +62,58 @@
     "implemented-by": []
   },
   {
-    "id": "ADR-0008",
-    "path": "docs/adr/0008-config-encryption-web-crypto.md",
+    "id": "ADR-0006",
+    "path": "docs/adr/0006-config-encryption-web-crypto.md",
     "layer": "adr",
     "title": "Criptografar secrets de config com Web Crypto AES-GCM",
     "status": "accepted",
     "builds-on": [
+      "ADR-0002"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0007",
+    "path": "docs/adr/0007-vercel-ai-sdk-multi-provider.md",
+    "layer": "adr",
+    "title": "Usar Vercel AI SDK com providers configuráveis em D1",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
       "ADR-0002",
-      "ADR-0003"
+      "ADR-0003",
+      "ADR-0004",
+      "ADR-0005",
+      "ADR-0006"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0008",
+    "path": "docs/adr/0008-ui-message-stream-jobs.md",
+    "layer": "adr",
+    "title": "Usar UI Message Stream para jobs longos de IA",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
+      "ADR-0007"
     ],
     "superseded-by": null,
     "implemented-by": []
   },
   {
     "id": "ADR-0009",
-    "path": "docs/adr/0009-admin-allowlist.md",
+    "path": "docs/adr/0009-background-jobs-server-side.md",
     "layer": "adr",
-    "title": "Restringir `/admin/*` a allowlist de emails",
-    "status": "superseded",
-    "builds-on": [
-      "ADR-0004"
-    ],
-    "superseded-by": "ADR-0010",
-    "implemented-by": []
-  },
-  {
-    "id": "ADR-0010",
-    "path": "docs/adr/0010-rbac-roles-permissions-d1.md",
-    "layer": "adr",
-    "title": "Gestão de roles e permissões em D1 (RBAC)",
+    "title": "Orquestrar jobs longos no servidor (Queues + D1)",
     "status": "accepted",
     "builds-on": [
+      "ADR-0001",
       "ADR-0002",
-      "ADR-0004"
+      "ADR-0007",
+      "ADR-0008"
     ],
     "superseded-by": null,
     "implemented-by": []
@@ -137,8 +125,8 @@
     "title": "Login por magic link e sessão protegida",
     "status": "accepted",
     "builds-on": [
-      "ADR-0004",
-      "ADR-0010"
+      "ADR-0003",
+      "ADR-0004"
     ],
     "superseded-by": null,
     "implemented-by": []
@@ -151,10 +139,24 @@
     "status": "accepted",
     "builds-on": [
       "ADR-0002",
+      "ADR-0003",
       "ADR-0004",
-      "ADR-0007",
-      "ADR-0010",
-      "ADR-0006"
+      "ADR-0005",
+      "ADR-0009"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0002",
+    "path": "docs/specs/storage/0002-upload-arquivos-r2.md",
+    "layer": "specs",
+    "title": "Upload de arquivos em R2 com TTL configurável",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0002",
+      "ADR-0003",
+      "ADR-0005"
     ],
     "superseded-by": null,
     "implemented-by": []

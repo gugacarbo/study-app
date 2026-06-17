@@ -17,7 +17,7 @@ casa-standard-ref: 9d655cf
 Web app multi-usuário para estudar provas universitárias: upload de PDFs, extração de questões via IA, quiz, estatísticas e chat assistido.
 Stack: TanStack Start + Router + Query · React 19 · Cloudflare Workers · D1 + R2 · Drizzle · Vercel AI SDK · Better Auth · assistant-ui · shadcn/ui.
 Reescrita greenfield — paridade v1, schema UUID + dados do zero. Legado local: `.old_app/` (gitignored).
-Auth: Better Auth + magic link (ADR-0004). Config IA e admin em `/admin/*`. Decisões: `docs/adr/` · Specs: `docs/specs/` (globais na raiz; demais em subpastas por domínio — ver `docs/context/SPECS.md`).
+Auth: Better Auth + magic link (ADR-0003). Config IA e admin em `/admin/*`. Decisões: `docs/adr/` · Specs: `docs/specs/` (globais na raiz; demais em subpastas por domínio — ver `docs/context/SPECS.md`).
 
 ## Infra & ambientes
 
@@ -65,11 +65,12 @@ Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemente
 - Devtools (TanStack + assistant) no root só em `development`
 - Sessão: `getSession` / `requireSession` em functions; filtrar `user_id`; outro user → 404
 - Auth: só `@ifsc.edu.br`; magic link via Resend (`noreply@gugacarbo.space`)
-- Admin: `/admin/*` exige permissão `admin:access` em D1 (ADR-0010); `ADMIN_EMAILS` só no signup
+- Admin: `/admin/*` exige permissão `admin:access` em D1 (ADR-0004); `ADMIN_EMAILS` só no signup
 - Ingest v1: upload `.txt`/`.md` apenas — PDF fora do escopo (ADR-0002)
-- API keys: criptografar com `CONFIG_ENCRYPTION_KEY` (ADR-0008)
-- Logs LLM + R2: append-only em D1 — nunca `DELETE`; wrappers obrigatórios (ADR-0007)
-- Jobs longos: Queue + D1 (ADR-0006) — refresh não mata job; só upload exige browser aberto
+- API keys: criptografar com `CONFIG_ENCRYPTION_KEY` (ADR-0006)
+- Logs LLM + R2: append-only em D1 — nunca `DELETE`; wrappers obrigatórios (ADR-0005)
+- Jobs longos: Queue + D1 (ADR-0009) — refresh não mata job; só upload exige browser aberto
+- Blobs de prova (`files`): `ttl_seconds` em D1; **0 = sem expiração**; purge diário (SPEC-0002)
 
 ## Mapa de contexto
 

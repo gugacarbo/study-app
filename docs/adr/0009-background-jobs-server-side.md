@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0001, ADR-0002, ADR-0005]
+builds-on: [ADR-0001, ADR-0002, ADR-0007, ADR-0008]
 deciders: []
 ---
 
@@ -18,7 +18,7 @@ Exceção: etapas em que o **browser envia bytes** (upload de arquivo) dependem 
 - Execução **no servidor** — sobrevive a refresh, navegação e fechar aba (fases pós-upload)
 - Estado durável em **D1** — fonte de verdade do job e eventos de progresso
 - **Cloudflare Queues** para disparar/serializar consumers (não Durable Objects por job — DO cobra duração enquanto ativo; jobs com espera LLM ficam caros)
-- UI: **poll** (TanStack Query) + **SSE opcional** quando painel de job está aberto (ADR-0005)
+- UI: **poll** (TanStack Query) + **SSE opcional** quando painel de job está aberto (ADR-0008)
 - Cliente: espelho de estado + upload — **não** dono da execução LLM
 - Kinds v1: `ingest`, `explain-question`, `connection-test`, `model-benchmark` (sem `improve-questions`)
 
@@ -36,7 +36,7 @@ Exceção: etapas em que o **browser envia bytes** (upload de arquivo) dependem 
 
 | Componente | Impacto neste app |
 |------------|-------------------|
-| Tokens LLM | **Dominante** (ADR-0007) |
+| Tokens LLM | **Dominante** (ADR-0005) |
 | Queue ops | ~2–4 ops/job — barato (10k/dia free; 1M/mês paid) |
 | Worker CPU | Consumer ativo durante steps — não durante poll do client |
 | DO duration | Evitado — cobrança por GB·s enquanto objeto vivo (ruim em waits de LLM) |
@@ -54,7 +54,7 @@ Tabelas em SPEC-0001 (`background_jobs`, `background_job_events`):
 
 `status` v1: `awaiting_upload` → `queued` → `running` → `completed` \| `failed` \| `cancelled`.
 
-Todo evento de progresso (mensagens assistant-ui, data parts, logs) é **append** em `background_job_events` pelo consumer — mesmo formato ADR-0005.
+Todo evento de progresso (mensagens assistant-ui, data parts, logs) é **append** em `background_job_events` pelo consumer — mesmo formato ADR-0008.
 
 ### Execução (Cloudflare Queues)
 
@@ -108,7 +108,7 @@ Scheduler client: limita uploads simultâneos; fila server-side via Queue (1 con
 - `wrangler.jsonc`: binding Queue + consumer export
 - SPEC-0001: tabelas `background_jobs`, `background_job_events`
 - SPEC-0011: UI de fila, poll, SSE, estados de upload
-- ADR-0005: stream SSE é **tail de leitura**, não dono da execução
+- ADR-0008: stream SSE é **tail de leitura no D1**, não dono da execução; DO também rejeitado no relay de stream (v1)
 - Refresh com job `running`: UI mostra progresso atualizado do D1
 - Duas abas: mesma visão via poll (sem coordenação extra)
 - **Proibido:** `waitUntil` como substituto de Queue; DO por job sem ADR nova; abort de LLM no `beforeunload` do client; polling agressivo sem backoff (usar Query `refetchInterval` adaptativo); job só em localStorage
@@ -125,4 +125,4 @@ npm run typecheck
 
 ## Notas
 
-Comportamento UI: SPEC-0011. Ingest upload: SPEC-0003. Formato mensagens: ADR-0005.
+Comportamento UI: SPEC-0011. Ingest upload: SPEC-0003. Formato mensagens: ADR-0008.

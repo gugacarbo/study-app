@@ -13,14 +13,14 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 | `DB`            | D1 `study-app-db`     | Metadados, config, exams, attempts, llm logs |
 | `FILES_BUCKET`  | R2 `study-app-files`  | Arquivos de prova (v1: `.txt`/`.md`)        |
 | `MEMORY_BUCKET` | R2 `study-app-memory` | Conteúdo markdown da camada de memória       |
-| `JOB_QUEUE`     | Queue `study-app-jobs`  | Jobs longos server-side (ADR-0006)           |
+| `JOB_QUEUE`     | Queue `study-app-jobs`  | Jobs longos server-side (ADR-0009)           |
 
-Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (bootstrap admin no signup — ADR-0010).
+Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (bootstrap admin no signup — ADR-0004).
 Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `CONFIG_ENCRYPTION_KEY` (base64 32 bytes — `openssl rand -base64 32`).
 
 ## Email (Resend)
 
-Magic link (SPEC-0000 / ADR-0004). **Sem** binding `send_email` no wrangler.
+Magic link (SPEC-0000 / ADR-0003). **Sem** binding `send_email` no wrangler.
 
 | Config v1 | Valor |
 |-----------|--------|
@@ -32,7 +32,7 @@ Domínio `gugacarbo.space` verificado no dashboard Resend. Dev: logar link no co
 
 Vars legado: `AI_MODEL` em `wrangler.jsonc`. Providers/models por usuário → `ai_providers` + `ai_models`.
 
-## Auditoria (ADR-0007)
+## Auditoria (ADR-0005)
 
 - `llm_logs` — toda chamada LLM; append-only
 - `r2_operation_logs` — todo get/put/delete/head/list em R2; append-only

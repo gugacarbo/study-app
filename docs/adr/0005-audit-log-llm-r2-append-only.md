@@ -13,7 +13,7 @@ Chamadas a LLMs e operações em R2 são difíceis de auditar, custear e depurar
 
 ## Direcionadores da decisão
 
-- Rastreabilidade por `user_id` (sessão)
+- Rastreabilidade por `user_id` (sessão — ADR-0003)
 - Append-only na aplicação — sem purge admin em v1
 - Um único ponto de instrumentação (não log ad-hoc por feature)
 - Falha de log não deve silenciar a operação principal, mas deve ser visível (erro + métrica)
@@ -35,11 +35,11 @@ Chamadas a LLMs e operações em R2 são difíceis de auditar, custear e depurar
 
 Toda chamada LLM e toda operação R2 passa por **wrapper auditado**. Registros são **insert-only** na aplicação: **proibido `DELETE`** (e **proibido `UPDATE`** exceto completar status in-flight de LLM — ver abaixo).
 
-Tabelas em D1 (detalhe de colunas: SPEC-0001, ADR-0007):
+Tabelas em D1 (detalhe de colunas: SPEC-0001):
 
 | Tabela | O quê |
 |--------|--------|
-| `llm_logs` | Cada request/response a LLM (via AI SDK) |
+| `llm_logs` | Cada request/response a LLM (via AI SDK — ADR-0007) |
 | `r2_operation_logs` | Cada `get`, `put`, `delete`, `head`, `list` em `FILES_BUCKET` e `MEMORY_BUCKET` |
 
 `user_id` em ambas — **sem FK cascade** para `user` (logs sobrevivem à exclusão da conta; id permanece para auditoria).
@@ -55,7 +55,7 @@ Tabelas em D1 (detalhe de colunas: SPEC-0001, ADR-0007):
 ### R2 (`src/lib/r2-audit.ts` + `src/functions/storage.ts`)
 
 - **Proibido** chamar `bucket.get/put/delete/head/list` direto fora do wrapper
-- Log **antes e depois** não — log **após** tentativa com: `bucket`, `operation`, `object_key`, `bytes` (quando aplicável), `status`, `duration_ms`, `error_message`, `user_id`
+- Log **após** tentativa com: `bucket`, `operation`, `object_key`, `bytes` (quando aplicável), `status`, `duration_ms`, `error_message`, `user_id`
 - Operações de leitura (`get`, `head`, `list`) e escrita (`put`, `delete`) — **todas** registradas
 
 ### UI / admin
@@ -88,4 +88,4 @@ npm run typecheck
 
 ## Notas
 
-Schema: SPEC-0001 (`llm_logs`, `r2_operation_logs`). UI admin: SPEC-0012. Integração AI: ADR-0003.
+Schema: SPEC-0001 (`llm_logs`, `r2_operation_logs`). UI admin: SPEC-0012. Integração AI: ADR-0007.

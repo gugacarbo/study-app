@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0002, ADR-0003]
+builds-on: [ADR-0002]
 deciders: []
 ---
 
@@ -38,7 +38,7 @@ API keys de providers IA ficam em D1 (`ai_providers.api_key`). Texto plano no ba
 | Chave | `CONFIG_ENCRYPTION_KEY` — base64 que decodifica para **exatamente 32 bytes** |
 | Formato armazenado | `enc:v1:{iv_b64}:{ciphertext_b64}` |
 | API pública | `encryptSecret`, `decryptSecret`, `isEncryptedSecret` |
-| Uso | `encryptApiKeyForStorage` / leitura em `src/lib/ai-config.ts` antes de `getAiModel()` |
+| Uso | `encryptApiKeyForStorage` / leitura em `src/lib/ai-config.ts` antes de `getAiModel()` (ADR-0007) |
 
 Secret: `CONFIG_ENCRYPTION_KEY` via `wrangler secret` (prod) e `.dev.vars` (local). Gerar: `openssl rand -base64 32`.
 
@@ -62,4 +62,4 @@ npm run typecheck
 
 ## Notas
 
-UI de providers: SPEC-0002. Stack IA: ADR-0003.
+UI de providers: SPEC-0002. Stack IA: ADR-0007.

@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0002, ADR-0004]
+builds-on: [ADR-0002, ADR-0003]
 deciders: []
 ---
 
@@ -9,9 +9,9 @@ deciders: []
 
 ## Contexto e problema
 
-O app precisa distinguir usuário comum de administrador (`/admin/*`, atribuição de roles). Allowlist por email em env (ADR-0009) não escala: exige redeploy para cada admin e não modela permissões finas.
+O app precisa distinguir usuário comum de administrador (`/admin/*`, atribuição de roles). Allowlist permanente por email em env não escala: exige redeploy para cada admin e não modela permissões finas.
 
-Better Auth cuida de **autenticação** (sessão, magic link). **Autorização** (roles/permissões) fica no domínio do app, persistida em D1, consultada em todo `requireSession` de domínio e guard de admin.
+Better Auth cuida de **autenticação** (sessão, magic link — ADR-0003). **Autorização** (roles/permissões) fica no domínio do app, persistida em D1, consultada em todo `requireSession` de domínio e guard de admin.
 
 ## Direcionadores da decisão
 
@@ -28,7 +28,7 @@ Better Auth cuida de **autenticação** (sessão, magic link). **Autorização**
 |-------|----------|
 | Tabelas D1 (`roles`, `permissions`, `user_roles`) | **Escolhida** |
 | Better Auth Admin plugin (`user.role` string) | Rejeitado — roles dinâmicas futuras, permissões granulares |
-| `ADMIN_EMAILS` permanente (ADR-0009) | **Supersedido** — só bootstrap |
+| `ADMIN_EMAILS` como guard runtime | Rejeitado — só bootstrap no signup |
 | Organization plugin Better Auth | Rejeitado — multi-tenant org é outro modelo |
 
 ## Decisão
@@ -63,7 +63,7 @@ Todo usuário autenticado recebe role `user` no signup. Emails em `ADMIN_EMAILS`
 | Login subsequente | Não reavaliar env — role só muda via `set-user-role` |
 | Env alterado | Não retroage em usuários existentes |
 
-`ADMIN_EMAILS`: comma-separated, trim + lowercase — mesmo formato da ADR-0009.
+`ADMIN_EMAILS`: comma-separated, trim + lowercase.
 
 ### Resolução de permissões (servidor)
 
@@ -100,7 +100,7 @@ UI de gestão (listar usuários, promover/rebaixar): SPEC dedicada ou seção em
 
 ### Escopo de dados (admin)
 
-Role `admin` concede `admin:access` à área `/admin/*`, mas **não** amplia `user_id` nas queries. Admin vê providers, logs e config **da própria sessão** — igual ADR-0009.
+Role `admin` concede `admin:access` à área `/admin/*`, mas **não** amplia `user_id` nas queries. Admin vê providers, logs e config **da própria sessão** — sem visão cross-tenant.
 
 Cross-tenant / superadmin: **fora v1** — exige ADR nova.
 
@@ -117,9 +117,7 @@ Cross-tenant / superadmin: **fora v1** — exige ADR nova.
 ## Consequências
 
 - SPEC-0001 ganha tabelas RBAC + seed na migration inicial
-- SPEC-0000 pode referenciar hook de bootstrap; comportamento de guard permanece
-- ADR-0009 **superseded** — não usar `ADMIN_EMAILS` como guard runtime
-- Testes: fixtures de `user_roles` + mock `getUserPermissions`
+- SPEC-0000 referencia hook de bootstrap; comportamento de guard permanece
 - **Proibido:** checar email contra env em `requireAdminSession`; role só no client; bypass de `user_id` por ser admin; CRUD de catálogo role/permission sem spec
 
 ## Confirmação
@@ -135,4 +133,4 @@ npm run typecheck
 
 ## Notas
 
-Auth: ADR-0004. Schema: SPEC-0001. Admin UI: SPEC-0002. Substitui: ADR-0009.
+Auth: ADR-0003. Schema: SPEC-0001. Admin UI: SPEC-0002.

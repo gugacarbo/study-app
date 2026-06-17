@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0002, ADR-0004, ADR-0007, ADR-0010, ADR-0006]
+builds-on: [ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0009]
 implemented-by: []
 ---
 
@@ -61,7 +61,7 @@ Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
 | `account` | OAuth futuro |
 | `verification` | Tokens magic link |
 
-### RBAC (ADR-0010)
+### RBAC (ADR-0004)
 
 Catálogo + atribuição. Seed na migration inicial.
 
@@ -79,7 +79,7 @@ Catálogo + atribuição. Seed na migration inicial.
 | `user` | `app:use` |
 | `admin` | `app:use`, `admin:access` |
 
-Bootstrap admin no signup (email ∈ `ADMIN_EMAILS`) → SPEC-0000. Atribuição posterior → `setUserRole` (SPEC-0002 ou spec admin).
+Bootstrap admin no signup (email ∈ `ADMIN_EMAILS`) → SPEC-0000. Atribuição posterior → `setUserRole` (SPEC-0003).
 
 ### Tabelas de domínio — raiz (`user_id` → `user.id` cascade)
 
@@ -95,7 +95,7 @@ Bootstrap admin no signup (email ∈ `ADMIN_EMAILS`) → SPEC-0000. Atribuição
 | `memory_documents` | | `(user_id, doc_type)` |
 | `chat_conversations` | `id` text PK | `(user_id, updated_at)` |
 
-### Jobs server-side (ADR-0006)
+### Jobs server-side (ADR-0009)
 
 | Tabela | Colunas principais | Índices |
 |--------|-------------------|---------|
@@ -106,7 +106,7 @@ Bootstrap admin no signup (email ∈ `ADMIN_EMAILS`) → SPEC-0000. Atribuição
 
 Eventos append-only durante o job (sem `DELETE`). Payload grande → truncar ou referenciar R2 na `metadata` do job.
 
-### Tabelas de auditoria (append-only — ADR-0007)
+### Tabelas de auditoria (append-only — ADR-0005)
 
 `user_id` text **obrigatório**, indexado — **sem FK cascade** para `user` (logs persistem após delete de conta).
 
@@ -141,6 +141,21 @@ Simplifica “meu perfil” = `WHERE user_id = :sessionUserId` sem join extra.
 | `questions`, `attempts`, `files` | `exam_id` → `exams` |
 | `attempt_answers` | `attempt_id`, `question_id` |
 | `ai_models` | `provider_id` → `ai_providers` |
+
+#### `files` (blob de prova em R2)
+
+| Coluna | Tipo | Notas |
+|--------|------|--------|
+| `id` | text UUID PK | |
+| `exam_id` | text FK → `exams.id` cascade | |
+| `name` | text NOT NULL | nome original |
+| `r2_key` | text NOT NULL UNIQUE | ver layout R2 abaixo |
+| `mime_type` | text | |
+| `size` | integer | bytes |
+| `ttl_seconds` | integer NOT NULL DEFAULT 0 | **0 = sem expiração por tempo**; purge diário → SPEC-0002 |
+| `created_at` | text | default `CURRENT_TIMESTAMP` |
+
+Índice para purge: `(ttl_seconds, created_at)` — consultas filtram `ttl_seconds > 0`.
 
 Toda mutação valida `exams.user_id` (ou `ai_providers.user_id`) = sessão.
 
@@ -184,7 +199,9 @@ Truncar em **4096** chars no write.
 | 5 | segundo `memory_profile` mesmo `user_id` | PK violation |
 | 6 | `db:reset` local | schema vazio; app sobe |
 | 7 | signup sem `user_roles` | bug — todo user recebe role `user` |
-| 8 | único admin remove próprio `admin` | rejeitar (ADR-0010) |
+| 8 | único admin remove próprio `admin` | rejeitar (ADR-0004) |
+| 9 | `files.ttl_seconds = 0` | purge diário ignora (SPEC-0002) |
+| 10 | `files.ttl_seconds > 0` e vencido | purge remove R2 + row (SPEC-0002) |
 
 ## Questões em aberto
 

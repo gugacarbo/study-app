@@ -44,9 +44,9 @@ Schema: `src/db/schema.ts`. Migrations: `migrations/`.
 
 Acesso: `getDB()`, `getFilesBucket()`, `getMemoryBucket()` em `src/functions/db.ts` e `storage.ts` — dynamic import `cloudflare:workers`, nunca estático.
 
-**R2:** todo `get`/`put`/`delete`/`head`/`list` via wrapper auditado (`src/lib/r2-audit.ts`) — log em `r2_operation_logs` (ADR-0007).
+**R2:** todo `get`/`put`/`delete`/`head`/`list` via wrapper auditado (`src/lib/r2-audit.ts`) — log em `r2_operation_logs` (ADR-0005).
 
-Toda entidade de domínio raiz inclui `user_id` (ADR-0004). Metadados D1 referenciam blobs via `r2_key`.
+Toda entidade de domínio raiz inclui `user_id` (ADR-0003). Metadados D1 referenciam blobs via `r2_key`.
 
 ### Formatos de upload (ingest v1)
 
