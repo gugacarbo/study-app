@@ -40,8 +40,8 @@ import {
 	ComposerAttachments,
 	UserMessageAttachments,
 } from "@/features/ai/components/assistant-ui/attachment";
-import { MarkdownText } from "@/features/ai/components/assistant-ui/markdown-text";
 import { AssistantMessagePerfFooter } from "@/features/ai/components/assistant-ui/assistant-message-perf-footer";
+import { AssistantMessageTextPart } from "@/features/ai/components/assistant-ui/assistant-message-text-part";
 import { CollapsiblePromptMessage } from "@/features/ai/components/assistant-ui/prompt-message";
 import {
 	CollapsibleReasoningGroup,
@@ -52,6 +52,7 @@ import {
 	ReasoningTrigger,
 } from "@/features/ai/components/assistant-ui/reasoning";
 import { ToolFallback } from "@/features/ai/components/assistant-ui/tool-fallback";
+import { ThinkingIndicator } from "@/features/ai/components/assistant-ui/thinking-indicator";
 import {
 	ToolGroupContent,
 	ToolGroupRoot,
@@ -395,6 +396,7 @@ const AssistantMessage: FC = () => {
 				className="text-foreground px-2 leading-relaxed wrap-break-word [contain-intrinsic-size:auto_24px] [content-visibility:auto]"
 			>
 				<MessagePrimitive.GroupedParts
+					indicator="empty"
 					groupBy={groupPartByType({
 						reasoning: ["group-chainOfThought", "group-reasoning"],
 						"tool-call": ["group-chainOfThought", "group-tool"],
@@ -442,7 +444,7 @@ const AssistantMessage: FC = () => {
 								);
 							}
 							case "text":
-								return <MarkdownText />;
+								return <AssistantMessageTextPart />;
 							case "reasoning":
 								return <Reasoning {...part} />;
 							case "tool-call":
@@ -450,16 +452,7 @@ const AssistantMessage: FC = () => {
 							case "data":
 								return part.dataRendererUI;
 							case "indicator":
-								return (
-									<span
-										role="status"
-										data-slot="aui_assistant-message-indicator"
-										className="animate-pulse font-sans"
-										aria-label="Assistant is working"
-									>
-										{"●"}
-									</span>
-								);
+								return <ThinkingIndicator className="py-0.5" />;
 							default:
 								return null;
 						}

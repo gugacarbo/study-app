@@ -127,7 +127,9 @@ describe("IngestChatView", () => {
 			/>,
 		);
 
-		expect(document.querySelector(".animate-pulse")).toBeTruthy();
+		expect(
+			document.querySelector('[data-slot="aui_thinking-indicator"]'),
+		).toBeTruthy();
 	});
 
 	it("renders tool-call and tool-result parts from agent.messages", () => {
