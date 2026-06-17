@@ -1,82 +1,128 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0001, ADR-0005]
+builds-on: [ADR-0001, ADR-0002, ADR-0005]
 deciders: []
 ---
 
-# Orquestrar jobs longos com background processes no cliente
+# Orquestrar jobs longos no servidor (Queues + D1)
 
 ## Contexto e problema
 
-O usuário inicia jobs (ingest, explain, improve, connection test, benchmark) e navega entre páginas. O Worker **não** mantém fila nem estado de job entre requests — o browser precisa de orquestração, cancelamento, persistência local e indicador global.
+O usuário inicia jobs (ingest, explain, connection test, benchmark) e navega ou **atualiza a página** sem perder progresso. O modelo anterior (stream HTTP preso ao browser) falhava no refresh e abortava LLM ao fechar aba.
 
-⚠️ **“Background” aqui é no cliente** (SPA + store), não processo assíncrono órfão no Cloudflare Workers.
+Exceção: etapas em que o **browser envia bytes** (upload de arquivo) dependem da conexão do cliente — refresh ou fechar aba durante upload pode falhar; após o arquivo estar em R2, o restante do job é **server-side**.
 
 ## Direcionadores da decisão
 
-- Jobs = streams HTTP (ADR-0005) via `features/ai/`
-- UI sobrevive a refresh parcial (localStorage)
-- Scheduler limita concorrência contra providers
-- `AbortSignal` por processo
-- **v1:** todos os kinds do legado desde o início
+- Execução **no servidor** — sobrevive a refresh, navegação e fechar aba (fases pós-upload)
+- Estado durável em **D1** — fonte de verdade do job e eventos de progresso
+- **Cloudflare Queues** para disparar/serializar consumers (não Durable Objects por job — DO cobra duração enquanto ativo; jobs com espera LLM ficam caros)
+- UI: **poll** (TanStack Query) + **SSE opcional** quando painel de job está aberto (ADR-0005)
+- Cliente: espelho de estado + upload — **não** dono da execução LLM
+- Kinds v1: `ingest`, `explain-question`, `connection-test`, `model-benchmark` (sem `improve-questions`)
 
 ## Opções consideradas
 
 | Opção | Veredito |
 |-------|----------|
-| `background-processes` (store + kinds) | **Escolhida** |
-| Durable Objects no servidor | Complexidade e custo desnecessários |
-| Um job por página | UX ruim ao navegar |
-| Subset de kinds no v1 | Rejeitado — paridade com legado |
+| Queues + D1 + consumer Worker | **Escolhida** — custo previsível; ops baratas vs GB-s de DO em jobs longos |
+| Durable Object por job | Rejeitado — duration billing alto em espera LLM; complexidade extra |
+| Stream HTTP preso ao client (modelo anterior) | Rejeitado — refresh perde execução |
+| `waitUntil` sem Queue | Rejeitado — não confiável para pipelines de minutos após response |
+| Só localStorage no client | Rejeitado — não sobrevive a outro dispositivo/aba limpa |
+
+### Custo (regra prática)
+
+| Componente | Impacto neste app |
+|------------|-------------------|
+| Tokens LLM | **Dominante** (ADR-0007) |
+| Queue ops | ~2–4 ops/job — barato (10k/dia free; 1M/mês paid) |
+| Worker CPU | Consumer ativo durante steps — não durante poll do client |
+| DO duration | Evitado — cobrança por GB·s enquanto objeto vivo (ruim em waits de LLM) |
 
 ## Decisão
 
-Módulo **`src/features/background-processes/`**:
+### Estado no servidor (D1)
 
-- Store central + kinds v1: **`ingest`**, **`explain-question`**, **`improve-questions`**, **`connection-test`**, **`model-benchmark`**
-- `scheduler` (`canStart`, `runNextQueued`), `registry` (abort), `persistence` (localStorage)
-- `BackgroundProcessProvider` no root
-- Cada kind chama stream em `features/ai/` e atualiza o store
+Tabelas em SPEC-0001 (`background_jobs`, `background_job_events`):
 
-Kinds plugáveis; UI global (nav) e painéis usam selectors por kind.
+| Tabela | Uso |
+|--------|-----|
+| `background_jobs` | `id`, `user_id`, `kind`, `status`, `phase`, `error`, `metadata`, timestamps |
+| `background_job_events` | `job_id`, `seq`, payload (UI message / data part JSON), `created_at` |
 
-**Stream vs dialog:** `runJobPipeline` mantém o `fetch` ativo independente de dialogs. Painéis/dialogs de detalhe (ex.: agent-run) **subscrevem** o store — fechar UI não chama `abort`; reabrir lê estado atual sem novo request (ADR-0005).
+`status` v1: `awaiting_upload` → `queued` → `running` → `completed` \| `failed` \| `cancelled`.
 
-### Modelo servidor (Cloudflare Workers)
+Todo evento de progresso (mensagens assistant-ui, data parts, logs) é **append** em `background_job_events` pelo consumer — mesmo formato ADR-0005.
 
-| Pergunta | Resposta v1 |
-|----------|-------------|
-| Job roda “em background no servidor”? | **Não** — sem Queues, Cron nem DO para fila de jobs |
-| O que o Worker faz? | **Uma** invocação HTTP por job, com **stream** até fim, erro ou abort |
-| Usuário navega no app | O `fetch` do browser **permanece aberto** → Worker segue ativo nessa conexão |
-| Usuário fecha aba / perde rede | Conexão cai → `request.signal` aborta → **parar** LLM e etapas |
-| Cancel no UI | `AbortController` do client → mesmo efeito que desconexão |
+### Execução (Cloudflare Queues)
 
-**Custo:** o grosso é **tokens LLM** (ADR-0007). No Workers: cobrança por **request** + **CPU ms** (tempo executando JS). Espera em `fetch` ao provider costuma consumir pouco CPU — mas a conexão HTTP fica aberta (limites de duração do plano).
+Binding `JOB_QUEUE` em `wrangler.jsonc`. Consumer: `src/workers/job-consumer.ts` (ou módulo em `src/features/ai/jobs/` exportado no worker).
 
-**Controle de gasto:** `scheduler` no client limita jobs **simultâneos** (ex.: 1 ingest por vez) — cada job ativo = 1 Worker + 1 stream. Não iniciar N ingests em paralelo sem spec.
+```
+[Client]  POST /api/jobs           → insert job (D1)
+[Client]  POST /api/jobs/:id/upload  → R2 (só ingest; browser deve permanecer)
+[API]     enqueue { jobId }      → status queued
+[Consumer] dequeue → run pipeline em features/ai/ → append events + update status
+[Client]  GET /api/jobs/:id/events?after=seq  → poll
+[Client]  GET /api/jobs/:id/stream (SSE)     → replay D1 + tail (painel aberto)
+```
 
-**Propagação de abort:** rotas de job passam `request.signal` ao pipeline e ao AI SDK (legado: `createJobApiRoute({ signal: true })`). **Proibido** ignorar abort e continuar chamando LLM após desconexão.
+Kinds **sem upload** (`explain-question`, `connection-test`, `model-benchmark`): `POST /api/jobs` enfileira imediatamente.
 
-**Fora do v1:** se ingest ultrapassar limites de duração/CPU do Worker → ADR futura com **Queues** ou chunking — não `waitUntil` para esconder job após response fechada.
+### Fases dependentes do browser
+
+| Fase | Browser aberto obrigatório? | Se refresh/fechar aba |
+|------|----------------------------|------------------------|
+| Upload arquivo → R2 | **Sim** | Upload pode falhar; job fica `awaiting_upload` ou `failed` — usuário reenvia |
+| Pipeline IA pós-upload | **Não** | Consumer continua; client reidrata via poll/SSE |
+| Cancel explícito | Não | `POST /api/jobs/:id/cancel` → flag; consumer para entre steps |
+
+**Proibido** tratar desconexão do client como cancel do job (exceto durante upload ativo, onde a request HTTP do upload aborta).
+
+### Cliente (`src/features/background-processes/`)
+
+Papel: **UI + sync** — não executa LLM.
+
+| Peça | Função |
+|------|--------|
+| Store | Lista de jobs ativos/recentes; cache de eventos |
+| `useJobSync(jobId)` | TanStack Query poll em `/api/jobs/:id/events` |
+| SSE hook | Conecta `/stream` quando dialog/painel aberto; fallback poll |
+| `BackgroundProcessProvider` | Indicador global na nav |
+| Upload handlers | Única parte que mantém `fetch` longo no browser |
+
+`localStorage`: opcional — cache de `jobId`s recentes para reidratação rápida; **D1 é fonte de verdade**.
+
+Scheduler client: limita uploads simultâneos; fila server-side via Queue (1 consumer message por job — concorrência global configurável no consumer/wrangler).
+
+### Cancelamento
+
+- `POST /api/jobs/:id/cancel` → `cancel_requested_at` em D1
+- Consumer verifica entre steps / tool calls — **não** amarrar a `request.signal` do client nas fases server-side
+- Upload em andamento: `AbortSignal` do upload aborta só o transfer — job pode voltar a `awaiting_upload`
 
 ## Consequências
 
-- Refresh durante stream ativo: perde stream; re-hidrata metadados persistidos — **sem resume server-side**
-- Dialog fechado durante job: job e stream **continuam** (conexão client↔Worker aberta); só a UI pesada desmonta
-- Tab fechada / offline: Worker **deve** parar o job via `request.signal`
-- Duas abas não coordenam fila
-- **Proibido:** polling `setInterval` sem spec; novos job stores em `src/stores/`; abort de job no `onOpenChange` de dialog; job órfão no servidor após response encerrada; `waitUntil` para prolongar pipeline de minutos
+- `wrangler.jsonc`: binding Queue + consumer export
+- SPEC-0001: tabelas `background_jobs`, `background_job_events`
+- SPEC-0011: UI de fila, poll, SSE, estados de upload
+- ADR-0005: stream SSE é **tail de leitura**, não dono da execução
+- Refresh com job `running`: UI mostra progresso atualizado do D1
+- Duas abas: mesma visão via poll (sem coordenação extra)
+- **Proibido:** `waitUntil` como substituto de Queue; DO por job sem ADR nova; abort de LLM no `beforeunload` do client; polling agressivo sem backoff (usar Query `refetchInterval` adaptativo); job só em localStorage
 
 ## Confirmação
 
 ```bash
-test -d src/features/background-processes/store
-test -f src/features/background-processes/provider/background-process-provider.tsx
+grep -q 'JOB_QUEUE' wrangler.jsonc
+test -f src/features/ai/jobs/run-job-consumer.ts || test -f src/workers/job-consumer.ts
+grep -rq 'background_jobs' src/db/schema.ts
+test -d src/features/background-processes
 npm run typecheck
 ```
 
 ## Notas
 
-Comportamento detalhado: SPEC-0012.
+Comportamento UI: SPEC-0011. Ingest upload: SPEC-0003. Formato mensagens: ADR-0005.

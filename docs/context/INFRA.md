@@ -13,8 +13,9 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 | `DB`            | D1 `study-app-db`     | Metadados, config, exams, attempts, llm logs |
 | `FILES_BUCKET`  | R2 `study-app-files`  | Arquivos de prova (v1: `.txt`/`.md`)        |
 | `MEMORY_BUCKET` | R2 `study-app-memory` | Conteúdo markdown da camada de memória       |
+| `JOB_QUEUE`     | Queue `study-app-jobs`  | Jobs longos server-side (ADR-0006)           |
 
-Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (comma-separated, lowercase).
+Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (bootstrap admin no signup — ADR-0010).
 Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `CONFIG_ENCRYPTION_KEY` (base64 32 bytes — `openssl rand -base64 32`).
 
 ## Email (Resend)

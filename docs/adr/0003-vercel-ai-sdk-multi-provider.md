@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0001, ADR-0002, ADR-0004, ADR-0007, ADR-0008, ADR-0009]
+builds-on: [ADR-0001, ADR-0002, ADR-0004, ADR-0007, ADR-0008, ADR-0010]
 deciders: []
 ---
 
@@ -39,7 +39,7 @@ Ingestão, chat, explicações, revisão e benchmark dependem de LLMs com stream
 - **Rotas API** (`src/routes/api/*`): delegam para `src/features/ai/` — sem lógica pesada colada na rota
 - **UI:** `@assistant-ui/react` com streaming padrão da lib (thread, composer, markdown); data parts AI SDK v6 onde necessário
 - Telemetria: `llm_logs` com `user_id` — **obrigatório**, append-only (ADR-0007)
-- Config IA do usuário: UI em `/admin/config` — guard allowlist (ADR-0009)
+- Config IA do usuário: UI em `/admin/config` — guard `admin:access` (ADR-0010)
 
 ## Consequências
 

@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0002, ADR-0004, ADR-0007]
+builds-on: [ADR-0002, ADR-0004, ADR-0007, ADR-0010, ADR-0006]
 implemented-by: []
 ---
 
@@ -43,6 +43,8 @@ Todas as PKs de domínio (exceto `memory_profile` e `config`) são `text` UUID v
 | `r2_operation_logs` | `id` text UUID |
 | `memory_sessions`, `memory_topic_notes`, `memory_documents` | `id` text UUID |
 | `chat_conversations` | `id` text UUID |
+| `roles`, `permissions` | `id` text UUID |
+| `background_jobs`, `background_job_events` | `id` text UUID |
 | `memory_profile` | `user_id` text (PK, não UUID separado) |
 | `config` | `(user_id, key)` |
 
@@ -59,6 +61,26 @@ Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
 | `account` | OAuth futuro |
 | `verification` | Tokens magic link |
 
+### RBAC (ADR-0010)
+
+Catálogo + atribuição. Seed na migration inicial.
+
+| Tabela | Colunas principais | Índices |
+|--------|-------------------|---------|
+| `roles` | `id` UUID PK, `key` unique (`user`, `admin`), `name` | unique `key` |
+| `permissions` | `id` UUID PK, `key` unique (`app:use`, `admin:access`), `description` | unique `key` |
+| `role_permissions` | PK `(role_id, permission_id)` | `(permission_id)` |
+| `user_roles` | PK `(user_id, role_id)`; FK `user_id` → `user.id` cascade | `(role_id)` |
+
+**Seed v1:**
+
+| `roles.key` | `permissions` |
+|-------------|---------------|
+| `user` | `app:use` |
+| `admin` | `app:use`, `admin:access` |
+
+Bootstrap admin no signup (email ∈ `ADMIN_EMAILS`) → SPEC-0000. Atribuição posterior → `setUserRole` (SPEC-0002 ou spec admin).
+
 ### Tabelas de domínio — raiz (`user_id` → `user.id` cascade)
 
 | Tabela | Notas | Índices |
@@ -72,6 +94,17 @@ Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
 | `memory_topic_notes` | | unique `(user_id, topic_slug)` |
 | `memory_documents` | | `(user_id, doc_type)` |
 | `chat_conversations` | `id` text PK | `(user_id, updated_at)` |
+
+### Jobs server-side (ADR-0006)
+
+| Tabela | Colunas principais | Índices |
+|--------|-------------------|---------|
+| `background_jobs` | `id` UUID PK, `user_id`, `kind`, `status`, `phase`, `error`, `metadata` JSON, `cancel_requested_at`, timestamps | `(user_id, created_at)`, `(user_id, status)` |
+| `background_job_events` | `id` UUID PK, `job_id` FK, `seq` int, `payload` JSON (UI message chunk), `created_at` | `(job_id, seq)` unique |
+
+`status`: `awaiting_upload` \| `queued` \| `running` \| `completed` \| `failed` \| `cancelled`.
+
+Eventos append-only durante o job (sem `DELETE`). Payload grande → truncar ou referenciar R2 na `metadata` do job.
 
 ### Tabelas de auditoria (append-only — ADR-0007)
 
@@ -150,6 +183,8 @@ Truncar em **4096** chars no write.
 | 4 | query filha sem checar ownership | bug |
 | 5 | segundo `memory_profile` mesmo `user_id` | PK violation |
 | 6 | `db:reset` local | schema vazio; app sobe |
+| 7 | signup sem `user_roles` | bug — todo user recebe role `user` |
+| 8 | único admin remove próprio `admin` | rejeitar (ADR-0010) |
 
 ## Questões em aberto
 
@@ -163,6 +198,7 @@ npm run db:generate                                            # exit 0
 npm run db:reset                                               # exit 0
 npm test -- src/db/schema.test.ts                              # verdes
 npm test -- src/db/queries/user-scoping.test.ts                # verdes
+npm test -- src/db/queries/rbac.test.ts                         # verdes
 ```
 
 ## Revisão humana

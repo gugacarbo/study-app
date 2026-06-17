@@ -54,7 +54,7 @@ Não usar `#/*`. Testes usam `@/` como o app.
 - `createServerFn` + Zod via `inputValidator` (`src/lib/validation.ts`)
 - Toda chamada de IA no servidor — nunca no browser
 - `getSession` / `requireSession` em `functions/auth/` — toda function de domínio exige sessão
-- `/admin/*`: `requireAdminSession` — email em `ADMIN_EMAILS`; falha → **404** (ADR-0009)
+- `/admin/*`: `requireAdminSession` — permissão `admin:access` via `src/lib/rbac.ts`; falha → **404** (ADR-0010)
 - D1 via `getDB()` em `functions/db.ts` — não importar de client
 
 ## Data loading
@@ -87,7 +87,8 @@ Server: throw com mensagem descritiva. Client: try/catch + UI amigável. Recurso
 - Hover inline (`onMouseEnter`) → variantes shadcn Button
 - Importar de `.old_app/` no código novo
 - Classe `DBQueries` monolítica — usar módulos em `db/queries/`
-- Stores de job em `src/stores/` — usar `features/background-processes/`
+- Stores de job em `src/stores/` — usar `features/background-processes/` (sync server-side, ADR-0006)
+- Tratar fechar aba como cancel de job LLM — usar `POST /api/jobs/:id/cancel`
 - LLM e R2: sempre via `lib/llm-logging.ts` e `lib/r2-audit.ts` — logs nunca deletados (ADR-0007)
 - API keys em D1: sempre `encryptSecret` antes de persistir (ADR-0008)
 - Upload ingest v1: só `.txt`/`.md` — rejeitar `.pdf` (ADR-0002)

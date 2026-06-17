@@ -60,7 +60,7 @@ Tabelas em D1 (detalhe de colunas: SPEC-0001, ADR-0007):
 
 ### UI / admin
 
-- Listagem: `/admin/llm-logs` e `/admin/r2-logs` (SPEC-0013)
+- Listagem: `/admin/llm-logs` e `/admin/r2-logs` (SPEC-0012)
 - Sem botão de exclusão; sem endpoint de purge
 
 ### Retenção
@@ -88,4 +88,4 @@ npm run typecheck
 
 ## Notas
 
-Schema: SPEC-0001 (`llm_logs`, `r2_operation_logs`). UI admin: SPEC-0013. Integração AI: ADR-0003.
+Schema: SPEC-0001 (`llm_logs`, `r2_operation_logs`). UI admin: SPEC-0012. Integração AI: ADR-0003.

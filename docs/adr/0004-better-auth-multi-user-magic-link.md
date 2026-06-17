@@ -55,6 +55,8 @@ App **multi-usuário**: cada conta isola exames, questões, tentativas, chat e c
 
 **Isolamento:** queries filtram `session.user.id`. Recurso de outro usuário → **404**.
 
+**Autorização:** roles e permissões em D1 — ADR-0010. Better Auth não armazena role de admin.
+
 **Secrets:** `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `BETTER_AUTH_URL` (origin pública do app).
 
 ## Consequências

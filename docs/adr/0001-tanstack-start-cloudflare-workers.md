@@ -36,7 +36,7 @@ App fullstack React com rotas tipadas, server functions e API streaming no mesmo
 |--------|-------|--------|
 | Rotas (finas) | `src/routes/` | Delegam para `src/features/` |
 | Features | `src/features/{domain}/` | UI, store, hooks de domínio |
-| Admin | `src/routes/admin.*` | `/admin/*` — allowlist `ADMIN_EMAILS` (ADR-0009) |
+| Admin | `src/routes/admin.*` | `/admin/*` — permissão `admin:access` (ADR-0010) |
 | API streaming | `src/routes/api/` | Só HTTP fino — lógica em `src/features/ai/` |
 
 - Mutations: `createServerFn` + Zod em `src/functions/`

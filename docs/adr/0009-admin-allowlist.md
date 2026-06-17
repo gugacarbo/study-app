@@ -1,9 +1,12 @@
 ---
-status: accepted
+status: superseded
 date: 2026-06-17
 builds-on: [ADR-0004]
+superseded-by: ADR-0010
 deciders: []
 ---
+
+> ⚠️ VERDADE ATUAL: guard de admin e atribuição persistente → **ADR-0010** (RBAC D1). `ADMIN_EMAILS` permanece só como **bootstrap no signup**. Esta ADR não governa `requireAdminSession`.
 
 # Restringir `/admin/*` a allowlist de emails
 
@@ -58,4 +61,4 @@ npm run typecheck
 
 ## Notas
 
-Auth base: ADR-0004. Specs: SPEC-0002 (config), SPEC-0013 (logs admin).
+Auth base: ADR-0004. Specs: SPEC-0002 (config), SPEC-0012 (logs admin).
