@@ -44,12 +44,8 @@ import { AssistantMessagePerfFooter } from "@/features/ai/components/assistant-u
 import { AssistantMessageTextPart } from "@/features/ai/components/assistant-ui/assistant-message-text-part";
 import { CollapsiblePromptMessage } from "@/features/ai/components/assistant-ui/prompt-message";
 import {
-	CollapsibleReasoningGroup,
+	GroupedReasoningBlock,
 	Reasoning,
-	ReasoningContent,
-	ReasoningRoot,
-	ReasoningText,
-	ReasoningTrigger,
 } from "@/features/ai/components/assistant-ui/reasoning";
 import { ToolFallback } from "@/features/ai/components/assistant-ui/tool-fallback";
 import { ThinkingIndicator } from "@/features/ai/components/assistant-ui/thinking-indicator";
@@ -426,21 +422,13 @@ const AssistantMessage: FC = () => {
 										<ReasoningGroup group={part}>{children}</ReasoningGroup>
 									);
 								}
-								const running = part.status.type === "running";
-								if (collapsiblePrompts) {
-									return (
-										<CollapsibleReasoningGroup active={running}>
-											{children}
-										</CollapsibleReasoningGroup>
-									);
-								}
 								return (
-									<ReasoningRoot defaultOpen={running}>
-										<ReasoningTrigger active={running} />
-										<ReasoningContent aria-busy={running}>
-											<ReasoningText>{children}</ReasoningText>
-										</ReasoningContent>
-									</ReasoningRoot>
+									<GroupedReasoningBlock
+										indices={part.indices}
+										collapsiblePrompts={collapsiblePrompts}
+									>
+										{children}
+									</GroupedReasoningBlock>
 								);
 							}
 							case "text":

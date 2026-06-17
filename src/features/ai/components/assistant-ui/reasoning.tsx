@@ -326,18 +326,42 @@ function CollapsibleReasoningFade({
 	);
 }
 
+function useReasoningGroupStreaming(indices: readonly number[]) {
+	return useAuiState((s) => {
+		if (s.message.status?.type !== "running") return false;
+		const lastIndex = s.message.parts.length - 1;
+		if (lastIndex < 0) return false;
+		const lastType = s.message.parts[lastIndex]?.type;
+		if (lastType !== "reasoning") return false;
+		const startIndex = indices[0] ?? -1;
+		const endIndex = indices.at(-1) ?? -1;
+		return lastIndex >= startIndex && lastIndex <= endIndex;
+	});
+}
+
 /** Agent-run surfaces: collapsed-by-default thinking, like collapsible prompts. */
 export const CollapsibleReasoningGroup: FC<
 	PropsWithChildren<{ active?: boolean }>
 > = ({ active = false, children }) => {
 	const collapsibleRef = useRef<HTMLDivElement>(null);
-	const [open, setOpen] = useState(false);
+	const initialOpenRef = useRef(false);
+	const [userOpen, setUserOpen] = useState<boolean | null>(null);
 	const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
+
+	const isOpen = userOpen ?? active ?? initialOpenRef.current;
+	const isAutoMode = userOpen === null;
+
+	const prevActiveRef = useRef(active);
+	useLayoutEffect(() => {
+		if (prevActiveRef.current === active) return;
+		prevActiveRef.current = active;
+		if (isAutoMode) lockScroll();
+	}, [active, isAutoMode, lockScroll]);
 
 	const handleOpenChange = useCallback(
 		(nextOpen: boolean) => {
 			lockScroll();
-			setOpen(nextOpen);
+			setUserOpen(nextOpen);
 		},
 		[lockScroll],
 	);
@@ -346,7 +370,7 @@ export const CollapsibleReasoningGroup: FC<
 		<Collapsible
 			ref={collapsibleRef}
 			data-slot="collapsible-reasoning-root"
-			open={open}
+			open={isOpen}
 			onOpenChange={handleOpenChange}
 			className="aui-collapsible-reasoning-root group/collapsible-reasoning-root mb-2 w-full rounded-xl border border-border/40 bg-background px-4 py-2 shadow-sm"
 			style={
@@ -414,14 +438,37 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
 	startIndex,
 	endIndex,
 }) => {
-	const isReasoningStreaming = useAuiState((s) => {
-		if (s.message.status?.type !== "running") return false;
-		const lastIndex = s.message.parts.length - 1;
-		if (lastIndex < 0) return false;
-		const lastType = s.message.parts[lastIndex]?.type;
-		if (lastType !== "reasoning") return false;
-		return lastIndex >= startIndex && lastIndex <= endIndex;
-	});
+	const isReasoningStreaming = useReasoningGroupStreaming([
+		startIndex,
+		endIndex,
+	]);
+
+	return (
+		<ReasoningRoot streaming={isReasoningStreaming}>
+			<ReasoningTrigger active={isReasoningStreaming} />
+			<ReasoningContent aria-busy={isReasoningStreaming}>
+				<ReasoningText>{children}</ReasoningText>
+			</ReasoningContent>
+		</ReasoningRoot>
+	);
+};
+
+/** Renders a grouped reasoning block in {@link thread.tsx}. */
+export const GroupedReasoningBlock: FC<
+	PropsWithChildren<{
+		indices: readonly number[];
+		collapsiblePrompts: boolean;
+	}>
+> = ({ indices, collapsiblePrompts, children }) => {
+	const isReasoningStreaming = useReasoningGroupStreaming(indices);
+
+	if (collapsiblePrompts) {
+		return (
+			<CollapsibleReasoningGroup active={isReasoningStreaming}>
+				{children}
+			</CollapsibleReasoningGroup>
+		);
+	}
 
 	return (
 		<ReasoningRoot streaming={isReasoningStreaming}>
