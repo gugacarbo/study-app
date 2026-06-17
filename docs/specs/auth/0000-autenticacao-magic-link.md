@@ -7,11 +7,11 @@ implemented-by: []
 
 # Login por magic link e sessão protegida
 
-> Convenções compartilhadas: `docs/context/CONVENTIONS.md`. Autorização em server functions segue esta spec.
+> Convenções compartilhadas: `docs/context/CONVENTIONS.md`. Autorização em `src/functions/` segue esta spec.
 
 ## Objetivo
 
-Usuário autenticado acessa o app com email + magic link. Sem sessão válida, não há acesso a rotas de app nem a server functions de domínio. Cada usuário vê apenas os próprios dados (`user_id` da sessão).
+Usuário autenticado acessa o app com email + magic link. Sem sessão válida, não há acesso a rotas de app nem a functions de domínio. Cada usuário vê apenas os próprios dados (`user_id` da sessão).
 
 **Signup:** aberto apenas para `*@ifsc.edu.br`.
 
@@ -166,9 +166,9 @@ Secrets/vars: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `RESEND_API_KEY`, vars ac
 ## Definition of Done
 
 ```bash
-npm run typecheck                                                          # exit 0
-npm test -- tests/lib/auth.test.ts tests/lib/auth-allowed-email-domain.test.ts  # verdes
-npm test -- tests/routes/login.spec.tsx tests/server-functions/require-session.test.ts  # verdes
+npm run typecheck                                                                    # exit 0
+npm test -- src/lib/auth.test.ts src/lib/auth-allowed-email-domain.test.ts           # verdes
+npm test -- src/routes/login.spec.tsx src/functions/auth/require-session.test.ts     # verdes
 ```
 
 Fechamento manual: login E2E dev (console); `/exams` bloqueada sem sessão; domínio errado rejeitado.

@@ -14,7 +14,7 @@ App fullstack React com rotas tipadas, server functions e API streaming no mesmo
 ## Direcionadores da decisão
 
 - Um artefato de deploy (Worker) para páginas e API
-- Type safety end-to-end (rotas, server functions, queries)
+- Type safety end-to-end (rotas, functions, queries)
 - Bindings Cloudflare sem hop intermediário
 - DX local: `pnpm dev` e `pnpm wrangler:dev`
 
@@ -30,25 +30,64 @@ App fullstack React com rotas tipadas, server functions e API streaming no mesmo
 
 **TanStack Start** com entry `@tanstack/react-start/server-entry`, `nodejs_compat`, build Vite + `@cloudflare/vite-plugin`.
 
-- Rotas finas em `src/routes/` → delegação para `src/features/`
-- Mutations: `createServerFn` + Zod
-- Streaming: `createFileRoute` + `server.handlers`
+### Rotas e domínio
+
+| Camada | Local | Regra |
+|--------|-------|--------|
+| Rotas (finas) | `src/routes/` | Delegam para `src/features/` |
+| Features | `src/features/{domain}/` | UI, store, hooks de domínio |
+| Admin | `src/routes/admin.*` | `/admin/*` — allowlist `ADMIN_EMAILS` (ADR-0009) |
+| API streaming | `src/routes/api/` | Só HTTP fino — lógica em `src/features/ai/` |
+
+- Mutations: `createServerFn` + Zod em `src/functions/`
+- Streaming: rotas API delegam para `src/features/ai/`
 - Árvore de rotas gerada em `src/routeTree.gen.ts`
+
+### `src/functions/` (ex-`server-functions`)
+
+Infra na raiz; domínios em subpastas:
+
+```
+src/functions/
+  db.ts, storage.ts
+  auth/          # requireSession, wrappers de sessão
+  exams/, quiz/, memory/, ai/, chat/, admin/
+```
+
+### Componentes e hooks
+
+| Tipo | Local |
+|------|--------|
+| shadcn / primitivos | `src/components/ui/` |
+| Composites cross-feature | `src/components/` (ex.: shells de quiz, exam-detail) |
+| Hooks compartilhados | `src/hooks/` |
+| Hooks de domínio | `src/features/{domain}/hooks/` |
+
+### Shell e devtools
+
+- **Layout:** redesign no greenfield — não replicar shell do legado (nav + dock lateral)
+- **Devtools:** TanStack Router/Query Devtools + Assistant DevTools no root **somente em `development`**
+
+### Testes
+
+Colocados ao lado do código: `*.test.ts` (lógica), `*.spec.tsx` (componentes). Sem espelho `tests/` global.
 
 ## Consequências
 
 - Deploy: `npm run deploy` (`wrangler.jsonc` é fonte de bindings)
 - Após mudar bindings: `npm run cf-typegen`
-- **Proibido:** editar `routeTree.gen.ts`; bibliotecas Node pesadas incompatíveis com Workers (ex.: `pdf-parse`)
+- Data loading: `useSuspenseQuery` + functions — não route loaders (exceto `beforeLoad`)
+- **Proibido:** editar `routeTree.gen.ts`; `#/*` em código novo; bibliotecas Node pesadas incompatíveis com Workers (ex.: `pdf-parse`)
 
 ## Confirmação
 
 ```bash
 grep -q '@tanstack/react-start/server-entry' wrangler.jsonc
 grep -q 'nodejs_compat' wrangler.jsonc
+test -d src/functions
 npm run typecheck
 ```
 
 ## Notas
 
-Operação e bindings: `docs/context/INFRA.md`.
+Operação e bindings: `docs/context/INFRA.md`. Convenções de layout: `docs/context/CONVENTIONS.md`.

@@ -11,11 +11,11 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 | Binding         | Tipo                  | Uso                                          |
 | --------------- | --------------------- | -------------------------------------------- |
 | `DB`            | D1 `study-app-db`     | Metadados, config, exams, attempts, llm logs |
-| `FILES_BUCKET`  | R2 `study-app-files`  | PDFs e arquivos de prova                     |
+| `FILES_BUCKET`  | R2 `study-app-files`  | Arquivos de prova (v1: `.txt`/`.md`)        |
 | `MEMORY_BUCKET` | R2 `study-app-memory` | Conteúdo markdown da camada de memória       |
 
-Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`.
-Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`.
+Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (comma-separated, lowercase).
+Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `CONFIG_ENCRYPTION_KEY` (base64 32 bytes — `openssl rand -base64 32`).
 
 ## Email (Resend)
 
@@ -31,10 +31,17 @@ Domínio `gugacarbo.space` verificado no dashboard Resend. Dev: logar link no co
 
 Vars legado: `AI_MODEL` em `wrangler.jsonc`. Providers/models por usuário → `ai_providers` + `ai_models`.
 
+## Auditoria (ADR-0007)
+
+- `llm_logs` — toda chamada LLM; append-only
+- `r2_operation_logs` — todo get/put/delete/head/list em R2; append-only
+- Wrappers: `src/lib/llm-logging.ts`, `src/lib/r2-audit.ts`
+- `AI_LOG_LLM_CONTENT` — só controla se payload textual é gravado; **não** desliga o registro
+
 ## Banco (D1 + Drizzle)
 
-- Schema: `src/db/schema.ts`
-- Queries: `src/db/queries/` → classe `DBQueries` (mixin `Object.assign`)
+- Schema: `src/db/schema.ts` — PKs de domínio **UUID text** (SPEC-0001)
+- Queries: `src/db/queries/` — módulos por domínio (`exams.ts`, `files.ts`, …)
 - Migrations: `migrations/` geradas por `drizzle-kit`
 - Config local: `drizzle.config.ts`
 
@@ -45,7 +52,7 @@ npm run db:migrate:prod   # aplicar remoto
 npm run db:reset          # reset local (destrutivo)
 ```
 
-`postinstall` roda `cf-typegen` + `db:migrate` local.
+`postinstall` roda `cf-typegen` (e `db:migrate` local quando migrations existirem).
 
 ## Acesso a bindings no código
 
@@ -55,7 +62,7 @@ Env tipado: `src/env.ts` (`@t3-oss/env-core` + Zod). Tipos gerados: `worker-conf
 
 ## Memória híbrida R2+D1
 
-Implementação: `src/lib/memory/`. R2 guarda blobs markdown; D1 guarda metadata + `search_text` (truncado 4k). Não confundir com stub `src/db/queries/memory.ts`.
+Implementação: `src/lib/memory/`. R2 guarda blobs markdown; D1 guarda metadata + `search_text` (truncado 4k).
 
 ## Deploy
 

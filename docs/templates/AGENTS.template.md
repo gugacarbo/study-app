@@ -50,9 +50,10 @@ npm test                 # tudo verde
 | Capítulo | Quando carregar |
 |---|---|
 | `docs/context/CONVENTIONS.md` | sempre que escrever/alterar uma Spec ou endpoint |
+| `docs/context/SPECS.md` | criar spec, reservar número, escolher pasta/domínio |
 | `docs/context/INFRA.md` | mexeu em migration, deploy ou ambiente |
 | `docs/context/TESTS.md` | escrever ou alterar testes |
 
 ## Mapa de docs
-- Decisões: `docs/adr/` · Comportamento: `docs/specs/` (READMEs GERADOS — não editar)
+- Decisões: `docs/adr/` · Comportamento: `docs/specs/` (README gerado; layout opcional → `docs/context/SPECS.md`)
 - Validar: `scripts/docs-check` · Regenerar índices: `scripts/docs-check --emit-index`

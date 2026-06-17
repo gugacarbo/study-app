@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0002, ADR-0004]
+builds-on: [ADR-0002, ADR-0004, ADR-0007]
 implemented-by: []
 ---
 
@@ -11,7 +11,7 @@ implemented-by: []
 
 ## Objetivo
 
-Schema D1 único (Drizzle) para Better Auth + domínios do app, com isolamento por `user_id`. Migrations legadas substituídas — cutover v1 com `db:reset` (sem dados legados). **v1: apenas hard delete** (sem soft delete).
+Schema D1 único (Drizzle) para Better Auth + domínios do app, com isolamento por `user_id`. Migrations legadas substituídas — cutover v1 com `db:reset` (sem dados legados). **v1: apenas hard delete** (sem soft delete). **PKs de domínio: UUID `text`** (gerados no app; não integer auto-increment).
 
 ## Fluxo
 
@@ -29,6 +29,25 @@ Alterar `schema.ts` → `db:generate` → nova migration; nunca editar migration
 
 ## Contrato
 
+### IDs (UUID text)
+
+Todas as PKs de domínio (exceto `memory_profile` e `config`) são `text` UUID v4 gerado no servidor no insert. Better Auth já usa `text` para `user.id`.
+
+| Tabela | PK |
+|--------|-----|
+| `exams`, `questions`, `attempts`, `files` | `id` text UUID |
+| `attempt_answers` | `id` text UUID |
+| `ai_providers` | `id` text UUID |
+| `ai_models` | `id` text UUID |
+| `llm_logs` | `id` text UUID; unique `call_id` text |
+| `r2_operation_logs` | `id` text UUID |
+| `memory_sessions`, `memory_topic_notes`, `memory_documents` | `id` text UUID |
+| `chat_conversations` | `id` text UUID |
+| `memory_profile` | `user_id` text (PK, não UUID separado) |
+| `config` | `(user_id, key)` |
+
+FKs referenciam `text` UUID. URLs e APIs usam o mesmo id string.
+
 ### Tabelas Better Auth
 
 Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
@@ -44,16 +63,28 @@ Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
 
 | Tabela | Notas | Índices |
 |--------|-------|---------|
-| `exams` | | `(user_id)`, `(user_id, created_at)` |
-| `ai_providers` | | `(user_id)` |
-| `ai_models` | FK `provider_id` | `(provider_id)`, unique `(provider_id, model_id)` |
+| `exams` | `id` UUID text PK | `(user_id)`, `(user_id, created_at)` |
+| `ai_providers` | `id` UUID text PK | `(user_id)` |
+| `ai_models` | `id` UUID text PK; FK `provider_id` | `(provider_id)`, unique `(provider_id, model_id)` |
 | `config` | PK `(user_id, key)` | — |
-| `llm_logs` | | `(user_id, created_at)`, unique `call_id` |
 | `memory_profile` | **PK = `user_id`** (1 perfil por usuário) | PK `user_id` |
 | `memory_sessions` | | `(user_id, topic)` |
 | `memory_topic_notes` | | unique `(user_id, topic_slug)` |
 | `memory_documents` | | `(user_id, doc_type)` |
 | `chat_conversations` | `id` text PK | `(user_id, updated_at)` |
+
+### Tabelas de auditoria (append-only — ADR-0007)
+
+`user_id` text **obrigatório**, indexado — **sem FK cascade** para `user` (logs persistem após delete de conta).
+
+| Tabela | Notas | Índices |
+|--------|-------|---------|
+| `llm_logs` | `call_id` unique; `status` pending→success/error uma vez | `(user_id, created_at)`, unique `call_id` |
+| `r2_operation_logs` | `bucket`, `operation` (get/put/delete/head/list), `object_key`, `bytes`, `status`, `duration_ms` | `(user_id, created_at)`, `(bucket, created_at)` |
+
+Colunas de payload — texto truncado/redigido; **nunca** omitir a linha de log.
+
+**Proibido na aplicação:** `DELETE` ou `UPDATE` (exceto fechamento de `llm_logs.status` in-flight).
 
 #### `memory_profile` (decisão)
 
@@ -84,8 +115,9 @@ Toda mutação valida `exams.user_id` (ou `ai_providers.user_id`) = sessão.
 
 | Ação | Comportamento v1 |
 |------|------------------|
-| Delete `user` | cascade em todas as raízes |
+| Delete `user` | cascade em raízes de domínio; **`llm_logs` e `r2_operation_logs` permanecem** |
 | Delete `exam` | cascade questions, attempts, files |
+| Delete log (LLM/R2) | **proibido** |
 | Soft delete | **não** na v1 |
 
 ### R2 keys
@@ -104,6 +136,7 @@ Truncar em **4096** chars no write.
 
 ### Queries
 
+- Módulos em `src/db/queries/` por domínio (sem classe monolítica)
 - Parâmetro `userId` obrigatório nas raízes
 - `getExamById(id, userId)` → `null` se ownership falhar → caller retorna 404
 
@@ -111,7 +144,7 @@ Truncar em **4096** chars no write.
 
 | # | QUANDO ⟨gatilho⟩ | o sistema DEVE ⟨resposta⟩ |
 |---|---|---|
-| 1 | `user` deletado | cascade dados do usuário |
+| 1 | `user` deletado | cascade domínio; logs de auditoria **mantidos** |
 | 2 | `exam` deletado | cascade filhos |
 | 3 | insert sem `user_id` | constraint / Zod fail |
 | 4 | query filha sem checar ownership | bug |
@@ -125,11 +158,11 @@ Truncar em **4096** chars no write.
 ## Definition of Done
 
 ```bash
-npm run typecheck                                    # exit 0
-npm run db:generate                                  # exit 0
-npm run db:reset                                     # exit 0
-npm test -- tests/db/schema.test.ts                  # verdes
-npm test -- tests/db/queries/user-scoping.test.ts    # verdes
+npm run typecheck                                              # exit 0
+npm run db:generate                                            # exit 0
+npm run db:reset                                               # exit 0
+npm test -- src/db/schema.test.ts                              # verdes
+npm test -- src/db/queries/user-scoping.test.ts                # verdes
 ```
 
 ## Revisão humana

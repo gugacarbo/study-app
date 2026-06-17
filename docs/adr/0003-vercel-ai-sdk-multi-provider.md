@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-06-17
-builds-on: [ADR-0001, ADR-0002, ADR-0004]
+builds-on: [ADR-0001, ADR-0002, ADR-0004, ADR-0007, ADR-0008, ADR-0009]
 deciders: []
 ---
 
@@ -17,14 +17,16 @@ Ingestão, chat, explicações, revisão e benchmark dependem de LLMs com stream
 - Multi-provider (base URL + key por provider)
 - Streaming first (chat + jobs)
 - Tool calling por agent de domínio
+- UI de chat/jobs via **padrão assistant-ui** — sem glue custom pesado do legado
 
 ## Opções consideradas
 
 | Opção | Veredito |
 |-------|----------|
-| Vercel AI SDK v6 + catálogo D1 | **Escolhida** |
+| Vercel AI SDK v6 + catálogo D1 + assistant-ui | **Escolhida** |
 | TanStack AI / OpenRouter fixo | Menos flexível |
 | HTTP manual por provider | Reinventa stream, tools, retries |
+| Pipeline custom legado (`PipelineThread`, reducers próprios) | Rejeitado — preferir streaming padrão assistant-ui |
 
 ## Decisão
 
@@ -33,24 +35,28 @@ Ingestão, chat, explicações, revisão e benchmark dependem de LLMs com stream
 - Resolução de modelo: `getAiModel()` + `buildProviderOptions()`
 - Catálogo D1: `ai_providers`, `ai_models` — escopo `user_id`
 - Default de modelo: tabela `config` (por usuário)
-- Agents, tools, pipeline: `src/features/ai/`; rotas API finas; `resolveToolsForAgent()`
-- Telemetria: `llm_logs` com `user_id`
+- Agents, tools, adapters: `src/features/ai/`
+- **Rotas API** (`src/routes/api/*`): delegam para `src/features/ai/` — sem lógica pesada colada na rota
+- **UI:** `@assistant-ui/react` com streaming padrão da lib (thread, composer, markdown); data parts AI SDK v6 onde necessário
+- Telemetria: `llm_logs` com `user_id` — **obrigatório**, append-only (ADR-0007)
+- Config IA do usuário: UI em `/admin/config` — guard allowlist (ADR-0009)
 
 ## Consequências
 
-- Keys criptografadas em D1 (`config-encryption`)
+- Keys criptografadas em D1 via `src/lib/config-encryption.ts` (ADR-0008)
 - Testes mockam `@/features/ai/` ou `fetch` — nunca chamada real no CI
-- **Proibido:** SDK de IA em componentes client; API keys em vars de produção no `wrangler.jsonc`
+- **Proibido:** SDK de IA em componentes client; API keys em vars de produção no `wrangler.jsonc`; portar 1:1 adaptações custom do legado em `.old_app/`; chamar LLM sem passar por `src/lib/llm-logging.ts`
 
 ## Confirmação
 
 ```bash
 grep -q '"ai"' package.json
+grep -q '@assistant-ui/react' package.json
 test -d src/features/ai
-! grep -r '@ai-sdk' src --include='*.tsx' --exclude-dir=tests 2>/dev/null | grep -v test | head -1
+! grep -r '@ai-sdk' src --include='*.tsx' --exclude-dir=node_modules 2>/dev/null | grep -vE '\.(test|spec)\.' | head -1
 npm run typecheck
 ```
 
 ## Notas
 
-UI de config: SPEC-0002. Cookbook de agents: `src/features/ai/AGENTS.md`.
+UI de config: SPEC-0002. Cookbook de agents: `src/features/ai/AGENTS.md` (reescrever no greenfield).

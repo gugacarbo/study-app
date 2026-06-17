@@ -30,7 +30,10 @@
     "builds-on": [
       "ADR-0001",
       "ADR-0002",
-      "ADR-0004"
+      "ADR-0004",
+      "ADR-0007",
+      "ADR-0008",
+      "ADR-0009"
     ],
     "superseded-by": null,
     "implemented-by": []
@@ -75,8 +78,47 @@
     "implemented-by": []
   },
   {
+    "id": "ADR-0007",
+    "path": "docs/adr/0007-audit-log-llm-r2-append-only.md",
+    "layer": "adr",
+    "title": "Registrar ações de LLM e R2 em log append-only",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0002",
+      "ADR-0003",
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0008",
+    "path": "docs/adr/0008-config-encryption-web-crypto.md",
+    "layer": "adr",
+    "title": "Criptografar secrets de config com Web Crypto AES-GCM",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0002",
+      "ADR-0003"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "ADR-0009",
+    "path": "docs/adr/0009-admin-allowlist.md",
+    "layer": "adr",
+    "title": "Restringir `/admin/*` a allowlist de emails",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
     "id": "SPEC-0000",
-    "path": "docs/specs/0000-autenticacao-magic-link.md",
+    "path": "docs/specs/auth/0000-autenticacao-magic-link.md",
     "layer": "specs",
     "title": "Login por magic link e sessão protegida",
     "status": "accepted",
@@ -94,7 +136,8 @@
     "status": "accepted",
     "builds-on": [
       "ADR-0002",
-      "ADR-0004"
+      "ADR-0004",
+      "ADR-0007"
     ],
     "superseded-by": null,
     "implemented-by": []

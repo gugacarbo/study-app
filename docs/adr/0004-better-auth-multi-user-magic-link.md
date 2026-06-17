@@ -40,7 +40,7 @@ App **multi-usuário**: cada conta isola exames, questões, tentativas, chat e c
 | Factory | `createAuth(env)` em `src/lib/auth.ts` |
 | Client | `better-auth/react` (`authClient`) |
 | Guards | `beforeLoad` no root: sem sessão → `/login` |
-| Server | `getSession` em server fn e API; sem sessão → 401 |
+| Server | `getSession` / `requireSession` em `src/functions/auth/`; sem sessão → 401 |
 
 **Signup (v1):** aberto apenas para `*@ifsc.edu.br`. Validação server-side obrigatória; env `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`.
 

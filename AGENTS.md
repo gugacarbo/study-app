@@ -15,19 +15,18 @@ casa-standard-ref: 9d655cf
 ## Contexto em 5 linhas
 
 Web app multi-usuário para estudar provas universitárias: upload de PDFs, extração de questões via IA, quiz, estatísticas e chat assistido.
-Stack: TanStack Start + Router + Query · React 19 · Cloudflare Workers · D1 + R2 · Drizzle · Vercel AI SDK · Better Auth · shadcn/ui.
-Reescrita greenfield in-place guiada por specs CASA — paridade total v1, schema e dados do zero.
-Auth: Better Auth + magic link (ADR-0004); dados isolados por `user_id`. Providers/modelos em `/admin/config`.
-Decisões de stack: `docs/adr/` (0001–0006, accepted). Comportamento: `docs/specs/` (ver `docs/BACKLOG.md`).
+Stack: TanStack Start + Router + Query · React 19 · Cloudflare Workers · D1 + R2 · Drizzle · Vercel AI SDK · Better Auth · assistant-ui · shadcn/ui.
+Reescrita greenfield — paridade v1, schema UUID + dados do zero. Legado local: `.old_app/` (gitignored).
+Auth: Better Auth + magic link (ADR-0004). Config IA e admin em `/admin/*`. Decisões: `docs/adr/` · Specs: `docs/specs/` (globais na raiz; demais em subpastas por domínio — ver `docs/context/SPECS.md`).
 
 ## Infra & ambientes
 
 Cloudflare Workers (prod + local via `wrangler dev`). Bindings: D1, R2 (files + memory). Detalhe → `docs/context/INFRA.md`.
-NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import estático de `cloudflare:workers`.
+NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import estático de `cloudflare:workers`, import de `.old_app/`.
 
 ## Como rodar localmente
 
-> App em rebuild greenfield — `src/` e `vite.config.ts` ainda não existem na raiz. Referência legada: `.old_app/`.
+> App em rebuild greenfield — `src/` e `vite.config.ts` ainda não existem na raiz.
 
 ```bash
 pnpm install              # postinstall: cf-typegen
@@ -54,25 +53,34 @@ Não rodar `db:reset:prod` sem confirmação explícita — destrutivo.
 ## Git & PRs
 
 Remote: `origin` → GitHub (`gugacarbo/study-app`). Branch principal: `main`.
-Commits e PRs só quando pedido. Reescrever código in-place por domínio; cada spec fecha em commit atômico (`implemented` + `implemented-by` + `## Verificação`).
+Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemented` + `implemented-by` + `## Verificação`).
 
 ## Gotchas
 
-- Código legado arquivado em `.old_app/` (gitignored) — só referência local; não importar no app novo
-- Jobs longos de IA usam UI Message Stream — ver ADR-0005
-- Sessão via Better Auth cookie — server functions devem chamar `getSession` e filtrar por `user_id` (ADR-0004)
+- Legado em `.old_app/` — referência só; não portar glue custom (pipeline/reducers) sem spec
+- Server functions em `src/functions/` (não `server-functions/`); queries D1 modulares (não `DBQueries` mixin)
+- PKs de domínio: UUID `text` (SPEC-0001)
+- Hooks compartilhados → `src/hooks/`; hooks de domínio → `features/{domain}/hooks/`
+- Streaming IA: lógica em `features/ai/`; rotas API delegam; UI padrão assistant-ui
+- Devtools (TanStack + assistant) no root só em `development`
+- Sessão: `getSession` / `requireSession` em functions; filtrar `user_id`; outro user → 404
 - Auth: só `@ifsc.edu.br`; magic link via Resend (`noreply@gugacarbo.space`)
+- Admin: `/admin/*` só emails em `ADMIN_EMAILS` (ADR-0009); não-admin → 404
+- Ingest v1: upload `.txt`/`.md` apenas — PDF fora do escopo (ADR-0002)
+- API keys: criptografar com `CONFIG_ENCRYPTION_KEY` (ADR-0008)
+- Logs LLM + R2: append-only em D1 — nunca `DELETE`; wrappers obrigatórios (ADR-0007)
 
 ## Mapa de contexto
 
 | Capítulo                      | Quando carregar                                    |
 | ----------------------------- | -------------------------------------------------- |
-| `docs/context/CONVENTIONS.md` | escrever/alterar Spec, endpoint ou server function |
+| `docs/context/CONVENTIONS.md` | escrever/alterar Spec, endpoint ou function        |
+| `docs/context/SPECS.md`       | criar spec, reservar número, escolher pasta/domínio |
 | `docs/context/INFRA.md`       | migration, deploy, bindings Cloudflare             |
 | `docs/context/TESTS.md`       | escrever ou alterar testes                         |
 
 ## Mapa de docs
 
-- Decisões: `docs/adr/` · Comportamento: `docs/specs/` (READMEs GERADOS — não editar)
+- Decisões: `docs/adr/` · Comportamento: `docs/specs/` (README gerado; layout → `docs/context/SPECS.md`)
 - Pendências e reservas de numeração: `docs/BACKLOG.md`
 - Validar: `scripts/docs-check` · Regenerar índices: `scripts/docs-check --emit-index`

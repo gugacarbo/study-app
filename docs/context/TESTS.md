@@ -4,43 +4,42 @@
 
 Vitest v4 + jsdom. Config: `vitest.config.ts`. Comando: `npm test` (`vitest run`).
 
-Aliases: `@/` e `#/` → `src/`. Sem `setupFiles` global. Sem coverage. Sem E2E.
+Aliases: `@/` → `src/`. Sem `setupFiles` global obrigatório. Sem coverage. Sem E2E.
 
 ## Layout
 
-Espelha `src/` sob `tests/` — não colocado ao lado do source.
+**Colocado ao lado do código** — não há espelho global `tests/`.
 
 ```
-tests/
-├── lib/
-├── server-functions/
-├── routes/
-├── components/      # *.spec.tsx
-├── features/ai/
-└── stores/
+src/functions/exams/list.test.ts
+src/features/quiz/components/quiz.spec.tsx
+src/db/queries/exams.test.ts
+src/lib/auth-allowed-email-domain.test.ts
 ```
 
 ## Naming (importante)
 
-| Sufixo       | Uso                             |
-| ------------ | ------------------------------- |
-| `*.test.ts`  | Lógica, server fns, agents, lib |
-| `*.spec.tsx` | Componentes React               |
+| Sufixo | Uso |
+|--------|-----|
+| `*.test.ts` | Lógica, functions, agents, lib, queries |
+| `*.spec.tsx` | Componentes React |
 
 Vitest **exclui** `**/*.test.tsx` — component tests devem ser `.spec.tsx`.
 
 ## Mocks
 
-**D1:** `createMockDB()` por arquivo — chain `prepare().bind().run()/first()/all()`. Suportar `.raw()` para compat Drizzle (`tests/db.queries.pagination.test.ts` usa `FakeDrizzle`).
+**D1:** mock por arquivo — chain `prepare().bind().run()/first()/all()`. Suportar `.raw()` para compat Drizzle.
 
-**AI:** `vi.mock('@tanstack/ai')` ou mock de módulos em `src/features/ai/`. Stream: mock `fetch` ou helpers de stream.
+**Auth:** mock `getSession` / `requireSession` em `functions/auth/`.
+
+**AI:** mock módulos em `src/features/ai/` ou `fetch` para streams.
 
 **React:** `@testing-library/react` + `vi.hoisted()` + `vi.mock` para Query/Store.
 
 ## O que testar / não testar
 
-- Schemas Zod, pipelines SSE, agents, server-fn handlers, stores
-- UI de ingest/quiz/exams com `.spec.tsx`
+- Schemas Zod, streams, agents, function handlers, stores
+- UI com `.spec.tsx` colocado na feature
 - Não há Miniflare nem D1 real nos testes
 - CI não roda testes ainda — validação local + `npm run typecheck`
 
@@ -51,4 +50,4 @@ npm test
 npm run typecheck
 ```
 
-Atualizar inventário em `tests/AGENTS.md` se adicionar suite nova relevante.
+Inventário de suites relevantes: `src/features/ai/AGENTS.md` ou AGENTS da feature quando existir.

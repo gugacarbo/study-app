@@ -5,8 +5,8 @@ builds-on: []               # ADRs que fundamentam. A spec CONSOME decisões, n�
 implemented-by: []          # paths reais (código, migrations, functions) — preenchido no fechamento
 ---
 
-<!-- id é DERIVADO do filename (docs/specs/NNNN-titulo-kebab.md → SPEC-NNNN);
-     title é DERIVADO do H1 abaixo. -->
+<!-- id é DERIVADO do filename (docs/specs/[domínio/]NNNN-titulo-kebab.md → SPEC-NNNN);
+     title é DERIVADO do H1 abaixo. Layout de pastas → docs/context/SPECS.md -->
 
 # <comportamento em uma frase — vira o title derivado>
 
