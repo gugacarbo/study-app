@@ -26,7 +26,7 @@
     "db:migrate:prod": "wrangler d1 migrations apply study-app-db --remote",
     "db:reset": "wrangler d1 migrations apply study-app-db --local --reset",
     "db:reset:prod": "wrangler d1 migrations apply study-app-db --remote --reset",
-    "postinstall": "npm run cf-typegen && npm run db:migrate",
+    "postinstall": "npm run cf-typegen",
     "docs-check": "python3 scripts/docs-check"
   },
   "dependencies": {

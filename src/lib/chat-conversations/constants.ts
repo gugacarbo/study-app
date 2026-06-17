@@ -1,1 +1,0 @@
-export const CHAT_RUNTIME_MESSAGE_LIMIT = 80;

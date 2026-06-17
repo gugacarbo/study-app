@@ -27,10 +27,11 @@ NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import e
 
 ## Como rodar localmente
 
+> App em rebuild greenfield — `src/` e `vite.config.ts` ainda não existem na raiz. Referência legada: `.old_app/`.
+
 ```bash
-pnpm install              # postinstall: cf-typegen + db:migrate local
-pnpm dev                  # vite dev :3000
-pnpm wrangler:dev         # parity com runtime Workers
+pnpm install              # postinstall: cf-typegen
+# pnpm dev                # após scaffold TanStack Start
 ```
 
 ## Como validar (DoD global do repo)
@@ -57,11 +58,7 @@ Commits e PRs só quando pedido. Reescrever código in-place por domínio; cada 
 
 ## Gotchas
 
-- `src/routeTree.gen.ts` é gerado — não editar
-- Testes de componente: `*.spec.tsx` (Vitest exclui `*.test.tsx`)
-- `src/db/queries/memory.ts` é stub — stats reais em `src/lib/memory/`
-- Conversas de chat: índice D1 + payload JSON em R2 (`MEMORY_BUCKET`)
-- `#/*` import só legado em `chat.tsx` — usar `@/` em código novo
+- Código legado arquivado em `.old_app/` (gitignored) — só referência local; não importar no app novo
 - Jobs longos de IA usam UI Message Stream — ver ADR-0005
 - Sessão via Better Auth cookie — server functions devem chamar `getSession` e filtrar por `user_id` (ADR-0004)
 - Auth: só `@ifsc.edu.br`; magic link via Resend (`noreply@gugacarbo.space`)
