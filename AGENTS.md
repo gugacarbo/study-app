@@ -64,6 +64,7 @@ Commits e PRs só quando pedido. Reescrever código in-place por domínio; cada 
 - `#/*` import só legado em `chat.tsx` — usar `@/` em código novo
 - Jobs longos de IA usam UI Message Stream — ver ADR-0005
 - Sessão via Better Auth cookie — server functions devem chamar `getSession` e filtrar por `user_id` (ADR-0004)
+- Auth: só `@ifsc.edu.br`; magic link via Resend (`noreply@gugacarbo.space`)
 
 ## Mapa de contexto
 

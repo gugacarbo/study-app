@@ -14,7 +14,22 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 | `FILES_BUCKET`  | R2 `study-app-files`  | PDFs e arquivos de prova                     |
 | `MEMORY_BUCKET` | R2 `study-app-memory` | Conteúdo markdown da camada de memória       |
 
-Vars default: `AI_MODEL=openai/gpt-4o-mini` (fallback legado). Providers/models/API keys via `/config` → tabelas `ai_providers` + `ai_models`; seleção em `config` KV.
+Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`.
+Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`.
+
+## Email (Resend)
+
+Magic link (SPEC-0000 / ADR-0004). **Sem** binding `send_email` no wrangler.
+
+| Config v1 | Valor |
+|-----------|--------|
+| Allowlist signup | `ifsc.edu.br` |
+| From | `noreply@gugacarbo.space` |
+| API | `POST https://api.resend.com/emails` + `Authorization: Bearer $RESEND_API_KEY` |
+
+Domínio `gugacarbo.space` verificado no dashboard Resend. Dev: logar link no console.
+
+Vars legado: `AI_MODEL` em `wrangler.jsonc`. Providers/models por usuário → `ai_providers` + `ai_models`.
 
 ## Banco (D1 + Drizzle)
 

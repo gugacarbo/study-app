@@ -8,7 +8,7 @@ Ledger de pendências e reservas de numeração CASA.
 |------|--------|-------|
 | Fase 0 — Fundação CASA | concluída | router, BACKLOG, ADRs |
 | Fase 1 — ADRs de stack | concluída | ADR-0001 … 0006 `accepted` |
-| Fase 2 — Specs por domínio | pendente | SPEC-0000 … 0015 |
+| Fase 2 — Specs por domínio | em andamento | SPEC-0000, 0001 accepted |
 | Fase 3 — Implementação in-place | pendente | ordem abaixo |
 | Fase 4 — Cutover de dados | pendente | clean slate + `db:reset` |
 
@@ -27,8 +27,8 @@ Ledger de pendências e reservas de numeração CASA.
 
 | ID | Arquivo | builds-on |
 |----|---------|-----------|
-| SPEC-0000 | `docs/specs/0000-autenticacao-magic-link.md` | ADR-0004 |
-| SPEC-0001 | `docs/specs/0001-schema-migrations-clean-slate.md` | ADR-0002, ADR-0004 |
+| SPEC-0000 | `docs/specs/0000-autenticacao-magic-link.md` | ADR-0004 | accepted |
+| SPEC-0001 | `docs/specs/0001-schema-migrations-clean-slate.md` | ADR-0002, ADR-0004 | accepted |
 | SPEC-0002 | `docs/specs/0002-config-providers-modelos.md` | ADR-0003, ADR-0004 |
 | SPEC-0003 | `docs/specs/0003-upload-arquivos-r2.md` | ADR-0002, ADR-0004 |
 | SPEC-0004 | `docs/specs/0004-pipeline-ingestao.md` | ADR-0003, ADR-0005, SPEC-0003 |
@@ -46,6 +46,5 @@ Ledger de pendências e reservas de numeração CASA.
 
 ## Pendências
 
-- [ ] Decidir signup aberto vs convite-only (bloqueia SPEC-0000)
-- [ ] Redigir SPEC-0000 e SPEC-0001
+- [ ] Implementar SPEC-0000 + SPEC-0001 (auth + schema)
 - [ ] Implementar domínios conforme specs fecham (`implemented`)

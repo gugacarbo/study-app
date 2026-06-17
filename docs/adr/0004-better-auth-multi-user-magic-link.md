@@ -9,22 +9,24 @@ deciders: []
 
 ## Contexto e problema
 
-App **multi-usuário**: cada conta isola exames, questões, tentativas, chat e config IA. Login obrigatório antes de rotas de app. v1: entrada por **magic link** (sem senha).
+App **multi-usuário**: cada conta isola exames, questões, tentativas, chat e config IA. Login obrigatório antes de rotas de app. v1: **magic link** (sem senha).
 
 ## Direcionadores da decisão
 
-- Sessões httpOnly (cookie), não JWT em localStorage
-- Auth e domínio no mesmo D1 (Drizzle)
-- Expansão futura: OAuth / email+senha via plugins da mesma lib
-- Workers: factory `createAuth(env)` com binding D1
+- Sessões httpOnly (cookie)
+- Auth + domínio no mesmo D1 (Drizzle)
+- Signup restrito a domínios de email institucionais
+- Magic link enviado via **Resend** (HTTP API no Worker)
+- Expansão futura: OAuth / email+senha (mesma lib)
 
 ## Opções consideradas
 
 | Opção | Veredito |
 |-------|----------|
-| Better Auth + magic link + Drizzle | **Escolhida** |
+| Better Auth + magic link + Drizzle + Resend | **Escolhida** |
+| Cloudflare Email Sending | Mesmo vendor, mas Resend já operacional para `gugacarbo.space` |
 | Cloudflare Access | Não isola `user_id` no D1 |
-| Clerk | SaaS externo; identidade fora do D1 |
+| Clerk | SaaS externo |
 
 ## Decisão
 
@@ -32,36 +34,45 @@ App **multi-usuário**: cada conta isola exames, questões, tentativas, chat e c
 
 | Peça | Implementação |
 |------|----------------|
-| DB | `drizzleAdapter(getDB(), { provider: "sqlite" })`; schema via `npx auth generate --adapter drizzle` |
-| v1 login | Plugin `magicLink({ sendMagicLink })` — email via Resend ou Cloudflare Email |
-| API | `/api/auth/*` → `auth.handler(request)` |
+| DB | `drizzleAdapter(getDB(), { provider: "sqlite" })` |
+| Login v1 | Plugin `magicLink({ sendMagicLink })` → **Resend** `POST https://api.resend.com/emails` |
+| API auth | `/api/auth/*` → `auth.handler(request)` |
 | Factory | `createAuth(env)` em `src/lib/auth.ts` |
 | Client | `better-auth/react` (`authClient`) |
 | Guards | `beforeLoad` no root: sem sessão → `/login` |
-| Server | `auth.api.getSession({ headers })` em toda server fn e API route; sem sessão → 401 |
+| Server | `getSession` em server fn e API; sem sessão → 401 |
 
-**Isolamento:** toda query/mutation filtra por `session.user.id`. Recurso de outro usuário → 404 ou 403 (definir em spec).
+**Signup (v1):** aberto apenas para `*@ifsc.edu.br`. Validação server-side obrigatória; env `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`.
 
-**Signup:** aberto vs convite-only → SPEC-0000 (`## Questões em aberto`).
+**Email transacional (v1):**
 
-**Expansão (pós-v1):** plugins `google`, `github`, `emailAndPassword`.
+| Config | Valor |
+|--------|--------|
+| Provedor | Resend |
+| `from` | `noreply@gugacarbo.space` |
+| Secret | `RESEND_API_KEY` (`wrangler secret`) |
+| Dev | logar magic link no console (sem Resend obrigatório) |
 
-Secrets: `BETTER_AUTH_SECRET`, credenciais de email → `wrangler secret`.
+**Isolamento:** queries filtram `session.user.id`. Recurso de outro usuário → **404**.
+
+**Secrets:** `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `BETTER_AUTH_URL` (origin pública do app).
 
 ## Consequências
 
-- Dev local: logar link no console ou Mailpit
-- Testes: mock `getSession` ou `createTestSession`
-- **Proibido:** rotas de app sem sessão (exceto `/login`, `/api/auth/*`, assets); omitir `user_id` em queries
+- Domínio `gugacarbo.space` verificado no Resend para envio
+- Usuários precisam de email `@ifsc.edu.br`
+- Testes: mock `getSession` / Resend fetch
+- **Proibido:** rotas de app sem sessão; omitir `user_id`; Cloudflare `EMAIL` binding para auth (Resend é o canal)
 
 ## Confirmação
 
 ```bash
 test -f src/lib/auth.ts || test -f src/lib/auth/index.ts
 grep -q 'better-auth' package.json
+grep -rq 'resend\|api.resend.com' src/lib/ 2>/dev/null
 npm run typecheck
 ```
 
 ## Notas
 
-Fluxo observável: SPEC-0000. Schema `user` + `user_id`: SPEC-0001.
+Fluxo e contrato: SPEC-0000. Schema: SPEC-0001.

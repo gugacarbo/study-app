@@ -73,5 +73,30 @@
     ],
     "superseded-by": null,
     "implemented-by": []
+  },
+  {
+    "id": "SPEC-0000",
+    "path": "docs/specs/0000-autenticacao-magic-link.md",
+    "layer": "specs",
+    "title": "Login por magic link e sessão protegida",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0001",
+    "path": "docs/specs/0001-schema-migrations-clean-slate.md",
+    "layer": "specs",
+    "title": "Schema D1 v1 clean slate com isolamento por usuário",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0002",
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]
