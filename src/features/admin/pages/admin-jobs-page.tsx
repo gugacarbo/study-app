@@ -2,7 +2,6 @@ import { Suspense, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobDetailSheet } from "@/features/admin/components/job-detail-sheet";
 import { JobsTable } from "@/features/admin/components/jobs-table";
-import { AdminShell } from "@/features/admin/components/admin-shell";
 import { useAdminJobs } from "@/features/admin/hooks/use-admin-jobs";
 
 function JobsSkeleton() {
@@ -40,13 +39,8 @@ export function AdminJobsPageContent() {
 
 export function AdminJobsPage() {
 	return (
-		<AdminShell
-			title="Jobs"
-			description="Observabilidade dos background jobs de todos os usuários."
-		>
-			<Suspense fallback={<JobsSkeleton />}>
-				<AdminJobsPageContent />
-			</Suspense>
-		</AdminShell>
+		<Suspense fallback={<JobsSkeleton />}>
+			<AdminJobsPageContent />
+		</Suspense>
 	);
 }

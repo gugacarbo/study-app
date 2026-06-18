@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { AdminDashboardShell } from "@/features/admin/components/admin-dashboard-shell";
 import {
 	getSession,
 	requireAdminSession,
@@ -27,5 +28,11 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminLayout() {
-	return <Outlet />;
+	const { user } = Route.useRouteContext();
+
+	return (
+		<AdminDashboardShell user={user}>
+			<Outlet />
+		</AdminDashboardShell>
+	);
 }

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminShell } from "@/features/admin/components/admin-shell";
 import { DefaultModelSelect } from "@/features/admin/components/default-model-select";
 import { ModelsPanel } from "@/features/admin/components/models-panel";
 import { ProvidersPanel } from "@/features/admin/components/providers-panel";
@@ -71,13 +70,8 @@ export function AdminConfigPageContent() {
 
 export function AdminConfigPage() {
 	return (
-		<AdminShell
-			title="Configuração IA"
-			description="Providers, modelos e modelo padrão da sua conta."
-		>
-			<Suspense fallback={<ConfigSkeleton />}>
-				<AdminConfigPageContent />
-			</Suspense>
-		</AdminShell>
+		<Suspense fallback={<ConfigSkeleton />}>
+			<AdminConfigPageContent />
+		</Suspense>
 	);
 }
