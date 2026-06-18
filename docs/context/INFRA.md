@@ -37,7 +37,6 @@ Vars legado: `AI_MODEL` em `wrangler.jsonc`. Providers/models por usuário → `
 - `llm_logs` — toda chamada LLM; append-only
 - `r2_operation_logs` — todo get/put/delete/head/list em R2; append-only
 - Wrappers: `src/lib/llm-logging.ts`, `src/lib/r2-audit.ts`
-- `AI_LOG_LLM_CONTENT` — só controla se payload textual é gravado; **não** desliga o registro
 
 ## Banco (D1 + Drizzle)
 

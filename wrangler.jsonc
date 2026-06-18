@@ -29,8 +29,7 @@
 		"EMAIL_FROM_ADDRESS": "noreply@gugacarbo.space",
 		"EMAIL_FROM_NAME": "Study App",
 		"BETTER_AUTH_URL": "http://localhost:3000",
-		"ADMIN_EMAILS": "",
-		"AI_LOG_LLM_CONTENT": "true"
+		"ADMIN_EMAILS": ""
 	},
 	"triggers": {
 		"crons": [

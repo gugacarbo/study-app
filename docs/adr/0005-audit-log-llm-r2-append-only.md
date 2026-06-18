@@ -17,7 +17,7 @@ Chamadas a LLMs e operações em R2 são difíceis de auditar, custear e depurar
 - Append-only na aplicação — sem purge admin em v1
 - Um único ponto de instrumentação (não log ad-hoc por feature)
 - Falha de log não deve silenciar a operação principal, mas deve ser visível (erro + métrica)
-- Segredos e payloads grandes redigidos/truncados no persist — metadados sempre gravados
+- Metadados sempre gravados
 
 ## Opções consideradas
 
@@ -48,7 +48,6 @@ Tabelas em D1 (detalhe de colunas: SPEC-0001):
 
 - Hook em **todos** os entry points de `src/features/ai/` (`streamText`, `generateText`, `generateObject`, tool loops, jobs)
 - Campos mínimos: `call_id` (unique), `call_type`, `provider`, `model`, `status`, `duration_ms`, tokens, `user_id`
-- Payloads: redigir API keys; truncar texto conforme env (`AI_LOG_LLM_CONTENT` só controla **conteúdo**, não se grava o registro)
 - Falhas (`status=error`) **também** geram log
 - Status `pending` → `success`|`error` permitido **uma vez** (completar chamada); demais colunas imutáveis após fechamento
 

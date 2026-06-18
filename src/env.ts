@@ -11,7 +11,6 @@ export const env = createEnv({
 		EMAIL_FROM_ADDRESS: z.string().email().default("noreply@gugacarbo.space"),
 		EMAIL_FROM_NAME: z.string().default("Study App"),
 		ADMIN_EMAILS: z.string().default(""),
-		AI_LOG_LLM_CONTENT: z.enum(["true", "false"]).default("true"),
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
@@ -32,7 +31,6 @@ export type AppEnv = {
 	EMAIL_FROM_ADDRESS: string;
 	EMAIL_FROM_NAME: string;
 	ADMIN_EMAILS: string;
-	AI_LOG_LLM_CONTENT: "true" | "false";
 };
 
 export function parseAdminEmails(raw: string): Set<string> {
