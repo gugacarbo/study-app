@@ -39,6 +39,11 @@ describe("require-session", () => {
 		await expect(getSessionFromHeaders(new Headers())).resolves.toBeNull();
 	});
 
+	it("getSessionFromHeaders returns null when better-auth throws", async () => {
+		mockGetSession.mockRejectedValue(new Error("Failed to get session"));
+		await expect(getSessionFromHeaders(new Headers())).resolves.toBeNull();
+	});
+
 	it("requireSession returns 401 without session", async () => {
 		mockGetSession.mockResolvedValue(null);
 		await expect(requireSession(new Headers())).rejects.toMatchObject({

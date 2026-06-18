@@ -5,7 +5,12 @@ import { getAuth } from "@/lib/auth";
 
 export async function getSessionFromHeaders(headers: Headers) {
 	const auth = await getAuth();
-	return auth.api.getSession({ headers });
+	try {
+		return await auth.api.getSession({ headers });
+	} catch {
+		// Invalid/stale cookie, secret mismatch, or transient DB error — treat as logged out.
+		return null;
+	}
 }
 
 export async function requireSession(headers: Headers) {
