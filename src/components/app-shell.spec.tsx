@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 
 const navigate = vi.fn();
+let mockPathname = "/";
 
 vi.mock("@/components/theme-provider", () => ({
 	useTheme: () => ({ theme: "light", setTheme: vi.fn() }),
@@ -14,7 +15,11 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 	return {
 		...actual,
 		useNavigate: () => navigate,
-		useRouterState: () => "/",
+		useRouterState: (options?: {
+			select?: (state: { location: { pathname: string } }) => string;
+		}) => {
+			return options?.select?.({ location: { pathname: mockPathname } }) ?? mockPathname;
+		},
 		Link: ({
 			to,
 			children,
@@ -62,6 +67,7 @@ describe("AppShell", () => {
 	afterEach(() => {
 		cleanup();
 		navigate.mockClear();
+		mockPathname = "/";
 	});
 
 	it("renders desktop nav links and no bottom bar", () => {
@@ -127,5 +133,20 @@ describe("AppShell", () => {
 		expect(screen.getAllByRole("button", { name: /provas/i }).length).toBeGreaterThan(
 			0,
 		);
+	});
+
+	it("uses wide layout on job monitor routes", () => {
+		mockPathname = "/jobs/job-1";
+
+		const { container } = renderShell(
+			<AppShell
+				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
+				isAdmin={false}
+			>
+				<p>Job</p>
+			</AppShell>,
+		);
+
+		expect(container.firstChild).toHaveClass("max-w-screen-xl");
 	});
 });

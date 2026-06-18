@@ -8,6 +8,7 @@ import {
 	hasActiveIngestJob,
 	listJobEvents,
 	listJobsForAdmin,
+	requestJobCancelIfActive,
 	setCancelRequested,
 	updateJobStatus,
 } from "@/db/queries/jobs";
@@ -156,6 +157,52 @@ describe("jobs queries", () => {
 		await setCancelRequested(db, jobId);
 		const job = await getJobById(db, jobId, userId);
 		expect(job?.cancelRequestedAt).not.toBeNull();
+	});
+
+	it("requestJobCancelIfActive finalizes queued jobs immediately", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const jobId = createId();
+
+		await seedUser(db, userId);
+		await createJob(db, {
+			id: jobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+
+		const job = await getJobById(db, jobId, userId);
+		expect(job).not.toBeNull();
+
+		const result = await requestJobCancelIfActive(db, job!);
+		expect(result).toEqual({ cancelled: true, alreadyTerminal: false });
+
+		const updated = await getJobById(db, jobId, userId);
+		expect(updated?.status).toBe(JOB_STATUS.CANCELLED);
+		expect(updated?.cancelRequestedAt).not.toBeNull();
+	});
+
+	it("requestJobCancelIfActive only flags running jobs for consumer", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const jobId = createId();
+
+		await seedUser(db, userId);
+		await createJob(db, {
+			id: jobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.RUNNING,
+		});
+
+		const job = await getJobById(db, jobId, userId);
+		const result = await requestJobCancelIfActive(db, job!);
+		expect(result).toEqual({ cancelled: true, alreadyTerminal: false });
+
+		const updated = await getJobById(db, jobId, userId);
+		expect(updated?.status).toBe(JOB_STATUS.RUNNING);
+		expect(updated?.cancelRequestedAt).not.toBeNull();
 	});
 
 	it("hasActiveIngestJob detects active ingest on same exam", async () => {

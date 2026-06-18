@@ -32,6 +32,13 @@ export type IngestSummaryPart = {
 	};
 };
 
+export type IngestTextPart = {
+	type: "text";
+	text: string;
+};
+
+export type IngestJobEventPart = IngestDataPart | IngestTextPart;
+
 export type IngestDataPart =
 	| IngestPhasePart
 	| IngestStreamProgressPart
@@ -76,5 +83,13 @@ export function buildIngestSummaryPart(input: {
 }
 
 export function serializeIngestDataPart(part: IngestDataPart): string {
+	return JSON.stringify(part);
+}
+
+export function buildIngestTextPart(text: string): IngestTextPart {
+	return { type: "text", text };
+}
+
+export function serializeIngestJobEventPart(part: IngestJobEventPart): string {
 	return JSON.stringify(part);
 }

@@ -324,4 +324,100 @@ describe("runIngest", () => {
 			]),
 		);
 	});
+
+	it("cancels before running when cancel was requested while queued", async () => {
+		const { deps, updateJobStatus } = createRunDeps();
+		deps.isCancelRequested = vi.fn(async () => true);
+
+		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
+			id: examId,
+			userId,
+			name: "Prova",
+			source: "prova.md",
+			createdAt: null,
+		});
+
+		await runIngest({
+			jobId,
+			db: {} as AppDatabase,
+			filesBucket: {} as never,
+			deps,
+		});
+
+		expect(updateJobStatus).toHaveBeenCalledWith(jobId, {
+			status: JOB_STATUS.CANCELLED,
+			error: null,
+		});
+		expect(updateJobStatus).not.toHaveBeenCalledWith(
+			jobId,
+			expect.objectContaining({ status: JOB_STATUS.RUNNING }),
+		);
+	});
+
+	it("cancels during LLM extraction when cancel is requested", async () => {
+		let streamChunks = 0;
+		const isCancelRequested = vi.fn(async () => {
+			streamChunks += 1;
+			return streamChunks >= 2;
+		});
+
+		const streamObject = vi.fn(() => ({
+			partialObjectStream: (async function* () {
+				yield { questions: [makeQuestion(1)] };
+				yield { questions: [makeQuestion(1), makeQuestion(2)] };
+			})(),
+			object: Promise.resolve({ questions: [makeQuestion(1)] }),
+		})) as unknown as RunIngestDeps["streamObject"];
+
+		const updateJobStatus = vi.fn(async () => undefined);
+		const appendJobEvent = vi.fn(async () => undefined);
+		const deps: RunIngestDeps = {
+			getJobById: vi.fn(async () => makeJob()),
+			updateJobStatus,
+			appendJobEvent,
+			isCancelRequested,
+			getAiModel: vi.fn(async () => ({ modelId: "gpt-4o" } as never)),
+			streamObject,
+			sleep: vi.fn(async () => undefined),
+			persistQuestionsDeps: {
+				existsNormalizedQuestion: vi.fn(async () => false),
+				batchInsertQuestions: vi.fn(async () => undefined),
+			},
+		};
+
+		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
+			id: examId,
+			userId,
+			name: "Prova",
+			source: "prova.md",
+			createdAt: null,
+		});
+		vi.spyOn(filesQueries, "getFileByIdWithOwnership").mockResolvedValue({
+			id: fileId,
+			examId,
+			name: "prova.md",
+			r2Key: "users/user/files/prova.md",
+			mimeType: "text/markdown",
+			size: 10,
+			ttlSeconds: 0,
+			createdAt: null,
+		});
+		vi.spyOn(r2Audit, "auditedR2Get").mockResolvedValue({
+			arrayBuffer: async () => new TextEncoder().encode("conteúdo").buffer,
+		} as never);
+		vi.spyOn(llmLogging, "logLlmCallStart").mockResolvedValue(undefined);
+		vi.spyOn(llmLogging, "logLlmCallComplete").mockResolvedValue(undefined);
+
+		await runIngest({
+			jobId,
+			db: {} as AppDatabase,
+			filesBucket: {} as never,
+			deps,
+		});
+
+		expect(updateJobStatus).toHaveBeenCalledWith(jobId, {
+			status: JOB_STATUS.CANCELLED,
+			error: null,
+		});
+	});
 });

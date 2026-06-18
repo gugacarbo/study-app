@@ -20,6 +20,7 @@ import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
 import { Route as AdminConfigIndexRouteImport } from './routes/admin/config/index'
 import { Route as AppExamsIndexRouteImport } from './routes/_app/exams/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AppJobsJobIdIndexRouteImport } from './routes/_app/jobs/$jobId/index'
 import { Route as AppExamsNewIndexRouteImport } from './routes/_app/exams/new/index'
 import { Route as ApiJobsIdUploadRouteImport } from './routes/api/jobs/$id/upload'
 import { Route as ApiJobsIdStreamRouteImport } from './routes/api/jobs/$id/stream'
@@ -80,6 +81,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppJobsJobIdIndexRoute = AppJobsJobIdIndexRouteImport.update({
+  id: '/jobs/$jobId/',
+  path: '/jobs/$jobId/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppExamsNewIndexRoute = AppExamsNewIndexRouteImport.update({
   id: '/exams/new/',
   path: '/exams/new/',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/exams/new/': typeof AppExamsNewIndexRoute
+  '/jobs/$jobId/': typeof AppJobsJobIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/exams/new': typeof AppExamsNewIndexRoute
+  '/jobs/$jobId': typeof AppJobsJobIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/_app/exams/new/': typeof AppExamsNewIndexRoute
+  '/_app/jobs/$jobId/': typeof AppJobsJobIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id/stream'
     | '/api/jobs/$id/upload'
     | '/exams/new/'
+    | '/jobs/$jobId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id/stream'
     | '/api/jobs/$id/upload'
     | '/exams/new'
+    | '/jobs/$jobId'
   id:
     | '__root__'
     | '/_app'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id/stream'
     | '/api/jobs/$id/upload'
     | '/_app/exams/new/'
+    | '/_app/jobs/$jobId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -303,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/jobs/$jobId/': {
+      id: '/_app/jobs/$jobId/'
+      path: '/jobs/$jobId'
+      fullPath: '/jobs/$jobId/'
+      preLoaderRoute: typeof AppJobsJobIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/exams/new/': {
       id: '/_app/exams/new/'
       path: '/exams/new'
@@ -345,12 +364,14 @@ interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppExamsIndexRoute: typeof AppExamsIndexRoute
   AppExamsNewIndexRoute: typeof AppExamsNewIndexRoute
+  AppJobsJobIdIndexRoute: typeof AppJobsJobIdIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppExamsIndexRoute: AppExamsIndexRoute,
   AppExamsNewIndexRoute: AppExamsNewIndexRoute,
+  AppJobsJobIdIndexRoute: AppJobsJobIdIndexRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(

@@ -5,6 +5,7 @@ import {
 	ACTIVE_INGEST_STATUSES,
 	isCancellableJobStatus,
 	JOB_KIND,
+	JOB_STATUS,
 	type IngestJobMetadata,
 	parseIngestJobMetadata,
 	type JobStatus,
@@ -166,6 +167,18 @@ export async function requestJobCancelIfActive(
 		return { cancelled: false, alreadyTerminal: true };
 	}
 	await setCancelRequested(db, job.id);
+
+	// No consumer work yet — finalize immediately instead of waiting for dequeue.
+	if (
+		job.status === JOB_STATUS.QUEUED ||
+		job.status === JOB_STATUS.AWAITING_UPLOAD
+	) {
+		await updateJobStatus(db, job.id, {
+			status: JOB_STATUS.CANCELLED,
+			error: null,
+		});
+	}
+
 	return { cancelled: true, alreadyTerminal: false };
 }
 

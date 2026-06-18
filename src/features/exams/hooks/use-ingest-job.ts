@@ -1,142 +1,44 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
-	INGEST_POLL_INTERVAL_MS,
 	createIngestJob,
-	fetchIngestJobEvents,
 	uploadIngestJobFile,
-	type JobEventsResponse,
 } from "@/features/exams/lib/ingest-api";
-import {
-	JOB_STATUS,
-	type IngestJobMetadata,
-	type JobStatus,
-} from "@/lib/job-kinds";
 
-export type IngestUiState =
-	| "idle"
-	| "uploading"
-	| "processing"
-	| "done"
-	| "failed";
-
-export type IngestJobSnapshot = {
-	jobId: string | null;
-	examId: string | null;
-	uiState: IngestUiState;
-	jobStatus: string | null;
-	phase: string | null;
-	error: string | null;
-	metadata: IngestJobMetadata | null;
-};
-
-const IDLE_SNAPSHOT: IngestJobSnapshot = {
-	jobId: null,
-	examId: null,
-	uiState: "idle",
-	jobStatus: null,
-	phase: null,
-	error: null,
-	metadata: null,
-};
-
-const TERMINAL = new Set<JobStatus>([
-	JOB_STATUS.COMPLETED,
-	JOB_STATUS.FAILED,
-	JOB_STATUS.CANCELLED,
-]);
-
-function eventsToSnapshot(
-	prev: IngestJobSnapshot,
-	data: JobEventsResponse,
-): IngestJobSnapshot {
-	const done = data.status === JOB_STATUS.COMPLETED;
-	const failed = TERMINAL.has(data.status) && !done;
-	return {
-		...prev,
-		uiState: done ? "done" : failed ? "failed" : "processing",
-		jobStatus: data.status,
-		phase: data.phase,
-		error: data.error,
-		metadata: data.metadata,
-	};
-}
+export type IngestUiState = "idle" | "uploading" | "failed";
 
 export function useIngestJob() {
-	const [snapshot, setSnapshot] = useState<IngestJobSnapshot>(IDLE_SNAPSHOT);
-
-	const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-	const clearPoll = useCallback(() => {
-		if (pollTimerRef.current) {
-			clearInterval(pollTimerRef.current);
-			pollTimerRef.current = null;
-		}
-	}, []);
-
-	useEffect(() => () => clearPoll(), [clearPoll]);
-
-	const pollOnce = useCallback(
-		async (jobId: string) => {
-			try {
-				const data = await fetchIngestJobEvents(jobId);
-				setSnapshot((prev) => eventsToSnapshot(prev, data));
-				if (TERMINAL.has(data.status)) clearPoll();
-			} catch (error) {
-				setSnapshot((prev) => ({
-					...prev,
-					uiState: "failed",
-					error: error instanceof Error ? error.message : "Erro desconhecido",
-				}));
-				clearPoll();
-			}
-		},
-		[clearPoll],
-	);
-
-	const startPolling = useCallback(
-		(jobId: string) => {
-			clearPoll();
-			void pollOnce(jobId);
-			pollTimerRef.current = setInterval(
-				() => void pollOnce(jobId),
-				INGEST_POLL_INTERVAL_MS,
-			);
-		},
-		[clearPoll, pollOnce],
-	);
+	const navigate = useNavigate();
+	const [uiState, setUiState] = useState<IngestUiState>("idle");
+	const [error, setError] = useState<string | null>(null);
 
 	const submit = useCallback(
 		async (input: { file: File }) => {
-			setSnapshot({ ...IDLE_SNAPSHOT, uiState: "uploading" });
+			setUiState("uploading");
+			setError(null);
 
 			try {
-				const { jobId, examId } = await createIngestJob();
-				setSnapshot((prev) => ({ ...prev, jobId, examId }));
+				const { jobId } = await createIngestJob();
 				await uploadIngestJobFile(jobId, input.file);
-				setSnapshot((prev) => ({
-					...prev,
-					uiState: "processing",
-					jobStatus: JOB_STATUS.QUEUED,
-				}));
-				startPolling(jobId);
-			} catch (error) {
-				setSnapshot((prev) => ({
-					...prev,
-					uiState: "failed",
-					error: error instanceof Error ? error.message : "Erro desconhecido",
-				}));
+				await navigate({ to: "/jobs/$jobId", params: { jobId } });
+			} catch (uploadError) {
+				setUiState("failed");
+				setError(
+					uploadError instanceof Error
+						? uploadError.message
+						: "Erro desconhecido",
+				);
 			}
 		},
-		[startPolling],
+		[navigate],
 	);
 
 	const reset = useCallback(() => {
-		clearPoll();
-		setSnapshot(IDLE_SNAPSHOT);
-	}, [clearPoll]);
+		setUiState("idle");
+		setError(null);
+	}, []);
 
-	const isBusy =
-		snapshot.uiState === "uploading" || snapshot.uiState === "processing";
+	const isBusy = uiState === "uploading";
 
-	return { ...snapshot, submit, reset, isBusy };
+	return { uiState, error, submit, reset, isBusy };
 }

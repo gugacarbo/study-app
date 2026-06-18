@@ -41,8 +41,15 @@ export function getAppPageTitle(pathname: string): string {
 	if (pathname === "/exams/new") {
 		return "Nova prova";
 	}
+	if (pathname.startsWith("/jobs/")) {
+		return "Importação";
+	}
 	if (pathname === "/exams" || pathname.startsWith("/exams/")) {
 		return "Provas";
 	}
 	return "Study App";
+}
+
+export function isWideAppShellPath(pathname: string): boolean {
+	return pathname.startsWith("/jobs/");
 }

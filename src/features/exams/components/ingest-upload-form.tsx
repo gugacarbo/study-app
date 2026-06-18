@@ -8,32 +8,11 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { INGEST_PHASE } from "@/lib/job-kinds";
 import { useIngestJob } from "@/features/exams/hooks/use-ingest-job";
-
-const PHASE_LABELS: Record<string, string> = {
-	[INGEST_PHASE.READING_FILE]: "Lendo arquivo…",
-	[INGEST_PHASE.EXTRACTING]: "Extraindo questões…",
-	[INGEST_PHASE.PERSISTING]: "Salvando questões…",
-};
-
-function formatPhaseLabel(phase: string | null): string | null {
-	if (!phase) return null;
-	return PHASE_LABELS[phase] ?? phase;
-}
 
 export function IngestUploadForm() {
 	const [file, setFile] = useState<File | null>(null);
-	const {
-		uiState,
-		phase,
-		error,
-		metadata,
-		examId,
-		submit,
-		reset,
-		isBusy,
-	} = useIngestJob();
+	const { uiState, error, submit, reset, isBusy } = useIngestJob();
 
 	const canSubmit = file != null && !isBusy;
 
@@ -76,48 +55,16 @@ export function IngestUploadForm() {
 				</Button>
 			</form>
 
-			{uiState === "processing" ? (
-				<Alert>
-					<AlertTitle>Processando</AlertTitle>
-					<AlertDescription>
-						{formatPhaseLabel(phase) ?? "Aguardando início do processamento…"}
-					</AlertDescription>
-				</Alert>
-			) : null}
-
-			{uiState === "done" && metadata ? (
-				<Alert>
-					<AlertTitle>Importação concluída</AlertTitle>
-					<AlertDescription>
-						<p>
-							{metadata.persistedCount ?? 0} questão(ões) salva(s)
-							{metadata.skippedDuplicateCount
-								? `, ${metadata.skippedDuplicateCount} duplicata(s) ignorada(s)`
-								: ""}
-							{metadata.invalidCount
-								? `, ${metadata.invalidCount} inválida(s)`
-								: ""}
-							.
-						</p>
-						{examId ? (
-							<p className="mt-2 text-xs text-muted-foreground">
-								Exame: {examId}
-							</p>
-						) : null}
-					</AlertDescription>
-				</Alert>
-			) : null}
-
 			{uiState === "failed" && error ? (
 				<Alert variant="destructive">
-					<AlertTitle>Falha na importação</AlertTitle>
+					<AlertTitle>Falha no envio</AlertTitle>
 					<AlertDescription>{error}</AlertDescription>
 				</Alert>
 			) : null}
 
-			{uiState === "done" || uiState === "failed" ? (
+			{uiState === "failed" ? (
 				<Button type="button" variant="outline" onClick={handleReset}>
-					Nova importação
+					Tentar novamente
 				</Button>
 			) : null}
 		</div>

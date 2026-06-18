@@ -63,7 +63,8 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
 	const phaseLabel = formatJobPhase(detail.phase);
-	const canCancel = isCancellableJobStatus(detail.status);
+	const canCancel =
+		isCancellableJobStatus(detail.status) && detail.cancelRequestedAt == null;
 	const ingestMetadata =
 		detail.kind === JOB_KIND.INGEST && detail.metadata
 			? (detail.metadata as JsonObject as unknown as IngestJobMetadata)
@@ -164,6 +165,13 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 					</ul>
 				)}
 			</div>
+
+			{detail.cancelRequestedAt &&
+			isCancellableJobStatus(detail.status) ? (
+				<p className="text-sm text-muted-foreground">
+					Cancelamento solicitado — o consumer irá parar entre etapas.
+				</p>
+			) : null}
 
 			{canCancel ? (
 				<SheetFooter className="px-0">

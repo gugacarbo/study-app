@@ -10,7 +10,9 @@ import {
 	buildIngestPhasePart,
 	buildIngestStreamProgressPart,
 	buildIngestSummaryPart,
+	buildIngestTextPart,
 	serializeIngestDataPart,
+	serializeIngestJobEventPart,
 } from "@/features/ai/jobs/ingest/ingest-events";
 import {
 	persistQuestions,
@@ -34,6 +36,11 @@ import {
 } from "@/lib/llm-logging";
 import { auditedR2Get } from "@/lib/r2-audit";
 
+const PHASE_TEXT: Record<(typeof INGEST_PHASE)[keyof typeof INGEST_PHASE], string> = {
+	[INGEST_PHASE.READING_FILE]: "Lendo o arquivo enviado…",
+	[INGEST_PHASE.EXTRACTING]: "Extraindo questões com o modelo de IA…",
+	[INGEST_PHASE.PERSISTING]: "Salvando questões no banco de dados…",
+};
 const INGEST_SYSTEM_PROMPT =
 	"Extraia questões objetivas de prova universitária em português. " +
 	"Preencha topic com uma classificação curta do assunto de cada questão.";
@@ -90,6 +97,11 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 	const metadata = parseIngestJobMetadata(job.metadata);
 	if (!metadata?.examId || !metadata.modelId || !metadata.fileId) {
 		await failJob(ctx, job, JOB_ERROR_CODE.EXAM_NOT_FOUND, metadata);
+		return;
+	}
+
+	if (await ctx.deps.isCancelRequested(ctx.jobId)) {
+		await cancelJob(ctx);
 		return;
 	}
 
@@ -156,6 +168,11 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 		},
 	});
 
+	if (await ctx.deps.isCancelRequested(ctx.jobId)) {
+		await cancelJob(ctx);
+		return;
+	}
+
 	await ctx.deps.appendJobEvent(
 		ctx.jobId,
 		serializeIngestDataPart(
@@ -186,6 +203,15 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 		});
 		return;
 	}
+
+	await ctx.deps.appendJobEvent(
+		ctx.jobId,
+		serializeIngestJobEventPart(
+			buildIngestTextPart(
+				`Importação concluída: ${persistResult.persistedCount} questão(ões) salva(s).`,
+			),
+		),
+	);
 
 	await ctx.deps.updateJobStatus(ctx.jobId, {
 		status: JOB_STATUS.COMPLETED,
@@ -287,6 +313,11 @@ async function extractQuestions(
 
 			let lastQuestionsSeen = 0;
 			for await (const partial of result.partialObjectStream) {
+				if (await ctx.deps.isCancelRequested(ctx.jobId)) {
+					await cancelJob(ctx);
+					return null;
+				}
+
 				const questionsSeen = partial.questions?.length ?? 0;
 				if (questionsSeen > lastQuestionsSeen) {
 					lastQuestionsSeen = questionsSeen;
@@ -361,6 +392,10 @@ async function emitPhase(
 	await ctx.deps.appendJobEvent(
 		ctx.jobId,
 		serializeIngestDataPart(buildIngestPhasePart(phase)),
+	);
+	await ctx.deps.appendJobEvent(
+		ctx.jobId,
+		serializeIngestJobEventPart(buildIngestTextPart(PHASE_TEXT[phase])),
 	);
 }
 
