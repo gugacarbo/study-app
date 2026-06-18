@@ -97,7 +97,7 @@ Validação Zod: `ttl_seconds` inteiro, `min(0)`, `max` razoável (ex.: 10 anos 
 
 ## Questões em aberto
 
-(nenhuma)
+- [ ] Server function de download/leitura (`getFileByIdWithOwnership` + `auditedR2Get`) — fluxo descrito acima, não exposto em API v1
 
 ## Definition of Done
 

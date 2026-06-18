@@ -6,9 +6,11 @@ implemented-by:
   - src/db/schema.ts
   - src/db/client.ts
   - src/db/queries/
+  - src/db/seed/rbac-v1.ts
   - src/lib/llm-logging.ts
   - src/lib/r2-audit.ts
   - migrations/0000_odd_payback.sql
+  - migrations/0001_seed_rbac.sql
 ---
 
 # Schema D1 v1 clean slate com isolamento por usuário
@@ -25,9 +27,10 @@ Schema D1 único (Drizzle) para Better Auth + domínios do app, com isolamento p
 
 1. Remover migrations antigas.
 2. Schema completo em `src/db/schema.ts`.
-3. `npm run db:generate` → `0001_*.sql`.
-4. `npm run db:reset` local.
-5. Prod só após confirmação explícita.
+3. `npm run db:generate` → nova migration de schema (ex.: `0000_*.sql`).
+4. Migration de seed RBAC `0001_seed_rbac.sql` (catálogo v1 — ids em `src/db/seed/rbac-v1.ts`).
+5. `npm run db:reset` local.
+6. Prod só após confirmação explícita.
 
 ### Evolução
 
@@ -69,7 +72,7 @@ Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
 
 ### RBAC (ADR-0004)
 
-Catálogo + atribuição. Seed na migration inicial.
+Catálogo + atribuição. **Seed v1 na migration `0001_seed_rbac.sql`** (após schema em `0000_*`). IDs fixos em `src/db/seed/rbac-v1.ts`. Fallback idempotente `seedRbacIfEmpty()` em `src/db/queries/rbac.ts` para ambientes sem migrate ou testes.
 
 | Tabela             | Colunas principais                                                    | Índices           |
 | ------------------ | --------------------------------------------------------------------- | ----------------- |
@@ -203,7 +206,7 @@ Truncar em **4096** chars no write.
 | 3   | insert sem `user_id`                     | constraint / Zod fail                           |
 | 4   | query filha sem checar ownership         | bug                                             |
 | 5   | segundo `memory_profile` mesmo `user_id` | PK violation                                    |
-| 6   | `db:reset` local                         | schema vazio; app sobe                          |
+| 6   | `db:reset` local                         | schema + catálogo RBAC; app sobe              |
 | 7   | signup sem `user_roles`                  | bug — todo user recebe role `user`              |
 | 8   | único admin remove próprio `admin`       | rejeitar (ADR-0004)                             |
 | 9   | `files.ttl_seconds = 0`                  | purge diário ignora (SPEC-0002)                 |
@@ -233,8 +236,8 @@ npm test -- src/db/queries/rbac.test.ts                         # verdes
 ```text
 npm run typecheck                                              # exit 0
 npm run db:generate                                            # exit 0
-CI=true npm run db:migrate                                     # exit 0
+CI=true npm run db:migrate                                     # exit 0 (0000 + 0001)
 npm test -- src/db/schema.test.ts                              # 2 passed
 npm test -- src/db/queries/user-scoping.test.ts                # 1 passed
-npm test -- src/db/queries/rbac.test.ts                        # 2 passed
+npm test -- src/db/queries/rbac.test.ts                        # 3 passed
 ```

@@ -133,6 +133,7 @@
       "src/lib/auth.ts",
       "src/lib/auth-client.ts",
       "src/lib/auth-allowed-email-domain.ts",
+      "src/lib/auth-magic-link-email.ts",
       "src/lib/rbac-bootstrap.ts",
       "src/lib/rbac.ts",
       "src/routes/login/index.tsx",
@@ -159,9 +160,11 @@
       "src/db/schema.ts",
       "src/db/client.ts",
       "src/db/queries/",
+      "src/db/seed/rbac-v1.ts",
       "src/lib/llm-logging.ts",
       "src/lib/r2-audit.ts",
-      "migrations/0000_odd_payback.sql"
+      "migrations/0000_odd_payback.sql",
+      "migrations/0001_seed_rbac.sql"
     ]
   },
   {
