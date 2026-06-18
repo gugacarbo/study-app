@@ -1,4 +1,7 @@
-import { purgeExpiredBlobs, type PurgeBindings } from "@/functions/storage/purge-expired-blobs";
+import {
+	type PurgeBindings,
+	purgeExpiredBlobs,
+} from "@/functions/storage/purge-expired-blobs";
 
 export async function handleScheduled(
 	_event: ScheduledEvent,

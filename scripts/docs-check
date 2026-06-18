@@ -10,7 +10,8 @@ O que faz:
   2. DERIVA id do filename (docs/adr/0032-x.md → ADR-0032) e title do primeiro
      H1 do corpo (após o frontmatter; comentários HTML não contam).
   3. Valida frontmatter: só o subconjunto YAML suportado (escalar, lista
-     inline, lista em bloco) — linha não reconhecida é ERRO, nunca ignorada;
+     inline, lista em bloco `- item`, lista multilinha `[` … `]`) — linha não
+     reconhecida é ERRO, nunca ignorada;
      campos obrigatórios (status, date), data de calendário real AAAA-MM-DD,
      vocabulário de status por camada; campo fora do vocabulário → AVISO.
   4. Valida grafo: builds-on/superseded-by resolvem (cross-repo vira AVISO);
@@ -83,13 +84,36 @@ def _clean(v):
 
 
 def parse_frontmatter(raw):
-    """Parser do subconjunto suportado: escalar, lista inline, lista em bloco.
-    Linha fora do subconjunto vira erro — nunca é ignorada em silêncio."""
-    fm, errs, pending = {}, [], None
+    """Parser do subconjunto suportado: escalar, lista inline, lista em bloco (- item),
+    lista em bloco com colchetes multilinha. Linha fora do subconjunto vira erro."""
+    fm, errs = {}, []
+    pending = None       # chave aguardando itens `- foo` em bloco
+    bracket_key = None   # chave aguardando itens dentro de `[` … `]` multilinha
+    bracket_items = []
+
+    def finish_bracket():
+        nonlocal bracket_key, bracket_items, pending
+        if bracket_key is None:
+            return
+        fm[bracket_key] = bracket_items
+        bracket_key = None
+        bracket_items = []
+        pending = None
+
     for ln, line in enumerate(raw.splitlines(), start=2):  # linha 1 do arquivo é '---'
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
+
+        if bracket_key is not None:
+            if stripped == "]":
+                finish_bracket()
+                continue
+            item = _clean(_strip_comment(stripped.rstrip(",")))
+            if item:
+                bracket_items.append(item)
+            continue
+
         m = ITEM_RE.match(line)
         if m:
             if pending is None:
@@ -99,6 +123,13 @@ def parse_frontmatter(raw):
                 fm[pending] = []
             fm[pending].append(_clean(_strip_comment(m.group(1))))
             continue
+
+        if pending is not None and stripped == "[":
+            bracket_key = pending
+            bracket_items = []
+            pending = None
+            continue
+
         m = KEY_RE.match(line)
         if not m:
             errs.append(f"frontmatter linha {ln}: sintaxe não suportada: {stripped!r}")
@@ -107,15 +138,22 @@ def parse_frontmatter(raw):
         key, val = m.group(1), _strip_comment(m.group(2))
         pending = None
         if val == "":
-            fm[key] = None          # vazio: null escalar, ou início de lista em bloco
+            fm[key] = None
             pending = key
+        elif val == "[":
+            bracket_key = key
+            bracket_items = []
+            fm[key] = None
         elif val.startswith("[") and val.endswith("]"):
             inner = val[1:-1].strip()
-            fm[key] = [_clean(v) for v in inner.split(",")] if inner else []
+            fm[key] = [_clean(v) for v in inner.split(",") if _clean(v)] if inner else []
         elif val in ("null", "~"):
             fm[key] = None
         else:
             fm[key] = _clean(val)
+
+    if bracket_key is not None:
+        errs.append(f"frontmatter: lista '[' de '{bracket_key}' sem fechamento ']'")
     return fm, errs
 
 
