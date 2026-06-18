@@ -18,7 +18,7 @@ export function AppShell({ user, isAdmin, children }: AppShellProps) {
 	const pageTitle = getAppPageTitle(pathname);
 
 	return (
-		<div className="mx-auto flex h-dvh w-full max-w-2xl flex-col bg-background">
+		<div className="mx-auto flex h-dvh w-full max-w-4xl flex-col bg-background">
 			<AppHeader
 				user={user}
 				isAdmin={isAdmin}

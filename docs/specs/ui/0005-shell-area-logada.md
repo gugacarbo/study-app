@@ -85,7 +85,7 @@ __root.tsx (RootLayout)
 
 | Elemento   | Classes / regra                                                                 |
 | ---------- | ------------------------------------------------------------------------------- |
-| Container  | `mx-auto flex h-dvh w-full max-w-2xl flex-col bg-background`                   |
+| Container  | `mx-auto flex h-dvh w-full max-w-4xl flex-col bg-background`                   |
 | `<main>`   | `flex-1 overflow-y-auto px-4 py-4` — **sem** `pb-24`                          |
 | Header     | `h-14`, `border-b`, `backdrop-blur` opcional                                    |
 | Título     | `text-sm font-semibold truncate` — **sem** subtítulo "Study App"                |
