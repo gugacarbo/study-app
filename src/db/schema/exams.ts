@@ -1,0 +1,114 @@
+import { sql } from "drizzle-orm";
+import {
+	index,
+	integer,
+	real,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+import { user } from "./auth";
+
+export const exams = sqliteTable(
+	"exams",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		source: text("source"),
+		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_exams_user_id").on(table.userId),
+		index("idx_exams_user_created").on(table.userId, table.createdAt),
+	],
+);
+
+export const questions = sqliteTable(
+	"questions",
+	{
+		id: text("id").primaryKey(),
+		examId: text("exam_id")
+			.notNull()
+			.references(() => exams.id, { onDelete: "cascade" }),
+		question: text("question").notNull(),
+		options: text("options").notNull(),
+		answers: text("answers").notNull(),
+		scoringMode: text("scoring_mode").notNull().default("exact"),
+		explanation: text("explanation"),
+		deepExplanation: text("deep_explanation"),
+		topic: text("topic"),
+		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [index("idx_questions_exam_id").on(table.examId)],
+);
+
+export const attempts = sqliteTable(
+	"attempts",
+	{
+		id: text("id").primaryKey(),
+		examId: text("exam_id")
+			.notNull()
+			.references(() => exams.id, { onDelete: "cascade" }),
+		topic: text("topic"),
+		totalQuestions: integer("total_questions").notNull(),
+		answeredQuestions: integer("answered_questions").notNull().default(0),
+		correctAnswers: real("correct_answers").notNull().default(0),
+		status: text("status").notNull().default("in_progress"),
+		startedAt: text("started_at").default(sql`CURRENT_TIMESTAMP`),
+		completedAt: text("completed_at"),
+		updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_attempts_exam_id").on(table.examId),
+		index("idx_attempts_status").on(table.status),
+	],
+);
+
+export const attemptAnswers = sqliteTable(
+	"attempt_answers",
+	{
+		id: text("id").primaryKey(),
+		attemptId: text("attempt_id")
+			.notNull()
+			.references(() => attempts.id, { onDelete: "cascade" }),
+		questionId: text("question_id")
+			.notNull()
+			.references(() => questions.id, { onDelete: "cascade" }),
+		userAnswer: text("user_answer").notNull(),
+		correct: integer("correct", { mode: "boolean" }).notNull(),
+		credit: real("credit"),
+		answeredAt: text("answered_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_attempt_answers_attempt_id").on(table.attemptId),
+		index("idx_attempt_answers_question_id").on(table.questionId),
+		uniqueIndex("uq_attempt_answers_attempt_question").on(
+			table.attemptId,
+			table.questionId,
+		),
+	],
+);
+
+export const files = sqliteTable(
+	"files",
+	{
+		id: text("id").primaryKey(),
+		examId: text("exam_id")
+			.notNull()
+			.references(() => exams.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		r2Key: text("r2_key").notNull(),
+		mimeType: text("mime_type"),
+		size: integer("size"),
+		ttlSeconds: integer("ttl_seconds").notNull().default(0),
+		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_files_exam_id").on(table.examId),
+		uniqueIndex("uq_files_r2_key").on(table.r2Key),
+		index("idx_files_ttl_purge").on(table.ttlSeconds, table.createdAt),
+	],
+);
