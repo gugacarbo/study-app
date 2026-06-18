@@ -6,7 +6,26 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const config = defineConfig({
-	resolve: { tsconfigPaths: true },
+	resolve: {
+		tsconfigPaths: true,
+		dedupe: ["react", "react-dom"],
+	},
+	// Pre-bundle React in the SSR (workerd) environment at startup so dep
+	// discovery does not trigger mid-session re-optimizations with stale hashes.
+	environments: {
+		ssr: {
+			optimizeDeps: {
+				include: [
+					"react",
+					"react/jsx-runtime",
+					"react/jsx-dev-runtime",
+					"react-dom",
+					"react-dom/server",
+					"@tanstack/react-router > @tanstack/react-store",
+				],
+			},
+		},
+	},
 	server: {
 		watch: {
 			ignored: [
