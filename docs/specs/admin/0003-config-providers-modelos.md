@@ -1,8 +1,31 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-17
 builds-on: [ADR-0007, ADR-0003, ADR-0006, ADR-0004]
-implemented-by: []
+implemented-by:
+  - migrations/0002_boring_talkback.sql
+  - src/db/schema/ai.ts
+  - src/db/schema/rbac.ts
+  - src/db/queries/ai-providers.ts
+  - src/db/queries/ai-models.ts
+  - src/db/queries/config.ts
+  - src/db/queries/users.ts
+  - src/db/queries/rbac.ts
+  - src/lib/config-encryption.ts
+  - src/lib/ai-config.ts
+  - src/lib/rbac.ts
+  - src/functions/auth/require-session.ts
+  - src/functions/admin/providers.ts
+  - src/functions/admin/providers-schemas.ts
+  - src/functions/admin/models.ts
+  - src/functions/admin/models-schemas.ts
+  - src/functions/admin/config.ts
+  - src/functions/admin/users.ts
+  - src/functions/admin/helpers.ts
+  - src/routes/admin/index.tsx
+  - src/routes/admin/config/index.tsx
+  - src/routes/admin/users/index.tsx
+  - src/features/admin/
 ---
 
 # Admin: providers, modelos e roles
@@ -193,5 +216,14 @@ npm run docs-check
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                                                    # exit 0
+npm test -- src/lib/config-encryption.test.ts src/lib/ai-config.test.ts            # 12 passed
+npm test -- src/db/queries/ai-providers.test.ts src/db/queries/ai-models.test.ts src/db/queries/config.test.ts  # 11 passed
+npm test -- src/functions/admin/                                                   # 28 passed
+npm test -- src/features/admin/                                                    # 2 passed
+test -f src/routes/admin/config/index.tsx                                           # ok
+grep -rq 'requireAdminSession' src/routes/admin/                                   # ok
+grep -rq 'encryptSecret' src/functions/admin/                                      # ok
+! grep -rE 'apiKey.*:.*input\.apiKey' src/routes/admin/ src/features/admin/        # ok
+npm run docs-check -- --emit-index                                                 # exit 0
 ```

@@ -125,4 +125,4 @@ npm run typecheck
 
 ## Notas
 
-Comportamento UI: SPEC-0011. Ingest upload: SPEC-0003. Formato mensagens: ADR-0008.
+Comportamento UI: SPEC-0011. Ingest upload: SPEC-0004. Formato mensagens: ADR-0008.
