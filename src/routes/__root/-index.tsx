@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Link, Scripts } from "@tanstack/react-router";
+import { ModeToggle } from "@/components/mode-toggle";
+import { ThemeProvider } from "@/components/theme-provider";
 import appCss from "../../globals.css?url";
 
 export const queryClient = new QueryClient({
@@ -29,7 +31,10 @@ export function DefaultNotFound() {
 			<p className="mt-2 text-sm text-muted-foreground">
 				The page you requested does not exist.
 			</p>
-			<Link to="/" className="mt-4 inline-flex text-sm font-medium text-primary">
+			<Link
+				to="/"
+				className="mt-4 inline-flex text-sm font-medium text-primary"
+			>
 				Back home
 			</Link>
 		</div>
@@ -38,18 +43,23 @@ export function DefaultNotFound() {
 
 export function RootProviders({ children }: { children: React.ReactNode }) {
 	return (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+		<ThemeProvider defaultTheme="system" storageKey="study-app-theme">
+			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+		</ThemeProvider>
 	);
 }
 
 export function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="pt-BR">
+		<html lang="pt-BR" suppressHydrationWarning>
 			<head>
 				<HeadContent />
 			</head>
 			<body className="min-h-dvh bg-background font-sans text-foreground antialiased">
 				<RootProviders>
+					<div className="fixed top-4 right-4 z-50">
+						<ModeToggle />
+					</div>
 					<main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-8">
 						{children}
 					</main>
