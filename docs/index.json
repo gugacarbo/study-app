@@ -123,20 +123,30 @@
     "path": "docs/specs/auth/0000-autenticacao-magic-link.md",
     "layer": "specs",
     "title": "Login por magic link e sessão protegida",
-    "status": "accepted",
+    "status": "implemented",
     "builds-on": [
       "ADR-0003",
       "ADR-0004"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "src/lib/auth.ts",
+      "src/lib/auth-client.ts",
+      "src/lib/auth-allowed-email-domain.ts",
+      "src/lib/rbac-bootstrap.ts",
+      "src/lib/rbac.ts",
+      "src/routes/login/index.tsx",
+      "src/routes/api/auth/$.ts",
+      "src/functions/auth/require-session.ts",
+      "src/routes/__root.tsx"
+    ]
   },
   {
     "id": "SPEC-0001",
     "path": "docs/specs/0001-schema-migrations-clean-slate.md",
     "layer": "specs",
     "title": "Schema D1 v1 clean slate com isolamento por usuário",
-    "status": "accepted",
+    "status": "implemented",
     "builds-on": [
       "ADR-0002",
       "ADR-0003",
@@ -145,20 +155,34 @@
       "ADR-0009"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "src/db/schema.ts",
+      "src/db/client.ts",
+      "src/db/queries/",
+      "src/lib/llm-logging.ts",
+      "src/lib/r2-audit.ts",
+      "migrations/0000_odd_payback.sql"
+    ]
   },
   {
     "id": "SPEC-0002",
     "path": "docs/specs/storage/0002-upload-arquivos-r2.md",
     "layer": "specs",
     "title": "Upload de arquivos em R2 com TTL configurável",
-    "status": "accepted",
+    "status": "implemented",
     "builds-on": [
       "ADR-0002",
       "ADR-0003",
       "ADR-0005"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "src/db/queries/files.ts",
+      "src/functions/storage/upload-file.ts",
+      "src/functions/storage/purge-expired-blobs.ts",
+      "src/workers/cron.ts",
+      "src/worker-entry.ts",
+      "wrangler.jsonc"
+    ]
   }
 ]

@@ -1,0 +1,4 @@
+BETTER_AUTH_SECRET=dev-secret-change-me-min-32-chars-long
+BETTER_AUTH_URL=http://localhost:3000
+RESEND_API_KEY=
+CONFIG_ENCRYPTION_KEY=

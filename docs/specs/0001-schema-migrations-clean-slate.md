@@ -1,8 +1,14 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-17
 builds-on: [ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0009]
-implemented-by: []
+implemented-by:
+  - src/db/schema.ts
+  - src/db/client.ts
+  - src/db/queries/
+  - src/lib/llm-logging.ts
+  - src/lib/r2-audit.ts
+  - migrations/0000_odd_payback.sql
 ---
 
 # Schema D1 v1 clean slate com isolamento por usuário
@@ -225,5 +231,10 @@ npm test -- src/db/queries/rbac.test.ts                         # verdes
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                              # exit 0
+npm run db:generate                                            # exit 0
+CI=true npm run db:migrate                                     # exit 0
+npm test -- src/db/schema.test.ts                              # 2 passed
+npm test -- src/db/queries/user-scoping.test.ts                # 1 passed
+npm test -- src/db/queries/rbac.test.ts                        # 2 passed
 ```
