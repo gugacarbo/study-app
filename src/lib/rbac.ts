@@ -1,5 +1,5 @@
 import { createDb } from "@/db/client";
-import { PERM_ADMIN_ACCESS, userHasPermission } from "@/db/queries/rbac";
+import { PERM_ADMIN_ACCESS, PERM_APP_USE, userHasPermission } from "@/db/queries/rbac";
 import { requireDB } from "@/functions/db";
 import { getAuth } from "@/lib/auth";
 
@@ -13,6 +13,14 @@ export async function requireSession(headers: Headers) {
 	if (!session?.user?.id) {
 		throw new Response("Unauthorized", { status: 401 });
 	}
+
+	const d1 = await requireDB();
+	const db = createDb(d1);
+	const allowed = await userHasPermission(db, session.user.id, PERM_APP_USE);
+	if (!allowed) {
+		throw new Response("Unauthorized", { status: 401 });
+	}
+
 	return session;
 }
 
