@@ -99,93 +99,93 @@ Sem `admin:access`, rotas `/admin/*` respondem **404** (não 403).
 
 ### Rotas (páginas)
 
-| Rota            | Guard              | Conteúdo v1                          |
-| --------------- | ------------------ | ------------------------------------ |
-| `/admin`        | `admin:access`     | Hub ou redirect → `/admin/config`    |
-| `/admin/config` | `admin:access`     | Providers, modelos, default          |
-| `/admin/users`  | `admin:access`     | Listagem + `setUserRole`             |
+| Rota            | Guard          | Conteúdo v1                       |
+| --------------- | -------------- | --------------------------------- |
+| `/admin`        | `admin:access` | Hub ou redirect → `/admin/config` |
+| `/admin/config` | `admin:access` | Providers, modelos, default       |
+| `/admin/users`  | `admin:access` | Listagem + `setUserRole`          |
 
 Demais rotas `/admin/*` futuras seguem o mesmo guard.
 
 ### Tabela `config` (chaves v1)
 
-| `key`                  | `value`              | Regra                                      |
-| ---------------------- | -------------------- | ------------------------------------------ |
-| `default_ai_model_id`  | UUID `ai_models.id`  | Modelo e provider devem existir, pertencer ao `user_id` e estar `enabled` |
+| `key`                 | `value`             | Regra                                                                     |
+| --------------------- | ------------------- | ------------------------------------------------------------------------- |
+| `default_ai_model_id` | UUID `ai_models.id` | Modelo e provider devem existir, pertencer ao `user_id` e estar `enabled` |
 
 ### API / server functions (v1)
 
 Todas exigem `requireAdminSession` (exceto `getAiModel`, usado internamente com `userId` de sessão de job).
 
-| Operação            | Entrada principal                                      | Saída / efeito                                      |
-| ------------------- | ------------------------------------------------------ | --------------------------------------------------- |
-| `listProviders`     | —                                                      | Providers sem key; `apiKeyMasked`, `hasApiKey`      |
-| `createProvider`    | `name`, `baseUrl`, `apiKey`, `enabled?`                | `{ id }`                                            |
-| `updateProvider`    | `id`, campos parciais (`apiKey` omitido = manter)      | `{ id }`                                            |
-| `deleteProvider`    | `id`                                                   | void; limpa default se necessário                   |
-| `testProvider`      | `id` ou payload de create (dry-run)                    | `{ ok, error? }`                                    |
-| `discoverModels`    | `providerId`                                           | `{ models: [...] }` sugestões                       |
-| `listModels`        | `providerId`                                           | Modelos do provider (ownership validado)            |
-| `upsertModel`       | `providerId`, `modelId`, `displayName`, …              | `{ id }`                                            |
-| `deleteModel`       | `id`                                                   | void; limpa default se necessário                   |
-| `setDefaultModel`   | `modelId` \| `null`                                    | void                                                |
-| `getAdminAiConfig`  | —                                                      | Snapshot para UI (providers, models, default)       |
-| `listUsers`         | —                                                      | `{ id, email, roles[] }`                            |
-| `setUserRole`       | `userId`, `roleKey`, `action: add \| remove`           | void                                                |
+| Operação           | Entrada principal                                 | Saída / efeito                                 |
+| ------------------ | ------------------------------------------------- | ---------------------------------------------- |
+| `listProviders`    | —                                                 | Providers sem key; `apiKeyMasked`, `hasApiKey` |
+| `createProvider`   | `name`, `baseUrl`, `apiKey`, `enabled?`           | `{ id }`                                       |
+| `updateProvider`   | `id`, campos parciais (`apiKey` omitido = manter) | `{ id }`                                       |
+| `deleteProvider`   | `id`                                              | void; limpa default se necessário              |
+| `testProvider`     | `id` ou payload de create (dry-run)               | `{ ok, error? }`                               |
+| `discoverModels`   | `providerId`                                      | `{ models: [...] }` sugestões                  |
+| `listModels`       | `providerId`                                      | Modelos do provider (ownership validado)       |
+| `upsertModel`      | `providerId`, `modelId`, `displayName`, …         | `{ id }`                                       |
+| `deleteModel`      | `id`                                              | void; limpa default se necessário              |
+| `setDefaultModel`  | `modelId` \| `null`                               | void                                           |
+| `getAdminAiConfig` | —                                                 | Snapshot para UI (providers, models, default)  |
+| `listUsers`        | —                                                 | `{ id, email, roles[] }`                       |
+| `setUserRole`      | `userId`, `roleKey`, `action: add \| remove`      | void                                           |
 
 Validação Zod em todas; URLs válidas; strings trimadas; `baseUrl` sem trailing slash redundante (normalizar no servidor).
 
 ### Criptografia (ADR-0006)
 
-| Momento        | Comportamento                                                |
-| -------------- | ------------------------------------------------------------ |
-| Insert/update  | `encryptSecret(apiKey)` antes do `INSERT`/`UPDATE`           |
-| Leitura servidor | `decryptSecret` só em `ai-config.ts` / test / discover   |
-| Resposta API   | **Nunca** `api_key` plaintext; usar `maskApiKey` (`••••` + últimos 4) |
+| Momento          | Comportamento                                                         |
+| ---------------- | --------------------------------------------------------------------- |
+| Insert/update    | `encryptSecret(apiKey)` antes do `INSERT`/`UPDATE`                    |
+| Leitura servidor | `decryptSecret` só em `ai-config.ts` / test / discover                |
+| Resposta API     | **Nunca** `api_key` plaintext; usar `maskApiKey` (`••••` + últimos 4) |
 
 `CONFIG_ENCRYPTION_KEY` ausente em runtime de mutação → **500** com mensagem clara (não gravar plaintext).
 
 ### Implementação
 
-| Peça              | Path                                                              |
-| ----------------- | ----------------------------------------------------------------- |
-| Criptografia      | `src/lib/config-encryption.ts`                                    |
-| Resolução IA      | `src/lib/ai-config.ts` — `getAiModel`, `maskApiKey`               |
-| Queries providers | `src/db/queries/ai-providers.ts`                                  |
-| Queries models    | `src/db/queries/ai-models.ts`                                     |
-| Queries config    | `src/db/queries/config.ts`                                        |
-| Queries users     | `src/db/queries/users.ts` (listagem admin)                        |
-| Functions admin   | `src/functions/admin/` — providers, models, config, users, roles  |
-| UI                | `src/features/admin/`                                             |
+| Peça              | Path                                                                |
+| ----------------- | ------------------------------------------------------------------- |
+| Criptografia      | `src/lib/config-encryption.ts`                                      |
+| Resolução IA      | `src/lib/ai-config.ts` — `getAiModel`, `maskApiKey`                 |
+| Queries providers | `src/db/queries/ai-providers.ts`                                    |
+| Queries models    | `src/db/queries/ai-models.ts`                                       |
+| Queries config    | `src/db/queries/config.ts`                                          |
+| Queries users     | `src/db/queries/users.ts` (listagem admin)                          |
+| Functions admin   | `src/functions/admin/` — providers, models, config, users, roles    |
+| UI                | `src/features/admin/`                                               |
 | Rotas             | `src/routes/admin/index.tsx`, `config/index.tsx`, `users/index.tsx` |
-| Guard             | `src/lib/rbac.ts` — `requireAdminSession` (já existe)           |
+| Guard             | `src/lib/rbac.ts` — `requireAdminSession` (já existe)               |
 
 ### Resposta de erro
 
-| Situação                         | HTTP / throw        |
-| -------------------------------- | ------------------- |
-| Sem sessão                       | 401                 |
-| Sem `admin:access` em rota admin | 404                 |
-| Recurso de outro `user_id`       | 404                 |
-| Validação Zod                    | 400                 |
-| Único admin removendo próprio admin | 400              |
-| `CONFIG_ENCRYPTION_KEY` inválida | 500                 |
+| Situação                            | HTTP / throw |
+| ----------------------------------- | ------------ |
+| Sem sessão                          | 401          |
+| Sem `admin:access` em rota admin    | 404          |
+| Recurso de outro `user_id`          | 404          |
+| Validação Zod                       | 400          |
+| Único admin removendo próprio admin | 400          |
+| `CONFIG_ENCRYPTION_KEY` inválida    | 500          |
 
 ## Casos de borda
 
-| #   | QUANDO ⟨gatilho⟩                                      | o sistema DEVE ⟨resposta⟩                              |
-| --- | ----------------------------------------------------- | ------------------------------------------------------ |
-| 1   | update provider sem `apiKey` no payload               | manter ciphertext existente                            |
-| 2   | delete provider com modelos                           | cascade D1; limpar `default_ai_model_id` se afetado    |
-| 3   | delete modelo que é default                           | remover entrada `default_ai_model_id`                  |
-| 4   | `setDefaultModel` com model/provider `enabled = false`| rejeitar (400)                                         |
-| 5   | `discoverModels` com provider desabilitado            | rejeitar (400)                                         |
-| 6   | provider test com `baseUrl` inválido                  | `{ ok: false, error }` sem throw                       |
-| 7   | usuário não-admin acessa `/admin/config`              | **404**                                                |
-| 8   | `setUserRole` com `roleKey` fora do seed              | rejeitar (400)                                         |
-| 9   | último admin tenta `remove admin` de si                 | rejeitar (400)                                         |
-| 10  | `getAiModel` sem default configurado                  | erro claro “nenhum modelo padrão”                      |
-| 11  | plaintext legado em `api_key` (pré-migração)          | `decryptSecret` aceita; re-save criptografa            |
+| #   | QUANDO ⟨gatilho⟩                                       | o sistema DEVE ⟨resposta⟩                           |
+| --- | ------------------------------------------------------ | --------------------------------------------------- |
+| 1   | update provider sem `apiKey` no payload                | manter ciphertext existente                         |
+| 2   | delete provider com modelos                            | cascade D1; limpar `default_ai_model_id` se afetado |
+| 3   | delete modelo que é default                            | remover entrada `default_ai_model_id`               |
+| 4   | `setDefaultModel` com model/provider `enabled = false` | rejeitar (400)                                      |
+| 5   | `discoverModels` com provider desabilitado             | rejeitar (400)                                      |
+| 6   | provider test com `baseUrl` inválido                   | `{ ok: false, error }` sem throw                    |
+| 7   | usuário não-admin acessa `/admin/config`               | **404**                                             |
+| 8   | `setUserRole` com `roleKey` fora do seed               | rejeitar (400)                                      |
+| 9   | último admin tenta `remove admin` de si                | rejeitar (400)                                      |
+| 10  | `getAiModel` sem default configurado                   | erro claro “nenhum modelo padrão”                   |
+| 11  | plaintext legado em `api_key` (pré-migração)           | `decryptSecret` aceita; re-save criptografa         |
 
 ## Questões em aberto
 

@@ -78,26 +78,26 @@ Validação Zod: `ttl_seconds` inteiro, `min(0)`, `max` razoável (ex.: 10 anos 
 
 ### Implementação
 
-| Peça       | Path                                                                    |
-| ---------- | ----------------------------------------------------------------------- |
-| Upload     | `src/functions/storage/upload-file.ts`                                  |
-| Leitura    | `src/functions/storage/read-file.ts`                                    |
-| Purge      | `src/functions/storage/purge-expired-blobs.ts`                          |
+| Peça       | Path                                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------- |
+| Upload     | `src/functions/storage/upload-file.ts`                                                              |
+| Leitura    | `src/functions/storage/read-file.ts`                                                                |
+| Purge      | `src/functions/storage/purge-expired-blobs.ts`                                                      |
 | Queries    | `src/db/queries/files.ts` — `getFileByIdWithOwnership`, `listExpiredFiles(limit)`, `deleteFile(id)` |
-| Cron route | `src/workers/cron.ts` ou handler no worker principal                    |
+| Cron route | `src/workers/cron.ts` ou handler no worker principal                                                |
 
 ## Casos de borda
 
-| #   | QUANDO ⟨gatilho⟩                  | o sistema DEVE ⟨resposta⟩                        |
-| --- | --------------------------------- | ------------------------------------------------ |
-| 1   | `ttl_seconds = 0`                 | **não** incluir no purge diário                  |
-| 2   | `ttl_seconds > 0` e prazo passou  | remover objeto R2 + row `files` no próximo purge |
-| 3   | purge encontra row sem objeto R2  | deletar row D1; log warn                         |
-| 4   | R2 delete falha                   | manter row; retentar no próximo dia              |
-| 5   | `exam` deletado (cascade)         | `files` removidos independente de TTL            |
-| 6   | upload com `ttl_seconds` negativo | rejeitar (400 / Zod)                             |
-| 7   | cron overlap (run longo)          | idempotente — reprocessar vencidos é seguro      |
-| 8   | leitura de arquivo de outro user  | **404** (`getFileByIdWithOwnership`)             |
+| #   | QUANDO ⟨gatilho⟩                   | o sistema DEVE ⟨resposta⟩                        |
+| --- | ---------------------------------- | ------------------------------------------------ |
+| 1   | `ttl_seconds = 0`                  | **não** incluir no purge diário                  |
+| 2   | `ttl_seconds > 0` e prazo passou   | remover objeto R2 + row `files` no próximo purge |
+| 3   | purge encontra row sem objeto R2   | deletar row D1; log warn                         |
+| 4   | R2 delete falha                    | manter row; retentar no próximo dia              |
+| 5   | `exam` deletado (cascade)          | `files` removidos independente de TTL            |
+| 6   | upload com `ttl_seconds` negativo  | rejeitar (400 / Zod)                             |
+| 7   | cron overlap (run longo)           | idempotente — reprocessar vencidos é seguro      |
+| 8   | leitura de arquivo de outro user   | **404** (`getFileByIdWithOwnership`)             |
 | 9   | leitura com row D1 mas sem blob R2 | **404**                                          |
 
 ## Questões em aberto

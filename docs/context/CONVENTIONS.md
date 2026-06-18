@@ -62,13 +62,13 @@ Não usar `#/*`. Testes usam `@/` como o app.
 
 ## Naming
 
-| Elemento                         | Padrão                                                       |
-| -------------------------------- | ------------------------------------------------------------ |
-| Arquivos `.ts` / `.tsx`          | kebab-case — ex.: `use-ingest-job.ts`, `ingest-upload-form.tsx` |
-| Export de componentes / hooks    | PascalCase / `use` + PascalCase — ex.: `IngestUploadForm`, `useIngestJob` |
-| Diretórios                       | kebab-case — ex.: `background-processes/`                    |
-| Constantes                       | UPPER_SNAKE_CASE                                             |
-| PKs de domínio                   | UUID `text` (SPEC-0001)                                      |
+| Elemento                      | Padrão                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| Arquivos `.ts` / `.tsx`       | kebab-case — ex.: `use-ingest-job.ts`, `ingest-upload-form.tsx`           |
+| Export de componentes / hooks | PascalCase / `use` + PascalCase — ex.: `IngestUploadForm`, `useIngestJob` |
+| Diretórios                    | kebab-case — ex.: `background-processes/`                                 |
+| Constantes                    | UPPER_SNAKE_CASE                                                          |
+| PKs de domínio                | UUID `text` (SPEC-0001)                                                   |
 
 Regras para `.ts` / `.tsx`:
 

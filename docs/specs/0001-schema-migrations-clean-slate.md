@@ -206,7 +206,7 @@ Truncar em **4096** chars no write.
 | 3   | insert sem `user_id`                     | constraint / Zod fail                           |
 | 4   | query filha sem checar ownership         | bug                                             |
 | 5   | segundo `memory_profile` mesmo `user_id` | PK violation                                    |
-| 6   | `db:reset` local                         | schema + catálogo RBAC; app sobe              |
+| 6   | `db:reset` local                         | schema + catálogo RBAC; app sobe                |
 | 7   | signup sem `user_roles`                  | bug — todo user recebe role `user`              |
 | 8   | único admin remove próprio `admin`       | rejeitar (ADR-0004)                             |
 | 9   | `files.ttl_seconds = 0`                  | purge diário ignora (SPEC-0002)                 |

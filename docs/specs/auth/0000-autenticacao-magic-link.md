@@ -74,14 +74,14 @@ Demais rotas de página e `/api/*` (exceto auth) exigem sessão.
 
 ### Implementação
 
-| Peça           | Path                                                         |
-| -------------- | ------------------------------------------------------------ |
-| Factory        | `src/lib/auth.ts` — `createAuth(env)`                        |
-| Client         | `src/lib/auth-client.ts` — `authClient`                      |
-| Rota           | `src/routes/api/auth/$.ts` → `auth.handler(request)`         |
-| Domínio        | `src/lib/auth-allowed-email-domain.ts` — validação allowlist |
-| Email          | `src/lib/auth-magic-link-email.ts` — Resend / console dev    |
-| RBAC bootstrap | `src/lib/rbac-bootstrap.ts` — roles no signup (ADR-0004)     |
+| Peça           | Path                                                                      |
+| -------------- | ------------------------------------------------------------------------- |
+| Factory        | `src/lib/auth.ts` — `createAuth(env)`                                     |
+| Client         | `src/lib/auth-client.ts` — `authClient`                                   |
+| Rota           | `src/routes/api/auth/$.ts` → `auth.handler(request)`                      |
+| Domínio        | `src/lib/auth-allowed-email-domain.ts` — validação allowlist              |
+| Email          | `src/lib/auth-magic-link-email.ts` — Resend / console dev                 |
+| RBAC bootstrap | `src/lib/rbac-bootstrap.ts` — roles no signup (ADR-0004)                  |
 | Guards         | `src/lib/rbac.ts` — `requireSession` (+ `app:use`), `requireAdminSession` |
 
 ### Allowlist de domínio (signup/login)
