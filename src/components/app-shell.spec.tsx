@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 
 const navigate = vi.fn();
@@ -15,6 +15,20 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 		...actual,
 		useNavigate: () => navigate,
 		useRouterState: () => "/",
+		Link: ({
+			to,
+			children,
+			...props
+		}: {
+			to: string;
+			children: React.ReactNode;
+			"aria-current"?: "page" | undefined;
+			className?: string;
+		}) => (
+			<a href={to} {...props}>
+				{children}
+			</a>
+		),
 	};
 });
 
@@ -29,12 +43,28 @@ function renderShell(ui: React.ReactNode) {
 }
 
 describe("AppShell", () => {
+	beforeEach(() => {
+		Object.defineProperty(window, "matchMedia", {
+			writable: true,
+			value: vi.fn().mockImplementation((query: string) => ({
+				matches: query.includes("min-width: 768px"),
+				media: query,
+				onchange: null,
+				addListener: vi.fn(),
+				removeListener: vi.fn(),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+				dispatchEvent: vi.fn(),
+			})),
+		});
+	});
+
 	afterEach(() => {
 		cleanup();
 		navigate.mockClear();
 	});
 
-	it("renders bottom navigation and page content", () => {
+	it("renders desktop nav links and no bottom bar", () => {
 		renderShell(
 			<AppShell
 				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
@@ -45,10 +75,26 @@ describe("AppShell", () => {
 		);
 
 		expect(screen.getByText("Conteúdo da página")).toBeInTheDocument();
-		expect(screen.getByRole("navigation", { name: /navegação principal/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole("navigation", { name: /navegação principal/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /^provas$/i }),
+		).not.toBeInTheDocument();
+		expect(screen.getByRole("link", { name: /provas/i })).toBeInTheDocument();
+	});
 
-		fireEvent.click(screen.getByRole("button", { name: /provas/i }));
-		expect(navigate).toHaveBeenCalledWith({ to: "/exams" });
+	it("does not render Study App subtitle", () => {
+		renderShell(
+			<AppShell
+				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
+				isAdmin={false}
+			>
+				<p>Conteúdo</p>
+			</AppShell>,
+		);
+
+		expect(screen.queryByText("Study App")).not.toBeInTheDocument();
 	});
 
 	it("shows user initials in the account button", () => {
@@ -61,6 +107,25 @@ describe("AppShell", () => {
 			</AppShell>,
 		);
 
-		expect(screen.getByRole("button", { name: /conta/i })).toHaveTextContent("GS");
+		expect(screen.getByRole("button", { name: /conta/i })).toHaveTextContent(
+			"GS",
+		);
+	});
+
+	it("shows Menu button for mobile navigation", () => {
+		renderShell(
+			<AppShell
+				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
+				isAdmin={false}
+			>
+				<p>Conteúdo</p>
+			</AppShell>,
+		);
+
+		expect(screen.getByRole("button", { name: /menu/i })).toBeInTheDocument();
+		fireEvent.click(screen.getByRole("button", { name: /menu/i }));
+		expect(screen.getAllByRole("button", { name: /provas/i }).length).toBeGreaterThan(
+			0,
+		);
 	});
 });

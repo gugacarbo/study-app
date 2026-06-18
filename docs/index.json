@@ -279,13 +279,26 @@
     "path": "docs/specs/ui/0005-shell-area-logada.md",
     "layer": "specs",
     "title": "Shell da área logada: navegação content-first",
-    "status": "accepted",
+    "status": "implemented",
     "builds-on": [
       "ADR-0001",
       "ADR-0003",
       "ADR-0004"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "src/components/ui/sheet.tsx",
+      "src/components/app-shell-types.ts",
+      "src/lib/user-display.ts",
+      "src/components/app-account-menu.tsx",
+      "src/components/app-account-menu.spec.tsx",
+      "src/components/app-nav-desktop.tsx",
+      "src/components/app-nav-desktop.spec.tsx",
+      "src/components/app-nav-mobile.tsx",
+      "src/components/app-nav-mobile.spec.tsx",
+      "src/components/app-header.tsx",
+      "src/components/app-shell.tsx",
+      "src/components/app-shell.spec.tsx"
+    ]
   }
 ]

@@ -1,8 +1,20 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-18
 builds-on: [ADR-0001, ADR-0003, ADR-0004]
-implemented-by: []
+implemented-by:
+  - src/components/ui/sheet.tsx
+  - src/components/app-shell-types.ts
+  - src/lib/user-display.ts
+  - src/components/app-account-menu.tsx
+  - src/components/app-account-menu.spec.tsx
+  - src/components/app-nav-desktop.tsx
+  - src/components/app-nav-desktop.spec.tsx
+  - src/components/app-nav-mobile.tsx
+  - src/components/app-nav-mobile.spec.tsx
+  - src/components/app-header.tsx
+  - src/components/app-shell.tsx
+  - src/components/app-shell.spec.tsx
 ---
 
 # Shell da área logada: navegação content-first
@@ -144,5 +156,11 @@ Critérios:
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                              # exit 0
+npm test                                                       # 154 passed (41 files)
+npm test -- --run src/components/app-shell                     # 4 passed
+npm test -- --run src/components/app-account-menu              # 4 passed
+npm test -- --run src/components/app-nav-desktop               # 2 passed
+npm test -- --run src/components/app-nav-mobile                # 4 passed
+npm run docs-check -- --emit-index                             # exit 0 (índices regenerados)
 ```
