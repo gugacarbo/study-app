@@ -28,7 +28,8 @@
     "db:reset:prod": "wrangler d1 migrations apply study-app-db --remote --reset",
     "postinstall": "npm run cf-typegen && npm run db:migrate",
     "docs-check": "python3 scripts/docs-check",
-    "docs-check:update": "python3 scripts/docs-check --emit-index"
+    "docs-check:update": "python3 scripts/docs-check --emit-index",
+    "prepare": "husky"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.69",
@@ -84,6 +85,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "better-sqlite3": "^12.11.1",
     "drizzle-kit": "^0.31.10",
+    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "knip": "^6.15.0",
     "typescript": "^6.0.2",

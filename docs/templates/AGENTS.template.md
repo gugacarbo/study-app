@@ -35,7 +35,8 @@ npm test                 # tudo verde
 <!-- Ferramenta/script oficial, ordem, e o que NÃO fazer. -->
 
 ## Git & PRs
-<!-- Convenções; quando commitar; se há remote; se o agente abre PR sem ser pedido. -->
+<!-- Convenções; quando commitar; se há remote; se o agente abre PR sem ser pedido.
+     T1: ADRs versionados são imutáveis — pre-commit bloqueia alteração (docs-check --staged). -->
 
 ## Gotchas
 <!-- Conhecimento NÃO-INFERÍVEL que já custou tentativas falhas. Todo gotcha
