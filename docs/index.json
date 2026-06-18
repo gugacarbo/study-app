@@ -302,8 +302,21 @@
     ]
   },
   {
-    "id": "SPEC-0016",
-    "path": "docs/specs/admin/0016-admin-jobs.md",
+    "id": "SPEC-0006",
+    "path": "docs/specs/admin/0006-admin-dashboard-shell.md",
+    "layer": "specs",
+    "title": "Admin: shell dashboard com sidebar shadcn",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0004",
+      "SPEC-0005"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0007",
+    "path": "docs/specs/admin/0007-admin-jobs.md",
     "layer": "specs",
     "title": "Admin: visualização de background jobs",
     "status": "implemented",
@@ -327,5 +340,158 @@
       "src/routes/admin/jobs/index.tsx",
       "src/features/admin/components/admin-shell.tsx"
     ]
+  },
+  {
+    "id": "SPEC-0008",
+    "path": "docs/specs/exams/0008-catalogo-exames.md",
+    "layer": "specs",
+    "title": "Catálogo de exames: listagem e detalhe de provas",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0001",
+      "SPEC-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0009",
+    "path": "docs/specs/quiz/0009-quiz-tentativas.md",
+    "layer": "specs",
+    "title": "Quiz: tentativas de resposta por exame",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0008"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0010",
+    "path": "docs/specs/quiz/0010-estatisticas-progresso.md",
+    "layer": "specs",
+    "title": "Estatísticas e progresso do quiz",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0009"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0011",
+    "path": "docs/specs/exams/0011-explicacoes-questoes.md",
+    "layer": "specs",
+    "title": "Explicações de questões via IA",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0007",
+      "SPEC-0008"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0012",
+    "path": "docs/specs/chat/0012-chat-multi-conversa.md",
+    "layer": "specs",
+    "title": "Chat multi-conversa assistido por IA",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0007",
+      "ADR-0008",
+      "ADR-0003"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0013",
+    "path": "docs/specs/memory/0013-camada-memoria.md",
+    "layer": "specs",
+    "title": "Camada de memória do usuário",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0002",
+      "SPEC-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0014",
+    "path": "docs/specs/ui/0014-background-processes-ui.md",
+    "layer": "specs",
+    "title": "UI de processos em background: monitor de job ingest",
+    "status": "implemented",
+    "builds-on": [
+      "ADR-0008",
+      "ADR-0009",
+      "SPEC-0004",
+      "SPEC-0005"
+    ],
+    "superseded-by": null,
+    "implemented-by": [
+      "src/features/background-processes/lib/jobs-api.ts",
+      "src/features/background-processes/lib/job-event-stream.ts",
+      "src/features/background-processes/lib/ingest-event-mapper.ts",
+      "src/features/background-processes/lib/ingest-event-mapper.test.ts",
+      "src/features/background-processes/hooks/use-job-sync.ts",
+      "src/features/background-processes/hooks/use-job-event-stream.ts",
+      "src/features/background-processes/hooks/use-job-monitor.ts",
+      "src/features/background-processes/components/job-workspace-layout.tsx",
+      "src/features/background-processes/components/ingest-progress-panel.tsx",
+      "src/features/background-processes/components/ingest-agent-thread.tsx",
+      "src/features/background-processes/pages/job-monitor-page.tsx",
+      "src/features/background-processes/pages/job-monitor-page.spec.tsx",
+      "src/routes/_app/jobs/$jobId/index.tsx",
+      "src/components/app-shell.tsx",
+      "src/lib/app-nav.ts",
+      "src/features/exams/hooks/use-ingest-job.ts",
+      "src/features/exams/components/ingest-upload-form.tsx",
+      "src/features/exams/components/ingest-upload-form.spec.tsx",
+      "src/features/ai/jobs/ingest/run-ingest.ts",
+      "src/features/ai/jobs/ingest/ingest-events.ts",
+      "tests/setup.ts"
+    ]
+  },
+  {
+    "id": "SPEC-0015",
+    "path": "docs/specs/admin/0015-admin-logs.md",
+    "layer": "specs",
+    "title": "Admin: listagem de logs LLM e R2",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0005",
+      "SPEC-0003",
+      "SPEC-0014"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0016",
+    "path": "docs/specs/ai/0016-spell-check-web-search.md",
+    "layer": "specs",
+    "title": "Spell check e web search como tools de IA",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0007"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0017",
+    "path": "docs/specs/admin/0017-model-benchmark.md",
+    "layer": "specs",
+    "title": "Admin: benchmark de modelos via job em background",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0007",
+      "ADR-0009"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]

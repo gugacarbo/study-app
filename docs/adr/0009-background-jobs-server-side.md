@@ -107,7 +107,7 @@ Scheduler client: limita uploads simultâneos; fila server-side via Queue (1 con
 
 - `wrangler.jsonc`: binding Queue + consumer export
 - SPEC-0001: tabelas `background_jobs`, `background_job_events`
-- SPEC-0011: UI de fila, poll, SSE, estados de upload
+- SPEC-0014: UI de fila, poll, SSE, estados de upload
 - ADR-0008: stream SSE é **tail de leitura no D1**, não dono da execução; DO também rejeitado no relay de stream (v1)
 - Refresh com job `running`: UI mostra progresso atualizado do D1
 - Duas abas: mesma visão via poll (sem coordenação extra)
@@ -125,4 +125,4 @@ npm run typecheck
 
 ## Notas
 
-Comportamento UI: SPEC-0011. Ingest upload: SPEC-0004. Formato mensagens: ADR-0008.
+Comportamento UI: SPEC-0014. Ingest upload: SPEC-0004. Formato mensagens: ADR-0008.

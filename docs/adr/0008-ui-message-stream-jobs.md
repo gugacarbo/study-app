@@ -57,7 +57,7 @@ Cada step do pipeline serializa mensagens/data parts no **mesmo schema** AI SDK 
 
 Hidratar `assistant-ui` Thread a partir de eventos acumulados — mesmo após refresh.
 
-Chat (`/api/chat`): **stream HTTP direto** (sessão ao vivo) — fora do modelo Queue; regras em SPEC-0009.
+Chat (`/api/chat`): **stream HTTP direto** (sessão ao vivo) — fora do modelo Queue; regras em SPEC-0011.
 
 ### Ciclo de vida e performance (UI)
 
@@ -93,4 +93,4 @@ npm run typecheck
 
 ## Notas
 
-Specs: ingest (SPEC-0004), chat (SPEC-0009), benchmark (SPEC-0014), jobs UI (SPEC-0011). Orquestração: ADR-0009.
+Specs: ingest (SPEC-0004), chat (SPEC-0012), benchmark (SPEC-0017), jobs UI (SPEC-0014). Orquestração: ADR-0009.

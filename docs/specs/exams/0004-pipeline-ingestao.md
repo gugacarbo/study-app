@@ -47,11 +47,11 @@ implemented-by:
 
 ## Objetivo
 
-Usuário autenticado envia um arquivo de prova (`.txt`/`.md`) e, ao concluir o job `ingest`, tem questões persistidas em D1 no exame alvo — prontas para catálogo (SPEC-0005) e quiz (SPEC-0006).
+Usuário autenticado envia um arquivo de prova (`.txt`/`.md`) e, ao concluir o job `ingest`, tem questões persistidas em D1 no exame alvo — prontas para catálogo (SPEC-0008) e quiz (SPEC-0009).
 
 Por padrão cada upload **cria um exame novo** (nome + arquivo na mesma ação). Opcionalmente o usuário pode apontar um `examId` existente para **append** (somar questões, sem remover as existentes).
 
-Progresso do job sobrevive a refresh (ADR-0009 + ADR-0008). Explicações (`explanation`, `deep_explanation`) ficam para SPEC-0008.
+Progresso do job sobrevive a refresh (ADR-0009 + ADR-0008). Explicações (`explanation`, `deep_explanation`) ficam para SPEC-0011.
 
 ## Fluxo
 
@@ -73,7 +73,7 @@ Progresso do job sobrevive a refresh (ADR-0009 + ADR-0008). Explicações (`expl
    - emite eventos de progresso (data parts) a cada partial object;
    - **após stream completo:** `phase=persisting` — insert batch de `questions` (dedup);
    - `status=completed` + metadata final (`phase` permanece `persisting` ou omitido — **não** usar `phase=completed`).
-6. UI reidrata progresso via poll/SSE (ADR-0008); shell genérico em SPEC-0011.
+6. UI reidrata progresso via poll/SSE (ADR-0008); shell genérico em SPEC-0014.
 
 ### B — Append em exame existente
 
@@ -226,7 +226,7 @@ Payloads em `background_job_events` seguem AI SDK v6. Parts específicos de inge
 
 Mensagens de texto assistant-ui opcionais para leitura humana (“12 questões salvas…”).
 
-UI genérica (dialog, nav, poll): **SPEC-0011** — esta spec só define parts acima.
+UI genérica (dialog, nav, poll): **SPEC-0014** — esta spec só define parts acima.
 
 ### Resultado do job
 

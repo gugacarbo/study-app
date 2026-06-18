@@ -113,7 +113,8 @@ __root.tsx (RootLayout)
 ### Fora de escopo
 
 - Redesign de páginas internas além de remover dependência da tab bar.
-- `AdminShell` e página de login.
+- `AdminShell` legado — removido em SPEC-0006.
+- Página de login.
 - Novos itens de nav (quiz, stats, chat).
 - Replicação do shell legado (nav + dock lateral — ADR-0001).
 
