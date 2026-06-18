@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { createId } from "@/db/queries/helpers";
 import {
 	appendJobEvent,
@@ -6,6 +7,7 @@ import {
 	getJobById,
 	hasActiveIngestJob,
 	listJobEvents,
+	listJobsForAdmin,
 	setCancelRequested,
 	updateJobStatus,
 } from "@/db/queries/jobs";
@@ -200,5 +202,45 @@ describe("jobs queries", () => {
 		});
 
 		expect(await hasActiveIngestJob(db, userId, examId)).toBe(false);
+	});
+
+	it("listJobsForAdmin returns jobs ordered by created_at desc with user email", async () => {
+		const db = createTestDb();
+		const userA = createId();
+		const userB = createId();
+		const jobOlder = createId();
+		const jobNewer = createId();
+
+		await seedUser(db, userA);
+		await db.insert(schema.user).values({
+			id: userB,
+			name: "Other",
+			email: `other-${userB}@aluno.ifsc.edu.br`,
+			emailVerified: true,
+		});
+
+		await createJob(db, {
+			id: jobOlder,
+			userId: userA,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.COMPLETED,
+		});
+		await db
+			.update(schema.backgroundJobs)
+			.set({ createdAt: "2020-01-01T00:00:00.000Z" })
+			.where(eq(schema.backgroundJobs.id, jobOlder));
+
+		await createJob(db, {
+			id: jobNewer,
+			userId: userB,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.RUNNING,
+		});
+
+		const jobs = await listJobsForAdmin(db);
+		expect(jobs).toHaveLength(2);
+		expect(jobs[0]?.id).toBe(jobNewer);
+		expect(jobs[1]?.id).toBe(jobOlder);
+		expect(jobs[0]?.userEmail).toBe(`other-${userB}@aluno.ifsc.edu.br`);
 	});
 });

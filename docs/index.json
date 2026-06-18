@@ -300,5 +300,32 @@
       "src/components/app-shell.tsx",
       "src/components/app-shell.spec.tsx"
     ]
+  },
+  {
+    "id": "SPEC-0016",
+    "path": "docs/specs/admin/0016-admin-jobs.md",
+    "layer": "specs",
+    "title": "Admin: visualização de background jobs",
+    "status": "implemented",
+    "builds-on": [
+      "ADR-0009",
+      "ADR-0004",
+      "SPEC-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": [
+      "src/db/queries/jobs.ts",
+      "src/lib/job-kinds.ts",
+      "src/functions/admin/jobs.ts",
+      "src/functions/jobs/cancel-job.ts",
+      "src/features/admin/hooks/use-admin-jobs.ts",
+      "src/features/admin/components/jobs-table.tsx",
+      "src/features/admin/components/job-detail-content.tsx",
+      "src/features/admin/components/job-detail-sheet.tsx",
+      "src/features/admin/pages/admin-jobs-page.tsx",
+      "src/features/admin/lib/job-labels.ts",
+      "src/routes/admin/jobs/index.tsx",
+      "src/features/admin/components/admin-shell.tsx"
+    ]
   }
 ]

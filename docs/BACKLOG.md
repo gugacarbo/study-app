@@ -46,7 +46,7 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0002 | `docs/specs/storage/0002-upload-arquivos-r2.md`     | ADR-0002, ADR-0003, ADR-0005                       | implemented |
 | SPEC-0003 | `docs/specs/admin/0003-config-providers-modelos.md` | ADR-0007, ADR-0003, ADR-0006, ADR-0004             | accepted    |
 | SPEC-0004 | `docs/specs/exams/0004-pipeline-ingestao.md`        | ADR-0007, ADR-0008, ADR-0009, SPEC-0002, SPEC-0003 | implemented |
-| SPEC-0005 | `docs/specs/ui/0005-shell-area-logada.md`           | ADR-0001, ADR-0003, ADR-0004, SPEC-0000           | accepted    |
+| SPEC-0005 | `docs/specs/ui/0005-shell-area-logada.md`           | ADR-0001, ADR-0003, ADR-0004, SPEC-0000            | accepted    |
 | SPEC-0006 | `docs/specs/exams/0006-catalogo-exames.md`          | SPEC-0001, SPEC-0004                               |             |
 | SPEC-0007 | `docs/specs/quiz/0007-quiz-tentativas.md`           | SPEC-0006                                          |             |
 | SPEC-0008 | `docs/specs/quiz/0008-estatisticas-progresso.md`    | SPEC-0007                                          |             |
@@ -57,6 +57,7 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0013 | `docs/specs/admin/0013-admin-logs.md`               | ADR-0005, SPEC-0003, SPEC-0012                     |             |
 | SPEC-0014 | `docs/specs/ai/0014-spell-check-web-search.md`      | ADR-0007                                           |             |
 | SPEC-0015 | `docs/specs/admin/0015-model-benchmark.md`          | ADR-0007, ADR-0009                                 |             |
+| SPEC-0016 | `docs/specs/admin/0016-admin-jobs.md`               | ADR-0009, ADR-0004, SPEC-0004                      | implemented |
 
 ## Pendências
 

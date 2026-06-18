@@ -21,6 +21,12 @@ describe("IngestUploadForm", () => {
 		expect(submit).toBeDisabled();
 	});
 
+	it("does not show exam name or model fields", () => {
+		render(<IngestUploadForm />);
+		expect(screen.queryByLabelText(/nome da prova/i)).not.toBeInTheDocument();
+		expect(screen.queryByLabelText(/modelo/i)).not.toBeInTheDocument();
+	});
+
 	it("displays 413 error when upload exceeds size limit", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -41,10 +47,6 @@ describe("IngestUploadForm", () => {
 		);
 
 		render(<IngestUploadForm />);
-
-		fireEvent.change(screen.getByLabelText(/nome da prova/i), {
-			target: { value: "Prova 1" },
-		});
 
 		const file = new File(["conteúdo"], "prova.md", { type: "text/markdown" });
 		fireEvent.change(screen.getByLabelText(/^arquivo$/i), {

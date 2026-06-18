@@ -16,6 +16,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
 import { Route as AdminConfigIndexRouteImport } from './routes/admin/config/index'
 import { Route as AppExamsIndexRouteImport } from './routes/_app/exams/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -57,6 +58,11 @@ const ApiJobsIndexRoute = ApiJobsIndexRouteImport.update({
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminJobsIndexRoute = AdminJobsIndexRouteImport.update({
+  id: '/jobs/',
+  path: '/jobs/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminConfigIndexRoute = AdminConfigIndexRouteImport.update({
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/exams/': typeof AppExamsIndexRoute
   '/admin/config/': typeof AdminConfigIndexRoute
+  '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/exams': typeof AppExamsIndexRoute
   '/admin/config': typeof AdminConfigIndexRoute
+  '/admin/jobs': typeof AdminJobsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_app/exams/': typeof AppExamsIndexRoute
   '/admin/config/': typeof AdminConfigIndexRoute
+  '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/exams/'
     | '/admin/config/'
+    | '/admin/jobs/'
     | '/admin/users/'
     | '/api/jobs/'
     | '/api/jobs/$id/cancel'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/exams'
     | '/admin/config'
+    | '/admin/jobs'
     | '/admin/users'
     | '/api/jobs'
     | '/api/jobs/$id/cancel'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/_app/exams/'
     | '/admin/config/'
+    | '/admin/jobs/'
     | '/admin/users/'
     | '/api/jobs/'
     | '/api/jobs/$id/cancel'
@@ -261,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/admin/users/'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/jobs/': {
+      id: '/admin/jobs/'
+      path: '/jobs'
+      fullPath: '/admin/jobs/'
+      preLoaderRoute: typeof AdminJobsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/config/': {
@@ -341,12 +360,14 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminConfigIndexRoute: typeof AdminConfigIndexRoute
+  AdminJobsIndexRoute: typeof AdminJobsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminConfigIndexRoute: AdminConfigIndexRoute,
+  AdminJobsIndexRoute: AdminJobsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
 

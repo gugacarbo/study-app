@@ -41,3 +41,21 @@ export async function updateExamSource(
 		.where(and(eq(schema.exams.id, examId), eq(schema.exams.userId, userId)));
 	return true;
 }
+
+export async function updateExamAfterIngestUpload(
+	db: AppDatabase,
+	examId: string,
+	userId: string,
+	input: { source: string; name?: string },
+) {
+	const exam = await getExamById(db, examId, userId);
+	if (!exam) return false;
+	await db
+		.update(schema.exams)
+		.set({
+			source: input.source,
+			...(input.name != null ? { name: input.name } : {}),
+		})
+		.where(and(eq(schema.exams.id, examId), eq(schema.exams.userId, userId)));
+	return true;
+}

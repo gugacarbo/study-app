@@ -67,6 +67,10 @@ describe("admin users page", () => {
 			"href",
 			"/admin/users",
 		);
+		expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute(
+			"href",
+			"/admin/jobs",
+		);
 	});
 
 	it("lists users without exposing secrets", () => {

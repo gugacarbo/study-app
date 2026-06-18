@@ -160,12 +160,12 @@ describe("uploadIngestFileHandler", () => {
 		expect(body.error).toBe("invalid_file_type");
 	});
 
-	it("uploads file, updates exam source, queues job", async () => {
+	it("uploads file, updates exam source and name in create mode, queues job", async () => {
 		const { enqueueJob } = await import("@/functions/queue");
 		const modelId = await seedDefaultModel(testDb, testUserId);
 		const examId = await seedExam(testDb, testUserId);
 		const jobId = await seedAwaitingUploadJob(examId, modelId);
-		const file = new File(["Questão 1\nA) sim\nB) não"], "prova.md", {
+		const file = new File(["Questão 1\nA) sim\nB) não"], "calculo_i-p1.md", {
 			type: "text/markdown",
 		});
 
@@ -180,6 +180,7 @@ describe("uploadIngestFileHandler", () => {
 		const exams = await testDb.select().from(
 			(await import("@/db/schema")).exams,
 		);
-		expect(exams[0]?.source).toBe("prova.md");
+		expect(exams[0]?.source).toBe("calculo_i-p1.md");
+		expect(exams[0]?.name).toBe("Calculo i p1");
 	});
 });

@@ -17,48 +17,18 @@ import {
 } from "@/lib/job-kinds";
 import { createId } from "@/db/queries/helpers";
 import { createIngestJobHandler } from "@/functions/jobs/create-ingest-job";
+import { INGEST_PENDING_EXAM_NAME } from "@/lib/derive-exam-name";
+import * as schema from "@/db/schema";
 
 describe("createIngestJobHandler", () => {
 	beforeEach(() => {
 		resetJobTestDb();
 	});
 
-	it("returns 400 when name and examId are both missing", async () => {
+	it("creates exam and job in create mode without a name", async () => {
+		await seedDefaultModel(testDb, testUserId);
 		const response = await createIngestJobHandler(
 			{ kind: "ingest" },
-			new Headers(),
-		);
-		expect(response.status).toBe(400);
-	});
-
-	it("returns 400 when name and examId are both provided", async () => {
-		await seedDefaultModel(testDb, testUserId);
-		const response = await createIngestJobHandler(
-			{
-				kind: "ingest",
-				name: "Nova prova",
-				examId: "00000000-0000-4000-8000-000000000001",
-			},
-			new Headers(),
-		);
-		expect(response.status).toBe(400);
-	});
-
-	it("returns 400 when no AI model is available", async () => {
-		await seedUser(testDb, testUserId);
-		const response = await createIngestJobHandler(
-			{ kind: "ingest", name: "Nova prova" },
-			new Headers(),
-		);
-		expect(response.status).toBe(400);
-		const body = (await response.json()) as { error?: string };
-		expect(body.error).toBe("model_unavailable");
-	});
-
-	it("creates exam and job in create mode", async () => {
-		await seedDefaultModel(testDb, testUserId);
-		const response = await createIngestJobHandler(
-			{ kind: "ingest", name: "Prova de Cálculo" },
 			new Headers(),
 		);
 		expect(response.status).toBe(200);
@@ -67,6 +37,20 @@ describe("createIngestJobHandler", () => {
 			examId?: string;
 		};
 		expect(body.examId).toBeTruthy();
+
+		const exams = await testDb.select().from(schema.exams);
+		expect(exams[0]?.name).toBe(INGEST_PENDING_EXAM_NAME);
+	});
+
+	it("returns 400 when no AI model is available", async () => {
+		await seedUser(testDb, testUserId);
+		const response = await createIngestJobHandler(
+			{ kind: "ingest" },
+			new Headers(),
+		);
+		expect(response.status).toBe(400);
+		const body = (await response.json()) as { error?: string };
+		expect(body.error).toBe("model_unavailable");
 	});
 
 	it("returns 404 for append on another user's exam", async () => {

@@ -1,7 +1,7 @@
 import { createDb } from "@/db/client";
 import {
 	getExamById,
-	updateExamSource,
+	updateExamAfterIngestUpload,
 } from "@/db/queries/exams";
 import { insertFile } from "@/db/queries/files";
 import { buildFileR2Key, createId } from "@/db/queries/helpers";
@@ -9,8 +9,10 @@ import { getJobById, updateJobStatus } from "@/db/queries/jobs";
 import { requireDB } from "@/functions/db";
 import { enqueueJob } from "@/functions/queue";
 import { requireFilesBucket } from "@/functions/storage";
+import { deriveExamNameFromFilename } from "@/lib/derive-exam-name";
 import { validateFileExtension } from "@/lib/file-validation";
 import {
+	INGEST_MODE,
 	JOB_KIND,
 	JOB_STATUS,
 	parseIngestJobMetadata,
@@ -158,11 +160,16 @@ export async function uploadIngestFileHandler(
 		throw error;
 	}
 
-	const sourceUpdated = await updateExamSource(
+	const sourceUpdated = await updateExamAfterIngestUpload(
 		db,
 		metadata.examId,
 		session.user.id,
-		fileField.name,
+		{
+			source: fileField.name,
+			...(metadata.mode === INGEST_MODE.CREATE
+				? { name: deriveExamNameFromFilename(fileField.name) }
+				: {}),
+		},
 	);
 	if (!sourceUpdated) {
 		await failJobExamNotFound(db, jobId);

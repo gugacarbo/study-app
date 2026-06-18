@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
 	{ to: "/admin/config" as const, label: "Config" },
 	{ to: "/admin/users" as const, label: "Users" },
+	{ to: "/admin/jobs" as const, label: "Jobs" },
 ];
 
 type AdminShellProps = {

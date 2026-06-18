@@ -5,6 +5,7 @@ import { createId } from "@/db/queries/helpers";
 import { createJob, hasActiveIngestJob } from "@/db/queries/jobs";
 import { requireDB } from "@/functions/db";
 import { resolveAiModelId } from "@/lib/ai-config";
+import { INGEST_PENDING_EXAM_NAME } from "@/lib/derive-exam-name";
 import {
 	INGEST_MODE,
 	JOB_KIND,
@@ -17,32 +18,11 @@ import { requireSession } from "@/lib/rbac";
 
 const MAX_TTL_SECONDS = 60 * 60 * 24 * 365 * 10;
 
-export const createIngestJobSchema = z
-	.object({
-		kind: z.literal(JOB_KIND.INGEST),
-		name: z.string().trim().min(1).optional(),
-		examId: z.string().uuid().optional(),
-		modelId: z.string().uuid().optional(),
-		ttlSeconds: z.number().int().min(0).max(MAX_TTL_SECONDS).optional(),
-	})
-	.superRefine((data, ctx) => {
-		const hasName = data.name != null;
-		const hasExamId = data.examId != null;
-		if (!hasName && !hasExamId) {
-			ctx.addIssue({
-				code: "custom",
-				message: "name or examId is required",
-				path: ["name"],
-			});
-		}
-		if (hasName && hasExamId) {
-			ctx.addIssue({
-				code: "custom",
-				message: "name and examId are mutually exclusive",
-				path: ["name"],
-			});
-		}
-	});
+export const createIngestJobSchema = z.object({
+	kind: z.literal(JOB_KIND.INGEST),
+	examId: z.string().uuid().optional(),
+	ttlSeconds: z.number().int().min(0).max(MAX_TTL_SECONDS).optional(),
+});
 
 export async function createIngestJobHandler(
 	body: unknown,
@@ -65,7 +45,6 @@ export async function createIngestJobHandler(
 		resolvedModelId = await resolveAiModelId({
 			db,
 			userId: session.user.id,
-			modelId: input.modelId,
 		});
 	} catch {
 		return jobErrorResponse(JOB_ERROR_CODE.MODEL_UNAVAILABLE, 400);
@@ -90,7 +69,7 @@ export async function createIngestJobHandler(
 		await createExam(db, {
 			id: examId,
 			userId: session.user.id,
-			name: input.name!,
+			name: INGEST_PENDING_EXAM_NAME,
 		});
 		mode = INGEST_MODE.CREATE;
 	}

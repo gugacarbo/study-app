@@ -31,20 +31,14 @@ export async function parseIngestApiError(response: Response): Promise<string> {
 	return `Erro HTTP ${response.status}`;
 }
 
-export async function createIngestJob(input: {
-	name: string;
-	modelId?: string;
-}): Promise<{ jobId: string; examId: string }> {
-	const body: Record<string, string> = {
-		kind: "ingest",
-		name: input.name,
-	};
-	if (input.modelId) body.modelId = input.modelId;
-
+export async function createIngestJob(): Promise<{
+	jobId: string;
+	examId: string;
+}> {
 	const response = await fetch("/api/jobs", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(body),
+		body: JSON.stringify({ kind: "ingest" }),
 	});
 	if (!response.ok) {
 		throw new Error(await parseIngestApiError(response));

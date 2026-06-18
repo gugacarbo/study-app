@@ -1,14 +1,16 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
 import {
 	ACTIVE_INGEST_STATUSES,
+	isCancellableJobStatus,
 	JOB_KIND,
 	type IngestJobMetadata,
 	parseIngestJobMetadata,
 	type JobStatus,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
+import { type JsonObject, parseJsonObject } from "@/lib/json-value";
 
 export type JobRow = typeof schema.backgroundJobs.$inferSelect;
 export type BackgroundJobRow = JobRow;
@@ -106,6 +108,65 @@ export async function updateJobStatus(
 		.update(schema.backgroundJobs)
 		.set(values)
 		.where(eq(schema.backgroundJobs.id, jobId));
+}
+
+export type AdminJobListItem = {
+	id: string;
+	userId: string;
+	userEmail: string | null;
+	kind: string;
+	status: string;
+	phase: string | null;
+	error: string | null;
+	metadata: JsonObject | null;
+	cancelRequestedAt: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+};
+
+function parseJobMetadata(raw: string | null): JsonObject | null {
+	return parseJsonObject(raw);
+}
+
+export async function listJobsForAdmin(
+	db: AppDatabase,
+	options?: { limit?: number },
+): Promise<AdminJobListItem[]> {
+	const limit = options?.limit ?? 100;
+	const rows = await db
+		.select({
+			id: schema.backgroundJobs.id,
+			userId: schema.backgroundJobs.userId,
+			userEmail: schema.user.email,
+			kind: schema.backgroundJobs.kind,
+			status: schema.backgroundJobs.status,
+			phase: schema.backgroundJobs.phase,
+			error: schema.backgroundJobs.error,
+			metadata: schema.backgroundJobs.metadata,
+			cancelRequestedAt: schema.backgroundJobs.cancelRequestedAt,
+			createdAt: schema.backgroundJobs.createdAt,
+			updatedAt: schema.backgroundJobs.updatedAt,
+		})
+		.from(schema.backgroundJobs)
+		.leftJoin(schema.user, eq(schema.backgroundJobs.userId, schema.user.id))
+		.orderBy(desc(schema.backgroundJobs.createdAt))
+		.limit(limit);
+
+	return rows.map((row) => ({
+		...row,
+		metadata: parseJobMetadata(row.metadata),
+	}));
+}
+
+export async function requestJobCancelIfActive(
+	db: AppDatabase,
+	job: JobRow,
+): Promise<{ cancelled: boolean; alreadyTerminal: boolean }> {
+	if (!isCancellableJobStatus(job.status)) {
+		return { cancelled: false, alreadyTerminal: true };
+	}
+	await setCancelRequested(db, job.id);
+	return { cancelled: true, alreadyTerminal: false };
 }
 
 export async function setCancelRequested(db: AppDatabase, jobId: string) {

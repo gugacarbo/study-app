@@ -106,11 +106,11 @@ export function useIngestJob() {
 	);
 
 	const submit = useCallback(
-		async (input: { name: string; file: File; modelId?: string }) => {
+		async (input: { file: File }) => {
 			setSnapshot({ ...IDLE_SNAPSHOT, uiState: "uploading" });
 
 			try {
-				const { jobId, examId } = await createIngestJob(input);
+				const { jobId, examId } = await createIngestJob();
 				setSnapshot((prev) => ({ ...prev, jobId, examId }));
 				await uploadIngestJobFile(jobId, input.file);
 				setSnapshot((prev) => ({

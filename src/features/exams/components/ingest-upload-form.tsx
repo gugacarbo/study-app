@@ -23,8 +23,6 @@ function formatPhaseLabel(phase: string | null): string | null {
 }
 
 export function IngestUploadForm() {
-	const [name, setName] = useState("");
-	const [modelId, setModelId] = useState("");
 	const [file, setFile] = useState<File | null>(null);
 	const {
 		uiState,
@@ -37,22 +35,16 @@ export function IngestUploadForm() {
 		isBusy,
 	} = useIngestJob();
 
-	const canSubmit = name.trim().length > 0 && file != null && !isBusy;
+	const canSubmit = file != null && !isBusy;
 
 	async function handleSubmit(event: React.FormEvent) {
 		event.preventDefault();
 		if (!file || !canSubmit) return;
 
-		await submit({
-			name: name.trim(),
-			file,
-			modelId: modelId.trim() || undefined,
-		});
+		await submit({ file });
 	}
 
 	function handleReset() {
-		setName("");
-		setModelId("");
 		setFile(null);
 		reset();
 	}
@@ -61,18 +53,6 @@ export function IngestUploadForm() {
 		<div className="space-y-4">
 			<form className="space-y-4" onSubmit={handleSubmit}>
 				<FieldGroup>
-					<Field>
-						<FieldLabel htmlFor="exam-name">Nome da prova</FieldLabel>
-						<Input
-							id="exam-name"
-							value={name}
-							onChange={(event) => setName(event.target.value)}
-							placeholder="Ex.: Cálculo I — P1 2025"
-							disabled={isBusy}
-							required
-						/>
-					</Field>
-
 					<Field>
 						<FieldLabel htmlFor="ingest-file">Arquivo</FieldLabel>
 						<Input
@@ -85,21 +65,8 @@ export function IngestUploadForm() {
 							}}
 						/>
 						<FieldDescription>
-							Formatos .txt ou .md, até 512 KB e 10.000 caracteres.
-						</FieldDescription>
-					</Field>
-
-					<Field>
-						<FieldLabel htmlFor="model-id">Modelo (opcional)</FieldLabel>
-						<Input
-							id="model-id"
-							value={modelId}
-							onChange={(event) => setModelId(event.target.value)}
-							placeholder="UUID do modelo de IA"
-							disabled={isBusy}
-						/>
-						<FieldDescription>
-							Deixe em branco para usar o modelo padrão da conta.
+							Formatos .txt ou .md, até 512 KB e 10.000 caracteres. O nome da
+							prova será inferido do arquivo enviado.
 						</FieldDescription>
 					</Field>
 				</FieldGroup>

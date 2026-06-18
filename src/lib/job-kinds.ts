@@ -46,6 +46,17 @@ export const ACTIVE_INGEST_STATUSES = [
 	JOB_STATUS.RUNNING,
 ] as const satisfies readonly JobStatus[];
 
+/** Statuses where cancel_requested_at may be set. */
+export const CANCELLABLE_JOB_STATUSES = [
+	JOB_STATUS.AWAITING_UPLOAD,
+	JOB_STATUS.QUEUED,
+	JOB_STATUS.RUNNING,
+] as const satisfies readonly JobStatus[];
+
+export function isCancellableJobStatus(status: string): boolean {
+	return (CANCELLABLE_JOB_STATUSES as readonly string[]).includes(status);
+}
+
 export type IngestJobMetadata = {
 	examId: string;
 	modelId: string;
