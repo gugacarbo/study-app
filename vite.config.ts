@@ -27,6 +27,7 @@ const config = defineConfig({
 		},
 	},
 	server: {
+		strictPort: true,
 		watch: {
 			ignored: [
 				"**/.git/**",
