@@ -33,7 +33,7 @@ docs/specs/
   auth/
     0000-autenticacao-magic-link.md
   ui/
-    0003-shell-navegacao.md          # próximo número global após 0002
+    0005-shell-area-logada.md          # após 0004
 ```
 
 ## Frontmatter e corpo

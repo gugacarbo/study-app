@@ -273,5 +273,19 @@
       "src/lib/file-validation.ts",
       "wrangler.jsonc"
     ]
+  },
+  {
+    "id": "SPEC-0005",
+    "path": "docs/specs/ui/0005-shell-area-logada.md",
+    "layer": "specs",
+    "title": "Shell da área logada: navegação content-first",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0001",
+      "ADR-0003",
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]
