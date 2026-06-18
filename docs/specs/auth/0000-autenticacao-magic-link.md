@@ -1,8 +1,17 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-17
 builds-on: [ADR-0003, ADR-0004]
-implemented-by: []
+implemented-by:
+  - src/lib/auth.ts
+  - src/lib/auth-client.ts
+  - src/lib/auth-allowed-email-domain.ts
+  - src/lib/rbac-bootstrap.ts
+  - src/lib/rbac.ts
+  - src/routes/login/index.tsx
+  - src/routes/api/auth/$.ts
+  - src/functions/auth/require-session.ts
+  - src/routes/__root.tsx
 ---
 
 # Login por magic link e sessão protegida
@@ -186,5 +195,7 @@ Fechamento manual: login E2E dev (console); `/exams` bloqueada sem sessão; dom�
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                                                    # exit 0
+npm test -- src/lib/auth.test.ts src/lib/auth-allowed-email-domain.test.ts           # 3 passed
+npm test -- src/lib/rbac-bootstrap.test.ts src/routes/login.spec.tsx src/functions/auth/require-session.test.ts  # 3 passed
 ```
