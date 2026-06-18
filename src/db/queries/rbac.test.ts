@@ -3,16 +3,27 @@ import { createId } from "@/db/queries/helpers";
 import {
 	assignRoleToUser,
 	getUserPermissionKeys,
-	seedRbacIfEmpty,
 	userHasPermission,
 } from "@/db/queries/rbac";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 
 describe("rbac", () => {
-	it("seeds roles and permissions", async () => {
+	it("migration seeds rbac catalog", async () => {
 		const db = createTestDb();
-		await seedRbacIfEmpty(db);
+		const roleKeys = (await db.select().from(schema.roles)).map((row) => row.key);
+		expect(roleKeys).toContain("user");
+		expect(roleKeys).toContain("admin");
+
+		const permissionKeys = (await db.select().from(schema.permissions)).map(
+			(row) => row.key,
+		);
+		expect(permissionKeys).toContain("app:use");
+		expect(permissionKeys).toContain("admin:access");
+	});
+
+	it("assigns user role permissions from seeded catalog", async () => {
+		const db = createTestDb();
 
 		const userId = createId();
 		await db.insert(schema.user).values({
@@ -30,7 +41,6 @@ describe("rbac", () => {
 
 	it("admin role includes admin:access", async () => {
 		const db = createTestDb();
-		await seedRbacIfEmpty(db);
 
 		const userId = createId();
 		await db.insert(schema.user).values({

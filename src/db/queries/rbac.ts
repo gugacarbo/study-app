@@ -1,6 +1,10 @@
 import { eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "../client";
-import { createId } from "./helpers";
+import {
+	RBAC_V1_PERMISSION_ROWS,
+	RBAC_V1_ROLE_PERMISSION_ROWS,
+	RBAC_V1_ROLE_ROWS,
+} from "../seed/rbac-v1";
 import * as schema from "../schema";
 
 const ROLE_USER = "user";
@@ -12,28 +16,15 @@ export async function seedRbacIfEmpty(db: AppDatabase) {
 	const existing = await db.select().from(schema.roles).limit(1);
 	if (existing.length > 0) return;
 
-	const userRoleId = createId();
-	const adminRoleId = createId();
-	const appUseId = createId();
-	const adminAccessId = createId();
-
-	await db.insert(schema.roles).values([
-		{ id: userRoleId, key: ROLE_USER, name: "User" },
-		{ id: adminRoleId, key: ROLE_ADMIN, name: "Admin" },
-	]);
-	await db.insert(schema.permissions).values([
-		{ id: appUseId, key: PERM_APP_USE, description: "Use the app" },
-		{
-			id: adminAccessId,
-			key: PERM_ADMIN_ACCESS,
-			description: "Access admin routes",
-		},
-	]);
-	await db.insert(schema.rolePermissions).values([
-		{ roleId: userRoleId, permissionId: appUseId },
-		{ roleId: adminRoleId, permissionId: appUseId },
-		{ roleId: adminRoleId, permissionId: adminAccessId },
-	]);
+	await db.insert(schema.roles).values([...RBAC_V1_ROLE_ROWS]).onConflictDoNothing();
+	await db
+		.insert(schema.permissions)
+		.values([...RBAC_V1_PERMISSION_ROWS])
+		.onConflictDoNothing();
+	await db
+		.insert(schema.rolePermissions)
+		.values([...RBAC_V1_ROLE_PERMISSION_ROWS])
+		.onConflictDoNothing();
 }
 
 export async function assignRoleToUser(
