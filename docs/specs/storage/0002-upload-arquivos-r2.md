@@ -1,8 +1,14 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-17
 builds-on: [ADR-0002, ADR-0003, ADR-0005]
-implemented-by: []
+implemented-by:
+  - src/db/queries/files.ts
+  - src/functions/storage/upload-file.ts
+  - src/functions/storage/purge-expired-blobs.ts
+  - src/workers/cron.ts
+  - src/worker-entry.ts
+  - wrangler.jsonc
 ---
 
 # Upload de arquivos em R2 com TTL configurável
@@ -110,5 +116,9 @@ grep -q 'crons' wrangler.jsonc                                 # purge diário c
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                              # exit 0
+npm test -- src/functions/storage/upload-file.test.ts          # 1 passed
+npm test -- src/functions/storage/purge-expired-blobs.test.ts  # 1 passed
+npm test -- src/db/queries/files.test.ts                       # 2 passed
+grep -q 'crons' wrangler.jsonc                                 # ok
 ```

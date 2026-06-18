@@ -11,7 +11,7 @@ Ledger de pendências e reservas de numeração CASA.
 | Fase 2 — Specs por domínio        | em andamento | SPEC-0000, 0001, 0002 accepted                                      |
 | Fase 2b — Arquivo legado          | concluída    | `.old_app/` (gitignored)                                      |
 | Fase 2c — Convenções greenfield   | concluída    | `functions/`, UUID, queries modulares, assistant-ui, testes colocados |
-| Fase 3 — Implementação greenfield | em andamento | scaffold vazio; começar SPEC-0000 + SPEC-0001                 |
+| Fase 3 — Implementação greenfield | em andamento | SPEC-0000, 0001, 0002 implemented |
 | Fase 4 — Cutover de dados         | pendente     | clean slate + `db:reset`                                      |
 
 ## ADRs (stack — ordem primitiva → externa)
@@ -41,9 +41,9 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 
 | ID        | Arquivo                                                      | builds-on                     | status   |
 | --------- | ------------------------------------------------------------ | ----------------------------- | -------- |
-| SPEC-0000 | `docs/specs/auth/0000-autenticacao-magic-link.md`            | ADR-0003, ADR-0004           | accepted |
-| SPEC-0001 | `docs/specs/0001-schema-migrations-clean-slate.md`           | ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0009 | accepted |
-| SPEC-0002 | `docs/specs/storage/0002-upload-arquivos-r2.md`              | ADR-0002, ADR-0003, ADR-0005 | accepted |
+| SPEC-0000 | `docs/specs/auth/0000-autenticacao-magic-link.md`            | ADR-0003, ADR-0004           | implemented |
+| SPEC-0001 | `docs/specs/0001-schema-migrations-clean-slate.md`           | ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0009 | implemented |
+| SPEC-0002 | `docs/specs/storage/0002-upload-arquivos-r2.md`              | ADR-0002, ADR-0003, ADR-0005 | implemented |
 | SPEC-0003 | `docs/specs/admin/0003-config-providers-modelos.md`          | ADR-0007, ADR-0003, ADR-0006, ADR-0004 |          |
 | SPEC-0004 | `docs/specs/exams/0004-pipeline-ingestao.md`                 | ADR-0007, ADR-0008, SPEC-0002 |          |
 | SPEC-0005 | `docs/specs/exams/0005-catalogo-exames.md`                   | SPEC-0001, SPEC-0004          |          |
@@ -59,5 +59,5 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 
 ## Pendências
 
-- [ ] Implementar SPEC-0000 + SPEC-0001 (auth + schema)
+- [x] Implementar SPEC-0000 + SPEC-0001 + SPEC-0002 (auth + schema + storage)
 - [ ] Implementar domínios conforme specs fecham (`implemented`)

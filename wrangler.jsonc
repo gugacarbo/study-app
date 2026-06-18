@@ -1,35 +1,40 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "study-app",
-  "compatibility_date": "2026-05-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "main": "@tanstack/react-start/server-entry",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "study-app-db",
-      "database_id": "DEV",
-      "migrations_dir": "migrations"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "FILES_BUCKET",
-      "bucket_name": "study-app-files"
-    },
-    {
-      "binding": "MEMORY_BUCKET",
-      "bucket_name": "study-app-memory"
-    }
-  ],
-  "vars": {
-    "AI_PROVIDER": "openrouter",
-    "AI_MODEL": "openai/gpt-4o-mini"
-  },
-  "observability": {
-    "enabled": true
-  },
-  "upload_source_maps": true
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "study-app",
+	"compatibility_date": "2026-05-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "src/worker-entry.ts",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "study-app-db",
+			"database_id": "DEV",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "FILES_BUCKET",
+			"bucket_name": "study-app-files"
+		},
+		{
+			"binding": "MEMORY_BUCKET",
+			"bucket_name": "study-app-memory"
+		}
+	],
+	"vars": {
+		"ALLOWED_SIGNUP_EMAIL_DOMAINS": "ifsc.edu.br",
+		"EMAIL_FROM_ADDRESS": "noreply@gugacarbo.space",
+		"EMAIL_FROM_NAME": "Study App",
+		"BETTER_AUTH_URL": "http://localhost:3000",
+		"ADMIN_EMAILS": "",
+		"AI_LOG_LLM_CONTENT": "true"
+	},
+	"triggers": {
+		"crons": ["0 4 * * *"]
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true
 }
