@@ -1,8 +1,4 @@
-export type MagicLinkEmailEnv = {
-	RESEND_API_KEY?: string;
-	EMAIL_FROM_ADDRESS?: string;
-	EMAIL_FROM_NAME?: string;
-};
+import type { MagicLinkEmailEnv } from "@/env";
 
 export function authLog(message: string, data?: Record<string, unknown>) {
 	if (data) {

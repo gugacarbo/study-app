@@ -2,8 +2,8 @@ BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=http://localhost:3000
 
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@gugacarbo.space
-RESEND_FROM_NAME=Study App
+EMAIL_FROM_ADDRESS=noreply@gugacarbo.space
+EMAIL_FROM_NAME=Study App
 
 CONFIG_ENCRYPTION_KEY=
 
