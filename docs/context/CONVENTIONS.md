@@ -62,13 +62,20 @@ Não usar `#/*`. Testes usam `@/` como o app.
 
 ## Naming
 
-| Elemento                  | Padrão                  |
-| ------------------------- | ----------------------- |
-| Componentes / arquivos UI | PascalCase `.tsx`       |
-| Hooks, utils, functions   | camelCase               |
-| Diretórios                | kebab-case              |
-| Constantes                | UPPER_SNAKE_CASE        |
-| PKs de domínio            | UUID `text` (SPEC-0001) |
+| Elemento                         | Padrão                                                       |
+| -------------------------------- | ------------------------------------------------------------ |
+| Arquivos `.ts` / `.tsx`          | kebab-case — ex.: `use-ingest-job.ts`, `ingest-upload-form.tsx` |
+| Export de componentes / hooks    | PascalCase / `use` + PascalCase — ex.: `IngestUploadForm`, `useIngestJob` |
+| Diretórios                       | kebab-case — ex.: `background-processes/`                    |
+| Constantes                       | UPPER_SNAKE_CASE                                             |
+| PKs de domínio                   | UUID `text` (SPEC-0001)                                      |
+
+Regras para `.ts` / `.tsx`:
+
+- Nome do arquivo em kebab-case espelha o export principal (`ingest-upload-form.tsx` → `IngestUploadForm`)
+- Hooks: prefixo `use-` no basename — `use-admin-users.ts` → `useAdminUsers`
+- Testes ao lado do módulo: mesmo basename + sufixo — `ingest-upload-form.spec.tsx`
+- **Exceções** (framework / gerados): `index.tsx` em rotas, `__root.tsx`, segmentos `$param`, módulos de rota com prefixo `-` (ex.: `-index.tsx`), `routeTree.gen.ts`
 
 ## Lint (Biome)
 
@@ -84,6 +91,13 @@ Não usar `#/*`. Testes usam `@/` como o app.
 - `/admin/*`: `requireAdminSession` — permissão `admin:access` via `src/lib/rbac.ts`; falha → **404** (ADR-0004)
 - D1 via `getDB()` em `functions/db.ts` — não importar de client
 
+## Navegação
+
+- Rotas internas: `Link` de `@tanstack/react-router` com prop `to` — **nunca** `<a href="/...">` para paths do app
+- Navegação programática: `useNavigate()` — **nunca** `window.location.href` / `assign` / `replace` para paths internos
+- Redirect no servidor: `redirect()` em `beforeLoad` / `loader` (ex.: sessão em `/login`)
+- Exceções: URLs externas (`target="_blank"`, `rel="noopener noreferrer"`), HTML de email (`auth-magic-link-email.ts`)
+
 ## Data loading
 
 Rotas usam `useSuspenseQuery` + functions — não route loaders (exceto `beforeLoad` para auth).
@@ -98,7 +112,7 @@ Layout global em redesign (não copiar shell do `.old_app/`). TanStack Devtools 
 
 ## Testes
 
-Colocados ao lado do código: `foo.test.ts`, `bar.spec.tsx`. Ver `docs/context/TESTS.md`.
+Colocados ao lado do código: `ingest-upload-form.spec.tsx`, `auth.test.ts`. Ver `docs/context/TESTS.md`.
 
 ## Erros
 
@@ -120,3 +134,5 @@ Server: throw com mensagem descritiva. Client: try/catch + UI amigável. Recurso
 - LLM e R2: sempre via `lib/llm-logging.ts` e `lib/r2-audit.ts` — logs nunca deletados (ADR-0005)
 - API keys em D1: sempre `encryptSecret` antes de persistir (ADR-0006)
 - Upload ingest v1: só `.txt`/`.md` — rejeitar `.pdf` (ADR-0002)
+- `<a href="/...">` ou `window.location` para rotas internas — usar `Link` / `useNavigate`
+- Arquivos `.ts`/`.tsx` em camelCase ou PascalCase — usar kebab-case (exceto rotas/gerados)
