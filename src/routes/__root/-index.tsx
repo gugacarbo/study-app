@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Link, Scripts } from "@tanstack/react-router";
-import { ModeToggle } from "@/components/mode-toggle";
 import { ThemeProvider } from "@/components/theme-provider";
 import appCss from "../../globals.css?url";
 
@@ -56,15 +55,8 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-				<RootProviders>
-					<div className="fixed top-4 right-4 z-50">
-						<ModeToggle />
-					</div>
-					<main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-8">
-						{children}
-					</main>
-					<Scripts />
-				</RootProviders>
+				<RootProviders>{children}</RootProviders>
+				<Scripts />
 			</body>
 		</html>
 	);

@@ -18,7 +18,7 @@ export function AdminShell({ title, description, children }: AdminShellProps) {
 	});
 
 	return (
-		<div className="mx-[calc(50%-50vw)] w-screen max-w-4xl px-4 sm:mx-auto sm:w-full">
+		<div className="mx-auto min-h-dvh w-full max-w-4xl px-4 py-8">
 			<div className="space-y-6">
 				<header className="space-y-4">
 					<div className="space-y-1">

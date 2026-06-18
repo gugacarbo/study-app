@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +9,11 @@ import {
 	formatUnauthorizedEmailMessage,
 	getPlaceholderEmail,
 } from "@/env";
-import { getSession } from "@/functions/auth/require-session";
+import {
+	getAllowedSignupEmailDomainsFn,
+	getSession,
+} from "@/functions/auth/require-session";
 import { authClient } from "@/lib/auth-client";
-import { getAllowedSignupEmailDomains } from "@/lib/auth";
 import { isAllowedSignupEmail } from "@/lib/auth-allowed-email-domain";
 
 export const Route = createFileRoute("/login/")({
@@ -19,10 +22,11 @@ export const Route = createFileRoute("/login/")({
 		if (session?.user) {
 			throw redirect({ to: "/" });
 		}
+
+		return {
+			allowedSignupEmailDomains: await getAllowedSignupEmailDomainsFn(),
+		};
 	},
-	loader: async () => ({
-		allowedSignupEmailDomains: await getAllowedSignupEmailDomains(),
-	}),
 	component: LoginPage,
 });
 
@@ -113,8 +117,13 @@ export function LoginPageContent({
 }
 
 function LoginPage() {
-	const { allowedSignupEmailDomains } = Route.useLoaderData();
+	const { allowedSignupEmailDomains } = Route.useRouteContext();
 	return (
-		<LoginPageContent allowedSignupEmailDomains={allowedSignupEmailDomains} />
+		<div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-4 py-8">
+			<div className="absolute top-4 right-4">
+				<ModeToggle />
+			</div>
+			<LoginPageContent allowedSignupEmailDomains={allowedSignupEmailDomains} />
+		</div>
 	);
 }
