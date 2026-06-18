@@ -42,7 +42,8 @@ npm test                 # tudo verde
 ## Git & PRs
 
 <!-- Convenções; quando commitar; se há remote; se o agente abre PR sem ser pedido.
-     T1: ADRs versionados são imutáveis — pre-commit bloqueia alteração (docs-check --staged). -->
+     T1: corpo de ADR versionado é imutável no pre-commit — só frontmatter
+     (ex.: status, superseded-by) e bloco VERDADE ATUAL ao superseder passam. -->
 
 ## Gotchas
 

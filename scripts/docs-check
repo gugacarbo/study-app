@@ -25,8 +25,8 @@ O que faz:
   7. Índices frescos: compara os READMEs gerados (e docs/index.json, se
      existir) com os commitados e FALHA se divergirem.
      --emit-index regenera tudo.
-  8. --staged (pre-commit): em casa-tier T1 (AGENTS.md), bloqueia ADR já
-     versionado em HEAD que esteja staged para alteração ou remoção.
+  8. --staged (pre-commit): em casa-tier T1 (AGENTS.md), bloqueia alteração no
+     corpo de ADR já versionado; mudanças só no frontmatter (ex.: status) passam.
 
 Exit: 1 se houver ERRO (default). --warn-only imprime tudo e sai 0 —
 só para a janela de adoção (STANDARD §10).
@@ -182,28 +182,72 @@ def _git_ok(args, root):
     return subprocess.run(args, cwd=root, capture_output=True).returncode == 0
 
 
+def adr_body(text):
+    """Corpo do ADR após o frontmatter (arquivo inteiro se não houver ---)."""
+    raw_fm, body = split_frontmatter(text)
+    return text if raw_fm is None else body
+
+
+def normalize_adr_body(body):
+    return body.replace("\r\n", "\n").rstrip()
+
+
+def verdade_atual_only_body_change(old_body, new_body):
+    """CASA: única edição de corpo permitida em ADR aceito é o bloco VERDADE ATUAL."""
+    strip_comments = lambda b: re.sub(r"<!--.*?-->", "", b, flags=re.S)
+    old_vis = normalize_adr_body(strip_comments(old_body))
+    new_vis = normalize_adr_body(strip_comments(new_body))
+    if old_vis == new_vis:
+        return True
+    va_line = re.compile(r"^\s*>\s*(?:⚠️\s*)?VERDADE ATUAL.*$", re.M)
+    old_rest = normalize_adr_body(va_line.sub("", old_vis))
+    new_rest = normalize_adr_body(va_line.sub("", new_vis))
+    return old_rest == new_rest and VA_RE.search(new_vis)
+
+
+def _git_show(ref, path, root):
+    spec = f":{path}" if ref == ":" else f"{ref}:{path}"
+    r = subprocess.run(
+        ["git", "show", spec],
+        cwd=root, capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else None
+
+
 def check_staged_adr_immutable(root):
-    """T1: ADRs já em HEAD não podem ser alterados nem removidos no commit."""
+    """T1: corpo de ADR já em HEAD é imutável; frontmatter (status, etc.) pode mudar."""
     if read_casa_tier(root) != "T1":
         return []
     if not _git_ok(["git", "rev-parse", "--verify", "HEAD"], root):
         return []
-    paths = []
-    for diff_filter in ("ACMR", "D"):
+    deleted = set()
+    staged = set()
+    for diff_filter, target in (("D", deleted), ("ACMR", staged)):
         r = subprocess.run(
             ["git", "diff", "--cached", "--name-only", f"--diff-filter={diff_filter}"],
             cwd=root, capture_output=True, text=True, check=True)
-        paths.extend(r.stdout.splitlines())
+        target.update(p for p in r.stdout.splitlines() if p)
     errors = []
-    seen = set()
-    for path in paths:
-        if not path or path in seen or not ADR_STAGED_RE.match(path):
+    for path in sorted(deleted | staged):
+        if not ADR_STAGED_RE.match(path):
             continue
-        seen.add(path)
-        if _git_ok(["git", "cat-file", "-e", f"HEAD:{path}"], root):
+        if not _git_ok(["git", "cat-file", "-e", f"HEAD:{path}"], root):
+            continue
+        if path in deleted:
             errors.append(
-                f"ADR imutável (T1): '{path}' já existia e está staged para "
-                "alteração ou remoção — crie um ADR novo que supersede")
+                f"ADR imutável (T1): '{path}' está staged para remoção — "
+                "use status deprecated/superseded no frontmatter")
+            continue
+        head_text = _git_show("HEAD", path, root)
+        staged_text = _git_show(":", path, root)  # :path = index/staged
+        if head_text is None or staged_text is None:
+            errors.append(f"ADR imutável (T1): não foi possível ler '{path}' em HEAD/staged")
+            continue
+        if verdade_atual_only_body_change(adr_body(head_text), adr_body(staged_text)):
+            continue
+        errors.append(
+            f"ADR imutável (T1): '{path}' — alteração no corpo; "
+            "só o frontmatter (ex.: status, superseded-by) pode mudar, "
+            "ou o bloco '> VERDADE ATUAL' ao superseder")
     return errors
 
 

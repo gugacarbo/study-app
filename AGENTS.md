@@ -54,6 +54,7 @@ Não rodar `db:reset:prod` sem confirmação explícita — destrutivo.
 
 Remote: `origin` → GitHub (`gugacarbo/study-app`). Branch principal: `main`.
 Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemented` + `implemented-by` + `## Verificação`).
+**T1:** corpo de ADR versionado é imutável no pre-commit — só frontmatter (ex.: `status`) e bloco `> VERDADE ATUAL` ao superseder podem mudar.
 
 ## Gotchas
 
