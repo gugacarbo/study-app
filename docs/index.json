@@ -182,6 +182,7 @@
     "implemented-by": [
       "src/db/queries/files.ts",
       "src/functions/storage/upload-file.ts",
+      "src/functions/storage/read-file.ts",
       "src/functions/storage/purge-expired-blobs.ts",
       "src/workers/cron.ts",
       "src/worker-entry.ts",

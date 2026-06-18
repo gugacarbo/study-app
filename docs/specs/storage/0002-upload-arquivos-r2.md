@@ -5,6 +5,7 @@ builds-on: [ADR-0002, ADR-0003, ADR-0005]
 implemented-by:
   - src/db/queries/files.ts
   - src/functions/storage/upload-file.ts
+  - src/functions/storage/read-file.ts
   - src/functions/storage/purge-expired-blobs.ts
   - src/workers/cron.ts
   - src/worker-entry.ts
@@ -61,6 +62,7 @@ Vencimento: `expires_at` implícito = `created_at + ttl_seconds` (não persistir
 | Operação   | Entrada                        | `ttl_seconds`                                      |
 | ---------- | ------------------------------ | -------------------------------------------------- |
 | Upload     | `examId`, file, `ttl_seconds?` | Opcional; default **0**; se informado, inteiro ≥ 0 |
+| Leitura    | `fileId`                       | —                                                  |
 | Purge cron | (nenhum — sistema)             | Só processa `ttl_seconds > 0`                      |
 
 Validação Zod: `ttl_seconds` inteiro, `min(0)`, `max` razoável (ex.: 10 anos em segundos) — evitar overflow acidental.
@@ -79,8 +81,9 @@ Validação Zod: `ttl_seconds` inteiro, `min(0)`, `max` razoável (ex.: 10 anos 
 | Peça       | Path                                                                    |
 | ---------- | ----------------------------------------------------------------------- |
 | Upload     | `src/functions/storage/upload-file.ts`                                  |
+| Leitura    | `src/functions/storage/read-file.ts`                                    |
 | Purge      | `src/functions/storage/purge-expired-blobs.ts`                          |
-| Queries    | `src/db/queries/files.ts` — `listExpiredFiles(limit)`, `deleteFile(id)` |
+| Queries    | `src/db/queries/files.ts` — `getFileByIdWithOwnership`, `listExpiredFiles(limit)`, `deleteFile(id)` |
 | Cron route | `src/workers/cron.ts` ou handler no worker principal                    |
 
 ## Casos de borda
@@ -94,16 +97,19 @@ Validação Zod: `ttl_seconds` inteiro, `min(0)`, `max` razoável (ex.: 10 anos 
 | 5   | `exam` deletado (cascade)         | `files` removidos independente de TTL            |
 | 6   | upload com `ttl_seconds` negativo | rejeitar (400 / Zod)                             |
 | 7   | cron overlap (run longo)          | idempotente — reprocessar vencidos é seguro      |
+| 8   | leitura de arquivo de outro user  | **404** (`getFileByIdWithOwnership`)             |
+| 9   | leitura com row D1 mas sem blob R2 | **404**                                          |
 
 ## Questões em aberto
 
-- [ ] Server function de download/leitura (`getFileByIdWithOwnership` + `auditedR2Get`) — fluxo descrito acima, não exposto em API v1
+(nenhuma)
 
 ## Definition of Done
 
 ```bash
 npm run typecheck                                              # exit 0
 npm test -- src/functions/storage/upload-file.test.ts          # verdes
+npm test -- src/functions/storage/read-file.test.ts            # verdes
 npm test -- src/functions/storage/purge-expired-blobs.test.ts  # verdes
 npm test -- src/db/queries/files.test.ts                       # verdes
 grep -q 'crons' wrangler.jsonc                                 # purge diário configurado
@@ -118,7 +124,8 @@ grep -q 'crons' wrangler.jsonc                                 # purge diário c
 ```text
 npm run typecheck                                              # exit 0
 npm test -- src/functions/storage/upload-file.test.ts          # 1 passed
+npm test -- src/functions/storage/read-file.test.ts            # 3 passed
 npm test -- src/functions/storage/purge-expired-blobs.test.ts  # 1 passed
-npm test -- src/db/queries/files.test.ts                       # 2 passed
+npm test -- src/db/queries/files.test.ts                       # 3 passed
 grep -q 'crons' wrangler.jsonc                                 # ok
 ```

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createExam } from "@/db/queries/exams";
-import { listExpiredFiles } from "@/db/queries/files";
+import { getFileByIdWithOwnership, listExpiredFiles } from "@/db/queries/files";
 import { createId } from "@/db/queries/helpers";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
@@ -57,5 +57,39 @@ describe("files queries", () => {
 
 		const expired = await listExpiredFiles(db, 10);
 		expect(expired.map((row) => row.id)).toContain(fileId);
+	});
+
+	it("getFileByIdWithOwnership returns null for another user", async () => {
+		const db = createTestDb();
+		const ownerId = createId();
+		const otherId = createId();
+		const examId = createId();
+		const fileId = createId();
+
+		await db.insert(schema.user).values([
+			{
+				id: ownerId,
+				name: "Owner",
+				email: "owner@aluno.ifsc.edu.br",
+				emailVerified: true,
+			},
+			{
+				id: otherId,
+				name: "Other",
+				email: "other@aluno.ifsc.edu.br",
+				emailVerified: true,
+			},
+		]);
+		await createExam(db, { id: examId, userId: ownerId, name: "Exam" });
+		await db.insert(schema.files).values({
+			id: fileId,
+			examId,
+			name: "secret.txt",
+			r2Key: `users/${ownerId}/files/secret.txt`,
+			ttlSeconds: 0,
+		});
+
+		expect(await getFileByIdWithOwnership(db, fileId, ownerId)).not.toBeNull();
+		expect(await getFileByIdWithOwnership(db, fileId, otherId)).toBeNull();
 	});
 });
