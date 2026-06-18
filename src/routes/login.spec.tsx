@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { LoginPage } from "@/routes/login/index";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { LoginPageContent } from "@/routes/login/index";
 
 vi.mock("@/functions/auth/require-session", () => ({
 	getSession: vi.fn(async () => null),
@@ -14,9 +14,22 @@ vi.mock("@/lib/auth-client", () => ({
 }));
 
 describe("login page", () => {
-	it("shows ifsc domain hint", () => {
-		render(<LoginPage />);
-		expect(screen.getByText(/@ifsc.edu.br/i)).toBeInTheDocument();
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("shows configured domain hint", () => {
+		render(<LoginPageContent allowedSignupEmailDomains="ifsc.edu.br" />);
+		expect(screen.getByText(/@ifsc\.edu\.br/i)).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: /enviar link/i })).toBeInTheDocument();
+	});
+
+	it("shows multiple domains when configured", () => {
+		render(
+			<LoginPageContent allowedSignupEmailDomains="ifsc.edu.br,example.com" />,
+		);
+		expect(
+			screen.getByText(/@ifsc\.edu\.br, @example\.com/i),
+		).toBeInTheDocument();
 	});
 });

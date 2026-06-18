@@ -1,14 +1,16 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import { drizzle } from "drizzle-orm/d1";
-import { APIError } from "better-auth/api";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError } from "better-auth/api";
 import { magicLink } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { drizzle } from "drizzle-orm/d1";
+import { env as appEnv } from "@/env";
 import { createDb } from "@/db/client";
 import { authSchema } from "@/db/schema";
-import { bootstrapUserRoles } from "@/lib/rbac-bootstrap";
 import { isAllowedSignupEmail } from "@/lib/auth-allowed-email-domain";
+import { authLog, sendMagicLinkEmail } from "@/lib/auth-magic-link-email";
+import { bootstrapUserRoles } from "@/lib/rbac-bootstrap";
 
 export type AuthBindings = {
 	DB: D1Database;
@@ -21,41 +23,11 @@ export type AuthBindings = {
 	RESEND_API_KEY?: string;
 };
 
-async function sendMagicLinkEmail(
-	env: AuthBindings,
-	email: string,
-	url: string,
-) {
-	if (env.RESEND_API_KEY) {
-		const fromName = env.EMAIL_FROM_NAME ?? "Study App";
-		const fromAddress = env.EMAIL_FROM_ADDRESS ?? "noreply@gugacarbo.space";
-		const response = await fetch("https://api.resend.com/emails", {
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${env.RESEND_API_KEY}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				from: `${fromName} <${fromAddress}>`,
-				to: [email],
-				subject: "Seu link de acesso — Study App",
-				text: `Acesse: ${url}`,
-				html: `<p>Acesse: <a href="${url}">${url}</a></p>`,
-			}),
-		});
-		if (!response.ok) {
-			throw new Error(`Resend failed: ${response.status}`);
-		}
-		return;
-	}
-
-	console.log("[auth] magic link", email, url);
-}
-
 export function createAuth(env: AuthBindings) {
 	const db = drizzle(env.DB, { schema: authSchema });
 	const appDb = createDb(env.DB);
-	const allowedDomains = env.ALLOWED_SIGNUP_EMAIL_DOMAINS ?? "ifsc.edu.br";
+	const allowedDomains =
+		env.ALLOWED_SIGNUP_EMAIL_DOMAINS ?? appEnv.ALLOWED_SIGNUP_EMAIL_DOMAINS;
 
 	return betterAuth({
 		secret: env.BETTER_AUTH_SECRET,
@@ -83,10 +55,18 @@ export function createAuth(env: AuthBindings) {
 				expiresIn: 600,
 				sendMagicLink: async ({ email, url }) => {
 					if (!isAllowedSignupEmail(email, allowedDomains)) {
+						authLog("magic link rejected (email not allowed)", {
+							email,
+							allowedDomains,
+						});
 						throw new APIError("BAD_REQUEST", {
 							message: "Este email não está autorizado",
 						});
 					}
+					authLog("magic link requested", {
+						email,
+						resendConfigured: Boolean(env.RESEND_API_KEY),
+					});
 					await sendMagicLinkEmail(env, email, url);
 				},
 			}),
@@ -99,13 +79,14 @@ export type AppAuth = ReturnType<typeof createAuth>;
 
 let cachedAuthEnv: AuthBindings | null = null;
 let cachedAuth: AppAuth | null = null;
+const CLOUDFLARE_WORKERS_MODULE = "cloudflare:workers";
 
 export async function getAuthBindings(): Promise<AuthBindings> {
 	if (cachedAuthEnv) return cachedAuthEnv;
 
 	try {
 		const mod = (await import(
-			/* @vite-ignore */ "cloudflare:workers"
+			/* @vite-ignore */ CLOUDFLARE_WORKERS_MODULE
 		)) as unknown as { env: AuthBindings };
 		cachedAuthEnv = mod.env;
 		return mod.env;
@@ -119,8 +100,7 @@ export async function getAuthBindings(): Promise<AuthBindings> {
 			DB: undefined as unknown as D1Database,
 			BETTER_AUTH_SECRET: secret,
 			BETTER_AUTH_URL: baseURL,
-			ALLOWED_SIGNUP_EMAIL_DOMAINS:
-				process.env.ALLOWED_SIGNUP_EMAIL_DOMAINS ?? "ifsc.edu.br",
+			ALLOWED_SIGNUP_EMAIL_DOMAINS: appEnv.ALLOWED_SIGNUP_EMAIL_DOMAINS,
 			EMAIL_FROM_ADDRESS: process.env.EMAIL_FROM_ADDRESS,
 			EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME,
 			ADMIN_EMAILS: process.env.ADMIN_EMAILS,
@@ -139,4 +119,9 @@ export async function getAuth(): Promise<AppAuth> {
 
 export function createAuthFromBindings(env: AuthBindings): AppAuth {
 	return createAuth(env);
+}
+
+export async function getAllowedSignupEmailDomains(): Promise<string> {
+	const bindings = await getAuthBindings();
+	return bindings.ALLOWED_SIGNUP_EMAIL_DOMAINS ?? appEnv.ALLOWED_SIGNUP_EMAIL_DOMAINS;
 }

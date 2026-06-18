@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createTestDb } from "@/db/test-db";
-import * as schema from "@/db/schema";
 import { createExam, getExamById } from "@/db/queries/exams";
 import { createId } from "@/db/queries/helpers";
+import * as schema from "@/db/schema";
+import { createTestDb } from "@/db/test-db";
 
 describe("user scoping", () => {
 	it("getExamById returns null when user does not own exam", async () => {
@@ -15,13 +15,13 @@ describe("user scoping", () => {
 			{
 				id: userA,
 				name: "A",
-				email: "a@ifsc.edu.br",
+				email: "a@aluno.ifsc.edu.br",
 				emailVerified: true,
 			},
 			{
 				id: userB,
 				name: "B",
-				email: "b@ifsc.edu.br",
+				email: "b@aluno.ifsc.edu.br",
 				emailVerified: true,
 			},
 		]);

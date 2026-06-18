@@ -8,7 +8,7 @@ describe("auth", () => {
 			DB: {} as D1Database,
 			BETTER_AUTH_SECRET: "x".repeat(32),
 			BETTER_AUTH_URL: "http://localhost:3000",
-			ALLOWED_SIGNUP_EMAIL_DOMAINS: "ifsc.edu.br",
+			ALLOWED_SIGNUP_EMAIL_DOMAINS: "aluno.ifsc.edu.br",
 		});
 
 		expect(auth).toBeDefined();

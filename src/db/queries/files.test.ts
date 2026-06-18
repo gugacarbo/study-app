@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createTestDb } from "@/db/test-db";
-import * as schema from "@/db/schema";
 import { createExam } from "@/db/queries/exams";
-import { createId } from "@/db/queries/helpers";
 import { listExpiredFiles } from "@/db/queries/files";
+import { createId } from "@/db/queries/helpers";
+import * as schema from "@/db/schema";
+import { createTestDb } from "@/db/test-db";
 
 describe("files queries", () => {
 	it("listExpiredFiles ignores ttl_seconds = 0", async () => {
@@ -14,7 +14,7 @@ describe("files queries", () => {
 		await db.insert(schema.user).values({
 			id: userId,
 			name: "U",
-			email: "u@ifsc.edu.br",
+			email: "u@aluno.ifsc.edu.br",
 			emailVerified: true,
 		});
 		await createExam(db, { id: examId, userId, name: "Exam" });
@@ -40,7 +40,7 @@ describe("files queries", () => {
 		await db.insert(schema.user).values({
 			id: userId,
 			name: "U",
-			email: "u@ifsc.edu.br",
+			email: "u@aluno.ifsc.edu.br",
 			emailVerified: true,
 		});
 		await createExam(db, { id: examId, userId, name: "Exam" });

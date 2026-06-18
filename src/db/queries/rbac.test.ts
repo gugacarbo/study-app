@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createTestDb } from "@/db/test-db";
-import * as schema from "@/db/schema";
+import { createId } from "@/db/queries/helpers";
 import {
 	assignRoleToUser,
 	getUserPermissionKeys,
 	seedRbacIfEmpty,
 	userHasPermission,
 } from "@/db/queries/rbac";
-import { createId } from "@/db/queries/helpers";
+import * as schema from "@/db/schema";
+import { createTestDb } from "@/db/test-db";
 
 describe("rbac", () => {
 	it("seeds roles and permissions", async () => {
@@ -18,7 +18,7 @@ describe("rbac", () => {
 		await db.insert(schema.user).values({
 			id: userId,
 			name: "Test",
-			email: "test@ifsc.edu.br",
+			email: "test@aluno.ifsc.edu.br",
 			emailVerified: true,
 		});
 
@@ -36,7 +36,7 @@ describe("rbac", () => {
 		await db.insert(schema.user).values({
 			id: userId,
 			name: "Admin",
-			email: "admin@ifsc.edu.br",
+			email: "admin@aluno.ifsc.edu.br",
 			emailVerified: true,
 		});
 

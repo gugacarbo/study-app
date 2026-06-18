@@ -7,7 +7,7 @@ export const env = createEnv({
 		BETTER_AUTH_URL: z.string().url().optional(),
 		RESEND_API_KEY: z.string().min(1).optional(),
 		CONFIG_ENCRYPTION_KEY: z.string().min(1).optional(),
-		ALLOWED_SIGNUP_EMAIL_DOMAINS: z.string().default("ifsc.edu.br"),
+		ALLOWED_SIGNUP_EMAIL_DOMAINS: z.string().default("aluno.ifsc.edu.br"),
 		EMAIL_FROM_ADDRESS: z.string().email().default("noreply@gugacarbo.space"),
 		EMAIL_FROM_NAME: z.string().default("Study App"),
 		ADMIN_EMAILS: z.string().default(""),
@@ -49,4 +49,22 @@ export function getAllowedSignupDomains(raw: string): string[] {
 		.split(",")
 		.map((domain) => domain.trim().toLowerCase())
 		.filter(Boolean);
+}
+
+export function formatAllowedDomainsHint(raw: string): string {
+	return getAllowedSignupDomains(raw)
+		.map((domain) => `@${domain}`)
+		.join(", ");
+}
+
+export function getPlaceholderEmail(raw: string): string {
+	const [firstDomain] = getAllowedSignupDomains(raw);
+	return firstDomain ? `voce@${firstDomain}` : "voce@exemplo.com";
+}
+
+export function formatUnauthorizedEmailMessage(raw: string): string {
+	const hint = formatAllowedDomainsHint(raw);
+	return hint
+		? `Este email não está autorizado. Use ${hint}.`
+		: "Este email não está autorizado.";
 }

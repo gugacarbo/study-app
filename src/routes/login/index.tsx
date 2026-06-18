@@ -3,11 +3,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	formatAllowedDomainsHint,
+	formatUnauthorizedEmailMessage,
+	getPlaceholderEmail,
+} from "@/env";
 import { getSession } from "@/functions/auth/require-session";
 import { authClient } from "@/lib/auth-client";
+import { getAllowedSignupEmailDomains } from "@/lib/auth";
 import { isAllowedSignupEmail } from "@/lib/auth-allowed-email-domain";
-
-const ALLOWED_DOMAINS = "ifsc.edu.br";
 
 export const Route = createFileRoute("/login/")({
 	beforeLoad: async () => {
@@ -16,24 +20,34 @@ export const Route = createFileRoute("/login/")({
 			throw redirect({ to: "/" });
 		}
 	},
+	loader: async () => ({
+		allowedSignupEmailDomains: await getAllowedSignupEmailDomains(),
+	}),
 	component: LoginPage,
 });
 
-export function LoginPage() {
+type LoginPageContentProps = {
+	allowedSignupEmailDomains: string;
+};
+
+export function LoginPageContent({
+	allowedSignupEmailDomains,
+}: LoginPageContentProps) {
 	const [email, setEmail] = useState("");
 	const [status, setStatus] = useState<
 		"idle" | "loading" | "sent" | "error"
 	>("idle");
 	const [message, setMessage] = useState<string | null>(null);
+	const allowedDomainsHint = formatAllowedDomainsHint(allowedSignupEmailDomains);
 
 	async function handleSubmit(event: React.FormEvent) {
 		event.preventDefault();
 		setStatus("loading");
 		setMessage(null);
 
-		if (!isAllowedSignupEmail(email, ALLOWED_DOMAINS)) {
+		if (!isAllowedSignupEmail(email, allowedSignupEmailDomains)) {
 			setStatus("error");
-			setMessage("Este email não está autorizado. Use @ifsc.edu.br.");
+			setMessage(formatUnauthorizedEmailMessage(allowedSignupEmailDomains));
 			return;
 		}
 
@@ -60,7 +74,8 @@ export function LoginPage() {
 			<div className="space-y-1">
 				<h1 className="text-xl font-semibold">Entrar</h1>
 				<p className="text-sm text-muted-foreground">
-					Magic link apenas para emails <strong>@ifsc.edu.br</strong>.
+					Magic link apenas para emails{" "}
+					<strong>{allowedDomainsHint || "autorizados"}</strong>.
 				</p>
 			</div>
 
@@ -73,7 +88,7 @@ export function LoginPage() {
 						autoComplete="email"
 						value={email}
 						onChange={(event) => setEmail(event.target.value)}
-						placeholder="voce@ifsc.edu.br"
+						placeholder={getPlaceholderEmail(allowedSignupEmailDomains)}
 						required
 					/>
 				</div>
@@ -94,5 +109,12 @@ export function LoginPage() {
 				</p>
 			) : null}
 		</div>
+	);
+}
+
+function LoginPage() {
+	const { allowedSignupEmailDomains } = Route.useLoaderData();
+	return (
+		<LoginPageContent allowedSignupEmailDomains={allowedSignupEmailDomains} />
 	);
 }
