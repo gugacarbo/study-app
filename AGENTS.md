@@ -2,7 +2,7 @@
 
 ```yaml
 casa-repo-id: study-app
-casa-tier: T1
+casa-tier: T0
 casa-standard-ref: 9d655cf
 ```
 
@@ -75,12 +75,12 @@ Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemente
 
 ## Mapa de contexto
 
-| Capítulo                      | Quando carregar                                    |
-| ----------------------------- | -------------------------------------------------- |
-| `docs/context/CONVENTIONS.md` | escrever/alterar Spec, endpoint ou function        |
+| Capítulo                      | Quando carregar                                     |
+| ----------------------------- | --------------------------------------------------- |
+| `docs/context/CONVENTIONS.md` | escrever/alterar Spec, endpoint ou function         |
 | `docs/context/SPECS.md`       | criar spec, reservar número, escolher pasta/domínio |
-| `docs/context/INFRA.md`       | migration, deploy, bindings Cloudflare             |
-| `docs/context/TESTS.md`       | escrever ou alterar testes                         |
+| `docs/context/INFRA.md`       | migration, deploy, bindings Cloudflare              |
+| `docs/context/TESTS.md`       | escrever ou alterar testes                          |
 
 ## Mapa de docs
 

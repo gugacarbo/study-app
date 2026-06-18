@@ -24,21 +24,21 @@ Exceção: etapas em que o **browser envia bytes** (upload de arquivo) dependem 
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| Queues + D1 + consumer Worker | **Escolhida** — custo previsível; ops baratas vs GB-s de DO em jobs longos |
-| Durable Object por job | Rejeitado — duration billing alto em espera LLM; complexidade extra |
-| Stream HTTP preso ao client (modelo anterior) | Rejeitado — refresh perde execução |
-| `waitUntil` sem Queue | Rejeitado — não confiável para pipelines de minutos após response |
-| Só localStorage no client | Rejeitado — não sobrevive a outro dispositivo/aba limpa |
+| Opção                                         | Veredito                                                                   |
+| --------------------------------------------- | -------------------------------------------------------------------------- |
+| Queues + D1 + consumer Worker                 | **Escolhida** — custo previsível; ops baratas vs GB-s de DO em jobs longos |
+| Durable Object por job                        | Rejeitado — duration billing alto em espera LLM; complexidade extra        |
+| Stream HTTP preso ao client (modelo anterior) | Rejeitado — refresh perde execução                                         |
+| `waitUntil` sem Queue                         | Rejeitado — não confiável para pipelines de minutos após response          |
+| Só localStorage no client                     | Rejeitado — não sobrevive a outro dispositivo/aba limpa                    |
 
 ### Custo (regra prática)
 
-| Componente | Impacto neste app |
-|------------|-------------------|
-| Tokens LLM | **Dominante** (ADR-0005) |
-| Queue ops | ~2–4 ops/job — barato (10k/dia free; 1M/mês paid) |
-| Worker CPU | Consumer ativo durante steps — não durante poll do client |
+| Componente  | Impacto neste app                                                       |
+| ----------- | ----------------------------------------------------------------------- |
+| Tokens LLM  | **Dominante** (ADR-0005)                                                |
+| Queue ops   | ~2–4 ops/job — barato (10k/dia free; 1M/mês paid)                       |
+| Worker CPU  | Consumer ativo durante steps — não durante poll do client               |
 | DO duration | Evitado — cobrança por GB·s enquanto objeto vivo (ruim em waits de LLM) |
 
 ## Decisão
@@ -47,10 +47,10 @@ Exceção: etapas em que o **browser envia bytes** (upload de arquivo) dependem 
 
 Tabelas em SPEC-0001 (`background_jobs`, `background_job_events`):
 
-| Tabela | Uso |
-|--------|-----|
-| `background_jobs` | `id`, `user_id`, `kind`, `status`, `phase`, `error`, `metadata`, timestamps |
-| `background_job_events` | `job_id`, `seq`, payload (UI message / data part JSON), `created_at` |
+| Tabela                  | Uso                                                                         |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `background_jobs`       | `id`, `user_id`, `kind`, `status`, `phase`, `error`, `metadata`, timestamps |
+| `background_job_events` | `job_id`, `seq`, payload (UI message / data part JSON), `created_at`        |
 
 `status` v1: `awaiting_upload` → `queued` → `running` → `completed` \| `failed` \| `cancelled`.
 
@@ -73,11 +73,11 @@ Kinds **sem upload** (`explain-question`, `connection-test`, `model-benchmark`):
 
 ### Fases dependentes do browser
 
-| Fase | Browser aberto obrigatório? | Se refresh/fechar aba |
-|------|----------------------------|------------------------|
-| Upload arquivo → R2 | **Sim** | Upload pode falhar; job fica `awaiting_upload` ou `failed` — usuário reenvia |
-| Pipeline IA pós-upload | **Não** | Consumer continua; client reidrata via poll/SSE |
-| Cancel explícito | Não | `POST /api/jobs/:id/cancel` → flag; consumer para entre steps |
+| Fase                   | Browser aberto obrigatório? | Se refresh/fechar aba                                                        |
+| ---------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| Upload arquivo → R2    | **Sim**                     | Upload pode falhar; job fica `awaiting_upload` ou `failed` — usuário reenvia |
+| Pipeline IA pós-upload | **Não**                     | Consumer continua; client reidrata via poll/SSE                              |
+| Cancel explícito       | Não                         | `POST /api/jobs/:id/cancel` → flag; consumer para entre steps                |
 
 **Proibido** tratar desconexão do client como cancel do job (exceto durante upload ativo, onde a request HTTP do upload aborta).
 
@@ -85,13 +85,13 @@ Kinds **sem upload** (`explain-question`, `connection-test`, `model-benchmark`):
 
 Papel: **UI + sync** — não executa LLM.
 
-| Peça | Função |
-|------|--------|
-| Store | Lista de jobs ativos/recentes; cache de eventos |
-| `useJobSync(jobId)` | TanStack Query poll em `/api/jobs/:id/events` |
-| SSE hook | Conecta `/stream` quando dialog/painel aberto; fallback poll |
-| `BackgroundProcessProvider` | Indicador global na nav |
-| Upload handlers | Única parte que mantém `fetch` longo no browser |
+| Peça                        | Função                                                       |
+| --------------------------- | ------------------------------------------------------------ |
+| Store                       | Lista de jobs ativos/recentes; cache de eventos              |
+| `useJobSync(jobId)`         | TanStack Query poll em `/api/jobs/:id/events`                |
+| SSE hook                    | Conecta `/stream` quando dialog/painel aberto; fallback poll |
+| `BackgroundProcessProvider` | Indicador global na nav                                      |
+| Upload handlers             | Única parte que mantém `fetch` longo no browser              |
 
 `localStorage`: opcional — cache de `jobId`s recentes para reidratação rápida; **D1 é fonte de verdade**.
 
