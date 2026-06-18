@@ -1,8 +1,34 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-17
 builds-on: [ADR-0007, ADR-0008, ADR-0009, ADR-0002, ADR-0005, SPEC-0001, SPEC-0002, SPEC-0003]
-implemented-by: []
+implemented-by:
+  - src/features/ai/jobs/ingest/run-ingest.ts
+  - src/features/ai/jobs/ingest/extracted-question.ts
+  - src/features/ai/jobs/ingest/normalize-question.ts
+  - src/features/ai/jobs/ingest/ingest-events.ts
+  - src/features/ai/jobs/ingest/persist-questions.ts
+  - src/features/ai/jobs/run-job-consumer.ts
+  - src/db/queries/jobs.ts
+  - src/db/queries/questions.ts
+  - src/db/queries/exams.ts
+  - src/functions/jobs/create-ingest-job.ts
+  - src/functions/jobs/upload-ingest-file.ts
+  - src/functions/jobs/get-job-events.ts
+  - src/functions/jobs/stream-job-events.ts
+  - src/functions/jobs/cancel-job.ts
+  - src/routes/api/jobs/
+  - src/workers/job-consumer.ts
+  - src/worker-entry.ts
+  - src/functions/queue.ts
+  - src/features/exams/components/ingest-upload-form.tsx
+  - src/features/exams/hooks/use-ingest-job.ts
+  - src/routes/exams/new/index.tsx
+  - src/lib/job-kinds.ts
+  - src/lib/job-errors.ts
+  - src/lib/ingest-limits.ts
+  - src/lib/file-validation.ts
+  - wrangler.jsonc
 ---
 
 # Pipeline de ingestão: arquivo → questões
@@ -272,7 +298,7 @@ npm run typecheck
 npm test -- src/features/ai/jobs/ingest/
 npm test -- src/db/queries/questions.test.ts
 npm test -- src/routes/api/jobs/
-grep -rq 'kind.*ingest' src/features/ai/jobs/
+grep -rq 'JOB_KIND.INGEST' src/features/ai/jobs/
 grep -rq 'streamObject' src/features/ai/jobs/ingest/
 grep -rq 'data-ingest-phase' src/features/ai/jobs/ingest/
 npm run docs-check
@@ -288,5 +314,12 @@ npm run docs-check
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                              # exit 0
+npm test -- src/features/ai/jobs/ingest/                       # 17 passed (4 files)
+npm test -- src/db/queries/questions.test.ts                   # 4 passed
+npm test -- src/routes/api/jobs/ src/functions/jobs/           # 19 passed (5 files)
+grep -rq 'JOB_KIND.INGEST' src/features/ai/jobs/             # ok
+grep -rq 'streamObject' src/features/ai/jobs/ingest/          # ok
+grep -rq 'data-ingest-phase' src/features/ai/jobs/ingest/     # ok
+npm run docs-check -- --emit-index                               # exit 0 (índices regenerados)
 ```

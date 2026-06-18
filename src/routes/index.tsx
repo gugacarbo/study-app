@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/")({
@@ -12,6 +12,12 @@ function HomePage() {
 			<p className="text-sm text-muted-foreground">
 				Você está autenticado. O greenfield SPEC-0000–0002 está ativo.
 			</p>
+			<Link
+				to="/exams/new"
+				className="inline-flex text-sm font-medium text-primary underline"
+			>
+				Importar prova
+			</Link>
 			<button
 				type="button"
 				className="text-sm font-medium text-primary underline"

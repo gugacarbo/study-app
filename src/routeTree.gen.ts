@@ -12,9 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ExamsNewIndexRouteImport } from './routes/exams/new/index'
+import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminConfigIndexRouteImport } from './routes/admin/config/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiJobsIdUploadRouteImport } from './routes/api/jobs/$id/upload'
+import { Route as ApiJobsIdStreamRouteImport } from './routes/api/jobs/$id/stream'
+import { Route as ApiJobsIdEventsRouteImport } from './routes/api/jobs/$id/events'
+import { Route as ApiJobsIdCancelRouteImport } from './routes/api/jobs/$id/cancel'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,6 +35,16 @@ const LoginIndexRoute = LoginIndexRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamsNewIndexRoute = ExamsNewIndexRouteImport.update({
+  id: '/exams/new/',
+  path: '/exams/new/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsIndexRoute = ApiJobsIndexRouteImport.update({
+  id: '/api/jobs/',
+  path: '/api/jobs/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
@@ -46,6 +62,26 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiJobsIdUploadRoute = ApiJobsIdUploadRouteImport.update({
+  id: '/api/jobs/$id/upload',
+  path: '/api/jobs/$id/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsIdStreamRoute = ApiJobsIdStreamRouteImport.update({
+  id: '/api/jobs/$id/stream',
+  path: '/api/jobs/$id/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsIdEventsRoute = ApiJobsIdEventsRouteImport.update({
+  id: '/api/jobs/$id/events',
+  path: '/api/jobs/$id/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsIdCancelRoute = ApiJobsIdCancelRouteImport.update({
+  id: '/api/jobs/$id/cancel',
+  path: '/api/jobs/$id/cancel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +90,12 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
+  '/api/jobs/': typeof ApiJobsIndexRoute
+  '/exams/new/': typeof ExamsNewIndexRoute
+  '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
+  '/api/jobs/$id/events': typeof ApiJobsIdEventsRoute
+  '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
+  '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +104,12 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/config': typeof AdminConfigIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
+  '/api/jobs': typeof ApiJobsIndexRoute
+  '/exams/new': typeof ExamsNewIndexRoute
+  '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
+  '/api/jobs/$id/events': typeof ApiJobsIdEventsRoute
+  '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
+  '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +119,12 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
+  '/api/jobs/': typeof ApiJobsIndexRoute
+  '/exams/new/': typeof ExamsNewIndexRoute
+  '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
+  '/api/jobs/$id/events': typeof ApiJobsIdEventsRoute
+  '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
+  '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +135,12 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/admin/config/'
     | '/admin/users/'
+    | '/api/jobs/'
+    | '/exams/new/'
+    | '/api/jobs/$id/cancel'
+    | '/api/jobs/$id/events'
+    | '/api/jobs/$id/stream'
+    | '/api/jobs/$id/upload'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +149,12 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/admin/config'
     | '/admin/users'
+    | '/api/jobs'
+    | '/exams/new'
+    | '/api/jobs/$id/cancel'
+    | '/api/jobs/$id/events'
+    | '/api/jobs/$id/stream'
+    | '/api/jobs/$id/upload'
   id:
     | '__root__'
     | '/'
@@ -97,6 +163,12 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/admin/config/'
     | '/admin/users/'
+    | '/api/jobs/'
+    | '/exams/new/'
+    | '/api/jobs/$id/cancel'
+    | '/api/jobs/$id/events'
+    | '/api/jobs/$id/stream'
+    | '/api/jobs/$id/upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +178,12 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   AdminConfigIndexRoute: typeof AdminConfigIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
+  ApiJobsIndexRoute: typeof ApiJobsIndexRoute
+  ExamsNewIndexRoute: typeof ExamsNewIndexRoute
+  ApiJobsIdCancelRoute: typeof ApiJobsIdCancelRoute
+  ApiJobsIdEventsRoute: typeof ApiJobsIdEventsRoute
+  ApiJobsIdStreamRoute: typeof ApiJobsIdStreamRoute
+  ApiJobsIdUploadRoute: typeof ApiJobsIdUploadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -131,6 +209,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exams/new/': {
+      id: '/exams/new/'
+      path: '/exams/new'
+      fullPath: '/exams/new/'
+      preLoaderRoute: typeof ExamsNewIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/': {
+      id: '/api/jobs/'
+      path: '/api/jobs'
+      fullPath: '/api/jobs/'
+      preLoaderRoute: typeof ApiJobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users/': {
       id: '/admin/users/'
       path: '/admin/users'
@@ -152,6 +244,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/jobs/$id/upload': {
+      id: '/api/jobs/$id/upload'
+      path: '/api/jobs/$id/upload'
+      fullPath: '/api/jobs/$id/upload'
+      preLoaderRoute: typeof ApiJobsIdUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/$id/stream': {
+      id: '/api/jobs/$id/stream'
+      path: '/api/jobs/$id/stream'
+      fullPath: '/api/jobs/$id/stream'
+      preLoaderRoute: typeof ApiJobsIdStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/$id/events': {
+      id: '/api/jobs/$id/events'
+      path: '/api/jobs/$id/events'
+      fullPath: '/api/jobs/$id/events'
+      preLoaderRoute: typeof ApiJobsIdEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/$id/cancel': {
+      id: '/api/jobs/$id/cancel'
+      path: '/api/jobs/$id/cancel'
+      fullPath: '/api/jobs/$id/cancel'
+      preLoaderRoute: typeof ApiJobsIdCancelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +282,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   AdminConfigIndexRoute: AdminConfigIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
+  ApiJobsIndexRoute: ApiJobsIndexRoute,
+  ExamsNewIndexRoute: ExamsNewIndexRoute,
+  ApiJobsIdCancelRoute: ApiJobsIdCancelRoute,
+  ApiJobsIdEventsRoute: ApiJobsIdEventsRoute,
+  ApiJobsIdStreamRoute: ApiJobsIdStreamRoute,
+  ApiJobsIdUploadRoute: ApiJobsIdUploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

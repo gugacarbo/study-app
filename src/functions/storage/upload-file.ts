@@ -7,6 +7,10 @@ import { getExamById } from "@/db/queries/exams";
 import { insertFile } from "@/db/queries/files";
 import { requireDB } from "@/functions/db";
 import { requireFilesBucket } from "@/functions/storage";
+import {
+	ALLOWED_FILE_EXTENSIONS,
+	isAllowedFileExtension,
+} from "@/lib/file-validation";
 import { auditedR2Put } from "@/lib/r2-audit";
 import { requireSession } from "@/lib/rbac";
 
@@ -19,14 +23,6 @@ const uploadFileSchema = z.object({
 	mimeType: z.string().optional(),
 	ttlSeconds: z.number().int().min(0).max(MAX_TTL_SECONDS).optional(),
 });
-
-const ALLOWED_EXTENSIONS = new Set([".txt", ".md"]);
-
-function getExtension(filename: string): string {
-	const dot = filename.lastIndexOf(".");
-	if (dot < 0) return "";
-	return filename.slice(dot).toLowerCase();
-}
 
 function decodeBase64(contentBase64: string): Uint8Array {
 	const binary = atob(contentBase64);
@@ -42,8 +38,7 @@ export async function uploadFileHandler(
 	headers: Headers,
 ) {
 	const session = await requireSession(headers);
-	const extension = getExtension(input.filename);
-	if (!ALLOWED_EXTENSIONS.has(extension)) {
+	if (!isAllowedFileExtension(input.filename)) {
 		throw new Response("Only .txt and .md files are allowed", { status: 400 });
 	}
 
@@ -108,4 +103,8 @@ export const uploadFile = createServerFn({ method: "POST" })
 		return uploadFileHandler(data, request.headers);
 	});
 
-export { uploadFileSchema, ALLOWED_EXTENSIONS, MAX_TTL_SECONDS };
+export {
+	uploadFileSchema,
+	ALLOWED_FILE_EXTENSIONS as ALLOWED_EXTENSIONS,
+	MAX_TTL_SECONDS,
+};

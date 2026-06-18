@@ -16,11 +16,11 @@ export function maskApiKey(value: string): string {
 	return `${MASK_PREFIX}${suffix}`;
 }
 
-export async function getAiModel(input: {
+export async function resolveAiModelId(input: {
 	db: AppDatabase;
 	userId: string;
 	modelId?: string;
-}): Promise<LanguageModelV3> {
+}): Promise<string> {
 	const resolvedModelId = await resolveModelId(
 		input.db,
 		input.userId,
@@ -50,6 +50,35 @@ export async function getAiModel(input: {
 	}
 	if (!provider.enabled) {
 		throw new Error(`Provider de IA desabilitado: ${provider.name}`);
+	}
+
+	return resolvedModelId;
+}
+
+export async function getAiModel(input: {
+	db: AppDatabase;
+	userId: string;
+	modelId?: string;
+}): Promise<LanguageModelV3> {
+	const resolvedModelId = await resolveAiModelId(input);
+	const model = await getModelByIdForUser(
+		input.db,
+		resolvedModelId,
+		input.userId,
+	);
+	if (!model) {
+		throw new Error(`Modelo de IA não encontrado: ${resolvedModelId}`);
+	}
+
+	const provider = await getProviderByIdForUser(
+		input.db,
+		model.providerId,
+		input.userId,
+	);
+	if (!provider) {
+		throw new Error(
+			`Provider de IA não encontrado para o modelo: ${model.displayName}`,
+		);
 	}
 
 	const apiKey = await decryptSecret(provider.apiKey);

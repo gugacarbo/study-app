@@ -31,6 +31,21 @@
 		"BETTER_AUTH_URL": "http://localhost:3000",
 		"ADMIN_EMAILS": ""
 	},
+	"queues": {
+		"producers": [
+			{
+				"binding": "JOB_QUEUE",
+				"queue": "study-app-jobs"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "study-app-jobs",
+				"max_batch_size": 1,
+				"max_retries": 3
+			}
+		]
+	},
 	"triggers": {
 		"crons": [
 			"0 4 * * *"

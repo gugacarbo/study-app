@@ -26,3 +26,18 @@ export async function createExam(
 		source: input.source ?? null,
 	});
 }
+
+export async function updateExamSource(
+	db: AppDatabase,
+	examId: string,
+	userId: string,
+	source: string,
+) {
+	const exam = await getExamById(db, examId, userId);
+	if (!exam) return false;
+	await db
+		.update(schema.exams)
+		.set({ source })
+		.where(and(eq(schema.exams.id, examId), eq(schema.exams.userId, userId)));
+	return true;
+}

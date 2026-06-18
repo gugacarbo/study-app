@@ -233,7 +233,7 @@
     "path": "docs/specs/exams/0004-pipeline-ingestao.md",
     "layer": "specs",
     "title": "Pipeline de ingestão: arquivo → questões",
-    "status": "accepted",
+    "status": "implemented",
     "builds-on": [
       "ADR-0007",
       "ADR-0008",
@@ -245,6 +245,33 @@
       "SPEC-0003"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "src/features/ai/jobs/ingest/run-ingest.ts",
+      "src/features/ai/jobs/ingest/extracted-question.ts",
+      "src/features/ai/jobs/ingest/normalize-question.ts",
+      "src/features/ai/jobs/ingest/ingest-events.ts",
+      "src/features/ai/jobs/ingest/persist-questions.ts",
+      "src/features/ai/jobs/run-job-consumer.ts",
+      "src/db/queries/jobs.ts",
+      "src/db/queries/questions.ts",
+      "src/db/queries/exams.ts",
+      "src/functions/jobs/create-ingest-job.ts",
+      "src/functions/jobs/upload-ingest-file.ts",
+      "src/functions/jobs/get-job-events.ts",
+      "src/functions/jobs/stream-job-events.ts",
+      "src/functions/jobs/cancel-job.ts",
+      "src/routes/api/jobs/",
+      "src/workers/job-consumer.ts",
+      "src/worker-entry.ts",
+      "src/functions/queue.ts",
+      "src/features/exams/components/ingest-upload-form.tsx",
+      "src/features/exams/hooks/use-ingest-job.ts",
+      "src/routes/exams/new/index.tsx",
+      "src/lib/job-kinds.ts",
+      "src/lib/job-errors.ts",
+      "src/lib/ingest-limits.ts",
+      "src/lib/file-validation.ts",
+      "wrangler.jsonc"
+    ]
   }
 ]
