@@ -27,7 +27,11 @@ vi.mock("@/db/client", async (importOriginal) => {
 	};
 });
 
-import { getSessionFromHeaders, requireSession } from "@/lib/rbac";
+import {
+	getSessionFromHeaders,
+	requireAdminSession,
+	requireSession,
+} from "@/lib/rbac";
 
 describe("require-session", () => {
 	beforeEach(() => {
@@ -80,6 +84,39 @@ describe("require-session", () => {
 		mockGetSession.mockResolvedValue({ user: { id: userId } });
 
 		const session = await requireSession(new Headers());
+		expect(session.user.id).toBe(userId);
+	});
+
+	it("requireAdminSession returns 404 when user lacks admin:access", async () => {
+		const userId = createId();
+		await testDb.insert(schema.user).values({
+			id: userId,
+			name: "User",
+			email: `user-${userId}@aluno.ifsc.edu.br`,
+			emailVerified: true,
+		});
+		await assignRoleToUser(testDb, userId, "user");
+
+		mockGetSession.mockResolvedValue({ user: { id: userId } });
+
+		await expect(requireAdminSession(new Headers())).rejects.toMatchObject({
+			status: 404,
+		});
+	});
+
+	it("requireAdminSession returns session when user has admin:access", async () => {
+		const userId = createId();
+		await testDb.insert(schema.user).values({
+			id: userId,
+			name: "Admin",
+			email: `admin-${userId}@aluno.ifsc.edu.br`,
+			emailVerified: true,
+		});
+		await assignRoleToUser(testDb, userId, "admin");
+
+		mockGetSession.mockResolvedValue({ user: { id: userId } });
+
+		const session = await requireAdminSession(new Headers());
 		expect(session.user.id).toBe(userId);
 	});
 });

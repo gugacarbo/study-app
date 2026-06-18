@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import {
 	RBAC_V1_PERMISSION_ROWS,
@@ -11,6 +11,13 @@ const ROLE_USER = "user";
 const ROLE_ADMIN = "admin";
 const PERM_APP_USE = "app:use";
 const PERM_ADMIN_ACCESS = "admin:access";
+
+const SEED_ROLE_KEYS = [ROLE_USER, ROLE_ADMIN] as const;
+export type SeedRoleKey = (typeof SEED_ROLE_KEYS)[number];
+
+export function isSeedRole(roleKey: string): roleKey is SeedRoleKey {
+	return roleKey === ROLE_USER || roleKey === ROLE_ADMIN;
+}
 
 export async function seedRbacIfEmpty(db: AppDatabase) {
 	const existing = await db.select().from(schema.roles).limit(1);
@@ -91,4 +98,47 @@ export async function userHasPermission(
 	return permissions.includes(permissionKey);
 }
 
-export { ROLE_ADMIN, ROLE_USER, PERM_ADMIN_ACCESS, PERM_APP_USE };
+export async function removeRoleFromUser(
+	db: AppDatabase,
+	userId: string,
+	roleKey: string,
+) {
+	const role = await db
+		.select()
+		.from(schema.roles)
+		.where(eq(schema.roles.key, roleKey))
+		.limit(1);
+	const found = role[0];
+	if (!found) {
+		throw new Error(`Role not found: ${roleKey}`);
+	}
+
+	await db
+		.delete(schema.userRoles)
+		.where(
+			and(
+				eq(schema.userRoles.userId, userId),
+				eq(schema.userRoles.roleId, found.id),
+			),
+		);
+}
+
+export async function countUsersWithRole(
+	db: AppDatabase,
+	roleKey: string,
+): Promise<number> {
+	const rows = await db
+		.select({ count: count() })
+		.from(schema.userRoles)
+		.innerJoin(schema.roles, eq(schema.userRoles.roleId, schema.roles.id))
+		.where(eq(schema.roles.key, roleKey));
+	return rows[0]?.count ?? 0;
+}
+
+export {
+	ROLE_ADMIN,
+	ROLE_USER,
+	PERM_ADMIN_ACCESS,
+	PERM_APP_USE,
+	SEED_ROLE_KEYS,
+};
