@@ -187,5 +187,20 @@
       "src/worker-entry.ts",
       "wrangler.jsonc"
     ]
+  },
+  {
+    "id": "SPEC-0003",
+    "path": "docs/specs/admin/0003-config-providers-modelos.md",
+    "layer": "specs",
+    "title": "Admin: providers, modelos e roles",
+    "status": "accepted",
+    "builds-on": [
+      "ADR-0007",
+      "ADR-0003",
+      "ADR-0006",
+      "ADR-0004"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]
