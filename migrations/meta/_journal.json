@@ -15,6 +15,13 @@
       "when": 1781740780199,
       "tag": "0001_seed_rbac",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781745265774,
+      "tag": "0002_boring_talkback",
+      "breakpoints": true
     }
   ]
 }

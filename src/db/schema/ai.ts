@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	index,
 	integer,
+	primaryKey,
 	real,
 	sqliteTable,
 	text,
@@ -58,10 +59,14 @@ export const aiModels = sqliteTable(
 	],
 );
 
-export const config = sqliteTable("config", {
-	userId: text("user_id")
-		.notNull()
-		.references(() => user.id, { onDelete: "cascade" }),
-	key: text("key").notNull(),
-	value: text("value").notNull(),
-});
+export const config = sqliteTable(
+	"config",
+	{
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		key: text("key").notNull(),
+		value: text("value").notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.userId, table.key] })],
+);

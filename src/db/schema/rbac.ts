@@ -46,5 +46,8 @@ export const userRoles = sqliteTable(
 			.notNull()
 			.references(() => roles.id, { onDelete: "cascade" }),
 	},
-	(table) => [index("idx_user_roles_role_id").on(table.roleId)],
+	(table) => [
+		index("idx_user_roles_role_id").on(table.roleId),
+		uniqueIndex("uq_user_roles_user_role").on(table.userId, table.roleId),
+	],
 );
