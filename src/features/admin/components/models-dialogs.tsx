@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -16,6 +17,7 @@ export function ModelDialog({
 	busy,
 	onClose,
 	onSubmit,
+	onTest,
 }: {
 	open: boolean;
 	mode: "create" | "edit";
@@ -23,7 +25,21 @@ export function ModelDialog({
 	busy: boolean;
 	onClose: () => void;
 	onSubmit: (values: ModelFormValues) => void;
+	onTest?: (input: {
+		id: string;
+		modelId?: string;
+	}) => Promise<{ ok: boolean; error?: string }>;
 }) {
+	const [testResult, setTestResult] = useState<string | null>(null);
+	const [testing, setTesting] = useState(false);
+
+	useEffect(() => {
+		if (!open) {
+			setTestResult(null);
+			setTesting(false);
+		}
+	}, [open]);
+
 	return (
 		<Dialog open={open} onOpenChange={(next) => !next && onClose()}>
 			<DialogContent>
@@ -44,7 +60,33 @@ export function ModelDialog({
 					}
 					submitLabel={mode === "create" ? "Criar" : "Salvar"}
 					isSubmitting={busy}
+					isTesting={testing}
+					testResult={testResult}
 					onCancel={onClose}
+					onTest={
+						mode === "edit" && model && onTest
+							? async (modelId) => {
+									setTesting(true);
+									setTestResult(null);
+									try {
+										const result = await onTest({ id: model.id, modelId });
+										setTestResult(
+											result.ok
+												? "Modelo respondeu com sucesso"
+												: `Falha: ${result.error ?? "desconhecida"}`,
+										);
+									} catch (cause) {
+										setTestResult(
+											cause instanceof Error
+												? cause.message
+												: "Falha ao testar modelo",
+										);
+									} finally {
+										setTesting(false);
+									}
+								}
+							: undefined
+					}
 					onSubmit={onSubmit}
 				/>
 			</DialogContent>

@@ -16,10 +16,12 @@ import {
 	setConfigValue,
 } from "@/db/queries/config";
 import { createId } from "@/db/queries/helpers";
+import { probeModel } from "@/functions/admin/probe-model";
 import {
 	deleteModelSchema,
 	listModelsSchema,
 	setDefaultModelSchema,
+	testModelSchema,
 	upsertModelSchema,
 } from "@/functions/admin/models-schemas";
 import { requireDB } from "@/functions/db";
@@ -80,6 +82,17 @@ export async function deleteModelHandler(
 	await deleteModelQuery(db, input.id, session.user.id);
 }
 
+export async function testModelHandler(
+	input: z.infer<typeof testModelSchema>,
+	headers: Headers,
+) {
+	const session = await requireAdminSession(headers);
+	const db = createDb(await requireDB());
+	const model = await getModelByIdForUser(db, input.id, session.user.id);
+	if (!model) throw new Response("Not Found", { status: 404 });
+	return probeModel(db, session.user.id, input);
+}
+
 export async function setDefaultModelHandler(
 	input: z.infer<typeof setDefaultModelSchema>,
 	headers: Headers,
@@ -119,9 +132,14 @@ export const setDefaultModel = createServerFn({ method: "POST" })
 		setDefaultModelHandler(data, getRequest().headers),
 	);
 
+export const testModel = createServerFn({ method: "POST" })
+	.inputValidator((data: unknown) => testModelSchema.parse(data))
+	.handler(async ({ data }) => testModelHandler(data, getRequest().headers));
+
 export {
 	deleteModelSchema,
 	listModelsSchema,
 	setDefaultModelSchema,
+	testModelSchema,
 	upsertModelSchema,
 } from "@/functions/admin/models-schemas";

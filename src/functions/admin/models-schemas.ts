@@ -28,3 +28,8 @@ export const deleteModelSchema = z.object({
 export const setDefaultModelSchema = z.object({
 	modelId: z.string().uuid().nullable(),
 });
+
+export const testModelSchema = z.object({
+	id: z.string().uuid(),
+	modelId: z.string().trim().min(1).optional(),
+});

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -19,16 +20,22 @@ type ModelFormProps = {
 	defaultValues?: Partial<ModelFormValues>;
 	submitLabel: string;
 	isSubmitting?: boolean;
+	isTesting?: boolean;
+	testResult?: string | null;
 	onSubmit: (values: ModelFormValues) => void;
 	onCancel?: () => void;
+	onTest?: (modelId: string) => Promise<void>;
 };
 
 export function ModelForm({
 	defaultValues,
 	submitLabel,
 	isSubmitting,
+	isTesting,
+	testResult,
 	onSubmit,
 	onCancel,
+	onTest,
 }: ModelFormProps) {
 	const form = useForm<ModelFormValues>({
 		resolver: zodResolver(modelFormSchema),
@@ -72,15 +79,34 @@ export function ModelForm({
 					/>
 				</Field>
 			</FieldGroup>
-			<div className="flex justify-end gap-2">
-				{onCancel ? (
-					<Button type="button" variant="outline" onClick={onCancel}>
-						Cancelar
+			{testResult ? (
+				<Alert variant={testResult.startsWith("Falha") ? "destructive" : "default"}>
+					<AlertDescription>{testResult}</AlertDescription>
+				</Alert>
+			) : null}
+			<div className="flex items-center justify-between gap-2">
+				{onTest ? (
+					<Button
+						type="button"
+						variant="outline"
+						disabled={isTesting || isSubmitting}
+						onClick={() => onTest(form.getValues("modelId"))}
+					>
+						{isTesting ? "Testando…" : "Testar"}
 					</Button>
-				) : null}
-				<Button type="submit" disabled={isSubmitting}>
-					{isSubmitting ? "Salvando…" : submitLabel}
-				</Button>
+				) : (
+					<span />
+				)}
+				<div className="flex gap-2">
+					{onCancel ? (
+						<Button type="button" variant="outline" onClick={onCancel}>
+							Cancelar
+						</Button>
+					) : null}
+					<Button type="submit" disabled={isSubmitting || isTesting}>
+						{isSubmitting ? "Salvando…" : submitLabel}
+					</Button>
+				</div>
 			</div>
 		</form>
 	);

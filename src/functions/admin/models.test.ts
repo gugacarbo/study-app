@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { upsert as upsertModelQuery } from "@/db/queries/ai-models";
 import {
 	CONFIG_KEY_DEFAULT_AI_MODEL,
@@ -16,8 +16,15 @@ import {
 import {
 	deleteModelHandler,
 	listModelsHandler,
+	testModelHandler,
 	upsertModelHandler,
 } from "@/functions/admin/models";
+
+vi.mock("@/functions/admin/probe-model", () => ({
+	probeModel: vi.fn(),
+}));
+
+const { probeModel } = await import("@/functions/admin/probe-model");
 
 describe("admin models handlers", () => {
 	beforeEach(() => {
@@ -95,5 +102,43 @@ describe("admin models handlers", () => {
 		expect(
 			(await listModelsHandler({ providerId }, new Headers())).models,
 		).toEqual([]);
+	});
+
+	it("testModel probes the model with optional modelId override", async () => {
+		const providerId = await seedProvider(testDb, adminUserId);
+		const modelRowId = createId();
+		await upsertModelQuery(testDb, {
+			id: modelRowId,
+			providerId,
+			modelId: "gpt-4o",
+			displayName: "GPT-4o",
+		});
+		vi.mocked(probeModel).mockResolvedValueOnce({ ok: true });
+
+		const result = await testModelHandler(
+			{ id: modelRowId, modelId: "gpt-4o-mini" },
+			new Headers(),
+		);
+
+		expect(result).toEqual({ ok: true });
+		expect(probeModel).toHaveBeenCalledWith(testDb, adminUserId, {
+			id: modelRowId,
+			modelId: "gpt-4o-mini",
+		});
+	});
+
+	it("testModel returns 404 for another user's model", async () => {
+		const providerId = await seedProvider(testDb, otherUserId);
+		const modelRowId = createId();
+		await upsertModelQuery(testDb, {
+			id: modelRowId,
+			providerId,
+			modelId: "gpt-4o",
+			displayName: "GPT-4o",
+		});
+
+		await expect(
+			testModelHandler({ id: modelRowId }, new Headers()),
+		).rejects.toMatchObject({ status: 404 });
 	});
 });

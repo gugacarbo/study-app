@@ -28,6 +28,10 @@ type ModelsPanelProps = {
 	onDiscover: (providerId: string) => Promise<{
 		models: Array<{ modelId: string; displayName: string }>;
 	}>;
+	onTest: (input: {
+		id: string;
+		modelId?: string;
+	}) => Promise<{ ok: boolean; error?: string }>;
 };
 
 export function ModelsPanel({
@@ -36,6 +40,7 @@ export function ModelsPanel({
 	onUpsert,
 	onDelete,
 	onDiscover,
+	onTest,
 }: ModelsPanelProps) {
 	const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
 	const [dialog, setDialog] = useState<"create" | ModelRow | null>(null);
@@ -99,6 +104,7 @@ export function ModelsPanel({
 				model={dialog === "create" ? null : dialog}
 				busy={busy}
 				onClose={() => setDialog(null)}
+				onTest={onTest}
 				onSubmit={(values) =>
 					run(async () => {
 						await onUpsert(providerId, values);
