@@ -59,6 +59,15 @@ ITEM_RE = re.compile(r"^\s*-\s+(.*)$")
 VA_RE = re.compile(r"^\s*>\s*(?:⚠️\s*)?VERDADE ATUAL", re.M)
 ROUTER_LINE_CAP = 150
 PLACEHOLDER = "(preencher no fechamento)"
+BACKLOG_SPEC_RE = re.compile(r"^\|\s*SPEC-(\d{4})\s*\|", re.M)
+
+
+def backlog_reserved_spec_nums(root: Path) -> set[int]:
+    """Números reservados em docs/BACKLOG.md (specs ainda sem arquivo)."""
+    backlog = root / "docs" / "BACKLOG.md"
+    if not backlog.exists():
+        return set()
+    return {int(n) for n in BACKLOG_SPEC_RE.findall(backlog.read_text(encoding="utf-8"))}
 
 
 def split_frontmatter(text):
@@ -425,9 +434,12 @@ def main():
                                   "preencha a evidência do DoD")
 
     spec_nums = sorted(int(d["id"].split("-", 1)[1]) for d in docs.values() if d["layer"] == "specs")
-    if spec_nums:
-        expected = list(range(spec_nums[-1] + 1))
-        if spec_nums != expected:
+    all_spec_nums = sorted(set(spec_nums) | backlog_reserved_spec_nums(root))
+    if all_spec_nums:
+        expected = list(range(all_spec_nums[-1] + 1))
+        if all_spec_nums != expected:
+            missing = sorted(set(expected) - set(all_spec_nums))
+            extra = sorted(set(all_spec_nums) - set(expected))
             missing = sorted(set(expected) - set(spec_nums))
             extra = sorted(set(spec_nums) - set(expected))
             detail = []
