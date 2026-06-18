@@ -22,7 +22,7 @@ implemented-by:
 
 Usuário autenticado acessa o app com email + magic link. Sem sessão válida, não há acesso a rotas de app nem a functions de domínio. Cada usuário vê apenas os próprios dados (`user_id` da sessão).
 
-**Signup:** aberto apenas para `*@ifsc.edu.br`.
+**Signup:** aberto apenas para `*@aluno.ifsc.edu.br`.
 
 ## Fluxo
 
@@ -62,27 +62,27 @@ Usuário autenticado acessa o app com email + magic link. Sem sessão válida, n
 
 ### Rotas públicas
 
-| Rota | Método |
-|------|--------|
-| `/login` | GET |
-| `/api/auth/*` | GET, POST |
-| Assets estáticos | GET |
+| Rota             | Método    |
+| ---------------- | --------- |
+| `/login`         | GET       |
+| `/api/auth/*`    | GET, POST |
+| Assets estáticos | GET       |
 
 Demais rotas de página e `/api/*` (exceto auth) exigem sessão.
 
 ### Implementação
 
-| Peça | Path |
-|------|------|
-| Factory | `src/lib/auth.ts` — `createAuth(env)` |
-| Client | `src/lib/auth-client.ts` — `authClient` |
-| Rota | `src/routes/api/auth/$.ts` → `auth.handler(request)` |
-| Domínio | `src/lib/auth-allowed-email-domain.ts` — validação allowlist |
-| RBAC bootstrap | `src/lib/rbac-bootstrap.ts` — roles no signup (ADR-0004) |
+| Peça           | Path                                                         |
+| -------------- | ------------------------------------------------------------ |
+| Factory        | `src/lib/auth.ts` — `createAuth(env)`                        |
+| Client         | `src/lib/auth-client.ts` — `authClient`                      |
+| Rota           | `src/routes/api/auth/$.ts` → `auth.handler(request)`         |
+| Domínio        | `src/lib/auth-allowed-email-domain.ts` — validação allowlist |
+| RBAC bootstrap | `src/lib/rbac-bootstrap.ts` — roles no signup (ADR-0004)     |
 
 ### Allowlist de domínio (signup/login)
 
-- v1: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`
+- v1: `ALLOWED_SIGNUP_EMAIL_DOMAINS=aluno.ifsc.edu.br`
 - Comparação: parte após `@`, trim + lowercase
 - Email fora da lista: não enviar magic link; UI “Este email não está autorizado”
 - Validação servidor (obrigatória) + client (UX)
@@ -91,26 +91,28 @@ Demais rotas de página e `/api/*` (exceto auth) exigem sessão.
 
 ```ts
 magicLink({
-  sendMagicLink: async ({ email, url }) => { /* Resend ou console */ },
+  sendMagicLink: async ({ email, url }) => {
+    /* Resend ou console */
+  },
   expiresIn: 600,
-})
+});
 ```
 
 ### Email (Resend)
 
-| Ambiente | Canal |
-|----------|--------|
-| `development` | `console.log('[auth] magic link', email, url)` |
-| `production` | **Resend** — `POST https://api.resend.com/emails` |
+| Ambiente      | Canal                                             |
+| ------------- | ------------------------------------------------- |
+| `development` | `console.log('[auth] magic link', email, url)`    |
+| `production`  | **Resend** — `POST https://api.resend.com/emails` |
 
 Config v1:
 
-| Variável | Valor |
-|----------|--------|
-| `EMAIL_FROM_ADDRESS` | `noreply@gugacarbo.space` |
-| `EMAIL_FROM_NAME` | `Study App` (ou env) |
-| `ALLOWED_SIGNUP_EMAIL_DOMAINS` | `ifsc.edu.br` |
-| `RESEND_API_KEY` | secret (`wrangler secret put`) |
+| Variável                       | Valor                          |
+| ------------------------------ | ------------------------------ |
+| `EMAIL_FROM_ADDRESS`           | `noreply@gugacarbo.space`      |
+| `EMAIL_FROM_NAME`              | `Study App` (ou env)           |
+| `ALLOWED_SIGNUP_EMAIL_DOMAINS` | `aluno.ifsc.edu.br`            |
+| `RESEND_API_KEY`               | secret (`wrangler secret put`) |
 
 Prod — `sendMagicLink`:
 
@@ -137,40 +139,40 @@ Secrets/vars: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `RESEND_API_KEY`, vars ac
 
 ### Respostas de erro
 
-| Situação | Resposta |
-|----------|----------|
-| Sem sessão (API) | 401 |
-| Sem sessão (página) | 302 → `/login?redirect=…` |
-| Recurso de outro usuário | **404** |
-| Magic link inválido/expirado | `/login` + mensagem |
-| Email domínio não permitido | 400 / mensagem inline; sem envio de link |
-| Rate limit | 429 |
+| Situação                     | Resposta                                 |
+| ---------------------------- | ---------------------------------------- |
+| Sem sessão (API)             | 401                                      |
+| Sem sessão (página)          | 302 → `/login?redirect=…`                |
+| Recurso de outro usuário     | **404**                                  |
+| Magic link inválido/expirado | `/login` + mensagem                      |
+| Email domínio não permitido  | 400 / mensagem inline; sem envio de link |
+| Rate limit                   | 429                                      |
 
 ### UI `/login`
 
 - Campo email, botão “Enviar link”, estados loading/sucesso/erro
 - Sem senha na v1
-- Copy: informar que só emails `@ifsc.edu.br` são aceitos
+- Copy: informar que só emails `@aluno.ifsc.edu.br` são aceitos
 
 ## Casos de borda
 
-| # | QUANDO ⟨gatilho⟩ | o sistema DEVE ⟨resposta⟩ |
-|---|---|---|
-| 1 | não autenticado acessa `/exams` | redirect `/login?redirect=…` |
-| 2 | autenticado acessa `/login` | redirect `/` |
-| 3 | magic link válido | criar sessão; redirect `callbackURL` |
-| 4 | magic link expirado/usado | erro em `/login`; sem sessão |
-| 5 | server function sem cookie | 401 |
-| 6 | user A acessa recurso de user B | **404** |
-| 7 | email formato inválido | validação; sem envio |
-| 8 | email `user@gmail.com` | rejeitar; sem magic link |
-| 9 | email `user@ifsc.edu.br` | permitir signup/login |
-| 10 | email `User@ifsc.edu.br` | aceitar (domínio case-insensitive) |
-| 11 | logout | invalidar sessão; requests seguintes sem cookie |
-| 12 | dev sem `RESEND_API_KEY` | login via link no console |
-| 13 | novo link antes do anterior expirar | comportamento default Better Auth |
-| 14 | signup `user@ifsc.edu.br` em `ADMIN_EMAILS` | roles `user` + `admin` |
-| 15 | signup email comum `@ifsc.edu.br` | só role `user` |
+| #   | QUANDO ⟨gatilho⟩                                  | o sistema DEVE ⟨resposta⟩                       |
+| --- | ------------------------------------------------- | ----------------------------------------------- |
+| 1   | não autenticado acessa `/exams`                   | redirect `/login?redirect=…`                    |
+| 2   | autenticado acessa `/login`                       | redirect `/`                                    |
+| 3   | magic link válido                                 | criar sessão; redirect `callbackURL`            |
+| 4   | magic link expirado/usado                         | erro em `/login`; sem sessão                    |
+| 5   | server function sem cookie                        | 401                                             |
+| 6   | user A acessa recurso de user B                   | **404**                                         |
+| 7   | email formato inválido                            | validação; sem envio                            |
+| 8   | email `user@gmail.com`                            | rejeitar; sem magic link                        |
+| 9   | email `user@aluno.ifsc.edu.br`                    | permitir signup/login                           |
+| 10  | email `User@aluno.ifsc.edu.br`                    | aceitar (domínio case-insensitive)              |
+| 11  | logout                                            | invalidar sessão; requests seguintes sem cookie |
+| 12  | dev sem `RESEND_API_KEY`                          | login via link no console                       |
+| 13  | novo link antes do anterior expirar               | comportamento default Better Auth               |
+| 14  | signup `user@aluno.ifsc.edu.br` em `ADMIN_EMAILS` | roles `user` + `admin`                          |
+| 15  | signup email comum `@aluno.ifsc.edu.br`           | só role `user`                                  |
 
 ## Questões em aberto
 

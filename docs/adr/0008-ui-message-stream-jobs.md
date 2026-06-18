@@ -23,14 +23,14 @@ A **execução** do job roda no servidor (ADR-0009). O formato de mensagens perm
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| UI Message Stream persistido + poll/SSE tail no D1 | **Escolhida** |
+| Opção                                                   | Veredito                                                                                                                         |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| UI Message Stream persistido + poll/SSE tail no D1      | **Escolhida**                                                                                                                    |
 | Durable Object como relay de stream (pub/sub ao client) | **Rejeitado v1** — D1 já persiste e permite replay; DO adiciona custo de duração + complexidade sem ganho proporcional neste app |
-| POST → stream único preso ao browser | Rejeitado — refresh mata job |
-| SSE preso ao POST do consumer Queue | Rejeitado — mesma falha do modelo browser-bound |
-| SSE custom por rota sem persistência | Rejeitado — perde progresso no refresh |
-| Pipeline/reducers custom do legado | Rejeitado — usar padrão da lib |
+| POST → stream único preso ao browser                    | Rejeitado — refresh mata job                                                                                                     |
+| SSE preso ao POST do consumer Queue                     | Rejeitado — mesma falha do modelo browser-bound                                                                                  |
+| SSE custom por rota sem persistência                    | Rejeitado — perde progresso no refresh                                                                                           |
+| Pipeline/reducers custom do legado                      | Rejeitado — usar padrão da lib                                                                                                   |
 
 **Separação de papéis (com ADR-0009):** Queue executa o job; D1 é fonte de verdade dos eventos; esta ADR define só **leitura** no client (poll/SSE). DO foi rejeitado na execução (ADR-0009) e **também** no relay de stream — não é necessário para sobreviver a refresh.
 
@@ -38,20 +38,20 @@ A **execução** do job roda no servidor (ADR-0009). O formato de mensagens perm
 
 ### Produção de eventos (servidor)
 
-| Camada | Local |
-|--------|--------|
-| Pipeline + append eventos | `src/features/ai/` — consumer Queue (ADR-0009) |
-| Persistência | `background_job_events` (D1) — um row por chunk/evento |
-| Rotas HTTP | `src/routes/api/jobs/` — criar, upload, events, stream, cancel |
+| Camada                    | Local                                                          |
+| ------------------------- | -------------------------------------------------------------- |
+| Pipeline + append eventos | `src/features/ai/` — consumer Queue (ADR-0009)                 |
+| Persistência              | `background_job_events` (D1) — um row por chunk/evento         |
+| Rotas HTTP                | `src/routes/api/jobs/` — criar, upload, events, stream, cancel |
 
 Cada step do pipeline serializa mensagens/data parts no **mesmo schema** AI SDK v6 usado em chat.
 
 ### Consumo no client
 
-| Modo | Quando | Endpoint |
-|------|--------|----------|
-| **Poll** | Sempre (TanStack Query) | `GET /api/jobs/:id/events?after=<seq>` |
-| **SSE** | Painel/dialog de job aberto | `GET /api/jobs/:id/stream` — replay `after=0` + tail novos eventos |
+| Modo     | Quando                      | Endpoint                                                           |
+| -------- | --------------------------- | ------------------------------------------------------------------ |
+| **Poll** | Sempre (TanStack Query)     | `GET /api/jobs/:id/events?after=<seq>`                             |
+| **SSE**  | Painel/dialog de job aberto | `GET /api/jobs/:id/stream` — replay `after=0` + tail novos eventos |
 
 **SSE tail:** endpoint Worker em loop lendo `background_job_events` no D1 (`after=<seq>`) enquanto `status=running` — **sem** Durable Object intermediário. Latência = intervalo do loop (ex.: 500ms–1s); aceitável para ingest/benchmark na v1.
 
@@ -61,13 +61,13 @@ Chat (`/api/chat`): **stream HTTP direto** (sessão ao vivo) — fora do modelo 
 
 ### Ciclo de vida e performance (UI)
 
-| Camada | Dono | Dialog fechado |
-|--------|------|----------------|
-| Execução LLM | Queue consumer (servidor) | **Continua** |
-| Eventos | D1 `background_job_events` | **Persistidos** |
-| Poll | TanStack Query (intervalo adaptativo) | **Continua** leve |
-| SSE | Hook no painel de detalhe | **Desconecta** — poll mantém sync |
-| `assistant-ui` Thread | Dialog/painel | **Desmonta** |
+| Camada                | Dono                                  | Dialog fechado                    |
+| --------------------- | ------------------------------------- | --------------------------------- |
+| Execução LLM          | Queue consumer (servidor)             | **Continua**                      |
+| Eventos               | D1 `background_job_events`            | **Persistidos**                   |
+| Poll                  | TanStack Query (intervalo adaptativo) | **Continua** leve                 |
+| SSE                   | Hook no painel de detalhe             | **Desconecta** — poll mantém sync |
+| `assistant-ui` Thread | Dialog/painel                         | **Desmonta**                      |
 
 **Reabrir dialog:** replay eventos do D1 (+ SSE tail se `running`) — **sem** novo job.
 

@@ -93,4 +93,3 @@ npm run typecheck
 ## Notas
 
 Operação e bindings: `docs/context/INFRA.md`. Convenções de layout: `docs/context/CONVENTIONS.md`.
-

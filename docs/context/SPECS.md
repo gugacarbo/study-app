@@ -4,10 +4,10 @@ Extensão local do [CASA Standard](https://github.com/atplus-digital/casa-standa
 
 ## Onde colocar cada spec
 
-| Tipo | Caminho | Quando usar |
-|------|---------|-------------|
-| Global / transversal | `docs/specs/NNNN-titulo-kebab.md` | Schema, infra, convenções que atravessam domínios |
-| Por domínio | `docs/specs/{domínio}/NNNN-titulo-kebab.md` | Comportamento de um domínio (`auth`, `exams`, `quiz`, `chat`, …) |
+| Tipo                 | Caminho                                     | Quando usar                                                      |
+| -------------------- | ------------------------------------------- | ---------------------------------------------------------------- |
+| Global / transversal | `docs/specs/NNNN-titulo-kebab.md`           | Schema, infra, convenções que atravessam domínios                |
+| Por domínio          | `docs/specs/{domínio}/NNNN-titulo-kebab.md` | Comportamento de um domínio (`auth`, `exams`, `quiz`, `chat`, …) |
 
 Regras:
 

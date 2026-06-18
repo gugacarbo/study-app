@@ -1,8 +1,8 @@
 ---
-status: draft               # draft | accepted | implemented | deprecated
+status: draft # draft | accepted | implemented | deprecated
 date: AAAA-MM-DD
-builds-on: []               # ADRs que fundamentam. A spec CONSOME decisões, não as redefine.
-implemented-by: []          # paths reais (código, migrations, functions) — preenchido no fechamento
+builds-on: [] # ADRs que fundamentam. A spec CONSOME decisões, não as redefine.
+implemented-by: [] # paths reais (código, migrations, functions) — preenchido no fechamento
 ---
 
 <!-- id é DERIVADO do filename (docs/specs/[domínio/]NNNN-titulo-kebab.md → SPEC-NNNN);
@@ -15,29 +15,35 @@ implemented-by: []          # paths reais (código, migrations, functions) — p
 > explicitamente quando necessário.
 
 ## Objetivo
+
 <!-- O que o usuário/sistema consegue fazer quando isto estiver implementado. -->
 
 ## Fluxo
+
 <!-- Passo a passo do comportamento observável. -->
 
 ## Contrato
+
 <!-- API/eventos/UI: entradas, saídas, formatos. O que é garantido. -->
 
 ## Casos de borda
+
 <!-- Enumerados e DECIDIDOS. Formato sugerido: EARS, agnóstico de stack.
      Caso sem decisão NÃO fica aqui — vai para Questões em aberto. -->
 
-| # | QUANDO ⟨gatilho⟩ | o sistema DEVE ⟨resposta⟩ |
-|---|---|---|
-| 1 |  |  |
+| #   | QUANDO ⟨gatilho⟩ | o sistema DEVE ⟨resposta⟩ |
+| --- | ---------------- | ------------------------- |
+| 1   |                  |                           |
 
 ## Questões em aberto
+
 <!-- Cada item BLOQUEIA o ponto correspondente da implementação —
      o agente não improvisa sobre questão aberta. -->
 
-- [ ] 
+- [ ]
 
 ## Definition of Done
+
 <!-- OBRIGATÓRIO antes de sair de draft. Comandos com critério binário,
      executáveis no ambiente do AGENTS.md. -->
 
@@ -47,11 +53,13 @@ npm test -- --run <escopo>        # N/N verdes
 ```
 
 ## Revisão humana
+
 <!-- O que exige olho humano e NÃO está no loop do agente. -->
 
-- 
+-
 
 ## Verificação
+
 <!-- Preenchida no FECHAMENTO (transição para implemented, mesmo commit que
      preenche implemented-by): evidência do DoD — comandos rodados + resultado. -->
 

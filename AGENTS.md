@@ -65,7 +65,7 @@ Commits e PRs só quando pedido. Cada spec fecha em commit atômico (`implemente
 - Streaming IA: lógica em `features/ai/`; rotas API delegam; UI padrão assistant-ui
 - Devtools (TanStack + assistant) no root só em `development`
 - Sessão: `getSession` / `requireSession` em functions; filtrar `user_id`; outro user → 404
-- Auth: só `@ifsc.edu.br`; magic link via Resend (`noreply@gugacarbo.space`)
+- Auth: só `@aluno.ifsc.edu.br`; magic link via Resend (`noreply@gugacarbo.space`)
 - Admin: `/admin/*` exige permissão `admin:access` em D1 (ADR-0004); `ADMIN_EMAILS` só no signup
 - Ingest v1: upload `.txt`/`.md` apenas — PDF fora do escopo (ADR-0002)
 - API keys: criptografar com `CONFIG_ENCRYPTION_KEY` (ADR-0006)

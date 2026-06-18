@@ -8,33 +8,33 @@ TanStack Start + Router + Query · React 19 · Cloudflare Workers · D1 + Drizzl
 
 ## Layout
 
-| Tipo | Local |
-|------|--------|
-| Rotas (finas) | `src/routes/` — uma pasta por segmento; ver abaixo |
-| Admin (`/admin/*`) | `src/routes/admin/` |
-| Domínio (UI + store + lógica) | `src/features/{domain}/` |
-| Server functions | `src/functions/` |
-| Schema + queries | `src/db/` (`queries/` modular por domínio) |
-| Infra compartilhada | `src/lib/` |
-| Hooks compartilhados | `src/hooks/` |
-| Hooks de domínio | `src/features/{domain}/hooks/` |
-| UI primitiva (shadcn) | `src/components/ui/` |
-| Composites cross-feature | `src/components/` |
-| Streaming / agents IA | `src/features/ai/` (rotas API delegam) |
+| Tipo                          | Local                                              |
+| ----------------------------- | -------------------------------------------------- |
+| Rotas (finas)                 | `src/routes/` — uma pasta por segmento; ver abaixo |
+| Admin (`/admin/*`)            | `src/routes/admin/`                                |
+| Domínio (UI + store + lógica) | `src/features/{domain}/`                           |
+| Server functions              | `src/functions/`                                   |
+| Schema + queries              | `src/db/` (`queries/` modular por domínio)         |
+| Infra compartilhada           | `src/lib/`                                         |
+| Hooks compartilhados          | `src/hooks/`                                       |
+| Hooks de domínio              | `src/features/{domain}/hooks/`                     |
+| UI primitiva (shadcn)         | `src/components/ui/`                               |
+| Composites cross-feature      | `src/components/`                                  |
+| Streaming / agents IA         | `src/features/ai/` (rotas API delegam)             |
 
 ### `src/routes/` (file-based routing)
 
 Cada rota vive em **pasta com o nome do segmento**; o arquivo da rota é **`index.tsx`** (ou `index.ts` só para API).
 
-| URL | Arquivo |
-|-----|---------|
-| `/` | `src/routes/index.tsx` |
-| `/login` | `src/routes/login/index.tsx` |
-| `/exams` | `src/routes/exams/index.tsx` |
-| `/exams/$id` | `src/routes/exams/$id/index.tsx` |
-| `/admin` | `src/routes/admin/index.tsx` |
+| URL             | Arquivo                             |
+| --------------- | ----------------------------------- |
+| `/`             | `src/routes/index.tsx`              |
+| `/login`        | `src/routes/login/index.tsx`        |
+| `/exams`        | `src/routes/exams/index.tsx`        |
+| `/exams/$id`    | `src/routes/exams/$id/index.tsx`    |
+| `/admin`        | `src/routes/admin/index.tsx`        |
 | `/admin/config` | `src/routes/admin/config/index.tsx` |
-| `/api/chat` | `src/routes/api/chat/index.ts` |
+| `/api/chat`     | `src/routes/api/chat/index.ts`      |
 
 Regras:
 
@@ -62,13 +62,13 @@ Não usar `#/*`. Testes usam `@/` como o app.
 
 ## Naming
 
-| Elemento | Padrão |
-|----------|--------|
-| Componentes / arquivos UI | PascalCase `.tsx` |
-| Hooks, utils, functions | camelCase |
-| Diretórios | kebab-case |
-| Constantes | UPPER_SNAKE_CASE |
-| PKs de domínio | UUID `text` (SPEC-0001) |
+| Elemento                  | Padrão                  |
+| ------------------------- | ----------------------- |
+| Componentes / arquivos UI | PascalCase `.tsx`       |
+| Hooks, utils, functions   | camelCase               |
+| Diretórios                | kebab-case              |
+| Constantes                | UPPER_SNAKE_CASE        |
+| PKs de domínio            | UUID `text` (SPEC-0001) |
 
 ## Lint (Biome)
 

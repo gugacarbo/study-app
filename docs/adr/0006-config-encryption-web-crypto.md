@@ -20,25 +20,25 @@ API keys de providers IA ficam em D1 (`ai_providers.api_key`). Texto plano no ba
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| AES-GCM 256 + `CONFIG_ENCRYPTION_KEY` (base64 32 bytes) | **Escolhida** |
-| Texto plano em D1 | Rejeitado |
-| Hash one-way (bcrypt) | Rejeitado — keys precisam ser recuperáveis para chamar LLM |
-| Cloudflare Secrets Store / external KMS | Overkill v1 |
+| Opção                                                   | Veredito                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------------- |
+| AES-GCM 256 + `CONFIG_ENCRYPTION_KEY` (base64 32 bytes) | **Escolhida**                                              |
+| Texto plano em D1                                       | Rejeitado                                                  |
+| Hash one-way (bcrypt)                                   | Rejeitado — keys precisam ser recuperáveis para chamar LLM |
+| Cloudflare Secrets Store / external KMS                 | Overkill v1                                                |
 
 ## Decisão
 
 **Web Crypto AES-GCM** em `src/lib/config-encryption.ts`:
 
-| Peça | Valor |
-|------|--------|
-| Algoritmo | `AES-GCM` |
-| IV | 12 bytes aleatórios por encrypt |
-| Chave | `CONFIG_ENCRYPTION_KEY` — base64 que decodifica para **exatamente 32 bytes** |
-| Formato armazenado | `enc:v1:{iv_b64}:{ciphertext_b64}` |
-| API pública | `encryptSecret`, `decryptSecret`, `isEncryptedSecret` |
-| Uso | `encryptApiKeyForStorage` / leitura em `src/lib/ai-config.ts` antes de `getAiModel()` (ADR-0007) |
+| Peça               | Valor                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| Algoritmo          | `AES-GCM`                                                                                        |
+| IV                 | 12 bytes aleatórios por encrypt                                                                  |
+| Chave              | `CONFIG_ENCRYPTION_KEY` — base64 que decodifica para **exatamente 32 bytes**                     |
+| Formato armazenado | `enc:v1:{iv_b64}:{ciphertext_b64}`                                                               |
+| API pública        | `encryptSecret`, `decryptSecret`, `isEncryptedSecret`                                            |
+| Uso                | `encryptApiKeyForStorage` / leitura em `src/lib/ai-config.ts` antes de `getAiModel()` (ADR-0007) |
 
 Secret: `CONFIG_ENCRYPTION_KEY` via `wrangler secret` (prod) e `.dev.vars` (local). Gerar: `openssl rand -base64 32`.
 

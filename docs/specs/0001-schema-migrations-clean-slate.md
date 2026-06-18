@@ -39,20 +39,20 @@ Alterar `schema.ts` → `db:generate` → nova migration; nunca editar migration
 
 Todas as PKs de domínio (exceto `memory_profile` e `config`) são `text` UUID v4 gerado no servidor no insert. Better Auth já usa `text` para `user.id`.
 
-| Tabela | PK |
-|--------|-----|
-| `exams`, `questions`, `attempts`, `files` | `id` text UUID |
-| `attempt_answers` | `id` text UUID |
-| `ai_providers` | `id` text UUID |
-| `ai_models` | `id` text UUID |
-| `llm_logs` | `id` text UUID; unique `call_id` text |
-| `r2_operation_logs` | `id` text UUID |
-| `memory_sessions`, `memory_topic_notes`, `memory_documents` | `id` text UUID |
-| `chat_conversations` | `id` text UUID |
-| `roles`, `permissions` | `id` text UUID |
-| `background_jobs`, `background_job_events` | `id` text UUID |
-| `memory_profile` | `user_id` text (PK, não UUID separado) |
-| `config` | `(user_id, key)` |
+| Tabela                                                      | PK                                     |
+| ----------------------------------------------------------- | -------------------------------------- |
+| `exams`, `questions`, `attempts`, `files`                   | `id` text UUID                         |
+| `attempt_answers`                                           | `id` text UUID                         |
+| `ai_providers`                                              | `id` text UUID                         |
+| `ai_models`                                                 | `id` text UUID                         |
+| `llm_logs`                                                  | `id` text UUID; unique `call_id` text  |
+| `r2_operation_logs`                                         | `id` text UUID                         |
+| `memory_sessions`, `memory_topic_notes`, `memory_documents` | `id` text UUID                         |
+| `chat_conversations`                                        | `id` text UUID                         |
+| `roles`, `permissions`                                      | `id` text UUID                         |
+| `background_jobs`, `background_job_events`                  | `id` text UUID                         |
+| `memory_profile`                                            | `user_id` text (PK, não UUID separado) |
+| `config`                                                    | `(user_id, key)`                       |
 
 FKs referenciam `text` UUID. URLs e APIs usam o mesmo id string.
 
@@ -60,53 +60,53 @@ FKs referenciam `text` UUID. URLs e APIs usam o mesmo id string.
 
 Via `npx auth generate --adapter drizzle`, merge em `src/db/schema.ts`:
 
-| Tabela | Uso |
-|--------|-----|
-| `user` | `id` text PK, `email`, `name`, `emailVerified`, timestamps |
-| `session` | Sessões |
-| `account` | OAuth futuro |
-| `verification` | Tokens magic link |
+| Tabela         | Uso                                                        |
+| -------------- | ---------------------------------------------------------- |
+| `user`         | `id` text PK, `email`, `name`, `emailVerified`, timestamps |
+| `session`      | Sessões                                                    |
+| `account`      | OAuth futuro                                               |
+| `verification` | Tokens magic link                                          |
 
 ### RBAC (ADR-0004)
 
 Catálogo + atribuição. Seed na migration inicial.
 
-| Tabela | Colunas principais | Índices |
-|--------|-------------------|---------|
-| `roles` | `id` UUID PK, `key` unique (`user`, `admin`), `name` | unique `key` |
-| `permissions` | `id` UUID PK, `key` unique (`app:use`, `admin:access`), `description` | unique `key` |
-| `role_permissions` | PK `(role_id, permission_id)` | `(permission_id)` |
-| `user_roles` | PK `(user_id, role_id)`; FK `user_id` → `user.id` cascade | `(role_id)` |
+| Tabela             | Colunas principais                                                    | Índices           |
+| ------------------ | --------------------------------------------------------------------- | ----------------- |
+| `roles`            | `id` UUID PK, `key` unique (`user`, `admin`), `name`                  | unique `key`      |
+| `permissions`      | `id` UUID PK, `key` unique (`app:use`, `admin:access`), `description` | unique `key`      |
+| `role_permissions` | PK `(role_id, permission_id)`                                         | `(permission_id)` |
+| `user_roles`       | PK `(user_id, role_id)`; FK `user_id` → `user.id` cascade             | `(role_id)`       |
 
 **Seed v1:**
 
-| `roles.key` | `permissions` |
-|-------------|---------------|
-| `user` | `app:use` |
-| `admin` | `app:use`, `admin:access` |
+| `roles.key` | `permissions`             |
+| ----------- | ------------------------- |
+| `user`      | `app:use`                 |
+| `admin`     | `app:use`, `admin:access` |
 
 Bootstrap admin no signup (email ∈ `ADMIN_EMAILS`) → SPEC-0000. Atribuição posterior → `setUserRole` (SPEC-0003).
 
 ### Tabelas de domínio — raiz (`user_id` → `user.id` cascade)
 
-| Tabela | Notas | Índices |
-|--------|-------|---------|
-| `exams` | `id` UUID text PK | `(user_id)`, `(user_id, created_at)` |
-| `ai_providers` | `id` UUID text PK | `(user_id)` |
-| `ai_models` | `id` UUID text PK; FK `provider_id` | `(provider_id)`, unique `(provider_id, model_id)` |
-| `config` | PK `(user_id, key)` | — |
-| `memory_profile` | **PK = `user_id`** (1 perfil por usuário) | PK `user_id` |
-| `memory_sessions` | | `(user_id, topic)` |
-| `memory_topic_notes` | | unique `(user_id, topic_slug)` |
-| `memory_documents` | | `(user_id, doc_type)` |
-| `chat_conversations` | `id` text PK | `(user_id, updated_at)` |
+| Tabela               | Notas                                     | Índices                                           |
+| -------------------- | ----------------------------------------- | ------------------------------------------------- |
+| `exams`              | `id` UUID text PK                         | `(user_id)`, `(user_id, created_at)`              |
+| `ai_providers`       | `id` UUID text PK                         | `(user_id)`                                       |
+| `ai_models`          | `id` UUID text PK; FK `provider_id`       | `(provider_id)`, unique `(provider_id, model_id)` |
+| `config`             | PK `(user_id, key)`                       | —                                                 |
+| `memory_profile`     | **PK = `user_id`** (1 perfil por usuário) | PK `user_id`                                      |
+| `memory_sessions`    |                                           | `(user_id, topic)`                                |
+| `memory_topic_notes` |                                           | unique `(user_id, topic_slug)`                    |
+| `memory_documents`   |                                           | `(user_id, doc_type)`                             |
+| `chat_conversations` | `id` text PK                              | `(user_id, updated_at)`                           |
 
 ### Jobs server-side (ADR-0009)
 
-| Tabela | Colunas principais | Índices |
-|--------|-------------------|---------|
-| `background_jobs` | `id` UUID PK, `user_id`, `kind`, `status`, `phase`, `error`, `metadata` JSON, `cancel_requested_at`, timestamps | `(user_id, created_at)`, `(user_id, status)` |
-| `background_job_events` | `id` UUID PK, `job_id` FK, `seq` int, `payload` JSON (UI message chunk), `created_at` | `(job_id, seq)` unique |
+| Tabela                  | Colunas principais                                                                                              | Índices                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `background_jobs`       | `id` UUID PK, `user_id`, `kind`, `status`, `phase`, `error`, `metadata` JSON, `cancel_requested_at`, timestamps | `(user_id, created_at)`, `(user_id, status)` |
+| `background_job_events` | `id` UUID PK, `job_id` FK, `seq` int, `payload` JSON (UI message chunk), `created_at`                           | `(job_id, seq)` unique                       |
 
 `status`: `awaiting_upload` \| `queued` \| `running` \| `completed` \| `failed` \| `cancelled`.
 
@@ -116,9 +116,9 @@ Eventos append-only durante o job (sem `DELETE`). Payload grande → truncar ou 
 
 `user_id` text **obrigatório**, indexado — **sem FK cascade** para `user` (logs persistem após delete de conta).
 
-| Tabela | Notas | Índices |
-|--------|-------|---------|
-| `llm_logs` | `call_id` unique; `status` pending→success/error uma vez | `(user_id, created_at)`, unique `call_id` |
+| Tabela              | Notas                                                                                            | Índices                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `llm_logs`          | `call_id` unique; `status` pending→success/error uma vez                                         | `(user_id, created_at)`, unique `call_id`       |
 | `r2_operation_logs` | `bucket`, `operation` (get/put/delete/head/list), `object_key`, `bytes`, `status`, `duration_ms` | `(user_id, created_at)`, `(bucket, created_at)` |
 
 Colunas de payload — texto truncado/redigido; **nunca** omitir a linha de log.
@@ -142,24 +142,24 @@ Simplifica “meu perfil” = `WHERE user_id = :sessionUserId` sem join extra.
 
 ### Tabelas filhas (sem `user_id` — escopo via pai)
 
-| Tabela | FK |
-|--------|-----|
-| `questions`, `attempts`, `files` | `exam_id` → `exams` |
-| `attempt_answers` | `attempt_id`, `question_id` |
-| `ai_models` | `provider_id` → `ai_providers` |
+| Tabela                           | FK                             |
+| -------------------------------- | ------------------------------ |
+| `questions`, `attempts`, `files` | `exam_id` → `exams`            |
+| `attempt_answers`                | `attempt_id`, `question_id`    |
+| `ai_models`                      | `provider_id` → `ai_providers` |
 
 #### `files` (blob de prova em R2)
 
-| Coluna | Tipo | Notas |
-|--------|------|--------|
-| `id` | text UUID PK | |
-| `exam_id` | text FK → `exams.id` cascade | |
-| `name` | text NOT NULL | nome original |
-| `r2_key` | text NOT NULL UNIQUE | ver layout R2 abaixo |
-| `mime_type` | text | |
-| `size` | integer | bytes |
-| `ttl_seconds` | integer NOT NULL DEFAULT 0 | **0 = sem expiração por tempo**; purge diário → SPEC-0002 |
-| `created_at` | text | default `CURRENT_TIMESTAMP` |
+| Coluna        | Tipo                         | Notas                                                     |
+| ------------- | ---------------------------- | --------------------------------------------------------- |
+| `id`          | text UUID PK                 |                                                           |
+| `exam_id`     | text FK → `exams.id` cascade |                                                           |
+| `name`        | text NOT NULL                | nome original                                             |
+| `r2_key`      | text NOT NULL UNIQUE         | ver layout R2 abaixo                                      |
+| `mime_type`   | text                         |                                                           |
+| `size`        | integer                      | bytes                                                     |
+| `ttl_seconds` | integer NOT NULL DEFAULT 0   | **0 = sem expiração por tempo**; purge diário → SPEC-0002 |
+| `created_at`  | text                         | default `CURRENT_TIMESTAMP`                               |
 
 Índice para purge: `(ttl_seconds, created_at)` — consultas filtram `ttl_seconds > 0`.
 
@@ -167,12 +167,12 @@ Toda mutação valida `exams.user_id` (ou `ai_providers.user_id`) = sessão.
 
 ### Delete
 
-| Ação | Comportamento v1 |
-|------|------------------|
-| Delete `user` | cascade em raízes de domínio; **`llm_logs` e `r2_operation_logs` permanecem** |
-| Delete `exam` | cascade questions, attempts, files |
-| Delete log (LLM/R2) | **proibido** |
-| Soft delete | **não** na v1 |
+| Ação                | Comportamento v1                                                              |
+| ------------------- | ----------------------------------------------------------------------------- |
+| Delete `user`       | cascade em raízes de domínio; **`llm_logs` e `r2_operation_logs` permanecem** |
+| Delete `exam`       | cascade questions, attempts, files                                            |
+| Delete log (LLM/R2) | **proibido**                                                                  |
+| Soft delete         | **não** na v1                                                                 |
 
 ### R2 keys
 
@@ -196,18 +196,18 @@ Truncar em **4096** chars no write.
 
 ## Casos de borda
 
-| # | QUANDO ⟨gatilho⟩ | o sistema DEVE ⟨resposta⟩ |
-|---|---|---|
-| 1 | `user` deletado | cascade domínio; logs de auditoria **mantidos** |
-| 2 | `exam` deletado | cascade filhos |
-| 3 | insert sem `user_id` | constraint / Zod fail |
-| 4 | query filha sem checar ownership | bug |
-| 5 | segundo `memory_profile` mesmo `user_id` | PK violation |
-| 6 | `db:reset` local | schema vazio; app sobe |
-| 7 | signup sem `user_roles` | bug — todo user recebe role `user` |
-| 8 | único admin remove próprio `admin` | rejeitar (ADR-0004) |
-| 9 | `files.ttl_seconds = 0` | purge diário ignora (SPEC-0002) |
-| 10 | `files.ttl_seconds > 0` e vencido | purge remove R2 + row (SPEC-0002) |
+| #   | QUANDO ⟨gatilho⟩                         | o sistema DEVE ⟨resposta⟩                       |
+| --- | ---------------------------------------- | ----------------------------------------------- |
+| 1   | `user` deletado                          | cascade domínio; logs de auditoria **mantidos** |
+| 2   | `exam` deletado                          | cascade filhos                                  |
+| 3   | insert sem `user_id`                     | constraint / Zod fail                           |
+| 4   | query filha sem checar ownership         | bug                                             |
+| 5   | segundo `memory_profile` mesmo `user_id` | PK violation                                    |
+| 6   | `db:reset` local                         | schema vazio; app sobe                          |
+| 7   | signup sem `user_roles`                  | bug — todo user recebe role `user`              |
+| 8   | único admin remove próprio `admin`       | rejeitar (ADR-0004)                             |
+| 9   | `files.ttl_seconds = 0`                  | purge diário ignora (SPEC-0002)                 |
+| 10  | `files.ttl_seconds > 0` e vencido        | purge remove R2 + row (SPEC-0002)               |
 
 ## Questões em aberto
 

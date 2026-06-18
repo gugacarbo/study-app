@@ -21,13 +21,13 @@ Chamadas a LLMs e operações em R2 são difíceis de auditar, custear e depurar
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| D1 append-only (`llm_logs` + `r2_operation_logs`) | **Escolhida** — mesmo binding, queries por usuário |
-| Só `console.log` / Observability Workers | Sem consulta histórica nem UI admin |
-| R2 como arquivo de log | Consulta e indexação piores |
-| Log opcional via env (`AI_LOG_LLM`) | Rejeitado — logging é obrigatório em todos os ambientes |
-| Delete em cascade com `user` | Rejeitado — viola retenção indefinida |
+| Opção                                             | Veredito                                                |
+| ------------------------------------------------- | ------------------------------------------------------- |
+| D1 append-only (`llm_logs` + `r2_operation_logs`) | **Escolhida** — mesmo binding, queries por usuário      |
+| Só `console.log` / Observability Workers          | Sem consulta histórica nem UI admin                     |
+| R2 como arquivo de log                            | Consulta e indexação piores                             |
+| Log opcional via env (`AI_LOG_LLM`)               | Rejeitado — logging é obrigatório em todos os ambientes |
+| Delete em cascade com `user`                      | Rejeitado — viola retenção indefinida                   |
 
 ## Decisão
 
@@ -37,9 +37,9 @@ Toda chamada LLM e toda operação R2 passa por **wrapper auditado**. Registros 
 
 Tabelas em D1 (detalhe de colunas: SPEC-0001):
 
-| Tabela | O quê |
-|--------|--------|
-| `llm_logs` | Cada request/response a LLM (via AI SDK — ADR-0007) |
+| Tabela              | O quê                                                                           |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `llm_logs`          | Cada request/response a LLM (via AI SDK — ADR-0007)                             |
 | `r2_operation_logs` | Cada `get`, `put`, `delete`, `head`, `list` em `FILES_BUCKET` e `MEMORY_BUCKET` |
 
 `user_id` em ambas — **sem FK cascade** para `user` (logs sobrevivem à exclusão da conta; id permanece para auditoria).

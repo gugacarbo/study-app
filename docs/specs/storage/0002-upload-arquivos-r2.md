@@ -50,50 +50,50 @@ Usuário autenticado envia arquivos de prova (`.txt`/`.md` na v1) para R2; metad
 
 ### Tabela `files` (coluna TTL — detalhe em SPEC-0001)
 
-| Coluna | Tipo | Regra |
-|--------|------|--------|
+| Coluna        | Tipo                       | Regra                                                                  |
+| ------------- | -------------------------- | ---------------------------------------------------------------------- |
 | `ttl_seconds` | integer NOT NULL DEFAULT 0 | Segundos de vida desde `created_at`. **0 = sem expiração automática.** |
 
 Vencimento: `expires_at` implícito = `created_at + ttl_seconds` (não persistir coluna separada na v1).
 
 ### API / functions (v1)
 
-| Operação | Entrada | `ttl_seconds` |
-|----------|---------|----------------|
-| Upload | `examId`, file, `ttl_seconds?` | Opcional; default **0**; se informado, inteiro ≥ 0 |
-| Purge cron | (nenhum — sistema) | Só processa `ttl_seconds > 0` |
+| Operação   | Entrada                        | `ttl_seconds`                                      |
+| ---------- | ------------------------------ | -------------------------------------------------- |
+| Upload     | `examId`, file, `ttl_seconds?` | Opcional; default **0**; se informado, inteiro ≥ 0 |
+| Purge cron | (nenhum — sistema)             | Só processa `ttl_seconds > 0`                      |
 
 Validação Zod: `ttl_seconds` inteiro, `min(0)`, `max` razoável (ex.: 10 anos em segundos) — evitar overflow acidental.
 
 ### Cron
 
-| Peça | Valor |
-|------|--------|
-| Binding | `wrangler.jsonc` → `triggers.crons` |
-| Schedule v1 | `0 4 * * *` (04:00 UTC diário) |
-| Entry | export default handler que chama `purgeExpiredBlobs` |
-| Batch | Máx. N rows por run (ex.: 100) — evitar timeout; próximo dia pega resto |
+| Peça        | Valor                                                                   |
+| ----------- | ----------------------------------------------------------------------- |
+| Binding     | `wrangler.jsonc` → `triggers.crons`                                     |
+| Schedule v1 | `0 4 * * *` (04:00 UTC diário)                                          |
+| Entry       | export default handler que chama `purgeExpiredBlobs`                    |
+| Batch       | Máx. N rows por run (ex.: 100) — evitar timeout; próximo dia pega resto |
 
 ### Implementação
 
-| Peça | Path |
-|------|------|
-| Upload | `src/functions/storage/upload-file.ts` |
-| Purge | `src/functions/storage/purge-expired-blobs.ts` |
-| Queries | `src/db/queries/files.ts` — `listExpiredFiles(limit)`, `deleteFile(id)` |
-| Cron route | `src/workers/cron.ts` ou handler no worker principal |
+| Peça       | Path                                                                    |
+| ---------- | ----------------------------------------------------------------------- |
+| Upload     | `src/functions/storage/upload-file.ts`                                  |
+| Purge      | `src/functions/storage/purge-expired-blobs.ts`                          |
+| Queries    | `src/db/queries/files.ts` — `listExpiredFiles(limit)`, `deleteFile(id)` |
+| Cron route | `src/workers/cron.ts` ou handler no worker principal                    |
 
 ## Casos de borda
 
-| # | QUANDO ⟨gatilho⟩ | o sistema DEVE ⟨resposta⟩ |
-|---|---|---|
-| 1 | `ttl_seconds = 0` | **não** incluir no purge diário |
-| 2 | `ttl_seconds > 0` e prazo passou | remover objeto R2 + row `files` no próximo purge |
-| 3 | purge encontra row sem objeto R2 | deletar row D1; log warn |
-| 4 | R2 delete falha | manter row; retentar no próximo dia |
-| 5 | `exam` deletado (cascade) | `files` removidos independente de TTL |
-| 6 | upload com `ttl_seconds` negativo | rejeitar (400 / Zod) |
-| 7 | cron overlap (run longo) | idempotente — reprocessar vencidos é seguro |
+| #   | QUANDO ⟨gatilho⟩                  | o sistema DEVE ⟨resposta⟩                        |
+| --- | --------------------------------- | ------------------------------------------------ |
+| 1   | `ttl_seconds = 0`                 | **não** incluir no purge diário                  |
+| 2   | `ttl_seconds > 0` e prazo passou  | remover objeto R2 + row `files` no próximo purge |
+| 3   | purge encontra row sem objeto R2  | deletar row D1; log warn                         |
+| 4   | R2 delete falha                   | manter row; retentar no próximo dia              |
+| 5   | `exam` deletado (cascade)         | `files` removidos independente de TTL            |
+| 6   | upload com `ttl_seconds` negativo | rejeitar (400 / Zod)                             |
+| 7   | cron overlap (run longo)          | idempotente — reprocessar vencidos é seguro      |
 
 ## Questões em aberto
 

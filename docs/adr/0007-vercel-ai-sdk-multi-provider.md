@@ -21,11 +21,11 @@ Ingestão, chat, explicações e benchmark dependem de LLMs com streaming e tool
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| Vercel AI SDK v6 + catálogo D1 + assistant-ui | **Escolhida** |
-| TanStack AI / OpenRouter fixo | Menos flexível |
-| HTTP manual por provider | Reinventa stream, tools, retries |
+| Opção                                                        | Veredito                                           |
+| ------------------------------------------------------------ | -------------------------------------------------- |
+| Vercel AI SDK v6 + catálogo D1 + assistant-ui                | **Escolhida**                                      |
+| TanStack AI / OpenRouter fixo                                | Menos flexível                                     |
+| HTTP manual por provider                                     | Reinventa stream, tools, retries                   |
 | Pipeline custom legado (`PipelineThread`, reducers próprios) | Rejeitado — preferir streaming padrão assistant-ui |
 
 ## Decisão

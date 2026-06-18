@@ -19,10 +19,10 @@ src/lib/auth-allowed-email-domain.test.ts
 
 ## Naming (importante)
 
-| Sufixo | Uso |
-|--------|-----|
-| `*.test.ts` | Lógica, functions, agents, lib, queries |
-| `*.spec.tsx` | Componentes React |
+| Sufixo       | Uso                                     |
+| ------------ | --------------------------------------- |
+| `*.test.ts`  | Lógica, functions, agents, lib, queries |
+| `*.spec.tsx` | Componentes React                       |
 
 Vitest **exclui** `**/*.test.tsx` — component tests devem ser `.spec.tsx`.
 

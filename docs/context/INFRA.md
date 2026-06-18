@@ -8,25 +8,25 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 
 ## Bindings (`wrangler.jsonc`)
 
-| Binding         | Tipo                  | Uso                                          |
-| --------------- | --------------------- | -------------------------------------------- |
-| `DB`            | D1 `study-app-db`     | Metadados, config, exams, attempts, llm logs |
-| `FILES_BUCKET`  | R2 `study-app-files`  | Arquivos de prova (v1: `.txt`/`.md`)        |
-| `MEMORY_BUCKET` | R2 `study-app-memory` | Conteúdo markdown da camada de memória       |
-| `JOB_QUEUE`     | Queue `study-app-jobs`  | Jobs longos server-side (ADR-0009)           |
+| Binding         | Tipo                   | Uso                                          |
+| --------------- | ---------------------- | -------------------------------------------- |
+| `DB`            | D1 `study-app-db`      | Metadados, config, exams, attempts, llm logs |
+| `FILES_BUCKET`  | R2 `study-app-files`   | Arquivos de prova (v1: `.txt`/`.md`)         |
+| `MEMORY_BUCKET` | R2 `study-app-memory`  | Conteúdo markdown da camada de memória       |
+| `JOB_QUEUE`     | Queue `study-app-jobs` | Jobs longos server-side (ADR-0009)           |
 
-Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (bootstrap admin no signup — ADR-0004).
+Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=aluno.ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (bootstrap admin no signup — ADR-0004).
 Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `CONFIG_ENCRYPTION_KEY` (base64 32 bytes — `openssl rand -base64 32`).
 
 ## Email (Resend)
 
 Magic link (SPEC-0000 / ADR-0003). **Sem** binding `send_email` no wrangler.
 
-| Config v1 | Valor |
-|-----------|--------|
-| Allowlist signup | `ifsc.edu.br` |
-| From | `noreply@gugacarbo.space` |
-| API | `POST https://api.resend.com/emails` + `Authorization: Bearer $RESEND_API_KEY` |
+| Config v1        | Valor                                                                          |
+| ---------------- | ------------------------------------------------------------------------------ |
+| Allowlist signup | `aluno.ifsc.edu.br`                                                            |
+| From             | `noreply@gugacarbo.space`                                                      |
+| API              | `POST https://api.resend.com/emails` + `Authorization: Bearer $RESEND_API_KEY` |
 
 Domínio `gugacarbo.space` verificado no dashboard Resend. Dev: logar link no console.
 

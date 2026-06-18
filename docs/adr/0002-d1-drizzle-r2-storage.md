@@ -21,20 +21,20 @@ Persistir dados multi-usuário (exames, questões, tentativas, auth, config IA, 
 
 ## Opções consideradas
 
-| Opção | Veredito |
-|-------|----------|
-| D1 + R2 + Drizzle + UUID | **Escolhida** |
-| Só D1 | PDFs e chat inviáveis |
-| Postgres externo | Latência + segundo serviço |
-| Integer PKs (legado) | Rejeitado — UUID alinha com Better Auth e R2 keys |
+| Opção                    | Veredito                                          |
+| ------------------------ | ------------------------------------------------- |
+| D1 + R2 + Drizzle + UUID | **Escolhida**                                     |
+| Só D1                    | PDFs e chat inviáveis                             |
+| Postgres externo         | Latência + segundo serviço                        |
+| Integer PKs (legado)     | Rejeitado — UUID alinha com Better Auth e R2 keys |
 
 ## Decisão
 
-| Binding | Uso |
-|---------|-----|
-| `DB` (D1 `study-app-db`) | Metadados, auth, texto pesquisável (truncado), FKs |
-| `FILES_BUCKET` (R2) | Arquivos de prova (**v1: `.txt` / `.md` apenas** — ver abaixo) |
-| `MEMORY_BUCKET` (R2) | Markdown de memória, payloads de chat |
+| Binding                  | Uso                                                            |
+| ------------------------ | -------------------------------------------------------------- |
+| `DB` (D1 `study-app-db`) | Metadados, auth, texto pesquisável (truncado), FKs             |
+| `FILES_BUCKET` (R2)      | Arquivos de prova (**v1: `.txt` / `.md` apenas** — ver abaixo) |
+| `MEMORY_BUCKET` (R2)     | Markdown de memória, payloads de chat                          |
 
 Schema: `src/db/schema.ts`. Migrations: `migrations/`.
 
@@ -50,10 +50,10 @@ Toda entidade de domínio raiz inclui `user_id` (ADR-0003). Metadados D1 referen
 
 ### Formatos de upload (ingest v1)
 
-| Formato | v1 |
-|---------|-----|
-| `.txt`, `.md` | **Suportado** — texto extraído no Worker (`TextDecoder`) |
-| `.pdf` | **Não suportado** na v1 — sem parser PDF no Worker (`pdf-parse` proibido, ADR-0001) |
+| Formato       | v1                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------- |
+| `.txt`, `.md` | **Suportado** — texto extraído no Worker (`TextDecoder`)                            |
+| `.pdf`        | **Não suportado** na v1 — sem parser PDF no Worker (`pdf-parse` proibido, ADR-0001) |
 
 Upload de PDF rejeitado na UI e no servidor (validação MIME/extensão). Suporte a PDF exige ADR futura (vision LLM ou lib Workers-compat).
 
