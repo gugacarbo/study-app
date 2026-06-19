@@ -4,9 +4,9 @@ import * as examsQueries from "@/db/queries/exams";
 import * as filesQueries from "@/db/queries/files";
 import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
 import {
-	runIngest,
 	type BackgroundJobRow,
 	type RunIngestDeps,
+	runIngest,
 } from "@/features/ai/jobs/ingest/run-ingest";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
 import {
@@ -73,16 +73,12 @@ function createRunDeps(input?: {
 	const isCancelRequested = vi.fn(async () => false);
 	const questions = input?.questions ?? [makeQuestion(1)];
 
-	const streamObject = vi.fn(() => ({
-		partialObjectStream: (async function* () {
-			yield { questions };
-		})(),
-		object: Promise.resolve({ questions }),
-	})) as unknown as RunIngestDeps["streamObject"];
+	const generateObject = vi.fn(async () => ({
+		object: { questions },
+	})) as unknown as RunIngestDeps["generateObject"];
 
 	const getAiModel =
-		input?.getAiModel ??
-		vi.fn(async () => ({ modelId: "gpt-4o" } as never));
+		input?.getAiModel ?? vi.fn(async () => ({ modelId: "gpt-4o" }) as never);
 
 	const persistQuestionsDeps = input?.persistQuestionsDeps ?? {
 		existsNormalizedQuestion: vi.fn(async () => false),
@@ -96,7 +92,7 @@ function createRunDeps(input?: {
 			appendJobEvent,
 			isCancelRequested,
 			getAiModel,
-			streamObject,
+			generateObject,
 			sleep: vi.fn(async () => undefined),
 			persistQuestionsDeps,
 		},
@@ -109,9 +105,7 @@ describe("runIngest", () => {
 	it("no-ops when job status is not queued", async () => {
 		const updateJobStatus = vi.fn(async () => undefined);
 		const deps: RunIngestDeps = {
-			getJobById: vi.fn(async () =>
-				makeJob({ status: JOB_STATUS.RUNNING }),
-			),
+			getJobById: vi.fn(async () => makeJob({ status: JOB_STATUS.RUNNING })),
 			updateJobStatus,
 			appendJobEvent: vi.fn(async () => undefined),
 			isCancelRequested: vi.fn(async () => false),
@@ -304,7 +298,9 @@ describe("runIngest", () => {
 			deps,
 		});
 
-		const payloads = appendJobEvent.mock.calls.map((call) => JSON.parse(call[1]));
+		const payloads = appendJobEvent.mock.calls.map((call) =>
+			JSON.parse(call[1]),
+		);
 		expect(payloads).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
@@ -354,20 +350,12 @@ describe("runIngest", () => {
 		);
 	});
 
-	it("cancels during LLM extraction when cancel is requested", async () => {
-		let streamChunks = 0;
-		const isCancelRequested = vi.fn(async () => {
-			streamChunks += 1;
-			return streamChunks >= 2;
-		});
+	it("cancels before LLM extraction when cancel is requested", async () => {
+		const isCancelRequested = vi.fn(async () => true);
 
-		const streamObject = vi.fn(() => ({
-			partialObjectStream: (async function* () {
-				yield { questions: [makeQuestion(1)] };
-				yield { questions: [makeQuestion(1), makeQuestion(2)] };
-			})(),
-			object: Promise.resolve({ questions: [makeQuestion(1)] }),
-		})) as unknown as RunIngestDeps["streamObject"];
+		const generateObject = vi.fn(async () => ({
+			object: { questions: [makeQuestion(1)] },
+		})) as unknown as RunIngestDeps["generateObject"];
 
 		const updateJobStatus = vi.fn(async () => undefined);
 		const appendJobEvent = vi.fn(async () => undefined);
@@ -376,8 +364,8 @@ describe("runIngest", () => {
 			updateJobStatus,
 			appendJobEvent,
 			isCancelRequested,
-			getAiModel: vi.fn(async () => ({ modelId: "gpt-4o" } as never)),
-			streamObject,
+			getAiModel: vi.fn(async () => ({ modelId: "gpt-4o" }) as never),
+			generateObject,
 			sleep: vi.fn(async () => undefined),
 			persistQuestionsDeps: {
 				existsNormalizedQuestion: vi.fn(async () => false),
@@ -415,6 +403,7 @@ describe("runIngest", () => {
 			deps,
 		});
 
+		expect(generateObject).not.toHaveBeenCalled();
 		expect(updateJobStatus).toHaveBeenCalledWith(jobId, {
 			status: JOB_STATUS.CANCELLED,
 			error: null,

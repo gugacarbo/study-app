@@ -2,13 +2,13 @@ import type { AppDatabase } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
 import {
 	deriveScoringMode,
-	parseExtractedQuestion,
 	type ExtractedQuestion,
+	parseExtractedQuestion,
 } from "@/features/ai/jobs/ingest/extracted-question";
 import { buildIngestSkippedDuplicatePart } from "@/features/ai/jobs/ingest/ingest-events";
 import { normalizeQuestionText } from "@/features/ai/jobs/ingest/normalize-question";
-import { INGEST_WARNING, type IngestWarning } from "@/lib/job-kinds";
 import { MAX_QUESTIONS } from "@/lib/ingest-limits";
+import { INGEST_WARNING, type IngestWarning } from "@/lib/job-kinds";
 
 export type QuestionInsert = {
 	id: string;
@@ -26,7 +26,9 @@ export type PersistQuestionsDeps = {
 		normalizedText: string,
 	) => Promise<boolean>;
 	batchInsertQuestions: (questions: QuestionInsert[]) => Promise<void>;
-	onSkippedDuplicate?: (part: ReturnType<typeof buildIngestSkippedDuplicatePart>) => Promise<void>;
+	onSkippedDuplicate?: (
+		part: ReturnType<typeof buildIngestSkippedDuplicatePart>,
+	) => Promise<void>;
 };
 
 export type PersistQuestionsInput = {

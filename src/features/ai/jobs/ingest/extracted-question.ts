@@ -49,7 +49,9 @@ export const extractedQuestionsRootSchema = z.object({
 });
 
 export type ExtractedQuestion = z.infer<typeof extractedQuestionSchema>;
-export type ExtractedQuestionsRoot = z.infer<typeof extractedQuestionsRootSchema>;
+export type ExtractedQuestionsRoot = z.infer<
+	typeof extractedQuestionsRootSchema
+>;
 
 export type ScoringMode = "exact" | "partial";
 

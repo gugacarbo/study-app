@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
-import { persistQuestions, type QuestionInsert } from "@/features/ai/jobs/ingest/persist-questions";
-import { INGEST_WARNING } from "@/lib/job-kinds";
+import {
+	persistQuestions,
+	type QuestionInsert,
+} from "@/features/ai/jobs/ingest/persist-questions";
 import { MAX_QUESTIONS } from "@/lib/ingest-limits";
+import { INGEST_WARNING } from "@/lib/job-kinds";
 
 const examId = "00000000-0000-4000-8000-000000000001";
 
@@ -20,7 +23,10 @@ function makeQuestion(index: number) {
 }
 
 function createDeps(overrides?: {
-	existsNormalizedQuestion?: (examId: string, normalized: string) => Promise<boolean>;
+	existsNormalizedQuestion?: (
+		examId: string,
+		normalized: string,
+	) => Promise<boolean>;
 }) {
 	const batchInsertQuestions = vi.fn(
 		async (_questions: QuestionInsert[]) => undefined,
