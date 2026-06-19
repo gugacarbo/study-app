@@ -1,10 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-	cleanup,
-	render,
-	screen,
-	waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JobMonitorPage } from "@/features/background-processes/pages/job-monitor-page";
 import { JOB_STATUS } from "@/lib/job-kinds";
@@ -85,7 +80,16 @@ describe("JobMonitorPage", () => {
 		expect(
 			screen.getByRole("region", { name: /progresso da importação/i }),
 		).toBeInTheDocument();
-		expect(screen.getAllByText(/extraindo questões/i).length).toBeGreaterThan(0);
+		expect(screen.getAllByText(/extraindo questões/i).length).toBeGreaterThan(
+			0,
+		);
+		expect(
+			screen.getByRole("region", { name: /eventos do job/i }),
+		).toBeInTheDocument();
+		expect(screen.getByText(/#1/i)).toBeInTheDocument();
+		expect(
+			screen.getByRole("region", { name: /eventos do job/i }),
+		).toHaveTextContent(/Extraindo questões/);
 	});
 
 	it("redirects awaiting_upload jobs to /exams/new", async () => {

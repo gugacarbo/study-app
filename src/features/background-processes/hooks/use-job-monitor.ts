@@ -1,7 +1,7 @@
+import { useEffect, useRef, useState } from "react";
 import { useJobEventStream } from "@/features/background-processes/hooks/use-job-event-stream";
 import { useJobSync } from "@/features/background-processes/hooks/use-job-sync";
 import { JOB_STATUS } from "@/lib/job-kinds";
-import { useEffect, useRef, useState } from "react";
 
 export function useJobMonitor(jobId: string) {
 	const sync = useJobSync(jobId);
@@ -12,7 +12,7 @@ export function useJobMonitor(jobId: string) {
 
 	useEffect(() => {
 		setStreamAfterSeq(null);
-	}, [jobId]);
+	}, []);
 
 	useEffect(() => {
 		if (sync.isLoading || streamAfterSeq !== null) return;

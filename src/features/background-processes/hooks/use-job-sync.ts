@@ -1,17 +1,22 @@
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	INITIAL_INGEST_PROGRESS,
+	type IngestProgressState,
 	type MappedAssistantMessage,
 	mergeJobEvents,
-	type IngestProgressState,
 } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
 	fetchJobEvents,
+	JOB_POLL_INTERVAL_MS,
 	type JobEventRecord,
 	type JobEventsResponse,
 } from "@/features/background-processes/lib/jobs-api";
-import { JOB_STATUS, type IngestJobMetadata, type JobStatus } from "@/lib/job-kinds";
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type IngestJobMetadata,
+	JOB_STATUS,
+	type JobStatus,
+} from "@/lib/job-kinds";
 
 const TERMINAL = new Set<JobStatus>([
 	JOB_STATUS.COMPLETED,
@@ -26,6 +31,7 @@ export type JobSyncState = {
 	metadata: IngestJobMetadata | null;
 	messages: MappedAssistantMessage[];
 	progress: IngestProgressState;
+	events: JobEventRecord[];
 	lastSeq: number;
 	isTerminal: boolean;
 };
@@ -37,6 +43,7 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	metadata: null,
 	messages: [],
 	progress: INITIAL_INGEST_PROGRESS,
+	events: [],
 	lastSeq: 0,
 	isTerminal: false,
 };
@@ -50,6 +57,7 @@ function applyJobResponse(
 			messages: prev.messages,
 			progress: prev.progress,
 			lastSeq: prev.lastSeq,
+			events: prev.events,
 		},
 		data.events,
 	);
@@ -61,6 +69,7 @@ function applyJobResponse(
 		metadata: data.metadata,
 		messages: merged.messages,
 		progress: merged.progress,
+		events: merged.events,
 		lastSeq: merged.lastSeq,
 		isTerminal: TERMINAL.has(data.status),
 	};
@@ -68,6 +77,7 @@ function applyJobResponse(
 
 export function useJobSync(jobId: string, enabled = true) {
 	const lastSeqRef = useRef(0);
+	const isTerminalRef = useRef(false);
 	const [state, setState] = useState<JobSyncState>(INITIAL_SYNC_STATE);
 
 	const mergeResponse = useCallback((data: JobEventsResponse) => {
@@ -77,6 +87,7 @@ export function useJobSync(jobId: string, enabled = true) {
 				data,
 			);
 			lastSeqRef.current = next.lastSeq;
+			isTerminalRef.current = next.isTerminal;
 			return next;
 		});
 	}, []);
@@ -89,6 +100,7 @@ export function useJobSync(jobId: string, enabled = true) {
 					messages: prev.messages,
 					progress: prev.progress,
 					lastSeq: lastSeqRef.current,
+					events: prev.events,
 				},
 				events,
 			);
@@ -97,6 +109,7 @@ export function useJobSync(jobId: string, enabled = true) {
 				...prev,
 				messages: merged.messages,
 				progress: merged.progress,
+				events: merged.events,
 				lastSeq: merged.lastSeq,
 			};
 		});
@@ -106,11 +119,8 @@ export function useJobSync(jobId: string, enabled = true) {
 		queryKey: ["job-sync", jobId],
 		queryFn: async () => fetchJobEvents(jobId, lastSeqRef.current),
 		enabled: enabled && jobId.length > 0,
-		refetchInterval: (queryState) => {
-			const status = queryState.state.data?.status;
-			if (status && TERMINAL.has(status)) return false;
-			return 1500;
-		},
+		refetchInterval: () =>
+			isTerminalRef.current ? false : JOB_POLL_INTERVAL_MS,
 	});
 
 	useEffect(() => {
@@ -120,8 +130,9 @@ export function useJobSync(jobId: string, enabled = true) {
 
 	useEffect(() => {
 		lastSeqRef.current = 0;
+		isTerminalRef.current = false;
 		setState(INITIAL_SYNC_STATE);
-	}, [jobId]);
+	}, []);
 
 	return {
 		...state,

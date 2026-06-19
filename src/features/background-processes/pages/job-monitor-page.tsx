@@ -1,14 +1,15 @@
+import { useMutation } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { IngestAgentThread } from "@/features/background-processes/components/ingest-agent-thread";
 import { IngestProgressPanel } from "@/features/background-processes/components/ingest-progress-panel";
+import { JobEventsPanel } from "@/features/background-processes/components/job-events-panel";
 import { JobWorkspaceLayout } from "@/features/background-processes/components/job-workspace-layout";
 import { useJobMonitor } from "@/features/background-processes/hooks/use-job-monitor";
 import { cancelJob } from "@/features/background-processes/lib/jobs-api";
 import { isCancellableJobStatus, JOB_STATUS } from "@/lib/job-kinds";
-import { useMutation } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 
 type JobMonitorPageProps = {
 	jobId: string;
@@ -109,6 +110,8 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 					/>
 				}
 			/>
+
+			<JobEventsPanel events={monitor.events} isLoading={monitor.isLoading} />
 
 			{monitor.isTerminal && monitor.status === JOB_STATUS.COMPLETED ? (
 				<div className="flex flex-wrap gap-2">

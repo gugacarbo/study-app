@@ -61,7 +61,9 @@ function isIngestDataPart(payload: unknown): payload is IngestDataPart {
 	);
 }
 
-function isTextPart(payload: unknown): payload is { type: "text"; text: string } {
+function isTextPart(
+	payload: unknown,
+): payload is { type: "text"; text: string } {
 	return (
 		!!payload &&
 		typeof payload === "object" &&
@@ -147,17 +149,21 @@ export function mergeJobEvents(
 		messages: MappedAssistantMessage[];
 		progress: IngestProgressState;
 		lastSeq: number;
+		events: JobEventRecord[];
 	},
 	incoming: JobEventRecord[],
 ): {
 	messages: MappedAssistantMessage[];
 	progress: IngestProgressState;
 	lastSeq: number;
+	events: JobEventRecord[];
 } {
-	let { messages, progress, lastSeq } = current;
+	let { messages, progress, lastSeq, events } = current;
 
 	for (const event of incoming) {
 		if (event.seq <= lastSeq) continue;
+
+		events = [...events, event];
 
 		const label = timelineLabelForPayload(event.payload);
 		if (label) {
@@ -190,7 +196,7 @@ export function mergeJobEvents(
 		lastSeq = event.seq;
 	}
 
-	return { messages, progress, lastSeq };
+	return { messages, progress, lastSeq, events };
 }
 
 export function formatPhaseLabel(phase: IngestPhase | null): string | null {
