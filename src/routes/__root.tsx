@@ -1,4 +1,8 @@
-import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import {
+	createRootRoute,
+	Outlet,
+	useRouterState,
+} from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import type { AppRouteContext } from "@/functions/auth/require-session";
 import { DefaultNotFound, RootDocument, rootHead } from "./__root/-index";
@@ -13,8 +17,9 @@ export const Route = createRootRoute({
 function RootLayout() {
 	const appContext = useRouterState({
 		select: (state) =>
-			state.matches.find((match) => match.routeId === "/_app")
-				?.context as AppRouteContext | undefined,
+			state.matches.find((match) => match.routeId === "/_app")?.context as
+				| AppRouteContext
+				| undefined,
 	});
 
 	if (appContext?.user) {
