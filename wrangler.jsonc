@@ -1,11 +1,21 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	// Local web dev: `npm run dev` (Vite on :3000). Raw `wrangler dev` only bundles via aliases below.
 	"name": "study-app",
 	"compatibility_date": "2026-05-01",
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
 	"main": "src/worker-entry.ts",
+	"alias": {
+		"#tanstack-router-entry": "./src/router.tsx",
+		"#tanstack-start-entry": "./node_modules/@tanstack/react-start/dist/plugin/default-entry/start.ts",
+		"#tanstack-start-plugin-adapters": "./src/wrangler-stubs/tanstack-start-plugin-adapters.ts",
+		"tanstack-start-manifest:v": "./src/wrangler-stubs/tanstack-start-manifest.js",
+		"tailwindcss": "./node_modules/tailwindcss/index.css",
+		"tw-animate-css": "./node_modules/tw-animate-css/dist/tw-animate.css",
+		"shadcn/tailwind.css": "./node_modules/shadcn/dist/tailwind.css"
+	},
 	"d1_databases": [
 		{
 			"binding": "DB",

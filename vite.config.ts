@@ -9,38 +9,52 @@ import { defineConfig } from "vite";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
+// Pre-bundle at dev startup so lazy routes do not trigger mid-session
+// re-optimizations (browser keeps stale ?v= hashes → 504 Outdated Optimize Dep).
+const clientOptimizeDeps = [
+	"react",
+	"react/jsx-runtime",
+	"react/jsx-dev-runtime",
+	"react-dom",
+	"react-dom/client",
+	"react-hook-form",
+	"@hookform/resolvers/zod",
+	"@tanstack/react-query",
+	"@tanstack/react-router",
+	"@tanstack/react-router > @tanstack/react-store",
+	"ai",
+	"@ai-sdk/openai",
+	"zod",
+];
+
+const ssrOptimizeDeps = [...clientOptimizeDeps, "react-dom/server"];
+
+const optimizeDepsDefaults = {
+	holdUntilCrawlEnd: true,
+	// Serve the latest optimized chunk when the browser still has a stale ?v= hash.
+	ignoreOutdatedRequests: true,
+} as const;
+
 const config = defineConfig({
 	resolve: {
 		tsconfigPaths: true,
-		dedupe: ["react", "react-dom"],
+		dedupe: ["react", "react-dom", "zod"],
 		alias: {
 			react: path.resolve(rootDir, "node_modules/react"),
 			"react-dom": path.resolve(rootDir, "node_modules/react-dom"),
 		},
 	},
 	optimizeDeps: {
-		include: [
-			"react",
-			"react/jsx-runtime",
-			"react/jsx-dev-runtime",
-			"react-dom",
-			"react-dom/client",
-			"@assistant-ui/react",
-		],
+		...optimizeDepsDefaults,
+		include: clientOptimizeDeps,
 	},
-	// Pre-bundle React in the SSR (workerd) environment at startup so dep
-	// discovery does not trigger mid-session re-optimizations with stale hashes.
 	environments: {
 		ssr: {
 			optimizeDeps: {
-				include: [
-					"react",
-					"react/jsx-runtime",
-					"react/jsx-dev-runtime",
-					"react-dom",
-					"react-dom/server",
-					"@tanstack/react-router > @tanstack/react-store",
-				],
+				...optimizeDepsDefaults,
+				include: ssrOptimizeDeps,
+				// zod v4 splits into chunks the SSR optimizer cannot resolve reliably.
+				exclude: ["zod"],
 			},
 		},
 	},

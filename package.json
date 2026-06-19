@@ -7,7 +7,9 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
-    "wrangler:dev": "wrangler dev",
+    "dev:localflare": "localflare attach --persist-to .wrangler/state",
+    "wrangler:dev": "vite dev --port 3000",
+    "wrangler": "node scripts/wrangler-shim.mjs",
     "cf-typegen": "wrangler types",
     "build": "vite build",
     "preview": "npm run build && vite preview",

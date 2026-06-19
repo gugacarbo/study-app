@@ -1,8 +1,8 @@
 import type { D1Database, Queue, R2Bucket } from "@cloudflare/workers-types";
 import startWorker from "@tanstack/react-start/server-entry";
+import type { JobQueueMessage } from "./functions/queue";
 import { handleScheduled } from "./workers/cron";
 import { handleJobConsumer } from "./workers/job-consumer";
-import type { JobQueueMessage } from "./functions/queue";
 
 type WorkerEnv = {
 	DB: D1Database;
@@ -29,11 +29,8 @@ if (!fetchHandler) {
 
 export default {
 	fetch: fetchHandler,
-	scheduled: (
-		event: ScheduledEvent,
-		env: WorkerEnv,
-		ctx: ExecutionContext,
-	) => handleScheduled(event, env, ctx),
+	scheduled: (event: ScheduledEvent, env: WorkerEnv, ctx: ExecutionContext) =>
+		handleScheduled(event, env, ctx),
 	queue: (
 		batch: MessageBatch<JobQueueMessage>,
 		env: WorkerEnv,

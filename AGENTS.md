@@ -21,7 +21,7 @@ Auth: Better Auth + magic link (ADR-0003). Config IA e admin em `/admin/*`. Deci
 
 ## Infra & ambientes
 
-Cloudflare Workers (prod + local via `wrangler dev`). Bindings: D1, R2 (files + memory). Detalhe → `docs/context/INFRA.md`.
+Cloudflare Workers (prod + local via `pnpm dev` / Vite + `@cloudflare/vite-plugin`). Bindings: D1, R2 (files + memory). Detalhe → `docs/context/INFRA.md`.
 NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import estático de `cloudflare:workers`, import de `.old_app/`.
 
 ## Como rodar localmente
@@ -29,8 +29,8 @@ NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import e
 > App em rebuild greenfield — `src/` e `vite.config.ts` ainda não existem na raiz.
 
 ```bash
-pnpm install              # postinstall: cf-typegen
-# pnpm dev                # após scaffold TanStack Start
+pnpm install   # postinstall: cf-typegen
+pnpm dev       # Vite + workerd on :3000 — não usar `wrangler dev` no source
 ```
 
 ## Como validar (DoD global do repo)
