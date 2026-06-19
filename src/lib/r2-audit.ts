@@ -1,6 +1,9 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
 import { createDb } from "@/db/client";
-import { insertR2OperationLog, type R2Operation } from "@/db/queries/r2-operation-logs";
+import {
+	insertR2OperationLog,
+	type R2Operation,
+} from "@/db/queries/r2-operation-logs";
 import { requireDB } from "@/functions/db";
 
 export type AuditedR2Context = {

@@ -10,17 +10,11 @@ vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => navigate,
 }));
 
-function renderNav(
-	pathname: string,
-	options?: { onNavigate?: () => void },
-) {
+function renderNav(pathname: string, options?: { onNavigate?: () => void }) {
 	return render(
 		<TooltipProvider>
 			<SidebarProvider>
-				<AdminSidebarNav
-					pathname={pathname}
-					onNavigate={options?.onNavigate}
-				/>
+				<AdminSidebarNav pathname={pathname} onNavigate={options?.onNavigate} />
 			</SidebarProvider>
 		</TooltipProvider>,
 	);

@@ -1,8 +1,8 @@
 import { createDb } from "@/db/client";
 import { getJobById, listJobEvents } from "@/db/queries/jobs";
 import { requireDB } from "@/functions/db";
-import { JOB_STATUS } from "@/lib/job-kinds";
 import { JOB_ERROR_CODE, jobErrorResponse } from "@/lib/job-errors";
+import { JOB_STATUS } from "@/lib/job-kinds";
 import { requireSession } from "@/lib/rbac";
 
 export const SSE_POLL_INTERVAL_MS = 500;

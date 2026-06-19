@@ -2,9 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createDb } from "@/db/client";
-import { buildFileR2Key, createId } from "@/db/queries/helpers";
 import { getExamById } from "@/db/queries/exams";
 import { insertFile } from "@/db/queries/files";
+import { buildFileR2Key, createId } from "@/db/queries/helpers";
 import { requireDB } from "@/functions/db";
 import { requireFilesBucket } from "@/functions/storage";
 import {
@@ -104,7 +104,7 @@ export const uploadFile = createServerFn({ method: "POST" })
 	});
 
 export {
-	uploadFileSchema,
 	ALLOWED_FILE_EXTENSIONS as ALLOWED_EXTENSIONS,
 	MAX_TTL_SECONDS,
+	uploadFileSchema,
 };

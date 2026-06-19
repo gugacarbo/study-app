@@ -34,7 +34,11 @@ function pickRuntimeEnv(
 	for (const key of serverEnvKeys) {
 		const value = source[key];
 		runtime[key] =
-			typeof value === "string" ? value : value === undefined ? undefined : String(value);
+			typeof value === "string"
+				? value
+				: value === undefined
+					? undefined
+					: String(value);
 	}
 
 	if (!runtime.NODE_ENV && typeof process !== "undefined") {

@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const llmLogs = sqliteTable(
 	"llm_logs",
@@ -43,7 +49,10 @@ export const r2OperationLogs = sqliteTable(
 		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [
-		index("idx_r2_operation_logs_user_created").on(table.userId, table.createdAt),
+		index("idx_r2_operation_logs_user_created").on(
+			table.userId,
+			table.createdAt,
+		),
 		index("idx_r2_operation_logs_bucket_created").on(
 			table.bucket,
 			table.createdAt,

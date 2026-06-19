@@ -47,7 +47,11 @@ function statusBadgeVariant(status: string) {
 	}
 }
 
-export function JobsTable({ jobs, selectedJobId, onSelectJob }: JobsTableProps) {
+export function JobsTable({
+	jobs,
+	selectedJobId,
+	onSelectJob,
+}: JobsTableProps) {
 	return (
 		<Card>
 			<CardHeader>

@@ -1,7 +1,7 @@
 import {
+	INGEST_PHASE,
 	JOB_KIND,
 	JOB_STATUS,
-	INGEST_PHASE,
 	type JobKind,
 	type JobStatus,
 } from "@/lib/job-kinds";

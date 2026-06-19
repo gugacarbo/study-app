@@ -45,7 +45,12 @@ describe("getAdminAiConfig", () => {
 			displayName: "GPT-4o",
 			enabled: true,
 		});
-		await setConfigValue(testDb, adminUserId, CONFIG_KEY_DEFAULT_AI_MODEL, modelRowId);
+		await setConfigValue(
+			testDb,
+			adminUserId,
+			CONFIG_KEY_DEFAULT_AI_MODEL,
+			modelRowId,
+		);
 
 		const snapshot = await getAdminAiConfigHandler(new Headers());
 

@@ -4,10 +4,7 @@ import { requireDB } from "@/functions/db";
 import { JOB_ERROR_CODE, jobErrorResponse } from "@/lib/job-errors";
 import { requireSession } from "@/lib/rbac";
 
-export async function cancelJobHandler(
-	jobId: string,
-	headers: Headers,
-) {
+export async function cancelJobHandler(jobId: string, headers: Headers) {
 	const session = await requireSession(headers);
 	const db = createDb(await requireDB());
 

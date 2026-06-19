@@ -13,7 +13,10 @@ export type AdminSidebarNavProps = {
 	onNavigate?: () => void;
 };
 
-export function AdminSidebarNav({ pathname, onNavigate }: AdminSidebarNavProps) {
+export function AdminSidebarNav({
+	pathname,
+	onNavigate,
+}: AdminSidebarNavProps) {
 	const navigate = useNavigate();
 
 	function handleNavigate(to: AdminNavItem["to"]) {

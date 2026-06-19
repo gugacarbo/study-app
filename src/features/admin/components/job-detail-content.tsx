@@ -4,17 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SheetFooter } from "@/components/ui/sheet";
 import type { AdminJobDetail } from "@/features/admin/hooks/use-admin-jobs";
-import { formatMutationError } from "@/features/admin/lib/mutation-error";
 import {
 	formatJobKind,
 	formatJobPhase,
 	formatJobStatus,
 	formatJobTimestamp,
 } from "@/features/admin/lib/job-labels";
+import { formatMutationError } from "@/features/admin/lib/mutation-error";
 import {
+	type IngestJobMetadata,
 	isCancellableJobStatus,
 	JOB_KIND,
-	type IngestJobMetadata,
 } from "@/lib/job-kinds";
 import type { JsonObject } from "@/lib/json-value";
 
@@ -72,9 +72,7 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 
 	async function handleCancel() {
 		if (
-			!window.confirm(
-				"Cancelar este job? O consumer irá parar entre etapas.",
-			)
+			!window.confirm("Cancelar este job? O consumer irá parar entre etapas.")
 		) {
 			return;
 		}
@@ -149,10 +147,7 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 				) : (
 					<ul className="space-y-3">
 						{detail.events.map((event) => (
-							<li
-								key={event.seq}
-								className="rounded-md border p-3 text-xs"
-							>
+							<li key={event.seq} className="rounded-md border p-3 text-xs">
 								<div className="mb-1 flex items-center justify-between gap-2 text-muted-foreground">
 									<span>#{event.seq}</span>
 									<span>{formatJobTimestamp(event.createdAt)}</span>
@@ -166,8 +161,7 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 				)}
 			</div>
 
-			{detail.cancelRequestedAt &&
-			isCancellableJobStatus(detail.status) ? (
+			{detail.cancelRequestedAt && isCancellableJobStatus(detail.status) ? (
 				<p className="text-sm text-muted-foreground">
 					Cancelamento solicitado — o consumer irá parar entre etapas.
 				</p>

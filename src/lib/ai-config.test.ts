@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AppDatabase } from "@/db/client";
+import { upsert as upsertModel } from "@/db/queries/ai-models";
 import {
 	insert as insertProvider,
 	update as updateProvider,
 } from "@/db/queries/ai-providers";
-import { upsert as upsertModel } from "@/db/queries/ai-models";
 import {
 	CONFIG_KEY_DEFAULT_AI_MODEL,
 	setConfigValue,
 } from "@/db/queries/config";
 import { createId } from "@/db/queries/helpers";
-import type { AppDatabase } from "@/db/client";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 
@@ -19,6 +19,20 @@ const mockLanguageModel = { modelId: "gpt-4o" };
 vi.mock("@ai-sdk/openai", () => ({
 	createOpenAI: (...args: unknown[]) => mockCreateOpenAI(...args),
 }));
+
+const mockWrapLanguageModel = vi.fn(({ model }: { model: unknown }) => ({
+	wrapped: true,
+	base: model,
+}));
+
+vi.mock("ai", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("ai")>();
+	return {
+		...actual,
+		wrapLanguageModel: (options: { model: unknown; middleware: unknown[] }) =>
+			mockWrapLanguageModel(options),
+	};
+});
 
 vi.mock("@/lib/config-encryption", () => ({
 	decryptSecret: vi.fn(async (stored: string) => stored),
@@ -82,11 +96,17 @@ describe("getAiModel", () => {
 		const { userId, modelRowId } = await seedEnabledModel(db);
 		await setConfigValue(db, userId, CONFIG_KEY_DEFAULT_AI_MODEL, modelRowId);
 
-		mockCreateOpenAI.mockReturnValue(() => mockLanguageModel);
+		mockCreateOpenAI.mockReturnValue({
+			chat: () => mockLanguageModel,
+		});
 
 		const model = await getAiModel({ db, userId });
 
-		expect(model).toBe(mockLanguageModel);
+		expect(model).toEqual({ wrapped: true, base: mockLanguageModel });
+		expect(mockWrapLanguageModel).toHaveBeenCalledWith({
+			model: mockLanguageModel,
+			middleware: expect.any(Array),
+		});
 		expect(mockCreateOpenAI).toHaveBeenCalledWith({
 			baseURL: "https://api.openai.com/v1",
 			apiKey: "enc:v1:iv:cipher1234",
@@ -107,7 +127,9 @@ describe("getAiModel", () => {
 			enabled: false,
 		});
 
-		mockCreateOpenAI.mockReturnValue(() => mockLanguageModel);
+		mockCreateOpenAI.mockReturnValue({
+			chat: () => mockLanguageModel,
+		});
 
 		await expect(
 			getAiModel({ db, userId, modelId: disabledModelId }),
@@ -122,7 +144,7 @@ describe("getAiModel", () => {
 		});
 
 		const model = await getAiModel({ db, userId, modelId: disabledModelId });
-		expect(model).toBe(mockLanguageModel);
+		expect(model).toEqual({ wrapped: true, base: mockLanguageModel });
 	});
 
 	it("rejects disabled providers", async () => {

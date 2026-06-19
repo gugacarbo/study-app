@@ -1,6 +1,6 @@
-import { type JobErrorBody, isJobErrorCode } from "@/lib/job-errors";
-import type { IngestJobMetadata, JobStatus } from "@/lib/job-kinds";
 import { MAX_UPLOAD_BYTES } from "@/lib/ingest-limits";
+import { isJobErrorCode, type JobErrorBody } from "@/lib/job-errors";
+import type { IngestJobMetadata, JobStatus } from "@/lib/job-kinds";
 
 export const INGEST_POLL_INTERVAL_MS = 1500;
 

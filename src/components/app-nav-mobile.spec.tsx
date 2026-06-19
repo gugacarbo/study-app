@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppNavMobile } from "@/components/app-nav-mobile";
 
@@ -18,7 +24,9 @@ describe("AppNavMobile", () => {
 		render(<AppNavMobile pathname="/" />);
 
 		expect(screen.getByRole("button", { name: /menu/i })).toBeInTheDocument();
-		expect(screen.queryByRole("link", { name: /provas/i })).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("link", { name: /provas/i }),
+		).not.toBeInTheDocument();
 	});
 
 	it("opens sheet on Menu click", async () => {
@@ -27,7 +35,9 @@ describe("AppNavMobile", () => {
 		fireEvent.click(screen.getByRole("button", { name: /menu/i }));
 
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /provas/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /provas/i }),
+			).toBeInTheDocument();
 		});
 	});
 

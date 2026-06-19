@@ -1,9 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-	BookOpenIcon,
-	HomeIcon,
-	PlusCircleIcon,
-} from "lucide-react";
+import { BookOpenIcon, HomeIcon, PlusCircleIcon } from "lucide-react";
 
 export type AppNavItem = {
 	to: "/" | "/exams" | "/exams/new";
@@ -24,7 +20,8 @@ export const APP_NAV_ITEMS: AppNavItem[] = [
 		label: "Provas",
 		icon: BookOpenIcon,
 		match: (pathname) =>
-			pathname === "/exams" || pathname.startsWith("/exams/") && pathname !== "/exams/new",
+			pathname === "/exams" ||
+			(pathname.startsWith("/exams/") && pathname !== "/exams/new"),
 	},
 	{
 		to: "/exams/new",

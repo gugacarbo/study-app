@@ -16,7 +16,7 @@ vi.mock("@/lib/auth", () => ({
 const testDb = createTestDb();
 
 vi.mock("@/functions/db", () => ({
-	requireDB: vi.fn(async () => ({} as D1Database)),
+	requireDB: vi.fn(async () => ({}) as D1Database),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {

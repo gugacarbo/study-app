@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { user } from "./auth";
 
 export const memoryProfile = sqliteTable("memory_profile", {
@@ -29,7 +35,9 @@ export const memorySessions = sqliteTable(
 		searchText: text("search_text").notNull().default(""),
 		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
-	(table) => [index("idx_memory_sessions_user_topic").on(table.userId, table.topic)],
+	(table) => [
+		index("idx_memory_sessions_user_topic").on(table.userId, table.topic),
+	],
 );
 
 export const memoryTopicNotes = sqliteTable(

@@ -27,7 +27,11 @@ export async function readFileHandler(
 	const session = await requireSession(headers);
 	const d1 = await requireDB();
 	const db = createDb(d1);
-	const file = await getFileByIdWithOwnership(db, input.fileId, session.user.id);
+	const file = await getFileByIdWithOwnership(
+		db,
+		input.fileId,
+		session.user.id,
+	);
 	if (!file) {
 		throw new Response("Not Found", { status: 404 });
 	}

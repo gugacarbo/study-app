@@ -54,8 +54,12 @@ describe("AdminMainHeader", () => {
 	it("renders sidebar trigger and page title", () => {
 		renderHeader();
 
-		expect(screen.getByRole("button", { name: "Toggle Sidebar" })).toBeInTheDocument();
-		expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Config");
+		expect(
+			screen.getByRole("button", { name: "Toggle Sidebar" }),
+		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+			"Config",
+		);
 	});
 
 	it.each([

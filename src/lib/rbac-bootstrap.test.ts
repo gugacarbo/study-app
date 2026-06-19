@@ -16,7 +16,12 @@ describe("rbac-bootstrap", () => {
 			emailVerified: true,
 		});
 
-		await bootstrapUserRoles(db, "boss@aluno.ifsc.edu.br", userId, "boss@aluno.ifsc.edu.br");
+		await bootstrapUserRoles(
+			db,
+			"boss@aluno.ifsc.edu.br",
+			userId,
+			"boss@aluno.ifsc.edu.br",
+		);
 		const roles = await getUserRoleKeys(db, userId);
 		expect(roles).toContain("user");
 		expect(roles).toContain("admin");

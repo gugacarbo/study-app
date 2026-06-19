@@ -1,9 +1,9 @@
-import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
+import { useEffect, useRef } from "react";
 import {
 	consumeJobEventStream,
 	type JobStreamEvent,
 } from "@/features/background-processes/lib/job-event-stream";
-import { useEffect, useRef } from "react";
+import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
 
 export type JobStreamHandlers = {
 	onEvents: (events: JobEventRecord[]) => void;

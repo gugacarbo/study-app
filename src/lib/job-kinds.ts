@@ -37,7 +37,8 @@ export const INGEST_WARNING = {
 	PARTIAL_EXTRACTION: "partial_extraction",
 } as const;
 
-export type IngestWarning = (typeof INGEST_WARNING)[keyof typeof INGEST_WARNING];
+export type IngestWarning =
+	(typeof INGEST_WARNING)[keyof typeof INGEST_WARNING];
 
 /** Statuses that block a second ingest job on the same exam (append). */
 export const ACTIVE_INGEST_STATUSES = [
@@ -70,7 +71,9 @@ export type IngestJobMetadata = {
 	warning?: IngestWarning;
 };
 
-export function parseIngestJobMetadata(raw: string | null): IngestJobMetadata | null {
+export function parseIngestJobMetadata(
+	raw: string | null,
+): IngestJobMetadata | null {
 	if (!raw) return null;
 	try {
 		return JSON.parse(raw) as IngestJobMetadata;
@@ -79,6 +82,8 @@ export function parseIngestJobMetadata(raw: string | null): IngestJobMetadata | 
 	}
 }
 
-export function serializeIngestJobMetadata(metadata: IngestJobMetadata): string {
+export function serializeIngestJobMetadata(
+	metadata: IngestJobMetadata,
+): string {
 	return JSON.stringify(metadata);
 }

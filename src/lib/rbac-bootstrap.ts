@@ -1,5 +1,10 @@
 import type { AppDatabase } from "@/db/client";
-import { assignRoleToUser, ROLE_ADMIN, ROLE_USER, seedRbacIfEmpty } from "@/db/queries/rbac";
+import {
+	assignRoleToUser,
+	ROLE_ADMIN,
+	ROLE_USER,
+	seedRbacIfEmpty,
+} from "@/db/queries/rbac";
 import { parseAdminEmails } from "@/env";
 
 export async function bootstrapUserRoles(

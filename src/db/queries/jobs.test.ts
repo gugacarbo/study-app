@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
 import { createId } from "@/db/queries/helpers";
 import {
 	appendJobEvent,
@@ -12,14 +12,14 @@ import {
 	setCancelRequested,
 	updateJobStatus,
 } from "@/db/queries/jobs";
+import * as schema from "@/db/schema";
+import { createTestDb } from "@/db/test-db";
 import {
 	INGEST_MODE,
 	JOB_KIND,
 	JOB_STATUS,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import * as schema from "@/db/schema";
-import { createTestDb } from "@/db/test-db";
 
 async function seedUser(db: ReturnType<typeof createTestDb>, userId: string) {
 	await db.insert(schema.user).values({
@@ -69,7 +69,9 @@ describe("jobs queries", () => {
 			status: JOB_STATUS.QUEUED,
 		});
 
-		const first = await appendJobEvent(db, jobId, { type: "data-ingest-phase" });
+		const first = await appendJobEvent(db, jobId, {
+			type: "data-ingest-phase",
+		});
 		const second = await appendJobEvent(db, jobId, {
 			type: "data-ingest-stream-progress",
 			questionsSeen: 1,

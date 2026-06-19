@@ -1,6 +1,6 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { AppDatabase } from "@/db/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppDatabase } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
 import { assignRoleToUser, userHasPermission } from "@/db/queries/rbac";
 import * as schema from "@/db/schema";
@@ -18,7 +18,7 @@ const testDb = createTestDb();
 mockCreateDb.mockReturnValue(testDb);
 
 vi.mock("@/functions/db", () => ({
-	requireDB: vi.fn(async () => ({} as D1Database)),
+	requireDB: vi.fn(async () => ({}) as D1Database),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {
@@ -78,7 +78,9 @@ describe("admin users", () => {
 			new Headers(),
 		);
 
-		expect(await userHasPermission(testDb, target.id, "admin:access")).toBe(true);
+		expect(await userHasPermission(testDb, target.id, "admin:access")).toBe(
+			true,
+		);
 	});
 
 	it("setUserRole remove drops role from target user", async () => {
@@ -95,7 +97,9 @@ describe("admin users", () => {
 			new Headers(),
 		);
 
-		expect(await userHasPermission(testDb, target.id, "admin:access")).toBe(false);
+		expect(await userHasPermission(testDb, target.id, "admin:access")).toBe(
+			false,
+		);
 	});
 
 	it("setUserRole rejects role outside seed catalog", async () => {

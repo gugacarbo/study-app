@@ -21,14 +21,12 @@ export function JobWorkspaceLayout({
 		>
 			<section
 				aria-label="Chat do agente"
-				role="region"
 				className="flex min-h-64 flex-1 flex-col overflow-hidden rounded-lg border bg-card md:min-h-0 md:basis-3/5"
 			>
 				{chat}
 			</section>
 			<section
 				aria-label="Progresso da importação"
-				role="region"
 				className="flex min-h-48 flex-col overflow-hidden rounded-lg border bg-card md:min-h-0 md:basis-2/5"
 			>
 				{progress}

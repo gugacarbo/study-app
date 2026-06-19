@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 
 export function inputValidator<T extends z.ZodType>(schema: T) {
 	return {

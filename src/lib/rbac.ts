@@ -1,5 +1,9 @@
 import { createDb } from "@/db/client";
-import { PERM_ADMIN_ACCESS, PERM_APP_USE, userHasPermission } from "@/db/queries/rbac";
+import {
+	PERM_ADMIN_ACCESS,
+	PERM_APP_USE,
+	userHasPermission,
+} from "@/db/queries/rbac";
 import { requireDB } from "@/functions/db";
 import { getAuth } from "@/lib/auth";
 

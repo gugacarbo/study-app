@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createId } from "@/db/queries/helpers";
+import { createJob } from "@/db/queries/jobs";
 import {
 	resetJobTestDb,
 	seedDefaultModel,
@@ -6,20 +8,18 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
-import { createJob } from "@/db/queries/jobs";
-import { createId } from "@/db/queries/helpers";
+import {
+	decodeIngestFileText,
+	isEmptyIngestText,
+	uploadIngestFileHandler,
+} from "@/functions/jobs/upload-ingest-file";
+import { MAX_TEXT_CHARS, MAX_UPLOAD_BYTES } from "@/lib/ingest-limits";
 import {
 	INGEST_MODE,
 	JOB_KIND,
 	JOB_STATUS,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import { MAX_TEXT_CHARS, MAX_UPLOAD_BYTES } from "@/lib/ingest-limits";
-import {
-	decodeIngestFileText,
-	isEmptyIngestText,
-	uploadIngestFileHandler,
-} from "@/functions/jobs/upload-ingest-file";
 
 vi.mock("@/functions/queue", () => ({
 	enqueueJob: vi.fn(async () => undefined),
@@ -70,7 +70,9 @@ describe("uploadIngestFileHandler", () => {
 	});
 
 	it("decodes invalid UTF-8 with replacement characters", () => {
-		const text = decodeIngestFileText(new Uint8Array([0x68, 0x69, 0xff, 0xfe, 0x21]));
+		const text = decodeIngestFileText(
+			new Uint8Array([0x68, 0x69, 0xff, 0xfe, 0x21]),
+		);
 		expect(text).toContain("hi");
 		expect(text).toContain("\uFFFD");
 	});
@@ -177,9 +179,9 @@ describe("uploadIngestFileHandler", () => {
 		expect(response.status).toBe(200);
 		expect(enqueueJob).toHaveBeenCalledWith(jobId);
 
-		const exams = await testDb.select().from(
-			(await import("@/db/schema")).exams,
-		);
+		const exams = await testDb
+			.select()
+			.from((await import("@/db/schema")).exams);
 		expect(exams[0]?.source).toBe("calculo_i-p1.md");
 		expect(exams[0]?.name).toBe("Calculo i p1");
 	});

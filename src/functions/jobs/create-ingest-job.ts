@@ -6,14 +6,14 @@ import { createJob, hasActiveIngestJob } from "@/db/queries/jobs";
 import { requireDB } from "@/functions/db";
 import { resolveAiModelId } from "@/lib/ai-config";
 import { INGEST_PENDING_EXAM_NAME } from "@/lib/derive-exam-name";
+import { JOB_ERROR_CODE, jobErrorResponse } from "@/lib/job-errors";
 import {
 	INGEST_MODE,
+	type IngestJobMetadata,
 	JOB_KIND,
 	JOB_STATUS,
-	type IngestJobMetadata,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import { JOB_ERROR_CODE, jobErrorResponse } from "@/lib/job-errors";
 import { requireSession } from "@/lib/rbac";
 
 const MAX_TTL_SECONDS = 60 * 60 * 24 * 365 * 10;
@@ -24,10 +24,7 @@ export const createIngestJobSchema = z.object({
 	ttlSeconds: z.number().int().min(0).max(MAX_TTL_SECONDS).optional(),
 });
 
-export async function createIngestJobHandler(
-	body: unknown,
-	headers: Headers,
-) {
+export async function createIngestJobHandler(body: unknown, headers: Headers) {
 	const session = await requireSession(headers);
 	const parsed = createIngestJobSchema.safeParse(body);
 	if (!parsed.success) {

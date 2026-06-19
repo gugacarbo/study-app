@@ -21,9 +21,11 @@ export function JobDetailSheet({
 	onOpenChange,
 	onCancel,
 }: JobDetailSheetProps) {
-	const { data: detail, isLoading, isError } = useAdminJobDetail(
-		open ? jobId : null,
-	);
+	const {
+		data: detail,
+		isLoading,
+		isError,
+	} = useAdminJobDetail(open ? jobId : null);
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>

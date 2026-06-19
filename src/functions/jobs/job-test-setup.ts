@@ -1,13 +1,13 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { vi } from "vitest";
+import type { AppDatabase } from "@/db/client";
 import { upsert as upsertModelQuery } from "@/db/queries/ai-models";
+import { insert as insertProvider } from "@/db/queries/ai-providers";
 import {
 	CONFIG_KEY_DEFAULT_AI_MODEL,
 	setConfigValue,
 } from "@/db/queries/config";
 import { createId } from "@/db/queries/helpers";
-import { insert as insertProvider } from "@/db/queries/ai-providers";
-import type { AppDatabase } from "@/db/client";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 
@@ -21,7 +21,7 @@ export const otherUserId = hoisted.otherUserId;
 export const testDb = createTestDb();
 
 vi.mock("@/functions/db", () => ({
-	requireDB: vi.fn(async () => ({} as D1Database)),
+	requireDB: vi.fn(async () => ({}) as D1Database),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {
@@ -41,7 +41,9 @@ vi.mock("@/lib/rbac", () => ({
 
 export function resetJobTestDb() {
 	const sqlite = (
-		testDb as unknown as { session: { client: { exec: (sql: string) => void } } }
+		testDb as unknown as {
+			session: { client: { exec: (sql: string) => void } };
+		}
 	).session.client;
 	for (const table of [
 		"background_job_events",

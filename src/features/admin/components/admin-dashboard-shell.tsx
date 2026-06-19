@@ -9,10 +9,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AdminMainHeader } from "@/features/admin/components/admin-main-header";
 import { AdminSidebar } from "@/features/admin/components/admin-sidebar";
-import {
-	readSidebarCookie,
-	writeSidebarCookie,
-} from "@/lib/sidebar-cookie";
+import { readSidebarCookie, writeSidebarCookie } from "@/lib/sidebar-cookie";
 
 export type AdminDashboardShellProps = {
 	user: AppShellUser;

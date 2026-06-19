@@ -1,11 +1,11 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "../client";
+import * as schema from "../schema";
 import {
 	RBAC_V1_PERMISSION_ROWS,
 	RBAC_V1_ROLE_PERMISSION_ROWS,
 	RBAC_V1_ROLE_ROWS,
 } from "../seed/rbac-v1";
-import * as schema from "../schema";
 
 const ROLE_USER = "user";
 const ROLE_ADMIN = "admin";
@@ -23,7 +23,10 @@ export async function seedRbacIfEmpty(db: AppDatabase) {
 	const existing = await db.select().from(schema.roles).limit(1);
 	if (existing.length > 0) return;
 
-	await db.insert(schema.roles).values([...RBAC_V1_ROLE_ROWS]).onConflictDoNothing();
+	await db
+		.insert(schema.roles)
+		.values([...RBAC_V1_ROLE_ROWS])
+		.onConflictDoNothing();
 	await db
 		.insert(schema.permissions)
 		.values([...RBAC_V1_PERMISSION_ROWS])
@@ -136,9 +139,9 @@ export async function countUsersWithRole(
 }
 
 export {
-	ROLE_ADMIN,
-	ROLE_USER,
 	PERM_ADMIN_ACCESS,
 	PERM_APP_USE,
+	ROLE_ADMIN,
+	ROLE_USER,
 	SEED_ROLE_KEYS,
 };

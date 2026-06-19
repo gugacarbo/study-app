@@ -13,9 +13,7 @@ function HomePage() {
 	return (
 		<div className="flex flex-col gap-6">
 			<section className="flex flex-col gap-2">
-				<h1 className="text-2xl font-semibold tracking-tight">
-					Bora estudar?
-				</h1>
+				<h1 className="text-2xl font-semibold tracking-tight">Bora estudar?</h1>
 				<p className="text-sm text-muted-foreground">
 					Importe uma prova, revise as questões e treine no seu ritmo.
 				</p>
@@ -52,8 +50,7 @@ function HomePage() {
 						<div className="flex min-w-0 flex-1 flex-col gap-1">
 							<p className="font-medium">Suas provas</p>
 							<p className="text-sm text-muted-foreground">
-								O catálogo chega em breve. Por enquanto, importe arquivos
-								novos.
+								O catálogo chega em breve. Por enquanto, importe arquivos novos.
 							</p>
 						</div>
 						<Button

@@ -17,8 +17,8 @@ function ExamsPage() {
 			<div className="flex max-w-xs flex-col gap-2">
 				<h2 className="text-lg font-semibold">Nenhuma prova ainda</h2>
 				<p className="text-sm text-muted-foreground">
-					Quando o catálogo estiver pronto, suas provas importadas vão
-					aparecer aqui.
+					Quando o catálogo estiver pronto, suas provas importadas vão aparecer
+					aqui.
 				</p>
 			</div>
 			<Button onClick={() => navigate({ to: "/exams/new" })}>

@@ -44,8 +44,7 @@ function parseSseChunk(chunk: string): JobStreamEvent | null {
 			type: "event",
 			seq: parsed.seq,
 			payload: parsed.payload,
-			createdAt:
-				typeof parsed.createdAt === "string" ? parsed.createdAt : null,
+			createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : null,
 		};
 	}
 

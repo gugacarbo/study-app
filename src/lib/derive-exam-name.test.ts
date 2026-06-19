@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-	INGEST_PENDING_EXAM_NAME,
 	deriveExamNameFromFilename,
+	INGEST_PENDING_EXAM_NAME,
 } from "@/lib/derive-exam-name";
 
 describe("deriveExamNameFromFilename", () => {
@@ -24,6 +24,8 @@ describe("deriveExamNameFromFilename", () => {
 	});
 
 	it("falls back when the basename is empty after normalization", () => {
-		expect(deriveExamNameFromFilename("---.txt")).toBe(INGEST_PENDING_EXAM_NAME);
+		expect(deriveExamNameFromFilename("---.txt")).toBe(
+			INGEST_PENDING_EXAM_NAME,
+		);
 	});
 });

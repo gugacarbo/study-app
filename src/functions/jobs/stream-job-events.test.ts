@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createId } from "@/db/queries/helpers";
+import { createJob } from "@/db/queries/jobs";
 import {
 	resetJobTestDb,
 	seedDefaultModel,
@@ -6,18 +8,16 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
-import { createJob } from "@/db/queries/jobs";
-import { createId } from "@/db/queries/helpers";
+import {
+	SSE_POLL_INTERVAL_MS,
+	streamJobEventsHandler,
+} from "@/functions/jobs/stream-job-events";
 import {
 	INGEST_MODE,
 	JOB_KIND,
 	JOB_STATUS,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import {
-	SSE_POLL_INTERVAL_MS,
-	streamJobEventsHandler,
-} from "@/functions/jobs/stream-job-events";
 
 describe("streamJobEventsHandler", () => {
 	beforeEach(() => {
@@ -51,7 +51,7 @@ describe("streamJobEventsHandler", () => {
 
 		const reader = response.body?.getReader();
 		expect(reader).toBeTruthy();
-		const { value } = await reader!.read();
+		const { value } = await reader?.read();
 		const chunk = new TextDecoder().decode(value);
 		expect(chunk).toContain("job-done");
 		expect(chunk).toContain(JOB_STATUS.COMPLETED);

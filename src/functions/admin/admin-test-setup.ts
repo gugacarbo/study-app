@@ -1,8 +1,8 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { vi } from "vitest";
+import type { AppDatabase } from "@/db/client";
 import { insert as insertProvider } from "@/db/queries/ai-providers";
 import { createId } from "@/db/queries/helpers";
-import type { AppDatabase } from "@/db/client";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 
@@ -11,7 +11,7 @@ export const otherUserId = "00000000-0000-4000-8000-000000000098";
 export const testDb = createTestDb();
 
 vi.mock("@/functions/db", () => ({
-	requireDB: vi.fn(async () => ({} as D1Database)),
+	requireDB: vi.fn(async () => ({}) as D1Database),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {
@@ -31,7 +31,9 @@ vi.mock("@/lib/rbac", () => ({
 
 export function resetAdminTestDb() {
 	const sqlite = (
-		testDb as unknown as { session: { client: { exec: (sql: string) => void } } }
+		testDb as unknown as {
+			session: { client: { exec: (sql: string) => void } };
+		}
 	).session.client;
 	for (const table of [
 		"config",

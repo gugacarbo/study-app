@@ -5,10 +5,10 @@ import {
 	useSuspenseQuery,
 } from "@tanstack/react-query";
 import {
+	type AdminJobDetail,
 	cancelAdminJob,
 	getAdminJobDetail,
 	listAdminJobs,
-	type AdminJobDetail,
 } from "@/functions/admin/jobs";
 import { isCancellableJobStatus } from "@/lib/job-kinds";
 
@@ -47,7 +47,9 @@ export function useAdminJobs() {
 
 export function useAdminJobDetail(jobId: string | null) {
 	return useQuery<AdminJobDetail>({
-		queryKey: jobId ? adminJobDetailKey(jobId) : ["admin", "jobs", "detail", "none"],
+		queryKey: jobId
+			? adminJobDetailKey(jobId)
+			: ["admin", "jobs", "detail", "none"],
 		queryFn: (): Promise<AdminJobDetail> => {
 			if (!jobId) throw new Error("jobId required");
 			return getAdminJobDetail({ data: { jobId } });

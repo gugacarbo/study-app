@@ -1,8 +1,9 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { insert as insertProvider } from "@/db/queries/ai-providers";
+import type { AppDatabase } from "@/db/client";
 import { upsert as upsertModel } from "@/db/queries/ai-models";
+import { insert as insertProvider } from "@/db/queries/ai-providers";
 import {
 	CONFIG_KEY_DEFAULT_AI_MODEL,
 	getConfigValue,
@@ -12,9 +13,10 @@ import { createId } from "@/db/queries/helpers";
 import { assignRoleToUser } from "@/db/queries/rbac";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
-import type { AppDatabase } from "@/db/client";
-import { setDefaultModelHandler } from "@/functions/admin/models";
-import { deleteModelHandler } from "@/functions/admin/models";
+import {
+	deleteModelHandler,
+	setDefaultModelHandler,
+} from "@/functions/admin/models";
 import {
 	deleteProviderHandler,
 	discoverModelsHandler,
@@ -130,11 +132,7 @@ describe("admin handler edge cases (SPEC-0003)", () => {
 		await deleteProviderHandler({ id: providerId }, headers);
 
 		expect(
-			await getConfigValue(
-				testDb,
-				adminUserId,
-				CONFIG_KEY_DEFAULT_AI_MODEL,
-			),
+			await getConfigValue(testDb, adminUserId, CONFIG_KEY_DEFAULT_AI_MODEL),
 		).toBeNull();
 	});
 
@@ -151,11 +149,7 @@ describe("admin handler edge cases (SPEC-0003)", () => {
 		await deleteModelHandler({ id: modelRowId }, headers);
 
 		expect(
-			await getConfigValue(
-				testDb,
-				adminUserId,
-				CONFIG_KEY_DEFAULT_AI_MODEL,
-			),
+			await getConfigValue(testDb, adminUserId, CONFIG_KEY_DEFAULT_AI_MODEL),
 		).toBeNull();
 	});
 
@@ -248,8 +242,8 @@ describe("admin handler edge cases (SPEC-0003)", () => {
 		await seedAdminUser();
 		await seedProviderWithModel();
 
-		await expect(getAiModel({ db: testDb, userId: adminUserId })).rejects.toThrow(
-			/Nenhum modelo padrão configurado/,
-		);
+		await expect(
+			getAiModel({ db: testDb, userId: adminUserId }),
+		).rejects.toThrow(/Nenhum modelo padrão configurado/);
 	});
 });

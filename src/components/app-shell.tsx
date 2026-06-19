@@ -35,9 +35,7 @@ export function AppShell({ user, isAdmin, children }: AppShellProps) {
 			<main
 				className={cn(
 					"flex-1 px-4 py-4",
-					isWide
-						? "flex min-h-0 flex-col overflow-hidden"
-						: "overflow-y-auto",
+					isWide ? "flex min-h-0 flex-col overflow-hidden" : "overflow-y-auto",
 				)}
 			>
 				{children}

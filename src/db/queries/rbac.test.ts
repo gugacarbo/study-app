@@ -15,7 +15,9 @@ import { createTestDb } from "@/db/test-db";
 describe("rbac", () => {
 	it("migration seeds rbac catalog", async () => {
 		const db = createTestDb();
-		const roleKeys = (await db.select().from(schema.roles)).map((row) => row.key);
+		const roleKeys = (await db.select().from(schema.roles)).map(
+			(row) => row.key,
+		);
 		expect(roleKeys).toContain("user");
 		expect(roleKeys).toContain("admin");
 

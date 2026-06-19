@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { insert as insertProvider } from "@/db/queries/ai-providers";
+import type { AppDatabase } from "@/db/client";
 import {
 	deleteModel,
 	getByIdForUser,
 	listByProviderForUser,
 	upsert,
 } from "@/db/queries/ai-models";
+import { insert as insertProvider } from "@/db/queries/ai-providers";
 import { createId } from "@/db/queries/helpers";
-import type { AppDatabase } from "@/db/client";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 

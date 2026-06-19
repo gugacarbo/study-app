@@ -41,7 +41,10 @@ export function AppNavMobile({ pathname }: AppNavMobileProps) {
 				<SheetHeader>
 					<SheetTitle className="sr-only">Navegação</SheetTitle>
 				</SheetHeader>
-				<nav aria-label="Navegação principal" className="flex flex-col gap-1 px-4">
+				<nav
+					aria-label="Navegação principal"
+					className="flex flex-col gap-1 px-4"
+				>
 					{APP_NAV_ITEMS.map((item) => {
 						const active = item.match(pathname);
 						const Icon = item.icon;

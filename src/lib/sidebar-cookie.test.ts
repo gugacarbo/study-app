@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	readSidebarCookie,
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
-	readSidebarCookie,
 	writeSidebarCookie,
 } from "@/lib/sidebar-cookie";
 
@@ -26,7 +26,10 @@ describe("sidebar-cookie", () => {
 	});
 
 	it("returns expanded in SSR when document is unavailable", () => {
-		const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+		const documentDescriptor = Object.getOwnPropertyDescriptor(
+			globalThis,
+			"document",
+		);
 		Object.defineProperty(globalThis, "document", {
 			value: undefined,
 			configurable: true,
@@ -59,7 +62,10 @@ describe("sidebar-cookie", () => {
 
 	it("sets path, SameSite, and max-age on write", () => {
 		const setCookie = vi.fn();
-		const cookieDescriptor = Object.getOwnPropertyDescriptor(document, "cookie");
+		const cookieDescriptor = Object.getOwnPropertyDescriptor(
+			document,
+			"cookie",
+		);
 
 		Object.defineProperty(document, "cookie", {
 			configurable: true,

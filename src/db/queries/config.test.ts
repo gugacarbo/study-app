@@ -39,9 +39,9 @@ describe("config queries", () => {
 		});
 
 		await setConfigValue(db, userId, CONFIG_KEY_DEFAULT_AI_MODEL, modelId);
-		expect(
-			await getConfigValue(db, userId, CONFIG_KEY_DEFAULT_AI_MODEL),
-		).toBe(modelId);
+		expect(await getConfigValue(db, userId, CONFIG_KEY_DEFAULT_AI_MODEL)).toBe(
+			modelId,
+		);
 
 		const updatedModelId = createId();
 		await setConfigValue(
@@ -50,9 +50,9 @@ describe("config queries", () => {
 			CONFIG_KEY_DEFAULT_AI_MODEL,
 			updatedModelId,
 		);
-		expect(
-			await getConfigValue(db, userId, CONFIG_KEY_DEFAULT_AI_MODEL),
-		).toBe(updatedModelId);
+		expect(await getConfigValue(db, userId, CONFIG_KEY_DEFAULT_AI_MODEL)).toBe(
+			updatedModelId,
+		);
 	});
 
 	it("deleteConfigValue removes the entry", async () => {

@@ -23,10 +23,12 @@ export type AdminRouteContext = {
 	user: AppRouteUser;
 };
 
-export const getSession = createServerFn({ method: "GET" }).handler(async () => {
-	const request = getRequest();
-	return getSessionFromHeaders(request.headers);
-});
+export const getSession = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const request = getRequest();
+		return getSessionFromHeaders(request.headers);
+	},
+);
 
 export const requireSession = createServerFn({ method: "GET" }).handler(
 	async () => {

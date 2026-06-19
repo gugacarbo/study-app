@@ -1,22 +1,22 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { AppDatabase } from "../client";
-import * as schema from "../schema";
 import {
 	ACTIVE_INGEST_STATUSES,
+	type IngestJobMetadata,
 	isCancellableJobStatus,
 	JOB_KIND,
 	JOB_STATUS,
-	type IngestJobMetadata,
-	parseIngestJobMetadata,
 	type JobStatus,
+	parseIngestJobMetadata,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
 import { type JsonObject, parseJsonObject } from "@/lib/json-value";
+import type { AppDatabase } from "../client";
+import * as schema from "../schema";
 
 export type JobRow = typeof schema.backgroundJobs.$inferSelect;
 export type BackgroundJobRow = JobRow;
 export type BackgroundJob = JobRow;
-export type { JobEventRow, BackgroundJobEventRow } from "./job-events";
+export type { BackgroundJobEventRow, JobEventRow } from "./job-events";
 export { appendJobEvent, listJobEvents } from "./job-events";
 
 type JobUpdateValues = {

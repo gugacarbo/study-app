@@ -20,10 +20,14 @@ export async function purgeExpiredBlobs(
 
 	for (const file of expired) {
 		try {
-			await auditedR2Delete(env.FILES_BUCKET, {
-				userId: SYSTEM_USER_ID,
-				bucketName: "FILES_BUCKET",
-			}, file.r2Key);
+			await auditedR2Delete(
+				env.FILES_BUCKET,
+				{
+					userId: SYSTEM_USER_ID,
+					bucketName: "FILES_BUCKET",
+				},
+				file.r2Key,
+			);
 		} catch (error) {
 			console.warn("[purge] R2 delete failed", file.r2Key, error);
 			continue;

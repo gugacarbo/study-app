@@ -1,12 +1,17 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
+import {
+	extractJsonMiddleware,
+	extractReasoningMiddleware,
+	wrapLanguageModel,
+} from "ai";
+import type { AppDatabase } from "@/db/client";
 import { getByIdForUser as getModelByIdForUser } from "@/db/queries/ai-models";
 import { getByIdForUser as getProviderByIdForUser } from "@/db/queries/ai-providers";
 import {
 	CONFIG_KEY_DEFAULT_AI_MODEL,
 	getConfigValue,
 } from "@/db/queries/config";
-import type { AppDatabase } from "@/db/client";
 import { decryptSecret } from "@/lib/config-encryption";
 
 const MASK_PREFIX = "••••";
@@ -87,7 +92,14 @@ export async function getAiModel(input: {
 		apiKey,
 	});
 
-	return openai(model.modelId);
+	return wrapLanguageModel({
+		model: openai.chat(model.modelId),
+		middleware: [
+			extractReasoningMiddleware({ tagName: "think" }),
+			extractReasoningMiddleware({ tagName: "redacted_thinking" }),
+			extractJsonMiddleware(),
+		],
+	});
 }
 
 async function resolveModelId(

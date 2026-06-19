@@ -45,9 +45,7 @@ export function isJobErrorCode(value: string): value is JobErrorCode {
 export const JOB_ERROR_DEFAULTS = {
 	[JOB_ERROR_CODE.FILE_TOO_LARGE]: { maxBytes: MAX_UPLOAD_BYTES },
 	[JOB_ERROR_CODE.TEXT_TOO_LONG]: { maxChars: MAX_TEXT_CHARS },
-} as const satisfies Partial<
-	Record<JobErrorCode, Omit<JobErrorBody, "error">>
->;
+} as const satisfies Partial<Record<JobErrorCode, Omit<JobErrorBody, "error">>>;
 
 export function fileTooLargeResponse(): Response {
 	return jobErrorResponse(JOB_ERROR_CODE.FILE_TOO_LARGE, 413, {

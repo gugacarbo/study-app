@@ -18,7 +18,10 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 		useRouterState: (options?: {
 			select?: (state: { location: { pathname: string } }) => string;
 		}) => {
-			return options?.select?.({ location: { pathname: mockPathname } }) ?? mockPathname;
+			return (
+				options?.select?.({ location: { pathname: mockPathname } }) ??
+				mockPathname
+			);
 		},
 		Link: ({
 			to,
@@ -130,9 +133,9 @@ describe("AppShell", () => {
 
 		expect(screen.getByRole("button", { name: /menu/i })).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: /menu/i }));
-		expect(screen.getAllByRole("button", { name: /provas/i }).length).toBeGreaterThan(
-			0,
-		);
+		expect(
+			screen.getAllByRole("button", { name: /provas/i }).length,
+		).toBeGreaterThan(0);
 	});
 
 	it("uses wide layout on job monitor routes", () => {

@@ -1,7 +1,7 @@
 import { AppAccountMenu } from "@/components/app-account-menu";
-import type { AppShellUser } from "@/components/app-shell-types";
 import { AppNavDesktop } from "@/components/app-nav-desktop";
 import { AppNavMobile } from "@/components/app-nav-mobile";
+import type { AppShellUser } from "@/components/app-shell-types";
 
 type AppHeaderProps = {
 	user: AppShellUser;

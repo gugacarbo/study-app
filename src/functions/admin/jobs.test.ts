@@ -1,10 +1,10 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import type { AppDatabase } from "@/db/client";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppDatabase } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
-import { assignRoleToUser } from "@/db/queries/rbac";
 import { createJob } from "@/db/queries/jobs";
+import { assignRoleToUser } from "@/db/queries/rbac";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 import {
@@ -25,7 +25,7 @@ const testDb = createTestDb();
 mockCreateDb.mockReturnValue(testDb);
 
 vi.mock("@/functions/db", () => ({
-	requireDB: vi.fn(async () => ({} as D1Database)),
+	requireDB: vi.fn(async () => ({}) as D1Database),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {

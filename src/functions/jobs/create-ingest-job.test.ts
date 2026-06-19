@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { createId } from "@/db/queries/helpers";
+import { createJob } from "@/db/queries/jobs";
+import * as schema from "@/db/schema";
+import { createIngestJobHandler } from "@/functions/jobs/create-ingest-job";
 import {
 	otherUserId,
 	resetJobTestDb,
@@ -8,17 +12,13 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
-import { createJob } from "@/db/queries/jobs";
+import { INGEST_PENDING_EXAM_NAME } from "@/lib/derive-exam-name";
 import {
 	INGEST_MODE,
 	JOB_KIND,
 	JOB_STATUS,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import { createId } from "@/db/queries/helpers";
-import { createIngestJobHandler } from "@/functions/jobs/create-ingest-job";
-import { INGEST_PENDING_EXAM_NAME } from "@/lib/derive-exam-name";
-import * as schema from "@/db/schema";
 
 describe("createIngestJobHandler", () => {
 	beforeEach(() => {

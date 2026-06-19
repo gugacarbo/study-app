@@ -1,4 +1,9 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { createId } from "@/db/queries/helpers";
+import { createJob } from "@/db/queries/jobs";
+import * as schema from "@/db/schema";
+import { cancelJobHandler } from "@/functions/jobs/cancel-job";
 import {
 	resetJobTestDb,
 	seedDefaultModel,
@@ -6,17 +11,12 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
-import { createJob } from "@/db/queries/jobs";
-import { createId } from "@/db/queries/helpers";
 import {
 	INGEST_MODE,
 	JOB_KIND,
 	JOB_STATUS,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import { cancelJobHandler } from "@/functions/jobs/cancel-job";
-import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
 
 describe("cancelJobHandler", () => {
 	beforeEach(() => {

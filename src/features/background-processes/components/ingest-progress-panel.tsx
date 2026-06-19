@@ -1,14 +1,14 @@
+import { CheckIcon, CircleIcon, LoaderCircleIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatPhaseLabel } from "@/features/background-processes/lib/ingest-event-mapper";
 import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
+import { formatPhaseLabel } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
 	INGEST_PHASE,
-	JOB_STATUS,
 	type IngestJobMetadata,
+	JOB_STATUS,
 	type JobStatus,
 } from "@/lib/job-kinds";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CircleIcon, LoaderCircleIcon } from "lucide-react";
 
 const INGEST_STEPS = [
 	INGEST_PHASE.READING_FILE,
@@ -44,13 +44,7 @@ function stepIndex(phase: string | null): number {
 	return INGEST_STEPS.indexOf(phase as (typeof INGEST_STEPS)[number]);
 }
 
-function StepIcon({
-	done,
-	active,
-}: {
-	done: boolean;
-	active: boolean;
-}) {
+function StepIcon({ done, active }: { done: boolean; active: boolean }) {
 	if (done) {
 		return <CheckIcon className="size-4 text-primary" aria-hidden />;
 	}
@@ -81,13 +75,17 @@ export function IngestProgressPanel({
 		<div className="flex h-full flex-col gap-4 p-4">
 			<div className="flex items-center justify-between gap-2">
 				<h2 className="text-sm font-medium">Progresso</h2>
-				<Badge variant={status === JOB_STATUS.FAILED ? "destructive" : "secondary"}>
+				<Badge
+					variant={status === JOB_STATUS.FAILED ? "destructive" : "secondary"}
+				>
 					{statusLabel}
 				</Badge>
 			</div>
 
 			{isLoading ? (
-				<p className="text-sm text-muted-foreground">Carregando estado do job…</p>
+				<p className="text-sm text-muted-foreground">
+					Carregando estado do job…
+				</p>
 			) : null}
 
 			<ol className="flex flex-col gap-3">
@@ -99,9 +97,7 @@ export function IngestProgressPanel({
 							key={step}
 							className={cn(
 								"flex items-center gap-3 text-sm",
-								done || active
-									? "text-foreground"
-									: "text-muted-foreground",
+								done || active ? "text-foreground" : "text-muted-foreground",
 							)}
 						>
 							<StepIcon done={done} active={active} />
