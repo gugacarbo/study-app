@@ -113,14 +113,31 @@ describe("admin models handlers", () => {
 			modelId: "gpt-4o",
 			displayName: "GPT-4o",
 		});
-		vi.mocked(probeModel).mockResolvedValueOnce({ ok: true });
+		vi.mocked(probeModel).mockResolvedValueOnce({
+			ok: true,
+			request: {
+				modelRowId,
+				savedModelId: "gpt-4o",
+				testedModelId: "gpt-4o-mini",
+				displayName: "GPT-4o",
+				providerName: "OpenAI",
+				providerBaseUrl: "https://api.openai.com/v1",
+				prompt: "ping",
+				maxOutputTokens: 256,
+			},
+			response: { ok: true, text: "p" },
+		});
 
 		const result = await testModelHandler(
 			{ id: modelRowId, modelId: "gpt-4o-mini" },
 			new Headers(),
 		);
 
-		expect(result).toEqual({ ok: true });
+		expect(result).toEqual({
+			ok: true,
+			request: expect.objectContaining({ testedModelId: "gpt-4o-mini" }),
+			response: { ok: true, text: "p" },
+		});
 		expect(probeModel).toHaveBeenCalledWith(testDb, adminUserId, {
 			id: modelRowId,
 			modelId: "gpt-4o-mini",

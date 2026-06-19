@@ -26,7 +26,6 @@ export function AdminConfigPageContent() {
 		upsertModel,
 		deleteModel,
 		setDefaultModel,
-		testModel,
 	} = useAdminAiConfig();
 
 	return (
@@ -56,7 +55,6 @@ export function AdminConfigPageContent() {
 				onDiscover={(providerId) =>
 					discoverModels.mutateAsync({ data: { providerId } })
 				}
-				onTest={(input) => testModel.mutateAsync({ data: input })}
 			/>
 			<DefaultModelSelect
 				config={data}

@@ -16,7 +16,6 @@ import {
 	setConfigValue,
 } from "@/db/queries/config";
 import { createId } from "@/db/queries/helpers";
-import { probeModel } from "@/functions/admin/probe-model";
 import {
 	deleteModelSchema,
 	listModelsSchema,
@@ -24,6 +23,7 @@ import {
 	testModelSchema,
 	upsertModelSchema,
 } from "@/functions/admin/models-schemas";
+import { probeModel } from "@/functions/admin/probe-model";
 import { requireDB } from "@/functions/db";
 import { requireAdminSession } from "@/lib/rbac";
 
@@ -45,11 +45,7 @@ export async function listModelsHandler(
 	const db = createDb(await requireDB());
 	await requireOwnedProvider(db, input.providerId, session.user.id);
 	return {
-		models: await listByProviderForUser(
-			db,
-			input.providerId,
-			session.user.id,
-		),
+		models: await listByProviderForUser(db, input.providerId, session.user.id),
 	};
 }
 
@@ -61,7 +57,11 @@ export async function upsertModelHandler(
 	const db = createDb(await requireDB());
 	const { providerId, ...fields } = input;
 	await requireOwnedProvider(db, providerId, session.user.id);
-	const id = await upsertModelQuery(db, { id: createId(), providerId, ...fields });
+	const id = await upsertModelQuery(db, {
+		id: createId(),
+		providerId,
+		...fields,
+	});
 	return { id };
 }
 

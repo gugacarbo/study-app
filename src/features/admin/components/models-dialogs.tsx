@@ -7,42 +7,64 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { ModelForm } from "@/features/admin/components/model-form";
+import { ModelTestStreamDialog } from "@/features/admin/components/model-test-stream-dialog";
 import type { ModelRow } from "@/features/admin/components/models-table";
+import { useModelProbeStream } from "@/features/admin/hooks/use-model-probe-stream";
 import type { ModelFormValues } from "@/features/admin/schemas/model";
+import { PROBE_MAX_OUTPUT_TOKENS } from "@/functions/admin/probe-model-core";
 
 export function ModelDialog({
 	open,
 	mode,
 	model,
+	providerName,
+	providerBaseUrl,
 	busy,
 	onClose,
 	onSubmit,
-	onTest,
 }: {
 	open: boolean;
 	mode: "create" | "edit";
 	model: ModelRow | null;
+	providerName?: string;
+	providerBaseUrl?: string;
 	busy: boolean;
 	onClose: () => void;
 	onSubmit: (values: ModelFormValues) => void;
-	onTest?: (input: {
-		id: string;
-		modelId?: string;
-	}) => Promise<{ ok: boolean; error?: string }>;
 }) {
-	const [testResult, setTestResult] = useState<string | null>(null);
-	const [testing, setTesting] = useState(false);
+	const [testOpen, setTestOpen] = useState(false);
+	const {
+		state: stream,
+		start: startProbe,
+		reset: resetProbe,
+	} = useModelProbeStream();
 
 	useEffect(() => {
 		if (!open) {
-			setTestResult(null);
-			setTesting(false);
+			setTestOpen(false);
+			resetProbe();
 		}
-	}, [open]);
+	}, [open, resetProbe]);
 
 	return (
-		<Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-			<DialogContent>
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (!next && testOpen) return;
+				if (!next) onClose();
+			}}
+		>
+			<DialogContent
+				onInteractOutside={(event) => {
+					if (testOpen) event.preventDefault();
+				}}
+				onPointerDownOutside={(event) => {
+					if (testOpen) event.preventDefault();
+				}}
+				onFocusOutside={(event) => {
+					if (testOpen) event.preventDefault();
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>
 						{mode === "create" ? "Novo modelo" : "Editar modelo"}
@@ -60,34 +82,35 @@ export function ModelDialog({
 					}
 					submitLabel={mode === "create" ? "Criar" : "Salvar"}
 					isSubmitting={busy}
-					isTesting={testing}
-					testResult={testResult}
+					isTesting={testOpen && stream.status === "streaming"}
 					onCancel={onClose}
 					onTest={
-						mode === "edit" && model && onTest
-							? async (modelId) => {
-									setTesting(true);
-									setTestResult(null);
-									try {
-										const result = await onTest({ id: model.id, modelId });
-										setTestResult(
-											result.ok
-												? "Modelo respondeu com sucesso"
-												: `Falha: ${result.error ?? "desconhecida"}`,
-										);
-									} catch (cause) {
-										setTestResult(
-											cause instanceof Error
-												? cause.message
-												: "Falha ao testar modelo",
-										);
-									} finally {
-										setTesting(false);
-									}
+						mode === "edit" && model
+							? (modelId) => {
+									const testedModelId = modelId.trim() || model.modelId;
+									setTestOpen(true);
+									void startProbe({
+										modelRowId: model.id,
+										savedModelId: model.modelId,
+										testedModelId,
+										displayName: model.displayName,
+										providerName: providerName ?? "",
+										providerBaseUrl: providerBaseUrl ?? "",
+										maxOutputTokens: PROBE_MAX_OUTPUT_TOKENS,
+									});
 								}
 							: undefined
 					}
 					onSubmit={onSubmit}
+				/>
+				<ModelTestStreamDialog
+					open={testOpen}
+					title={`Teste: ${model?.displayName ?? "modelo"}`}
+					stream={stream}
+					onClose={() => {
+						setTestOpen(false);
+						resetProbe();
+					}}
 				/>
 			</DialogContent>
 		</Dialog>

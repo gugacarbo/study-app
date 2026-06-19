@@ -1,38 +1,61 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import type { AppDatabase } from "@/db/client";
-import { getByIdForUser as getModelByIdForUser } from "@/db/queries/ai-models";
-import { getByIdForUser as getProviderByIdForUser } from "@/db/queries/ai-providers";
-import { decryptSecret } from "@/lib/config-encryption";
+import type { ModelProbeResult } from "@/features/admin/types/model-probe";
+import {
+	formatProbeError,
+	PROBE_MAX_OUTPUT_TOKENS,
+	PROBE_PROMPT,
+	resolveProbeModel,
+} from "@/functions/admin/probe-model-core";
+
+export {
+	buildProbeRequest,
+	formatProbeError,
+	PROBE_MAX_OUTPUT_TOKENS,
+	PROBE_PROMPT,
+	resolveProbeModel,
+} from "@/functions/admin/probe-model-core";
 
 export async function probeModel(
 	db: AppDatabase,
 	userId: string,
 	input: { id: string; modelId?: string },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<ModelProbeResult> {
+	const resolved = await resolveProbeModel(db, userId, input);
+	if (!resolved.ok) {
+		return resolved.result;
+	}
+
+	const { request, model } = resolved.probe;
+
 	try {
-		const model = await getModelByIdForUser(db, input.id, userId);
-		if (!model) return { ok: false, error: "Modelo não encontrado" };
-
-		const provider = await getProviderByIdForUser(db, model.providerId, userId);
-		if (!provider) return { ok: false, error: "Provider não encontrado" };
-
-		const apiKey = await decryptSecret(provider.apiKey);
-		const openai = createOpenAI({
-			baseURL: provider.baseUrl,
-			apiKey,
+		const result = await generateText({
+			model,
+			prompt: PROBE_PROMPT,
+			maxOutputTokens: PROBE_MAX_OUTPUT_TOKENS,
 		});
-		const providerModelId = input.modelId?.trim() || model.modelId;
 
-		await generateText({
-			model: openai(providerModelId),
-			prompt: "ping",
-			maxOutputTokens: 1,
-		});
-		return { ok: true };
+		return {
+			ok: true,
+			request,
+			response: {
+				ok: true,
+				text: result.text,
+				usage: result.usage
+					? {
+							inputTokens: result.usage.inputTokens,
+							outputTokens: result.usage.outputTokens,
+							totalTokens: result.usage.totalTokens,
+						}
+					: undefined,
+				finishReason: result.finishReason,
+			},
+		};
 	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : "Requisição falhou";
-		return { ok: false, error: message };
+		return {
+			ok: false,
+			request,
+			response: formatProbeError(error),
+		};
 	}
 }

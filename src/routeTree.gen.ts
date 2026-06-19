@@ -26,6 +26,7 @@ import { Route as ApiJobsIdUploadRouteImport } from './routes/api/jobs/$id/uploa
 import { Route as ApiJobsIdStreamRouteImport } from './routes/api/jobs/$id/stream'
 import { Route as ApiJobsIdEventsRouteImport } from './routes/api/jobs/$id/events'
 import { Route as ApiJobsIdCancelRouteImport } from './routes/api/jobs/$id/cancel'
+import { Route as ApiAdminModelsIdTestStreamRouteImport } from './routes/api/admin/models/$id/test-stream'
 
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
@@ -111,6 +112,12 @@ const ApiJobsIdCancelRoute = ApiJobsIdCancelRouteImport.update({
   path: '/api/jobs/$id/cancel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminModelsIdTestStreamRoute =
+  ApiAdminModelsIdTestStreamRouteImport.update({
+    id: '/api/admin/models/$id/test-stream',
+    path: '/api/admin/models/$id/test-stream',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/exams/new/': typeof AppExamsNewIndexRoute
   '/jobs/$jobId/': typeof AppJobsJobIdIndexRoute
+  '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
@@ -146,6 +154,7 @@ export interface FileRoutesByTo {
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/exams/new': typeof AppExamsNewIndexRoute
   '/jobs/$jobId': typeof AppJobsJobIdIndexRoute
+  '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -166,6 +175,7 @@ export interface FileRoutesById {
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/_app/exams/new/': typeof AppExamsNewIndexRoute
   '/_app/jobs/$jobId/': typeof AppJobsJobIdIndexRoute
+  '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id/upload'
     | '/exams/new/'
     | '/jobs/$jobId/'
+    | '/api/admin/models/$id/test-stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id/upload'
     | '/exams/new'
     | '/jobs/$jobId'
+    | '/api/admin/models/$id/test-stream'
   id:
     | '__root__'
     | '/_app'
@@ -222,6 +234,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id/upload'
     | '/_app/exams/new/'
     | '/_app/jobs/$jobId/'
+    | '/api/admin/models/$id/test-stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -234,6 +247,7 @@ export interface RootRouteChildren {
   ApiJobsIdEventsRoute: typeof ApiJobsIdEventsRoute
   ApiJobsIdStreamRoute: typeof ApiJobsIdStreamRoute
   ApiJobsIdUploadRoute: typeof ApiJobsIdUploadRoute
+  ApiAdminModelsIdTestStreamRoute: typeof ApiAdminModelsIdTestStreamRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -357,6 +371,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiJobsIdCancelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/models/$id/test-stream': {
+      id: '/api/admin/models/$id/test-stream'
+      path: '/api/admin/models/$id/test-stream'
+      fullPath: '/api/admin/models/$id/test-stream'
+      preLoaderRoute: typeof ApiAdminModelsIdTestStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -406,6 +427,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIdEventsRoute: ApiJobsIdEventsRoute,
   ApiJobsIdStreamRoute: ApiJobsIdStreamRoute,
   ApiJobsIdUploadRoute: ApiJobsIdUploadRoute,
+  ApiAdminModelsIdTestStreamRoute: ApiAdminModelsIdTestStreamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

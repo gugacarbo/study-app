@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -21,10 +20,9 @@ type ModelFormProps = {
 	submitLabel: string;
 	isSubmitting?: boolean;
 	isTesting?: boolean;
-	testResult?: string | null;
 	onSubmit: (values: ModelFormValues) => void;
 	onCancel?: () => void;
-	onTest?: (modelId: string) => Promise<void>;
+	onTest?: (modelId: string) => void;
 };
 
 export function ModelForm({
@@ -32,7 +30,6 @@ export function ModelForm({
 	submitLabel,
 	isSubmitting,
 	isTesting,
-	testResult,
 	onSubmit,
 	onCancel,
 	onTest,
@@ -79,11 +76,6 @@ export function ModelForm({
 					/>
 				</Field>
 			</FieldGroup>
-			{testResult ? (
-				<Alert variant={testResult.startsWith("Falha") ? "destructive" : "default"}>
-					<AlertDescription>{testResult}</AlertDescription>
-				</Alert>
-			) : null}
 			<div className="flex items-center justify-between gap-2">
 				{onTest ? (
 					<Button

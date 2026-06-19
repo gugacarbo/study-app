@@ -7,7 +7,6 @@ import { getAdminAiConfig } from "@/functions/admin/config";
 import {
 	deleteModel,
 	setDefaultModel,
-	testModel,
 	upsertModel,
 } from "@/functions/admin/models";
 import {
@@ -62,9 +61,6 @@ export function useAdminAiConfig() {
 		mutationFn: setDefaultModel,
 		onSuccess: invalidate,
 	});
-	const testModelMutation = useMutation({
-		mutationFn: testModel,
-	});
 
 	return {
 		...query,
@@ -76,6 +72,5 @@ export function useAdminAiConfig() {
 		upsertModel: upsertModelMutation,
 		deleteModel: deleteModelMutation,
 		setDefaultModel: setDefaultModelMutation,
-		testModel: testModelMutation,
 	};
 }
