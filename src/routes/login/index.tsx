@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,13 @@ import {
 	formatUnauthorizedEmailMessage,
 	getPlaceholderEmail,
 } from "@/env";
+import { devLoginWithToken } from "@/functions/auth/dev-login-with-token";
 import {
 	getAllowedSignupEmailDomainsFn,
 	getSession,
 } from "@/functions/auth/require-session";
-import { authClient } from "@/lib/auth-client";
 import { isAllowedSignupEmail } from "@/lib/auth-allowed-email-domain";
+import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/login/")({
 	beforeLoad: async () => {
@@ -38,11 +39,16 @@ export function LoginPageContent({
 	allowedSignupEmailDomains,
 }: LoginPageContentProps) {
 	const [email, setEmail] = useState("");
-	const [status, setStatus] = useState<
-		"idle" | "loading" | "sent" | "error"
-	>("idle");
+	const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">(
+		"idle",
+	);
 	const [message, setMessage] = useState<string | null>(null);
-	const allowedDomainsHint = formatAllowedDomainsHint(allowedSignupEmailDomains);
+	const [devToken, setDevToken] = useState("");
+	const [devStatus, setDevStatus] = useState<"idle" | "loading">("idle");
+	const router = useRouter();
+	const allowedDomainsHint = formatAllowedDomainsHint(
+		allowedSignupEmailDomains,
+	);
 
 	async function handleSubmit(event: React.FormEvent) {
 		event.preventDefault();
@@ -70,7 +76,27 @@ export function LoginPageContent({
 		}
 
 		setStatus("sent");
-		setMessage("Se o email for válido, você receberá um link de acesso em breve.");
+		setMessage(
+			"Se o email for válido, você receberá um link de acesso em breve.",
+		);
+	}
+
+	async function handleDevTokenSubmit(event: React.FormEvent) {
+		event.preventDefault();
+		if (!import.meta.env.DEV) return;
+
+		setDevStatus("loading");
+		setMessage(null);
+
+		try {
+			await devLoginWithToken({ data: { token: devToken.trim() } });
+			await router.navigate({ to: "/" });
+		} catch {
+			setStatus("error");
+			setMessage("Não foi possível aplicar o token.");
+		} finally {
+			setDevStatus("idle");
+		}
 	}
 
 	return (
@@ -96,7 +122,11 @@ export function LoginPageContent({
 						required
 					/>
 				</div>
-				<Button type="submit" disabled={status === "loading"} className="w-full">
+				<Button
+					type="submit"
+					disabled={status === "loading"}
+					className="w-full"
+				>
 					{status === "loading" ? "Enviando…" : "Enviar link"}
 				</Button>
 			</form>
@@ -111,6 +141,39 @@ export function LoginPageContent({
 				>
 					{message}
 				</p>
+			) : null}
+
+			{import.meta.env.DEV ? (
+				<form
+					className="space-y-3 border-t border-border pt-4"
+					onSubmit={handleDevTokenSubmit}
+				>
+					<div className="space-y-1">
+						<p className="text-xs font-medium text-muted-foreground">Dev</p>
+						<p className="text-xs text-muted-foreground">
+							Cole o session token (D1) ou o valor do cookie{" "}
+							<code className="text-[11px]">better-auth.session_token</code>.
+						</p>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="dev-token">Token</Label>
+						<Input
+							id="dev-token"
+							value={devToken}
+							onChange={(event) => setDevToken(event.target.value)}
+							placeholder="session token ou cookie value"
+							autoComplete="off"
+						/>
+					</div>
+					<Button
+						type="submit"
+						variant="outline"
+						disabled={devStatus === "loading" || !devToken.trim()}
+						className="w-full"
+					>
+						{devStatus === "loading" ? "Aplicando…" : "Aplicar token"}
+					</Button>
+				</form>
 			) : null}
 		</div>
 	);

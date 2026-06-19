@@ -35,7 +35,9 @@ describe("login page", () => {
 		expect(
 			screen.getByText(formatAllowedDomainsHint(allowedSignupEmailDomains)),
 		).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: /enviar link/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /enviar link/i }),
+		).toBeInTheDocument();
 	});
 
 	it("shows multiple domains when configured", () => {
