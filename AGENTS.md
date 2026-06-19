@@ -29,8 +29,10 @@ NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import e
 > App em rebuild greenfield — `src/` e `vite.config.ts` ainda não existem na raiz.
 
 ```bash
-pnpm install   # postinstall: cf-typegen
-pnpm dev       # Vite + workerd on :3000 — não usar `wrangler dev` no source
+pnpm install         # postinstall: cf-typegen
+pnpm dev             # Vite + workerd on :3000 — não usar `wrangler dev` no source
+pnpm dev:localflare  # Vite :3000 + Localflare attach :8788 (D1/R2 em .wrangler/state)
+pnpm localflare      # worker buildado em :8787 (BETTER_AUTH_URL=http://localhost:8787)
 ```
 
 ## Como validar (DoD global do repo)

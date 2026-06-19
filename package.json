@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
-    "dev:localflare": "localflare attach --persist-to .wrangler/state",
+    "dev:localflare": "node scripts/localflare-dev.mjs",
+    "localflare": "node scripts/localflare-standalone.mjs",
     "wrangler:dev": "vite dev --port 3000",
     "wrangler": "node scripts/wrangler-shim.mjs",
     "cf-typegen": "wrangler types",
@@ -47,7 +48,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/react-devtools": "^0.10.5",
     "@tanstack/react-query": "^5.100.11",
-    "@tanstack/react-router": "^1.170.6",
+    "@tanstack/react-router": "^1.170.9",
     "@tanstack/react-router-devtools": "^1.167.0",
     "@tanstack/react-start": "^1.168.16",
     "@tanstack/react-store": "^0.11.0",
@@ -93,11 +94,17 @@
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "knip": "^6.15.0",
+    "localflare": "^0.5.0",
     "prettier": "^3.8.4",
     "test-staged": "^1.1.11",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.5",
     "wrangler": "^4.93.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "@tanstack/react-router": "1.170.9"
+    }
   }
 }

@@ -76,25 +76,25 @@ export function parseAdminEmails(raw: string): Set<string> {
 	);
 }
 
-export function getAllowedSignupDomains(raw: string): string[] {
-	return raw
+export function getAllowedSignupDomains(raw: string | undefined): string[] {
+	return (raw ?? "aluno.ifsc.edu.br")
 		.split(",")
 		.map((domain) => domain.trim().toLowerCase())
 		.filter(Boolean);
 }
 
-export function formatAllowedDomainsHint(raw: string): string {
+export function formatAllowedDomainsHint(raw: string | undefined): string {
 	return getAllowedSignupDomains(raw)
 		.map((domain) => `@${domain}`)
 		.join(", ");
 }
 
-export function getPlaceholderEmail(raw: string): string {
+export function getPlaceholderEmail(raw: string | undefined): string {
 	const [firstDomain] = getAllowedSignupDomains(raw);
 	return firstDomain ? `voce@${firstDomain}` : "voce@exemplo.com";
 }
 
-export function formatUnauthorizedEmailMessage(raw: string): string {
+export function formatUnauthorizedEmailMessage(raw: string | undefined): string {
 	const hint = formatAllowedDomainsHint(raw);
 	return hint
 		? `Este email não está autorizado. Use ${hint}.`

@@ -23,6 +23,28 @@ export type AuthBindings = {
 	RESEND_API_KEY?: string;
 };
 
+/** Loopback origins used by Vite (:3000) and Localflare (:8787 attach / :8788). */
+const LOCAL_DEV_TRUSTED_ORIGINS = [
+	"http://localhost:3000",
+	"http://localhost:8787",
+	"http://localhost:8788",
+	"http://127.0.0.1:3000",
+	"http://127.0.0.1:8787",
+	"http://127.0.0.1:8788",
+] as const;
+
+function getLocalDevTrustedOrigins(baseUrl: string): string[] | undefined {
+	try {
+		const { hostname } = new URL(baseUrl);
+		if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+			return undefined;
+		}
+	} catch {
+		return undefined;
+	}
+	return [...LOCAL_DEV_TRUSTED_ORIGINS];
+}
+
 function toAuthBindings(
 	db: D1Database,
 	source: Record<string, unknown>,
@@ -50,9 +72,14 @@ export function createAuth(authBindings: AuthBindings) {
 	const appDb = createDb(authBindings.DB);
 	const allowedDomains = authBindings.ALLOWED_SIGNUP_EMAIL_DOMAINS;
 
+	const trustedOrigins = getLocalDevTrustedOrigins(
+		authBindings.BETTER_AUTH_URL,
+	);
+
 	return betterAuth({
 		secret: authBindings.BETTER_AUTH_SECRET,
 		baseURL: authBindings.BETTER_AUTH_URL,
+		...(trustedOrigins ? { trustedOrigins } : {}),
 		database: drizzleAdapter(db, {
 			provider: "sqlite",
 			schema: authSchema,

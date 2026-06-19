@@ -17,17 +17,19 @@ import {
 import { isAllowedSignupEmail } from "@/lib/auth-allowed-email-domain";
 import { authClient } from "@/lib/auth-client";
 
+const isDev =
+	import.meta.env?.DEV ?? process.env.NODE_ENV === "development";
+
 export const Route = createFileRoute("/login/")({
 	beforeLoad: async () => {
 		const session = await getSession();
 		if (session?.user) {
 			throw redirect({ to: "/" });
 		}
-
-		return {
-			allowedSignupEmailDomains: await getAllowedSignupEmailDomainsFn(),
-		};
 	},
+	loader: async () => ({
+		allowedSignupEmailDomains: await getAllowedSignupEmailDomainsFn(),
+	}),
 	component: LoginPage,
 });
 
@@ -83,7 +85,7 @@ export function LoginPageContent({
 
 	async function handleDevTokenSubmit(event: React.FormEvent) {
 		event.preventDefault();
-		if (!import.meta.env.DEV) return;
+		if (!isDev) return;
 
 		setDevStatus("loading");
 		setMessage(null);
@@ -143,7 +145,7 @@ export function LoginPageContent({
 				</p>
 			) : null}
 
-			{import.meta.env.DEV ? (
+			{isDev ? (
 				<form
 					className="space-y-3 border-t border-border pt-4"
 					onSubmit={handleDevTokenSubmit}
@@ -180,7 +182,7 @@ export function LoginPageContent({
 }
 
 function LoginPage() {
-	const { allowedSignupEmailDomains } = Route.useRouteContext();
+	const { allowedSignupEmailDomains } = Route.useLoaderData();
 	return (
 		<div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-4 py-8">
 			<div className="absolute top-4 right-4">

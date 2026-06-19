@@ -10,11 +10,10 @@ import { DefaultNotFound, RootDocument, rootHead } from "./__root/-index";
 export const Route = createRootRoute({
 	head: rootHead,
 	notFoundComponent: DefaultNotFound,
-	shellComponent: RootDocument,
-	component: RootLayout,
+	component: RootComponent,
 });
 
-function RootLayout() {
+function RootComponent() {
 	const appContext = useRouterState({
 		select: (state) =>
 			state.matches.find((match) => match.routeId === "/_app")?.context as
@@ -22,13 +21,13 @@ function RootLayout() {
 				| undefined,
 	});
 
-	if (appContext?.user) {
-		return (
-			<AppShell user={appContext.user} isAdmin={appContext.isAdmin}>
-				<Outlet />
-			</AppShell>
-		);
-	}
+	const content = appContext?.user ? (
+		<AppShell user={appContext.user} isAdmin={appContext.isAdmin}>
+			<Outlet />
+		</AppShell>
+	) : (
+		<Outlet />
+	);
 
-	return <Outlet />;
+	return <RootDocument>{content}</RootDocument>;
 }

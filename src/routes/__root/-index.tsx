@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Link, Scripts } from "@tanstack/react-router";
 import { ThemeProvider } from "@/components/theme-provider";
-import appCss from "../../globals.css?url";
+import "../../globals.css";
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
@@ -19,7 +19,6 @@ export function rootHead() {
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
 			{ title: "Study App" },
 		],
-		links: [{ rel: "stylesheet", href: appCss }],
 	};
 }
 
