@@ -1,8 +1,30 @@
 ---
-status: accepted
+status: implemented
 date: 2026-06-18
 builds-on: [ADR-0004, SPEC-0005]
-implemented-by: []
+implemented-by:
+  - src/components/ui/sidebar.tsx
+  - src/components/ui/tooltip.tsx
+  - src/hooks/use-mobile.ts
+  - src/lib/admin-nav.ts
+  - src/lib/admin-nav.test.ts
+  - src/lib/sidebar-cookie.ts
+  - src/lib/sidebar-cookie.test.ts
+  - src/features/admin/components/admin-dashboard-shell.tsx
+  - src/features/admin/components/admin-dashboard-shell.spec.tsx
+  - src/features/admin/components/admin-sidebar.tsx
+  - src/features/admin/components/admin-sidebar-nav.tsx
+  - src/features/admin/components/admin-sidebar-nav.spec.tsx
+  - src/features/admin/components/admin-sidebar-footer.tsx
+  - src/features/admin/components/admin-sidebar-footer.spec.tsx
+  - src/features/admin/components/admin-account-menu.tsx
+  - src/features/admin/components/admin-main-header.tsx
+  - src/features/admin/components/admin-main-header.spec.tsx
+  - src/routes/admin/route.tsx
+  - src/features/admin/pages/admin-config-page.tsx
+  - src/features/admin/pages/admin-users-page.tsx
+  - src/features/admin/pages/admin-jobs-page.tsx
+  - src/features/admin/pages/admin-users-page.spec.tsx
 ---
 
 # Admin: shell dashboard com sidebar shadcn
@@ -159,5 +181,9 @@ Critérios:
 ## Verificação
 
 ```text
-(preencher no fechamento)
+npm run typecheck                                              # exit 0
+npm test -- --run src/features/admin/components/admin-dashboard-shell  # 7 passed
+npm test -- --run src/features/admin/pages                     # 2 passed (2 files)
+npm run docs-check                                             # exit 0 (27 docs)
+grep -r AdminShell src/                                        # (vazio)
 ```

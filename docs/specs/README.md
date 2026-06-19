@@ -10,7 +10,7 @@
 | [SPEC-0003](admin/0003-config-providers-modelos.md) | Admin: providers, modelos e roles                    | implemented |
 | [SPEC-0004](exams/0004-pipeline-ingestao.md)        | Pipeline de ingestão: arquivo → questões             | implemented |
 | [SPEC-0005](ui/0005-shell-area-logada.md)           | Shell da área logada: navegação content-first        | implemented |
-| [SPEC-0006](admin/0006-admin-dashboard-shell.md)    | Admin: shell dashboard com sidebar shadcn            | accepted    |
+| [SPEC-0006](admin/0006-admin-dashboard-shell.md)    | Admin: shell dashboard com sidebar shadcn            | implemented |
 | [SPEC-0007](admin/0007-admin-jobs.md)               | Admin: visualização de background jobs               | implemented |
 | [SPEC-0008](exams/0008-catalogo-exames.md)          | Catálogo de exames: listagem e detalhe de provas     | draft       |
 | [SPEC-0009](quiz/0009-quiz-tentativas.md)           | Quiz: tentativas de resposta por exame               | draft       |

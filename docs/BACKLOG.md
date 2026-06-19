@@ -39,26 +39,25 @@ Ledger de pendências e reservas de numeração CASA.
 
 Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Numeração global contígua — ver `docs/context/SPECS.md`.
 
-| ID        | Arquivo                                               | builds-on                                          | status      |
-| --------- | ----------------------------------------------------- | -------------------------------------------------- | ----------- |
-| SPEC-0000 | `docs/specs/auth/0000-autenticacao-magic-link.md`     | ADR-0003, ADR-0004                                 | implemented |
-| SPEC-0001 | `docs/specs/0001-schema-migrations-clean-slate.md`    | ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0009   | implemented |
-| SPEC-0002 | `docs/specs/storage/0002-upload-arquivos-r2.md`       | ADR-0002, ADR-0003, ADR-0005                       | implemented |
-| SPEC-0003 | `docs/specs/admin/0003-config-providers-modelos.md`   | ADR-0007, ADR-0003, ADR-0006, ADR-0004             | accepted    |
-| SPEC-0004 | `docs/specs/exams/0004-pipeline-ingestao.md`          | ADR-0007, ADR-0008, ADR-0009, SPEC-0002, SPEC-0003 | implemented |
-| SPEC-0005 | `docs/specs/ui/0005-shell-area-logada.md`             | ADR-0001, ADR-0003, ADR-0004, SPEC-0000            | accepted    |
-| SPEC-0006 | `docs/specs/admin/0006-admin-dashboard-shell.md`      | ADR-0004, SPEC-0005                                | accepted    |
-| SPEC-0007 | `docs/specs/admin/0007-admin-jobs.md`                 | ADR-0009, ADR-0004, SPEC-0004                      | implemented |
-| SPEC-0008 | `docs/specs/exams/0008-catalogo-exames.md`            | SPEC-0001, SPEC-0004                               | draft       |
-| SPEC-0009 | `docs/specs/quiz/0009-quiz-tentativas.md`             | SPEC-0008                                          | draft       |
-| SPEC-0010 | `docs/specs/quiz/0010-estatisticas-progresso.md`      | SPEC-0009                                          | draft       |
-| SPEC-0011 | `docs/specs/exams/0011-explicacoes-questoes.md`       | ADR-0007, SPEC-0008                                | draft       |
-| SPEC-0012 | `docs/specs/chat/0012-chat-multi-conversa.md`         | ADR-0007, ADR-0008, ADR-0003                       | draft       |
-| SPEC-0013 | `docs/specs/memory/0013-camada-memoria.md`            | ADR-0002, SPEC-0004                                | draft       |
-| SPEC-0014 | `docs/specs/ui/0014-background-processes-ui.md`       | ADR-0009                                           | implemented |
-| SPEC-0015 | `docs/specs/admin/0015-admin-logs.md`                 | ADR-0005, SPEC-0003, SPEC-0014                     | draft       |
-| SPEC-0016 | `docs/specs/ai/0016-spell-check-web-search.md`        | ADR-0007                                           | draft       |
-| SPEC-0017 | `docs/specs/admin/0017-model-benchmark.md`            | ADR-0007, ADR-0009                                 | draft       |
+| ID        | Arquivo                                             | builds-on                                          | status      |
+| --------- | --------------------------------------------------- | -------------------------------------------------- | ----------- |
+| SPEC-0000 | `docs/specs/auth/0000-autenticacao-magic-link.md`   | ADR-0003, ADR-0004                                 | implemented |
+| SPEC-0001 | `docs/specs/0001-schema-migrations-clean-slate.md`  | ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0009   | implemented |
+| SPEC-0002 | `docs/specs/storage/0002-upload-arquivos-r2.md`     | ADR-0002, ADR-0003, ADR-0005                       | implemented |
+| SPEC-0003 | `docs/specs/admin/0003-config-providers-modelos.md` | ADR-0007, ADR-0003, ADR-0006, ADR-0004             | accepted    |
+| SPEC-0004 | `docs/specs/exams/0004-pipeline-ingestao.md`        | ADR-0007, ADR-0008, ADR-0009, SPEC-0002, SPEC-0003 | implemented |
+| SPEC-0005 | `docs/specs/ui/0005-shell-area-logada.md`           | ADR-0001, ADR-0003, ADR-0004, SPEC-0000           | accepted    |
+| SPEC-0006 | `docs/specs/exams/0006-catalogo-exames.md`          | SPEC-0001, SPEC-0004                               |             |
+| SPEC-0007 | `docs/specs/quiz/0007-quiz-tentativas.md`           | SPEC-0006                                          |             |
+| SPEC-0008 | `docs/specs/quiz/0008-estatisticas-progresso.md`    | SPEC-0007                                          |             |
+| SPEC-0009 | `docs/specs/exams/0009-explicacoes-questoes.md`     | ADR-0007, SPEC-0006                                |             |
+| SPEC-0010 | `docs/specs/chat/0010-chat-multi-conversa.md`       | ADR-0007, ADR-0008, ADR-0003                       |             |
+| SPEC-0011 | `docs/specs/memory/0011-camada-memoria.md`          | ADR-0002, SPEC-0004                                |             |
+| SPEC-0012 | `docs/specs/ui/0012-background-processes-ui.md`     | ADR-0009                                           |             |
+| SPEC-0013 | `docs/specs/admin/0013-admin-logs.md`               | ADR-0005, SPEC-0003, SPEC-0012                     |             |
+| SPEC-0014 | `docs/specs/ai/0014-spell-check-web-search.md`      | ADR-0007                                           |             |
+| SPEC-0015 | `docs/specs/admin/0015-model-benchmark.md`          | ADR-0007, ADR-0009                                 |             |
+| SPEC-0016 | `docs/specs/admin/0016-admin-jobs.md`             | ADR-0009, ADR-0004, SPEC-0004                       | implemented |
 
 ## Pendências
 

@@ -14,7 +14,6 @@ implemented-by:
   - src/features/admin/pages/admin-jobs-page.tsx
   - src/features/admin/lib/job-labels.ts
   - src/routes/admin/jobs/index.tsx
-  - src/features/admin/components/admin-shell.tsx
 ---
 
 # Admin: visualização de background jobs
@@ -73,7 +72,7 @@ npm test -- src/db/queries/jobs.test.ts
 npm test -- src/functions/admin/jobs.test.ts
 npm test -- src/features/admin/pages/admin-jobs-page.spec.tsx
 test -f src/routes/admin/jobs/index.tsx
-grep -q 'Jobs' src/features/admin/components/admin-shell.tsx
+grep -q 'Jobs' src/lib/admin-nav.ts
 grep -rq 'listJobsForAdmin' src/db/queries/jobs.ts
 grep -rq 'requireAdminSession' src/functions/admin/jobs.ts
 npm run docs-check
@@ -84,6 +83,6 @@ npm run docs-check
 ```bash
 npm run typecheck
 npm test -- src/db/queries/jobs.test.ts src/functions/admin/jobs.test.ts src/features/admin/pages/admin-jobs-page.spec.tsx
-grep -q 'Jobs' src/features/admin/components/admin-shell.tsx
+grep -q 'Jobs' src/lib/admin-nav.ts
 test -f src/routes/admin/jobs/index.tsx
 ```
