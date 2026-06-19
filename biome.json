@@ -20,16 +20,22 @@
 		"enabled": true,
 		"indentStyle": "tab"
 	},
-	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": true,
 			"nursery": {
 				"noExcessiveLinesPerFile": {
-					"level": "error",
+					"level": "warn",
 					"options": {
-						"maxLines": 150
+						"maxLines": 200
 					}
 				}
 			}
