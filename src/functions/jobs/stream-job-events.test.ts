@@ -50,8 +50,11 @@ describe("streamJobEventsHandler", () => {
 		expect(response.headers.get("Content-Type")).toContain("text/event-stream");
 
 		const reader = response.body?.getReader();
-		expect(reader).toBeTruthy();
-		const { value } = await reader?.read();
+		expect(reader).toBeDefined();
+		if (!reader) {
+			throw new Error("expected response body reader");
+		}
+		const { value } = await reader.read();
 		const chunk = new TextDecoder().decode(value);
 		expect(chunk).toContain("job-done");
 		expect(chunk).toContain(JOB_STATUS.COMPLETED);
