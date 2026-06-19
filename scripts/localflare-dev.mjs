@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APP_PORT = 3000;
+const LOCALFLARE_ATTACH_PORT = 8788;
 const APP_URL = `http://127.0.0.1:${APP_PORT}/login`;
 
 async function waitForApp(timeoutMs = 90_000) {
@@ -59,20 +60,24 @@ process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
 
 if (!(await isAppRunning())) {
-	console.log("[localflare-dev] Starting Vite on :3000...");
-	viteProcess = run("pnpm", ["dev"]);
+	console.log(`[localflare-dev] Starting Vite on :${APP_PORT}...`);
+	viteProcess = run("pnpm", ["exec", "vite", "dev", "--port", String(APP_PORT)]);
 	await waitForApp();
 } else {
-	console.log("[localflare-dev] Reusing Vite on :3000");
+	console.log(`[localflare-dev] Reusing Vite on :${APP_PORT}`);
 }
 
 const persistDir = path.join(rootDir, ".wrangler/state");
 
-console.log("[localflare-dev] Starting Localflare attach on :8788...");
+console.log(
+	`[localflare-dev] Starting Localflare attach on :${LOCALFLARE_ATTACH_PORT}...`,
+);
 localflareProcess = run("pnpm", [
 	"exec",
 	"localflare",
 	"attach",
+	"--port",
+	String(LOCALFLARE_ATTACH_PORT),
 	"--no-open",
 	"--persist-to",
 	persistDir,

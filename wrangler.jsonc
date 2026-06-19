@@ -35,11 +35,17 @@
 		}
 	],
 	"vars": {
-		"ALLOWED_SIGNUP_EMAIL_DOMAINS": "aluno.ifsc.edu.br",
-		"EMAIL_FROM_ADDRESS": "noreply@gugacarbo.space",
-		"EMAIL_FROM_NAME": "Study App",
-		"BETTER_AUTH_URL": "http://localhost:3000",
-		"ADMIN_EMAILS": ""
+		"ALLOWED_SIGNUP_EMAIL_DOMAINS": "hotmail.com",
+		"RESEND_FROM_EMAIL": "noreply@gugacarbo.space",
+		"RESEND_FROM_NAME": "Study App",
+		"BETTER_AUTH_URL": "http://localhost:8787"
+	},
+	"secrets": {
+		"required": [
+			"BETTER_AUTH_SECRET",
+			"RESEND_API_KEY",
+			"CONFIG_ENCRYPTION_KEY"
+		]
 	},
 	"queues": {
 		"producers": [
