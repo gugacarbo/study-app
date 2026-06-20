@@ -12,7 +12,7 @@ export function useJobMonitor(jobId: string) {
 
 	useEffect(() => {
 		setStreamAfterSeq(null);
-	}, []);
+	}, [jobId]);
 
 	useEffect(() => {
 		if (sync.isLoading || streamAfterSeq !== null) return;
@@ -30,7 +30,7 @@ export function useJobMonitor(jobId: string) {
 			appendEventsRef.current(events);
 		},
 		onJobDone: () => {
-			void sync.refetch();
+			void sync.refetchFromStart();
 		},
 	});
 

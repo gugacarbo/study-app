@@ -67,7 +67,18 @@ export function IngestProgressPanel({
 	progress,
 	isLoading,
 }: IngestProgressPanelProps) {
-	const currentStep = stepIndex(phase ?? progress.phase);
+	const activePhase = progress.phase ?? phase;
+	const isSuccessTerminal = status === JOB_STATUS.COMPLETED;
+	const isFailureTerminal =
+		status === JOB_STATUS.FAILED || status === JOB_STATUS.CANCELLED;
+	const currentStep = isSuccessTerminal
+		? INGEST_STEPS.length
+		: stepIndex(activePhase);
+	const phaseLabel = isSuccessTerminal
+		? "Importação concluída"
+		: (formatPhaseLabel(
+				activePhase as Parameters<typeof formatPhaseLabel>[0],
+			) ?? "Aguardando início…");
 	const statusLabel =
 		status != null ? (STATUS_LABELS[status] ?? status) : "Carregando…";
 
@@ -91,7 +102,10 @@ export function IngestProgressPanel({
 			<ol className="flex flex-col gap-3">
 				{INGEST_STEPS.map((step, index) => {
 					const done = currentStep > index;
-					const active = currentStep === index;
+					const active =
+						!isSuccessTerminal &&
+						!isFailureTerminal &&
+						currentStep === index;
 					return (
 						<li
 							key={step}
@@ -108,11 +122,7 @@ export function IngestProgressPanel({
 			</ol>
 
 			<div className="flex flex-col gap-1 text-sm">
-				<p className="text-muted-foreground">
-					{formatPhaseLabel(
-						(progress.phase ?? phase) as Parameters<typeof formatPhaseLabel>[0],
-					) ?? "Aguardando início…"}
-				</p>
+				<p className="text-muted-foreground">{phaseLabel}</p>
 				{progress.questionsSeen > 0 ? (
 					<p>{progress.questionsSeen} questão(ões) identificada(s)</p>
 				) : null}

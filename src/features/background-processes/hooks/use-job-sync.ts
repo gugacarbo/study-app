@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	INITIAL_INGEST_PROGRESS,
@@ -76,8 +76,10 @@ function applyJobResponse(
 }
 
 export function useJobSync(jobId: string, enabled = true) {
+	const queryClient = useQueryClient();
 	const lastSeqRef = useRef(0);
 	const isTerminalRef = useRef(false);
+	const prevJobIdRef = useRef(jobId);
 	const [state, setState] = useState<JobSyncState>(INITIAL_SYNC_STATE);
 
 	const mergeResponse = useCallback((data: JobEventsResponse) => {
@@ -115,24 +117,50 @@ export function useJobSync(jobId: string, enabled = true) {
 		});
 	}, []);
 
+	const refetchFromStart = useCallback(async () => {
+		const data = await fetchJobEvents(jobId, 0);
+		mergeResponse(data);
+	}, [jobId, mergeResponse]);
+
 	const query = useQuery({
 		queryKey: ["job-sync", jobId],
 		queryFn: async () => fetchJobEvents(jobId, lastSeqRef.current),
 		enabled: enabled && jobId.length > 0,
+		staleTime: 0,
 		refetchInterval: () =>
 			isTerminalRef.current ? false : JOB_POLL_INTERVAL_MS,
 	});
 
 	useEffect(() => {
-		if (!query.data) return;
-		mergeResponse(query.data);
-	}, [query.data, mergeResponse]);
-
-	useEffect(() => {
+		if (prevJobIdRef.current === jobId) return;
+		prevJobIdRef.current = jobId;
 		lastSeqRef.current = 0;
 		isTerminalRef.current = false;
 		setState(INITIAL_SYNC_STATE);
-	}, []);
+	}, [jobId]);
+
+	useEffect(() => {
+		if (!query.data) return;
+		mergeResponse(query.data);
+	}, [query.data, query.dataUpdatedAt, mergeResponse]);
+
+	// Full replay on mount / job change — bypasses stale React Query cache (global staleTime 5m).
+	useEffect(() => {
+		queryClient.removeQueries({ queryKey: ["job-sync", jobId] });
+		void refetchFromStart();
+	}, [jobId, queryClient, refetchFromStart]);
+
+	useEffect(() => {
+		if (!state.isTerminal || state.events.length > 0 || query.isLoading) {
+			return;
+		}
+		void refetchFromStart();
+	}, [
+		state.isTerminal,
+		state.events.length,
+		query.isLoading,
+		refetchFromStart,
+	]);
 
 	return {
 		...state,
@@ -140,6 +168,7 @@ export function useJobSync(jobId: string, enabled = true) {
 		isError: query.isError,
 		errorMessage: query.error instanceof Error ? query.error.message : null,
 		refetch: query.refetch,
+		refetchFromStart,
 		appendEvents,
 	};
 }
