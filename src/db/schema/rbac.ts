@@ -1,4 +1,10 @@
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+	index,
+	primaryKey,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { user } from "./auth";
 
 export const roles = sqliteTable(
@@ -47,7 +53,7 @@ export const userRoles = sqliteTable(
 			.references(() => roles.id, { onDelete: "cascade" }),
 	},
 	(table) => [
+		primaryKey({ columns: [table.userId, table.roleId] }),
 		index("idx_user_roles_role_id").on(table.roleId),
-		uniqueIndex("uq_user_roles_user_role").on(table.userId, table.roleId),
 	],
 );
