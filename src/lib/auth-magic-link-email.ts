@@ -1,4 +1,4 @@
-import type { MagicLinkEmailEnv } from "@/env";
+import { type MagicLinkEmailEnv, shouldLogEmailsToConsole } from "@/env";
 
 export function authLog(message: string, data?: Record<string, unknown>) {
 	if (data) {
@@ -29,6 +29,19 @@ export async function sendMagicLinkEmail(
 	const fromName = env.EMAIL_FROM_NAME ?? "Study App";
 	const fromAddress = env.EMAIL_FROM_ADDRESS ?? "noreply@gugacarbo.space";
 	const from = `${fromName} <${fromAddress}>`;
+	const subject = "Seu link de acesso — Study App";
+	const text = `Acesse: ${url}`;
+	const html = `<p>Acesse: <a href="${url}">${url}</a></p>`;
+	if (shouldLogEmailsToConsole(env.DEV_LOG_EMAILS, env.NODE_ENV)) {
+		authLog("magic link (DEV_LOG_EMAILS — console only)", {
+			from,
+			to: email,
+			subject,
+			text,
+			html,
+		});
+		return;
+	}
 
 	if (!env.RESEND_API_KEY) {
 		authLog("magic link (dev fallback — RESEND_API_KEY not set)", {
@@ -53,9 +66,9 @@ export async function sendMagicLinkEmail(
 		body: JSON.stringify({
 			from,
 			to: [email],
-			subject: "Seu link de acesso — Study App",
-			text: `Acesse: ${url}`,
-			html: `<p>Acesse: <a href="${url}">${url}</a></p>`,
+			subject,
+			text,
+			html,
 		}),
 	});
 
@@ -80,9 +93,9 @@ export async function sendMagicLinkEmail(
 
 	const resendId =
 		typeof responseBody === "object" &&
-		responseBody !== null &&
-		"id" in responseBody &&
-		typeof responseBody.id === "string"
+			responseBody !== null &&
+			"id" in responseBody &&
+			typeof responseBody.id === "string"
 			? responseBody.id
 			: undefined;
 

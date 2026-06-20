@@ -4,6 +4,7 @@ import {
 	formatUnauthorizedEmailMessage,
 	getAllowedSignupDomains,
 	getPlaceholderEmail,
+	shouldLogEmailsToConsole,
 } from "@/env";
 
 describe("env allowed signup domains", () => {
@@ -27,5 +28,13 @@ describe("env allowed signup domains", () => {
 		expect(formatUnauthorizedEmailMessage("ifsc.edu.br")).toBe(
 			"Este email não está autorizado. Use @ifsc.edu.br.",
 		);
+	});
+});
+
+describe("shouldLogEmailsToConsole", () => {
+	it("is true only in development with DEV_LOG_EMAILS enabled", () => {
+		expect(shouldLogEmailsToConsole(true, "development")).toBe(true);
+		expect(shouldLogEmailsToConsole(true, "production")).toBe(false);
+		expect(shouldLogEmailsToConsole(false, "development")).toBe(false);
 	});
 });

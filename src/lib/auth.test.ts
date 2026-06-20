@@ -12,6 +12,8 @@ describe("auth", () => {
 			EMAIL_FROM_ADDRESS: "noreply@gugacarbo.space",
 			EMAIL_FROM_NAME: "Study App",
 			ADMIN_EMAILS: "",
+			DEV_LOG_EMAILS: false,
+			NODE_ENV: "development",
 		});
 
 		expect(auth).toBeDefined();

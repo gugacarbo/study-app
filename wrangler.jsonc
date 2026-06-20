@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	// Local web dev: `npm run dev` (Vite on :3000). Raw `wrangler dev` only bundles via aliases below.
+	// Local dev padrão: `pnpm dev` → Vite + workerd em :8787. Dashboard D1/R2: `pnpm dev:localflare`.
 	"name": "study-app",
 	"compatibility_date": "2026-05-01",
 	"compatibility_flags": [
@@ -36,15 +36,18 @@
 	],
 	"vars": {
 		"ALLOWED_SIGNUP_EMAIL_DOMAINS": "hotmail.com",
-		"RESEND_FROM_EMAIL": "noreply@gugacarbo.space",
-		"RESEND_FROM_NAME": "Study App",
-		"BETTER_AUTH_URL": "http://localhost:8787"
+		"EMAIL_FROM_ADDRESS": "noreply@gugacarbo.space",
+		"EMAIL_FROM_NAME": "Study App",
+		"BETTER_AUTH_URL": "http://localhost:8787",
+		"ADMIN_EMAILS": "",
+		"DEV_LOG_EMAILS": "true"
 	},
 	"secrets": {
 		"required": [
 			"BETTER_AUTH_SECRET",
 			"RESEND_API_KEY",
-			"CONFIG_ENCRYPTION_KEY"
+			"CONFIG_ENCRYPTION_KEY",
+			"TAVILY_API_KEY"
 		]
 	},
 	"queues": {

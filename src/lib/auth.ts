@@ -21,16 +21,16 @@ export type AuthBindings = {
 	EMAIL_FROM_NAME: string;
 	ADMIN_EMAILS: string;
 	RESEND_API_KEY?: string;
+	DEV_LOG_EMAILS: boolean;
+	NODE_ENV: "development" | "production" | "test";
 };
 
-/** Loopback origins used by Vite (:3000) and Localflare (:8787 attach / :8788). */
+/** Loopback origins used by Vite (:3000) and Localflare (:8787). */
 const LOCAL_DEV_TRUSTED_ORIGINS = [
 	"http://localhost:3000",
 	"http://localhost:8787",
-	"http://localhost:8788",
 	"http://127.0.0.1:3000",
 	"http://127.0.0.1:8787",
-	"http://127.0.0.1:8788",
 ] as const;
 
 function getLocalDevTrustedOrigins(baseUrl: string): string[] | undefined {
@@ -64,6 +64,8 @@ function toAuthBindings(
 		EMAIL_FROM_NAME: validated.EMAIL_FROM_NAME,
 		ADMIN_EMAILS: validated.ADMIN_EMAILS,
 		RESEND_API_KEY: validated.RESEND_API_KEY,
+		DEV_LOG_EMAILS: validated.DEV_LOG_EMAILS,
+		NODE_ENV: validated.NODE_ENV,
 	};
 }
 

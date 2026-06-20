@@ -1,0 +1,15 @@
+# Secrets — carregados pelo Wrangler em dev (`.dev.vars` ou este `.env`).
+# Vars não-secretas ficam em `wrangler.jsonc` → `vars`.
+# Gerar CONFIG_ENCRYPTION_KEY: openssl rand -base64 32
+
+CONFIG_ENCRYPTION_KEY=
+BETTER_AUTH_SECRET=
+RESEND_API_KEY=
+
+# Opcional — só disponível no Worker se também estiver em `secrets.required`.
+# Caso contrário, acessível apenas via fallback `process.env`.
+TAVILY_API_KEY=
+
+# Opcional — necessário para o fallback `process.env` (ex.: testes sem Worker).
+# No dev padrão (`pnpm dev` / Localflare), vem de `wrangler.jsonc` → `BETTER_AUTH_URL`.
+# BETTER_AUTH_URL=http://localhost:8787
