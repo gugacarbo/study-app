@@ -1,6 +1,41 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
+
+export type ExamListItem = {
+	id: string;
+	name: string;
+	source: string | null;
+	createdAt: string | null;
+	questionCount: number;
+};
+
+export async function listExamsByUserId(
+	db: AppDatabase,
+	userId: string,
+): Promise<ExamListItem[]> {
+	const rows = await db
+		.select({
+			id: schema.exams.id,
+			name: schema.exams.name,
+			source: schema.exams.source,
+			createdAt: schema.exams.createdAt,
+			questionCount: count(schema.questions.id),
+		})
+		.from(schema.exams)
+		.leftJoin(
+			schema.questions,
+			eq(schema.questions.examId, schema.exams.id),
+		)
+		.where(eq(schema.exams.userId, userId))
+		.groupBy(schema.exams.id)
+		.orderBy(desc(schema.exams.createdAt));
+
+	return rows.map((row) => ({
+		...row,
+		questionCount: Number(row.questionCount),
+	}));
+}
 
 export async function getExamById(
 	db: AppDatabase,

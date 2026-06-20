@@ -118,8 +118,8 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 					<Button asChild variant="outline">
 						<Link to="/exams/new">Nova importação</Link>
 					</Button>
-					<Button asChild variant="secondary" disabled>
-						Ver prova (em breve)
+					<Button asChild variant="secondary">
+						<Link to="/exams">Ver provas</Link>
 					</Button>
 				</div>
 			) : null}
