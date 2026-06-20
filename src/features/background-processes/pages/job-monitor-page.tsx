@@ -115,6 +115,16 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 
 			{monitor.isTerminal && monitor.status === JOB_STATUS.COMPLETED ? (
 				<div className="flex flex-wrap gap-2">
+					{monitor.metadata?.examId ? (
+						<Button asChild>
+							<Link
+								to="/exams/$examId"
+								params={{ examId: monitor.metadata.examId }}
+							>
+								Ver prova
+							</Link>
+						</Button>
+					) : null}
 					<Button asChild variant="outline">
 						<Link to="/exams/new">Nova importação</Link>
 					</Button>

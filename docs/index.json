@@ -368,13 +368,44 @@
     "path": "docs/specs/exams/0008-catalogo-exames.md",
     "layer": "specs",
     "title": "Catálogo de exames: listagem e detalhe de provas",
-    "status": "draft",
+    "status": "implemented",
     "builds-on": [
       "SPEC-0001",
-      "SPEC-0004"
+      "SPEC-0004",
+      "SPEC-0005",
+      "SPEC-0014"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "src/components/ui/collapsible.tsx",
+      "src/db/queries/exams.ts",
+      "src/db/queries/exams.test.ts",
+      "src/db/queries/questions.ts",
+      "src/features/background-processes/pages/job-monitor-page.tsx",
+      "src/features/background-processes/pages/job-monitor-page.spec.tsx",
+      "src/features/exams/components/exam-detail-actions.tsx",
+      "src/features/exams/components/exam-detail-header.tsx",
+      "src/features/exams/components/exam-question-item.tsx",
+      "src/features/exams/components/exam-question-item.spec.tsx",
+      "src/features/exams/components/exam-question-list.tsx",
+      "src/features/exams/components/exams-list.tsx",
+      "src/features/exams/components/exams-list.spec.tsx",
+      "src/features/exams/hooks/use-exam.ts",
+      "src/features/exams/hooks/use-exams.ts",
+      "src/features/exams/lib/parse-question-fields.ts",
+      "src/features/exams/lib/parse-question-fields.test.ts",
+      "src/features/exams/pages/exam-detail-page.tsx",
+      "src/features/exams/pages/exam-detail-page.spec.tsx",
+      "src/features/exams/pages/exams-page.tsx",
+      "src/features/exams/types/exam-detail.ts",
+      "src/functions/exams/get-exam.ts",
+      "src/functions/exams/get-exam.test.ts",
+      "src/functions/exams/list-exams.ts",
+      "src/functions/exams/list-exams.test.ts",
+      "src/routes/_app/exams/$examId/index.tsx",
+      "src/routes/_app/exams/index.tsx",
+      "src/routeTree.gen.ts"
+    ]
   },
   {
     "id": "SPEC-0009",

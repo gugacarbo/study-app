@@ -1,6 +1,14 @@
 import { and, count, desc, eq } from "drizzle-orm";
 import type { AppDatabase } from "../client";
+import { listQuestionsByExam, type QuestionRow } from "./questions";
 import * as schema from "../schema";
+
+export type ExamWithQuestions = {
+	id: string;
+	name: string;
+	createdAt: string | null;
+	questions: QuestionRow[];
+};
 
 export type ExamListItem = {
 	id: string;
@@ -48,6 +56,26 @@ export async function getExamById(
 		.where(and(eq(schema.exams.id, examId), eq(schema.exams.userId, userId)))
 		.limit(1);
 	return rows[0] ?? null;
+}
+
+export async function getExamWithQuestions(
+	db: AppDatabase,
+	examId: string,
+	userId: string,
+): Promise<ExamWithQuestions | null> {
+	const exam = await getExamById(db, examId, userId);
+	if (!exam) {
+		return null;
+	}
+
+	const questions = await listQuestionsByExam(db, examId);
+
+	return {
+		id: exam.id,
+		name: exam.name,
+		createdAt: exam.createdAt,
+		questions,
+	};
 }
 
 export async function createExam(

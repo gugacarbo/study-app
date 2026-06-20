@@ -72,7 +72,25 @@ export function ExamsList({ exams }: ExamsListProps) {
 
 					return (
 						<li key={exam.id}>
-							<Card>
+							<Card
+								className="cursor-pointer transition-colors hover:bg-muted/50"
+								role="button"
+								tabIndex={0}
+								onClick={() =>
+									navigate({
+										to: "/exams/$examId",
+										params: { examId: exam.id },
+									})
+								}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									navigate({
+										to: "/exams/$examId",
+										params: { examId: exam.id },
+									});
+								}}
+							>
 								<CardContent className="flex items-start gap-3 pt-6">
 									<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
 										<BookOpenIcon className="size-5" />

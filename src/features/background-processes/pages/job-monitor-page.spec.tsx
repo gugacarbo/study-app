@@ -14,16 +14,26 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 		useNavigate: () => navigate,
 		Link: ({
 			to,
+			params,
 			children,
 			...props
 		}: {
 			to: string;
+			params?: Record<string, string>;
 			children: React.ReactNode;
-		}) => (
-			<a href={to} {...props}>
-				{children}
-			</a>
-		),
+		}) => {
+			let href = to;
+			if (params) {
+				for (const [key, value] of Object.entries(params)) {
+					href = href.replace(`$${key}`, value);
+				}
+			}
+			return (
+				<a href={href} {...props}>
+					{children}
+				</a>
+			);
+		},
 	};
 });
 
@@ -90,6 +100,54 @@ describe("JobMonitorPage", () => {
 		expect(
 			screen.getByRole("region", { name: /eventos do job/i }),
 		).toHaveTextContent(/Extraindo questões/);
+	});
+
+	it("shows Ver prova link when job completed with examId", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.COMPLETED,
+					phase: null,
+					error: null,
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					events: [],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			const link = screen.getByRole("link", { name: /^ver prova$/i });
+			expect(link).toHaveAttribute("href", "/exams/exam-1");
+		});
+	});
+
+	it("hides Ver prova link when completed job has no examId metadata", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.COMPLETED,
+					phase: null,
+					error: null,
+					metadata: null,
+					events: [],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(screen.getByRole("link", { name: /ver provas/i })).toBeInTheDocument();
+		});
+		expect(
+			screen.queryByRole("link", { name: /^ver prova$/i }),
+		).not.toBeInTheDocument();
 	});
 
 	it("redirects awaiting_upload jobs to /exams/new", async () => {
