@@ -6,11 +6,10 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "vite dev --port 8787",
     "dev:localflare": "node scripts/localflare-dev.mjs",
-    "localflare": "node scripts/localflare-standalone.mjs",
-    "wrangler:dev": "vite dev --port 3000",
-    "wrangler": "node scripts/wrangler-shim.mjs",
+    "dev:vite": "vite dev --port 8787",
+    "wrangler:dev": "vite dev --port 8787",
     "cf-typegen": "wrangler types",
     "build": "vite build",
     "preview": "npm run build && vite preview",

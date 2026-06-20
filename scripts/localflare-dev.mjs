@@ -1,14 +1,46 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const APP_PORT = 3000;
-const LOCALFLARE_ATTACH_PORT = 8788;
+const APP_PORT = process.env.LOCALFLARE_PORT ?? "8787";
+const LOCALFLARE_ATTACH_PORT = process.env.LOCALFLARE_ATTACH_PORT ?? "8788";
 const APP_URL = `http://127.0.0.1:${APP_PORT}/login`;
+const viteBin = path.join(rootDir, "node_modules/vite/bin/vite.js");
+const localflareBin = path.join(rootDir, "node_modules/localflare/dist/index.js");
+const persistDir = path.join(rootDir, ".wrangler/state");
 
-async function waitForApp(timeoutMs = 90_000) {
+function createPrefixedWriter(prefix, stream) {
+	let buffer = "";
+	return (chunk) => {
+		buffer += chunk.toString();
+		const lines = buffer.split("\n");
+		buffer = lines.pop() ?? "";
+		for (const line of lines) {
+			stream.write(`${prefix} ${line}\n`);
+		}
+	};
+}
+
+function spawnLogged(label, command, args, env = process.env) {
+	const child = spawn(command, args, {
+		cwd: rootDir,
+		env,
+		stdio: ["inherit", "pipe", "pipe"],
+	});
+
+	const writeStdout = createPrefixedWriter(`[${label}]`, process.stdout);
+	const writeStderr = createPrefixedWriter(`[${label}]`, process.stderr);
+
+	child.stdout?.on("data", writeStdout);
+	child.stderr?.on("data", writeStderr);
+
+	return child;
+}
+
+async function waitForApp(timeoutMs = 120_000) {
 	const started = Date.now();
 
 	while (Date.now() - started < timeoutMs) {
@@ -24,57 +56,67 @@ async function waitForApp(timeoutMs = 90_000) {
 		await new Promise((resolve) => setTimeout(resolve, 500));
 	}
 
-	throw new Error(
-		`Timed out waiting for the app at ${APP_URL}. Start it with "pnpm dev" first.`,
-	);
+	throw new Error(`Timed out waiting for the app at ${APP_URL}.`);
 }
 
-async function isAppRunning() {
-	try {
-		const response = await fetch(APP_URL);
-		return response.ok;
-	} catch {
-		return false;
-	}
+if (!existsSync(viteBin)) {
+	console.error("[localflare-dev] vite not found. Run `pnpm install` first.");
+	process.exit(1);
 }
 
-function run(command, args, options = {}) {
-	return spawn(command, args, {
-		cwd: rootDir,
-		stdio: "inherit",
-		shell: true,
-		...options,
-	});
+if (!existsSync(localflareBin)) {
+	console.error("[localflare-dev] localflare not found. Run `pnpm install` first.");
+	process.exit(1);
 }
 
-let viteProcess;
+const devEnv = {
+	...process.env,
+	// Avoid ENOSPC watcher failures on large workspaces.
+	CHOKIDAR_USEPOLLING: process.env.CHOKIDAR_USEPOLLING ?? "1",
+};
+
+console.log(`[localflare-dev] Starting Vite on :${APP_PORT}...`);
+const viteProcess = spawnLogged("app", process.execPath, [
+	viteBin,
+	"dev",
+	"--port",
+	String(APP_PORT),
+], devEnv);
+
 let localflareProcess;
 
-function shutdown(code = 0) {
+function stopAll(code = 0) {
 	localflareProcess?.kill("SIGTERM");
 	viteProcess?.kill("SIGTERM");
 	process.exit(code);
 }
 
-process.on("SIGINT", () => shutdown(0));
-process.on("SIGTERM", () => shutdown(0));
+process.on("SIGINT", () => stopAll(0));
+process.on("SIGTERM", () => stopAll(0));
 
-if (!(await isAppRunning())) {
-	console.log(`[localflare-dev] Starting Vite on :${APP_PORT}...`);
-	viteProcess = run("pnpm", ["exec", "vite", "dev", "--port", String(APP_PORT)]);
+viteProcess.on("exit", (code, signal) => {
+	if (signal) {
+		stopAll(1);
+		return;
+	}
+	if (code && code !== 0) {
+		console.error(`[localflare-dev] Vite exited with code ${code}`);
+		stopAll(code);
+	}
+});
+
+try {
 	await waitForApp();
-} else {
-	console.log(`[localflare-dev] Reusing Vite on :${APP_PORT}`);
+} catch (error) {
+	console.error(`[localflare-dev] ${error.message}`);
+	stopAll(1);
 }
-
-const persistDir = path.join(rootDir, ".wrangler/state");
 
 console.log(
 	`[localflare-dev] Starting Localflare attach on :${LOCALFLARE_ATTACH_PORT}...`,
 );
-localflareProcess = run("pnpm", [
-	"exec",
-	"localflare",
+localflareProcess = spawnLogged("localflare", process.execPath, [
+	localflareBin,
 	"attach",
 	"--port",
 	String(LOCALFLARE_ATTACH_PORT),
@@ -83,7 +125,6 @@ localflareProcess = run("pnpm", [
 	persistDir,
 ]);
 
-localflareProcess.on("close", (code) => {
-	viteProcess?.kill("SIGTERM");
-	process.exit(code ?? 0);
+localflareProcess.on("exit", (code) => {
+	stopAll(code ?? 0);
 });
