@@ -7,3 +7,7 @@ class ResizeObserverMock {
 }
 
 globalThis.ResizeObserver = ResizeObserverMock;
+
+if (typeof Element !== "undefined" && !Element.prototype.scrollTo) {
+	Element.prototype.scrollTo = () => {};
+}

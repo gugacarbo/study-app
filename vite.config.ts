@@ -77,7 +77,11 @@ const config = defineConfig({
 	},
 	plugins: [
 		devtools(),
-		cloudflare({ viteEnvironment: { name: "ssr" } }),
+		cloudflare({
+			viteEnvironment: { name: "ssr" },
+			// Keep Miniflare persistence aligned with `localflare attach --persist-to`.
+			persistState: { path: ".wrangler/state" },
+		}),
 		tailwindcss(),
 		tanstackStart(),
 		viteReact(),
