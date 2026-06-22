@@ -75,7 +75,7 @@ Dedup: store mantém `lastSeq`; eventos com `seq <= lastSeq` ignorados.
 | --- | ------ | -------------- |
 | 1 | upload OK em `/exams/new` | navegar para `/jobs/$jobId` |
 | 2 | refresh em job `queued`/`running` | reidratar eventos do D1 e retomar sync |
-| 3 | job `awaiting_upload` em `/jobs/$jobId` | redirecionar para `/exams/new` |
+| 3 | job `awaiting_upload` em `/jobs/$jobId` | exibir painel de upload na própria página (sem redirect para `/exams/new`; ver SPEC-0019) |
 | 4 | job 404 ou de outro user | mostrar erro |
 | 5 | SSE falha | poll continua |
 | 6 | poll e SSE entregam mesmo `seq` | dedup |

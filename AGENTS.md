@@ -31,7 +31,7 @@ NUNCA: Supabase CLI, `pdf-parse` em Workers, API keys no bundle client, import e
 ```bash
 pnpm install        # postinstall: cf-typegen
 pnpm dev            # Vite + workerd :8787 (BETTER_AUTH_URL=http://localhost:8787)
-pnpm dev:localflare # Vite :8787 + Localflare attach :8788 (dashboard D1/R2)
+pnpm dev:localflare # Vite :8787 + Localflare API :8788 + dashboard local :5174 (D1/R2)
 ```
 
 ## Como validar (DoD global do repo)

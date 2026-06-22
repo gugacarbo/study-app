@@ -58,6 +58,8 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0014 | `docs/specs/ai/0014-spell-check-web-search.md`      | ADR-0007                                           |             |
 | SPEC-0015 | `docs/specs/admin/0015-model-benchmark.md`          | ADR-0007, ADR-0009                                 |             |
 | SPEC-0016 | `docs/specs/admin/0016-admin-jobs.md`             | ADR-0009, ADR-0004, SPEC-0004                       | implemented |
+| SPEC-0019 | `docs/specs/ui/0019-ingest-realtime-ux.md`        | ADR-0008, ADR-0009, SPEC-0014, SPEC-0018            | implemented |
+| SPEC-0020 | `docs/specs/ui/0020-ingest-agent-thread.md`       | ADR-0007, ADR-0008, ADR-0009, SPEC-0004, SPEC-0018, SPEC-0019 | accepted    |
 
 ## Pendências
 
