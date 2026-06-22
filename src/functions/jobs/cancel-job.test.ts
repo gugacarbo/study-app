@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createId } from "@/db/queries/helpers";
 import { createJob } from "@/db/queries/jobs";
 import * as schema from "@/db/schema";
-import { cancelJobHandler } from "@/functions/jobs/cancel-job";
 import {
 	resetJobTestDb,
 	seedDefaultModel,
@@ -11,6 +10,7 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
+import { cancelJobHandler } from "@/functions/jobs/cancel-job";
 import {
 	INGEST_MODE,
 	JOB_KIND,

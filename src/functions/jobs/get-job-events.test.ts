@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createId } from "@/db/queries/helpers";
 import { appendJobEvent, createJob } from "@/db/queries/jobs";
-import { getJobEventsHandler } from "@/functions/jobs/get-job-events";
 import {
 	resetJobTestDb,
 	seedDefaultModel,
@@ -9,6 +8,7 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
+import { getJobEventsHandler } from "@/functions/jobs/get-job-events";
 import {
 	INGEST_MODE,
 	JOB_KIND,
