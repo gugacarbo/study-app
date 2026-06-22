@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import * as examsQueries from "@/db/queries/exams";
 import * as filesQueries from "@/db/queries/files";
-import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
+import {
+	INGEST_DATA_PART,
+	buildIngestFileReadText,
+	buildIngestLlmCallText,
+	buildIngestLlmRetryText,
+	buildIngestPersistValidatingText,
+} from "@/features/ai/jobs/ingest/ingest-events";
 import {
 	type BackgroundJobRow,
 	type RunIngestDeps,
@@ -58,9 +64,68 @@ function makeJob(overrides?: Partial<BackgroundJobRow>): BackgroundJobRow {
 	};
 }
 
+function createMockStreamText(questions: unknown[]) {
+	return vi.fn((_options) => {
+		async function* streamParts() {
+			yield {
+				type: "start-step",
+				request: {},
+				warnings: [],
+			};
+			yield {
+				type: "reasoning-delta",
+				id: "reason-1",
+				text: "Analisando a prova…",
+			};
+			yield {
+				type: "reasoning-end",
+				id: "reason-1",
+			};
+
+			for (const [index, question] of questions.entries()) {
+				const toolCallId = `submit-${index}`;
+				yield {
+					type: "tool-call",
+					toolCallId,
+					toolName: "submit_question",
+					input: question,
+				};
+
+				const execute = _options.tools?.submit_question?.execute;
+				if (execute) {
+					await execute(question, {
+						toolCallId,
+						messages: [],
+						abortSignal: _options.abortSignal,
+					});
+				}
+			}
+
+			yield {
+				type: "finish-step",
+				response: {},
+				usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+				finishReason: "tool-calls",
+				rawFinishReason: "tool_calls",
+				providerMetadata: undefined,
+			};
+			yield {
+				type: "finish",
+				finishReason: "stop",
+				rawFinishReason: "stop",
+				totalUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+			};
+		}
+
+		return { fullStream: streamParts() };
+	}) as unknown as RunIngestDeps["streamText"];
+}
+
 function createRunDeps(input?: {
 	questions?: unknown[];
 	getAiModel?: RunIngestDeps["getAiModel"];
+	streamText?: RunIngestDeps["streamText"];
+	generateObject?: RunIngestDeps["generateObject"];
 	persistQuestionsDeps?: RunIngestDeps["persistQuestionsDeps"];
 }): {
 	deps: RunIngestDeps;
@@ -73,9 +138,14 @@ function createRunDeps(input?: {
 	const isCancelRequested = vi.fn(async () => false);
 	const questions = input?.questions ?? [makeQuestion(1)];
 
-	const generateObject = vi.fn(async () => ({
-		object: { questions },
-	})) as unknown as RunIngestDeps["generateObject"];
+	const generateObject =
+		input?.generateObject ??
+		(vi.fn(async () => ({
+			object: { questions },
+		})) as unknown as RunIngestDeps["generateObject"]);
+
+	const streamText =
+		input?.streamText ?? createMockStreamText(questions);
 
 	const getAiModel =
 		input?.getAiModel ?? vi.fn(async () => ({ modelId: "gpt-4o" }) as never);
@@ -93,6 +163,7 @@ function createRunDeps(input?: {
 			isCancelRequested,
 			getAiModel,
 			generateObject,
+			streamText,
 			sleep: vi.fn(async () => undefined),
 			persistQuestionsDeps,
 		},
@@ -211,7 +282,7 @@ describe("runIngest", () => {
 		);
 	});
 
-	it("completes with partial_extraction warning when some questions are invalid", async () => {
+	it("completes when agent rejects invalid submit_question payloads", async () => {
 		const { deps, updateJobStatus } = createRunDeps({
 			questions: [
 				makeQuestion(1),
@@ -258,15 +329,108 @@ describe("runIngest", () => {
 			jobId,
 			expect.objectContaining({
 				status: JOB_STATUS.COMPLETED,
+				metadata: expect.stringContaining('"persistedCount":1'),
+			}),
+		);
+		expect(updateJobStatus).not.toHaveBeenCalledWith(
+			jobId,
+			expect.objectContaining({
 				metadata: expect.stringContaining(INGEST_WARNING.PARTIAL_EXTRACTION),
 			}),
 		);
 	});
 
 	it("emits ingest phase and progress events", async () => {
+		const fileContent = "conteúdo";
 		const { deps, appendJobEvent } = createRunDeps({
 			questions: [makeQuestion(1), makeQuestion(2)],
 		});
+
+		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
+			id: examId,
+			userId,
+			name: "Prova",
+			source: "prova.md",
+			createdAt: null,
+		});
+		vi.spyOn(filesQueries, "getFileByIdWithOwnership").mockResolvedValue({
+			id: fileId,
+			examId,
+			name: "prova.md",
+			r2Key: "users/user/files/prova.md",
+			mimeType: "text/markdown",
+			size: 10,
+			ttlSeconds: 0,
+			createdAt: null,
+		});
+		vi.spyOn(r2Audit, "auditedR2Get").mockResolvedValue({
+			arrayBuffer: async () => new TextEncoder().encode(fileContent).buffer,
+		} as never);
+		vi.spyOn(llmLogging, "logLlmCallStart").mockResolvedValue(undefined);
+		vi.spyOn(llmLogging, "logLlmCallComplete").mockResolvedValue(undefined);
+
+		await runIngest({
+			jobId,
+			db: {} as AppDatabase,
+			filesBucket: {} as never,
+			deps,
+		});
+
+		const payloads = appendJobEvent.mock.calls.map((call) =>
+			JSON.parse(call[1]),
+		);
+		expect(payloads).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: INGEST_DATA_PART.PHASE,
+					data: { phase: INGEST_PHASE.READING_FILE },
+				}),
+				expect.objectContaining({
+					type: "text",
+					text: buildIngestFileReadText(fileContent.length),
+				}),
+				expect.objectContaining({
+					type: INGEST_DATA_PART.PHASE,
+					data: { phase: INGEST_PHASE.EXTRACTING },
+				}),
+				expect.objectContaining({
+					type: "text",
+					text: buildIngestLlmCallText(),
+				}),
+				expect.objectContaining({
+					type: INGEST_DATA_PART.STREAM_PROGRESS,
+				}),
+				expect.objectContaining({
+					type: INGEST_DATA_PART.PHASE,
+					data: { phase: INGEST_PHASE.PERSISTING },
+				}),
+				expect.objectContaining({
+					type: "text",
+					text: buildIngestPersistValidatingText(2),
+				}),
+				expect.objectContaining({
+					type: INGEST_DATA_PART.PERSIST_PROGRESS,
+					data: { saved: 2, total: 2 },
+				}),
+				expect.objectContaining({
+					type: INGEST_DATA_PART.SUMMARY,
+				}),
+			]),
+		);
+	});
+
+	it("emits llm retry text events on transient failures", async () => {
+		const agentStream = createMockStreamText([makeQuestion(1)]);
+		let callCount = 0;
+		const streamText = vi.fn((options) => {
+			callCount += 1;
+			if (callCount === 1) {
+				throw Object.assign(new Error("503"), { status: 503 });
+			}
+			return agentStream!(options);
+		}) as unknown as RunIngestDeps["streamText"];
+
+		const { deps, appendJobEvent } = createRunDeps({ streamText });
 
 		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
 			id: examId,
@@ -298,24 +462,15 @@ describe("runIngest", () => {
 			deps,
 		});
 
-		const payloads = appendJobEvent.mock.calls.map((call) =>
-			JSON.parse(call[1]),
-		);
-		expect(payloads).toEqual(
+		const textPayloads = appendJobEvent.mock.calls
+			.map((call) => JSON.parse(call[1]))
+			.filter((payload) => payload.type === "text");
+
+		expect(textPayloads).toEqual(
 			expect.arrayContaining([
+				expect.objectContaining({ text: buildIngestLlmCallText() }),
 				expect.objectContaining({
-					type: INGEST_DATA_PART.PHASE,
-					data: { phase: INGEST_PHASE.READING_FILE },
-				}),
-				expect.objectContaining({
-					type: INGEST_DATA_PART.PHASE,
-					data: { phase: INGEST_PHASE.EXTRACTING },
-				}),
-				expect.objectContaining({
-					type: INGEST_DATA_PART.STREAM_PROGRESS,
-				}),
-				expect.objectContaining({
-					type: INGEST_DATA_PART.SUMMARY,
+					text: buildIngestLlmRetryText(2, 3),
 				}),
 			]),
 		);
@@ -353,9 +508,9 @@ describe("runIngest", () => {
 	it("cancels before LLM extraction when cancel is requested", async () => {
 		const isCancelRequested = vi.fn(async () => true);
 
-		const generateObject = vi.fn(async () => ({
-			object: { questions: [makeQuestion(1)] },
-		})) as unknown as RunIngestDeps["generateObject"];
+		const streamText = vi.fn(
+			createMockStreamText([makeQuestion(1)]),
+		) as unknown as RunIngestDeps["streamText"];
 
 		const updateJobStatus = vi.fn(async () => undefined);
 		const appendJobEvent = vi.fn(async () => undefined);
@@ -365,7 +520,10 @@ describe("runIngest", () => {
 			appendJobEvent,
 			isCancelRequested,
 			getAiModel: vi.fn(async () => ({ modelId: "gpt-4o" }) as never),
-			generateObject,
+			generateObject: vi.fn(async () => ({
+				object: { questions: [makeQuestion(1)] },
+			})) as unknown as RunIngestDeps["generateObject"],
+			streamText,
 			sleep: vi.fn(async () => undefined),
 			persistQuestionsDeps: {
 				existsNormalizedQuestion: vi.fn(async () => false),
@@ -403,10 +561,83 @@ describe("runIngest", () => {
 			deps,
 		});
 
-		expect(generateObject).not.toHaveBeenCalled();
+		expect(streamText).not.toHaveBeenCalled();
 		expect(updateJobStatus).toHaveBeenCalledWith(jobId, {
 			status: JOB_STATUS.CANCELLED,
 			error: null,
 		});
+	});
+
+	it("persists agent stream parts during extraction", async () => {
+		const questions = [makeQuestion(1), makeQuestion(2)];
+		const { deps, appendJobEvent } = createRunDeps({
+			questions,
+			streamText: createMockStreamText(questions),
+		});
+
+		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
+			id: examId,
+			userId,
+			name: "Prova",
+			source: "prova.md",
+			createdAt: null,
+		});
+		vi.spyOn(filesQueries, "getFileByIdWithOwnership").mockResolvedValue({
+			id: fileId,
+			examId,
+			name: "prova.md",
+			r2Key: "users/user/files/prova.md",
+			mimeType: "text/markdown",
+			size: 10,
+			ttlSeconds: 0,
+			createdAt: null,
+		});
+		vi.spyOn(r2Audit, "auditedR2Get").mockResolvedValue({
+			arrayBuffer: async () => new TextEncoder().encode("conteúdo").buffer,
+		} as never);
+		vi.spyOn(llmLogging, "logLlmCallStart").mockResolvedValue(undefined);
+		vi.spyOn(llmLogging, "logLlmCallComplete").mockResolvedValue(undefined);
+
+		await runIngest({
+			jobId,
+			db: {} as AppDatabase,
+			filesBucket: {} as never,
+			deps,
+		});
+
+		const payloads = appendJobEvent.mock.calls.map((call) =>
+			JSON.parse(call[1]),
+		);
+
+		expect(payloads).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: "reasoning-delta",
+					messageId: "ingest-step-1",
+					delta: "Analisando a prova…",
+				}),
+				expect.objectContaining({
+					type: "reasoning",
+					messageId: "ingest-step-1",
+					text: "Analisando a prova…",
+				}),
+				expect.objectContaining({
+					type: "tool-call",
+					messageId: "ingest-step-1",
+					toolName: "submit_question",
+					state: "running",
+				}),
+				expect.objectContaining({
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					result: { ok: true, index: 1 },
+				}),
+				expect.objectContaining({
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					result: { ok: true, index: 2 },
+				}),
+			]),
+		);
 	});
 });

@@ -39,19 +39,13 @@ describe("IngestUploadForm", () => {
 		expect(screen.queryByLabelText(/modelo/i)).not.toBeInTheDocument();
 	});
 
-	it("navigates to job monitor after successful upload", async () => {
+	it("navigates to job monitor with pendingFile after create", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi
-				.fn()
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({ jobId: "job-1", examId: "exam-1" }),
-				})
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({ ok: true, fileId: "file-1" }),
-				}),
+			vi.fn().mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ jobId: "job-1", examId: "exam-1" }),
+			}),
 		);
 
 		render(<IngestUploadForm />);
@@ -67,27 +61,20 @@ describe("IngestUploadForm", () => {
 			expect(navigate).toHaveBeenCalledWith({
 				to: "/jobs/$jobId",
 				params: { jobId: "job-1" },
+				state: { pendingFile: file },
 			});
 		});
+		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 
-	it("displays 413 error when upload exceeds size limit", async () => {
+	it("displays error when job creation fails", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi
-				.fn()
-				.mockResolvedValueOnce({
-					ok: true,
-					json: async () => ({ jobId: "job-1", examId: "exam-1" }),
-				})
-				.mockResolvedValueOnce({
-					ok: false,
-					status: 413,
-					json: async () => ({
-						error: "file_too_large",
-						maxBytes: 524_288,
-					}),
-				}),
+			vi.fn().mockResolvedValueOnce({
+				ok: false,
+				status: 500,
+				json: async () => ({ error: "internal_error" }),
+			}),
 		);
 
 		render(<IngestUploadForm />);
@@ -100,7 +87,8 @@ describe("IngestUploadForm", () => {
 		fireEvent.click(screen.getByRole("button", { name: /importar prova/i }));
 
 		await waitFor(() => {
-			expect(screen.getByRole("alert")).toHaveTextContent(/512 KB/i);
+			expect(screen.getByRole("alert")).toBeInTheDocument();
 		});
+		expect(navigate).not.toHaveBeenCalled();
 	});
 });

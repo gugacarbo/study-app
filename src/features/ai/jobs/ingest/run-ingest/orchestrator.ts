@@ -1,5 +1,7 @@
 import { getExamById } from "@/db/queries/exams";
 import {
+	buildIngestPersistProgressPart,
+	buildIngestPersistValidatingText,
 	buildIngestSummaryPart,
 	buildIngestTextPart,
 	serializeIngestDataPart,
@@ -101,6 +103,23 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 			onSkippedDuplicate: async (part) => {
 				await ctx.deps.appendJobEvent(ctx.jobId, serializeIngestDataPart(part));
 				await ctx.deps.persistQuestionsDeps.onSkippedDuplicate?.(part);
+			},
+			onPersistProgress: async (saved, total) => {
+				if (saved === 0) {
+					await ctx.deps.appendJobEvent(
+						ctx.jobId,
+						serializeIngestJobEventPart(
+							buildIngestTextPart(buildIngestPersistValidatingText(total)),
+						),
+					);
+				}
+				await ctx.deps.appendJobEvent(
+					ctx.jobId,
+					serializeIngestDataPart(
+						buildIngestPersistProgressPart(saved, total),
+					),
+				);
+				await ctx.deps.persistQuestionsDeps.onPersistProgress?.(saved, total);
 			},
 		},
 	});

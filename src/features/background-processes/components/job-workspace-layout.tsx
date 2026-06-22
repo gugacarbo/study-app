@@ -2,14 +2,14 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type JobWorkspaceLayoutProps = {
-	chat: ReactNode;
-	progress: ReactNode;
+	activity: ReactNode;
+	sidebar: ReactNode;
 	className?: string;
 };
 
 export function JobWorkspaceLayout({
-	chat,
-	progress,
+	activity,
+	sidebar,
 	className,
 }: JobWorkspaceLayoutProps) {
 	return (
@@ -21,15 +21,15 @@ export function JobWorkspaceLayout({
 		>
 			<section
 				aria-label="Chat do agente"
-				className="flex min-h-64 flex-1 flex-col overflow-hidden rounded-lg border bg-card md:min-h-0 md:basis-3/5"
+				className="order-2 flex min-h-64 flex-1 flex-col overflow-hidden rounded-xl border bg-card md:order-none md:min-h-0 md:basis-3/5"
 			>
-				{chat}
+				{activity}
 			</section>
 			<section
 				aria-label="Progresso da importação"
-				className="flex min-h-48 flex-col overflow-hidden rounded-lg border bg-card md:min-h-0 md:basis-2/5"
+				className="order-1 flex min-h-48 flex-col overflow-hidden rounded-xl border bg-card md:order-none md:min-h-0 md:basis-2/5"
 			>
-				{progress}
+				{sidebar}
 			</section>
 		</div>
 	);

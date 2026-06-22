@@ -51,7 +51,7 @@ export function IngestUploadForm() {
 				</FieldGroup>
 
 				<Button type="submit" disabled={!canSubmit} className="w-full">
-					{uiState === "uploading" ? "Enviando…" : "Importar prova"}
+					{uiState === "creating" ? "Criando importação…" : "Importar prova"}
 				</Button>
 			</form>
 

@@ -1,0 +1,152 @@
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { IngestEventsGroupedList } from "@/features/background-processes/components/ingest-events-grouped-list";
+import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
+import { PHASE_TEXT } from "@/features/ai/jobs/ingest/run-ingest/constants";
+import { INITIALIZATION_GROUP_LABEL } from "@/features/background-processes/lib/group-ingest-events";
+import { INGEST_PHASE, JOB_STATUS } from "@/lib/job-kinds";
+
+afterEach(() => {
+	cleanup();
+});
+
+describe("IngestEventsGroupedList", () => {
+	it("renders humanized labels in grouped sections without raw JSON", () => {
+		render(
+			<IngestEventsGroupedList
+				isLoading={false}
+				status={JOB_STATUS.RUNNING}
+				phase={INGEST_PHASE.READING_FILE}
+				error={null}
+				events={[
+					{
+						seq: 1,
+						payload: { type: "text", text: PHASE_TEXT[INGEST_PHASE.READING_FILE] },
+						createdAt: null,
+					},
+					{
+						seq: 2,
+						payload: {
+							type: INGEST_DATA_PART.PHASE,
+							data: { phase: INGEST_PHASE.READING_FILE },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 3,
+						payload: { type: "text", text: "Arquivo lido: 100 caracteres" },
+						createdAt: null,
+					},
+				]}
+			/>,
+		);
+
+		expect(screen.getByText(INITIALIZATION_GROUP_LABEL)).toBeInTheDocument();
+		expect(screen.getByText("Lendo arquivo")).toBeInTheDocument();
+		expect(screen.getByText(/#3/)).toBeInTheDocument();
+		expect(screen.getByText(/arquivo lido/i)).toBeInTheDocument();
+		expect(screen.queryByText(/"type":/)).not.toBeInTheDocument();
+	});
+
+	it("expands the active group and collapses completed groups by default", () => {
+		const { container } = render(
+			<IngestEventsGroupedList
+				isLoading={false}
+				status={JOB_STATUS.RUNNING}
+				phase={INGEST_PHASE.EXTRACTING}
+				error={null}
+				events={[
+					{
+						seq: 1,
+						payload: {
+							type: INGEST_DATA_PART.PHASE,
+							data: { phase: INGEST_PHASE.READING_FILE },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 2,
+						payload: { type: "text", text: "Arquivo lido: 50 caracteres" },
+						createdAt: null,
+					},
+					{
+						seq: 3,
+						payload: {
+							type: INGEST_DATA_PART.PHASE,
+							data: { phase: INGEST_PHASE.EXTRACTING },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 4,
+						payload: { type: "text", text: "Chamando modelo para extração…" },
+						createdAt: null,
+					},
+				]}
+			/>,
+		);
+
+		const view = within(container);
+		const initTrigger = view.getByRole("button", {
+			name: new RegExp(INITIALIZATION_GROUP_LABEL, "i"),
+		});
+		const readingTrigger = view.getByRole("button", { name: /lendo arquivo/i });
+		const extractingTrigger = view.getByRole("button", {
+			name: /extraindo questões/i,
+		});
+
+		expect(initTrigger).toHaveAttribute("data-state", "closed");
+		expect(readingTrigger).toHaveAttribute("data-state", "closed");
+		expect(extractingTrigger).toHaveAttribute("data-state", "open");
+		expect(within(extractingTrigger).getByText("1")).toBeInTheDocument();
+	});
+
+	it("shows failed state on the active group with error message", () => {
+		const { container } = render(
+			<IngestEventsGroupedList
+				isLoading={false}
+				status={JOB_STATUS.FAILED}
+				phase={INGEST_PHASE.EXTRACTING}
+				error="Falha na extração"
+				events={[
+					{
+						seq: 1,
+						payload: {
+							type: INGEST_DATA_PART.PHASE,
+							data: { phase: INGEST_PHASE.EXTRACTING },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 2,
+						payload: { type: "text", text: "Chamando modelo para extração…" },
+						createdAt: null,
+					},
+				]}
+			/>,
+		);
+
+		const extractingTrigger = within(container).getByRole("button", {
+			name: /extraindo questões/i,
+		});
+		expect(extractingTrigger).toHaveAttribute("data-state", "open");
+		expect(within(container).getByRole("alert")).toHaveTextContent(
+			"Falha na extração",
+		);
+	});
+
+	it("shows empty state when there are no events", () => {
+		render(
+			<IngestEventsGroupedList
+				events={[]}
+				isLoading={false}
+				status={null}
+				phase={null}
+				error={null}
+			/>,
+		);
+		expect(
+			screen.getByText(/nenhum evento registrado ainda/i),
+		).toBeInTheDocument();
+	});
+});

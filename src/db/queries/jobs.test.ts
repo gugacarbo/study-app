@@ -6,6 +6,7 @@ import {
 	createJob,
 	getJobById,
 	hasActiveIngestJob,
+	listActiveJobsForUser,
 	listJobEvents,
 	listJobsForAdmin,
 	requestJobCancelIfActive,
@@ -251,6 +252,55 @@ describe("jobs queries", () => {
 		});
 
 		expect(await hasActiveIngestJob(db, userId, examId)).toBe(false);
+	});
+
+	it("listActiveJobsForUser returns active jobs ordered by updated_at desc", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const otherUserId = createId();
+		const activeOlder = createId();
+		const activeNewer = createId();
+		const completedJob = createId();
+		const otherUserJob = createId();
+
+		await seedUser(db, userId);
+		await seedUser(db, otherUserId);
+
+		await createJob(db, {
+			id: activeOlder,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+		await db
+			.update(schema.backgroundJobs)
+			.set({ updatedAt: "2020-01-01T00:00:00.000Z" })
+			.where(eq(schema.backgroundJobs.id, activeOlder));
+
+		await createJob(db, {
+			id: activeNewer,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.RUNNING,
+			phase: "extracting",
+		});
+
+		await createJob(db, {
+			id: completedJob,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.COMPLETED,
+		});
+
+		await createJob(db, {
+			id: otherUserJob,
+			userId: otherUserId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.RUNNING,
+		});
+
+		const jobs = await listActiveJobsForUser(db, userId);
+		expect(jobs.map((job) => job.id)).toEqual([activeNewer, activeOlder]);
 	});
 
 	it("listJobsForAdmin returns jobs ordered by created_at desc with user email", async () => {

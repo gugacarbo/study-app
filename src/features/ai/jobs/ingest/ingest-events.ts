@@ -5,6 +5,7 @@ export const INGEST_DATA_PART = {
 	STREAM_PROGRESS: "data-ingest-stream-progress",
 	SKIPPED_DUPLICATE: "data-ingest-skipped-duplicate",
 	SUMMARY: "data-ingest-summary",
+	PERSIST_PROGRESS: "data-ingest-persist-progress",
 } as const;
 
 export type IngestPhasePart = {
@@ -32,6 +33,11 @@ export type IngestSummaryPart = {
 	};
 };
 
+export type IngestPersistProgressPart = {
+	type: typeof INGEST_DATA_PART.PERSIST_PROGRESS;
+	data: { saved: number; total: number };
+};
+
 export type IngestTextPart = {
 	type: "text";
 	text: string;
@@ -43,7 +49,8 @@ export type IngestDataPart =
 	| IngestPhasePart
 	| IngestStreamProgressPart
 	| IngestSkippedDuplicatePart
-	| IngestSummaryPart;
+	| IngestSummaryPart
+	| IngestPersistProgressPart;
 
 export function buildIngestPhasePart(phase: IngestPhase): IngestPhasePart {
 	return {
@@ -80,6 +87,39 @@ export function buildIngestSummaryPart(input: {
 		type: INGEST_DATA_PART.SUMMARY,
 		data: input,
 	};
+}
+
+export function buildIngestPersistProgressPart(
+	saved: number,
+	total: number,
+): IngestPersistProgressPart {
+	return {
+		type: INGEST_DATA_PART.PERSIST_PROGRESS,
+		data: { saved, total },
+	};
+}
+
+function formatIngestCount(value: number): string {
+	return value.toLocaleString("pt-BR");
+}
+
+export function buildIngestFileReadText(charCount: number): string {
+	return `Arquivo lido: ${formatIngestCount(charCount)} caracteres`;
+}
+
+export function buildIngestLlmCallText(): string {
+	return "Chamando modelo para extração…";
+}
+
+export function buildIngestLlmRetryText(
+	attempt: number,
+	maxAttempts: number,
+): string {
+	return `Tentativa ${attempt}/${maxAttempts}…`;
+}
+
+export function buildIngestPersistValidatingText(total: number): string {
+	return `Validando ${total} questão(ões)…`;
 }
 
 export function serializeIngestDataPart(part: IngestDataPart): string {

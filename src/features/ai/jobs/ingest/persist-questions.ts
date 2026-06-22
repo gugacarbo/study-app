@@ -29,6 +29,7 @@ export type PersistQuestionsDeps = {
 	onSkippedDuplicate?: (
 		part: ReturnType<typeof buildIngestSkippedDuplicatePart>,
 	) => Promise<void>;
+	onPersistProgress?: (saved: number, total: number) => Promise<void>;
 };
 
 export type PersistQuestionsInput = {
@@ -90,8 +91,14 @@ export async function persistQuestions(
 		toInsert.push(toQuestionInsert(input.examId, question));
 	}
 
-	if (toInsert.length > 0) {
+	const totalToPersist = toInsert.length;
+	await input.deps.onPersistProgress?.(0, totalToPersist);
+
+	if (totalToPersist > 0) {
 		await input.deps.batchInsertQuestions(toInsert);
+		for (let saved = 1; saved <= totalToPersist; saved++) {
+			await input.deps.onPersistProgress?.(saved, totalToPersist);
+		}
 	}
 
 	const persistedCount = toInsert.length;

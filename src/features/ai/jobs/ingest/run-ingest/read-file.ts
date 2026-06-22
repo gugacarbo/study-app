@@ -1,4 +1,9 @@
 import { getFileByIdWithOwnership } from "@/db/queries/files";
+import {
+	buildIngestFileReadText,
+	buildIngestTextPart,
+	serializeIngestJobEventPart,
+} from "@/features/ai/jobs/ingest/ingest-events";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
 import type { IngestJobMetadata } from "@/lib/job-kinds";
 import { auditedR2Get } from "@/lib/r2-audit";
@@ -60,6 +65,13 @@ export async function readIngestFileText(
 		);
 		return null;
 	}
+
+	await ctx.deps.appendJobEvent(
+		ctx.jobId,
+		serializeIngestJobEventPart(
+			buildIngestTextPart(buildIngestFileReadText(text.length)),
+		),
+	);
 
 	return text;
 }

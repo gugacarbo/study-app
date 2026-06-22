@@ -141,21 +141,6 @@ export function IngestProgressPanel({
 					{error}
 				</p>
 			) : null}
-
-			{progress.timeline.length > 0 ? (
-				<div className="mt-auto flex min-h-0 flex-col gap-2 border-t pt-3">
-					<h3 className="text-xs font-medium text-muted-foreground">
-						Eventos recentes
-					</h3>
-					<ul className="flex max-h-40 flex-col gap-2 overflow-y-auto text-xs">
-						{[...progress.timeline].reverse().map((entry) => (
-							<li key={entry.seq} className="text-muted-foreground">
-								{entry.label}
-							</li>
-						))}
-					</ul>
-				</div>
-			) : null}
 		</div>
 	);
 }

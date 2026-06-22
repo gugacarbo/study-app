@@ -192,6 +192,23 @@ export async function setCancelRequested(db: AppDatabase, jobId: string) {
 		.where(eq(schema.backgroundJobs.id, jobId));
 }
 
+export async function listActiveJobsForUser(
+	db: AppDatabase,
+	userId: string,
+): Promise<JobRow[]> {
+	return db
+		.select()
+		.from(schema.backgroundJobs)
+		.where(
+			and(
+				eq(schema.backgroundJobs.userId, userId),
+				inArray(schema.backgroundJobs.status, [...ACTIVE_INGEST_STATUSES]),
+			),
+		)
+		.orderBy(desc(schema.backgroundJobs.updatedAt))
+		.limit(5);
+}
+
 export async function hasActiveIngestJob(
 	db: AppDatabase,
 	userId: string,

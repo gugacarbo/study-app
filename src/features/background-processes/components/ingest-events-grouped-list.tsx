@@ -1,0 +1,202 @@
+import {
+	CheckIcon,
+	ChevronDownIcon,
+	CircleIcon,
+	LoaderCircleIcon,
+	XCircleIcon,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+	formatEventDetails,
+	formatEventLabel,
+	formatEventType,
+} from "@/features/background-processes/lib/ingest-event-mapper";
+import {
+	getIngestGroupStatus,
+	groupEventsByPhase,
+	isIngestGroupExpanded,
+	type IngestEventGroup,
+	type IngestGroupStatus,
+} from "@/features/background-processes/lib/group-ingest-events";
+import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
+import type { JobStatus } from "@/lib/job-kinds";
+import { cn } from "@/lib/utils";
+
+type IngestEventsGroupedListProps = {
+	events: JobEventRecord[];
+	isLoading: boolean;
+	status: JobStatus | null;
+	phase: string | null;
+	error: string | null;
+};
+
+function formatEventTimestamp(value: string | null): string {
+	if (!value) return "—";
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	return date.toLocaleString("pt-BR");
+}
+
+function eventLabel(event: JobEventRecord): string {
+	return formatEventLabel(event.payload) ?? `Evento #${event.seq}`;
+}
+
+function GroupStatusIcon({ status }: { status: IngestGroupStatus }) {
+	switch (status) {
+		case "done":
+			return <CheckIcon className="size-4 text-primary" aria-hidden />;
+		case "active":
+			return (
+				<LoaderCircleIcon
+					className="size-4 animate-spin text-primary"
+					aria-hidden
+				/>
+			);
+		case "failed":
+			return <XCircleIcon className="size-4 text-destructive" aria-hidden />;
+		default:
+			return <CircleIcon className="size-4 text-muted-foreground" aria-hidden />;
+	}
+}
+
+function IngestEventRow({ event }: { event: JobEventRecord }) {
+	const details = formatEventDetails(event.payload);
+	const hasDetails = details.length > 0;
+
+	return (
+		<li className="rounded-md border bg-muted/30 p-3">
+			<div className="flex flex-wrap items-center gap-2">
+				<span className="font-mono text-xs text-muted-foreground">
+					#{event.seq}
+				</span>
+				<span className="text-xs text-muted-foreground">
+					{formatEventTimestamp(event.createdAt)}
+				</span>
+				<Badge variant="outline">{formatEventType(event.payload)}</Badge>
+			</div>
+			<p className="mt-2 text-sm">{eventLabel(event)}</p>
+			{hasDetails ? (
+				<Collapsible className="mt-2">
+					<CollapsibleTrigger
+						className={cn(
+							"flex items-center gap-1 text-xs text-muted-foreground",
+							"hover:text-foreground",
+						)}
+					>
+						<ChevronDownIcon className="size-3" />
+						Detalhes
+					</CollapsibleTrigger>
+					<CollapsibleContent className="mt-2 flex flex-col gap-1 text-xs">
+						{details.map((detail) => (
+							<div key={detail.label} className="flex gap-2">
+								<span className="text-muted-foreground">{detail.label}:</span>
+								<span>{detail.value}</span>
+							</div>
+						))}
+					</CollapsibleContent>
+				</Collapsible>
+			) : null}
+		</li>
+	);
+}
+
+function IngestEventGroupSection({
+	group,
+	groupStatus,
+	errorMessage,
+}: {
+	group: IngestEventGroup;
+	groupStatus: IngestGroupStatus;
+	errorMessage: string | null;
+}) {
+	const expanded = isIngestGroupExpanded(groupStatus);
+
+	return (
+		<Collapsible
+			defaultOpen={expanded}
+			className="rounded-md border"
+		>
+			<CollapsibleTrigger
+				className={cn(
+					"flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
+					"hover:bg-muted/50",
+				)}
+			>
+				<GroupStatusIcon status={groupStatus} />
+				<span className="flex-1 font-medium">{group.label}</span>
+				<Badge variant="secondary" className="font-normal">
+					{group.events.length}
+				</Badge>
+				<ChevronDownIcon
+					className={cn(
+						"size-4 text-muted-foreground transition-transform",
+						expanded && "rotate-180",
+					)}
+				/>
+			</CollapsibleTrigger>
+			<CollapsibleContent className="border-t px-3 pb-3 pt-2">
+				{errorMessage ? (
+					<p className="mb-2 text-sm text-destructive" role="alert">
+						{errorMessage}
+					</p>
+				) : null}
+				<ul className="flex flex-col gap-2">
+					{group.events.map((event) => (
+						<IngestEventRow key={event.seq} event={event} />
+					))}
+				</ul>
+			</CollapsibleContent>
+		</Collapsible>
+	);
+}
+
+export function IngestEventsGroupedList({
+	events,
+	isLoading,
+	status,
+	phase,
+	error,
+}: IngestEventsGroupedListProps) {
+	const groups = groupEventsByPhase(events);
+
+	return (
+		<div
+			aria-label="Eventos do job"
+			className="flex min-h-0 flex-1 flex-col gap-3 p-4"
+		>
+			{isLoading ? (
+				<p className="text-xs text-muted-foreground">Atualizando…</p>
+			) : null}
+
+			{groups.length === 0 ? (
+				<p className="text-sm text-muted-foreground">
+					{isLoading
+						? "Carregando eventos…"
+						: "Nenhum evento registrado ainda."}
+				</p>
+			) : (
+				<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+					{groups.map((group) => {
+						const groupStatus = getIngestGroupStatus(group, status, phase);
+						const errorMessage =
+							groupStatus === "failed" && error ? error : null;
+
+						return (
+							<IngestEventGroupSection
+								key={`${group.label}-${group.phase ?? "init"}-${groupStatus}-${group.events[0]?.seq ?? 0}`}
+								group={group}
+								groupStatus={groupStatus}
+								errorMessage={errorMessage}
+							/>
+						);
+					})}
+				</div>
+			)}
+		</div>
+	);
+}

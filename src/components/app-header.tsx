@@ -2,6 +2,7 @@ import { AppAccountMenu } from "@/components/app-account-menu";
 import { AppNavDesktop } from "@/components/app-nav-desktop";
 import { AppNavMobile } from "@/components/app-nav-mobile";
 import type { AppShellUser } from "@/components/app-shell-types";
+import { ActiveJobsIndicator } from "@/features/background-processes/components/active-jobs-indicator";
 
 type AppHeaderProps = {
 	user: AppShellUser;
@@ -22,6 +23,7 @@ export function AppHeader({
 			<div className="flex shrink-0 items-center gap-2">
 				<AppNavDesktop pathname={pathname} />
 				<AppNavMobile pathname={pathname} />
+				<ActiveJobsIndicator />
 				<AppAccountMenu user={user} isAdmin={isAdmin} />
 			</div>
 		</header>

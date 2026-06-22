@@ -1,25 +1,32 @@
+import type { ThreadMessageLike } from "@assistant-ui/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
 import {
-	INGEST_DATA_PART,
-	type IngestDataPart,
-	type IngestPhasePart,
-	type IngestSkippedDuplicatePart,
-	type IngestStreamProgressPart,
-	type IngestSummaryPart,
-} from "@/features/ai/jobs/ingest/ingest-events";
+	formatEventDetails,
+	formatEventLabel,
+	formatEventType,
+	type IngestClientDataPart,
+	isIngestStreamPartEvent,
+	messageForPayload,
+	PHASE_LABELS,
+	roleForPayload,
+	type IngestEventType,
+	type IngestStreamPartEvent,
+} from "@/features/background-processes/lib/ingest-event-labels";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
-import { INGEST_PHASE, type IngestPhase } from "@/lib/job-kinds";
+import type { IngestPhase } from "@/lib/job-kinds";
 
-export type MappedAssistantMessage = {
+type AssistantContentPart = Extract<
+	ThreadMessageLike["content"],
+	readonly unknown[]
+>[number];
+
+export type MappedThreadMessage = {
 	id: string;
-	role: "assistant";
-	content: string;
+	role: "system" | "assistant";
+	content: ThreadMessageLike["content"];
 	seq: number;
-};
-
-export type ProgressTimelineEntry = {
-	seq: number;
-	label: string;
-	createdAt: string | null;
+	status?: "running" | "complete";
 };
 
 export type IngestProgressState = {
@@ -29,7 +36,6 @@ export type IngestProgressState = {
 	persisted: number | null;
 	skippedDuplicate: number | null;
 	invalid: number | null;
-	timeline: ProgressTimelineEntry[];
 };
 
 export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
@@ -39,16 +45,19 @@ export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
 	persisted: null,
 	skippedDuplicate: null,
 	invalid: null,
-	timeline: [],
 };
 
-const PHASE_LABELS: Record<IngestPhase, string> = {
-	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
-	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
-	[INGEST_PHASE.PERSISTING]: "Salvando questões",
+export type StreamPartsState = Map<string, AssistantContentPart[]>;
+
+export {
+	formatEventDetails,
+	formatEventLabel,
+	formatEventType,
+	type IngestEventType,
+	type IngestStreamPartEvent,
 };
 
-function isIngestDataPart(payload: unknown): payload is IngestDataPart {
+function isIngestDataPart(payload: unknown): payload is IngestClientDataPart {
 	if (!payload || typeof payload !== "object" || !("type" in payload)) {
 		return false;
 	}
@@ -57,74 +66,229 @@ function isIngestDataPart(payload: unknown): payload is IngestDataPart {
 		type === INGEST_DATA_PART.PHASE ||
 		type === INGEST_DATA_PART.STREAM_PROGRESS ||
 		type === INGEST_DATA_PART.SKIPPED_DUPLICATE ||
-		type === INGEST_DATA_PART.SUMMARY
+		type === INGEST_DATA_PART.SUMMARY ||
+		type === INGEST_DATA_PART.PERSIST_PROGRESS
 	);
 }
 
-function isTextPart(
-	payload: unknown,
-): payload is { type: "text"; text: string } {
-	return (
-		!!payload &&
-		typeof payload === "object" &&
-		"type" in payload &&
-		(payload as { type: string }).type === "text" &&
-		"text" in payload &&
-		typeof (payload as { text: unknown }).text === "string"
+function parseArgsText(argsText: string): ReadonlyJSONObject {
+	try {
+		const parsed: unknown = JSON.parse(argsText);
+		if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+			return parsed as ReadonlyJSONObject;
+		}
+	} catch {
+		// partial or invalid JSON while streaming
+	}
+	return {};
+}
+
+function findReasoningPartIndex(parts: AssistantContentPart[]): number {
+	return parts.findIndex((part) => part.type === "reasoning");
+}
+
+function findToolCallPartIndex(
+	parts: AssistantContentPart[],
+	toolCallId: string,
+): number {
+	return parts.findIndex(
+		(part) => part.type === "tool-call" && part.toolCallId === toolCallId,
 	);
 }
 
-function messageForPhasePart(part: IngestPhasePart): string {
-	return `${PHASE_LABELS[part.data.phase]}…`;
+function findTextPartIndex(parts: AssistantContentPart[]): number {
+	return parts.findIndex((part) => part.type === "text");
 }
 
-function messageForProgressPart(part: IngestStreamProgressPart): string {
-	const count = part.data.questionsSeen;
-	if (count === 1) return "Identifiquei 1 questão até agora…";
-	return `Identifiquei ${count} questões até agora…`;
-}
+export function mergeStreamParts(
+	state: StreamPartsState,
+	event: IngestStreamPartEvent,
+): StreamPartsState {
+	const { messageId } = event;
+	const parts = [...(state.get(messageId) ?? [])];
+	const next = new Map(state);
 
-function messageForSkippedPart(part: IngestSkippedDuplicatePart): string {
-	return `Duplicata ignorada: "${part.data.questionPreview}"`;
-}
-
-function messageForSummaryPart(part: IngestSummaryPart): string {
-	const { persisted, skippedDuplicate, invalid } = part.data;
-	const parts = [`${persisted} questão(ões) salva(s)`];
-	if (skippedDuplicate > 0) {
-		parts.push(`${skippedDuplicate} duplicata(s) ignorada(s)`);
+	switch (event.type) {
+		case "reasoning-delta": {
+			const idx = findReasoningPartIndex(parts);
+			if (idx >= 0) {
+				const current = parts[idx];
+				if (current.type === "reasoning") {
+					parts[idx] = {
+						type: "reasoning",
+						text: current.text + event.delta,
+					};
+				}
+			} else {
+				parts.push({ type: "reasoning", text: event.delta });
+			}
+			break;
+		}
+		case "reasoning": {
+			const idx = findReasoningPartIndex(parts);
+			if (idx >= 0) {
+				parts[idx] = { type: "reasoning", text: event.text };
+			} else {
+				parts.push({ type: "reasoning", text: event.text });
+			}
+			break;
+		}
+		case "tool-call": {
+			const idx = findToolCallPartIndex(parts, event.toolCallId);
+			const toolPart = {
+				type: "tool-call" as const,
+				toolCallId: event.toolCallId,
+				toolName: event.toolName,
+				argsText: event.argsText,
+				args: parseArgsText(event.argsText),
+			};
+			if (idx >= 0) {
+				const current = parts[idx];
+				if (current.type === "tool-call") {
+					parts[idx] = {
+						...current,
+						...toolPart,
+						result: current.result,
+						isError: current.isError,
+					};
+				}
+			} else {
+				parts.push(toolPart);
+			}
+			break;
+		}
+		case "tool-result": {
+			const idx = findToolCallPartIndex(parts, event.toolCallId);
+			if (idx >= 0) {
+				const current = parts[idx];
+				if (current.type === "tool-call") {
+					parts[idx] = {
+						...current,
+						result: event.result,
+						isError: event.isError,
+					};
+				}
+			} else {
+				parts.push({
+					type: "tool-call",
+					toolCallId: event.toolCallId,
+					toolName: "unknown",
+					argsText: "{}",
+					args: {},
+					result: event.result,
+					isError: event.isError,
+				});
+			}
+			break;
+		}
+		case "text": {
+			const idx = findTextPartIndex(parts);
+			if (idx >= 0) {
+				const current = parts[idx];
+				if (current.type === "text") {
+					parts[idx] = {
+						type: "text",
+						text: current.text + event.text,
+					};
+				}
+			} else {
+				parts.push({ type: "text", text: event.text });
+			}
+			break;
+		}
 	}
-	if (invalid > 0) {
-		parts.push(`${invalid} inválida(s)`);
-	}
-	return `Importação concluída: ${parts.join(", ")}.`;
+
+	next.set(messageId, parts);
+	return next;
 }
 
-function timelineLabelForPayload(payload: unknown): string | null {
-	if (isTextPart(payload)) return payload.text;
-	if (!isIngestDataPart(payload)) return null;
+function rebuildStreamPartsFromMessages(messages: MappedThreadMessage[]): {
+	streamParts: StreamPartsState;
+	streamFirstSeq: Map<string, number>;
+} {
+	const streamParts: StreamPartsState = new Map();
+	const streamFirstSeq = new Map<string, number>();
 
-	switch (payload.type) {
-		case INGEST_DATA_PART.PHASE:
-			return messageForPhasePart(payload);
-		case INGEST_DATA_PART.STREAM_PROGRESS:
-			return messageForProgressPart(payload);
-		case INGEST_DATA_PART.SKIPPED_DUPLICATE:
-			return messageForSkippedPart(payload);
-		case INGEST_DATA_PART.SUMMARY:
-			return messageForSummaryPart(payload);
-		default:
-			return null;
+	for (const message of messages) {
+		if (message.role === "assistant" && Array.isArray(message.content)) {
+			streamParts.set(message.id, [...message.content]);
+			streamFirstSeq.set(message.id, message.seq);
+		}
 	}
+
+	return { streamParts, streamFirstSeq };
 }
 
-function messageForPayload(payload: unknown): string | null {
-	return timelineLabelForPayload(payload);
+function findLastStreamAssistantIndex(
+	messages: MappedThreadMessage[],
+): number {
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index];
+		if (message?.role === "assistant" && Array.isArray(message.content)) {
+			return index;
+		}
+	}
+	return -1;
+}
+
+function upsertStreamMessages(
+	messages: MappedThreadMessage[],
+	streamParts: StreamPartsState,
+	streamFirstSeq: Map<string, number>,
+	activeMessageId: string | null,
+): MappedThreadMessage[] {
+	let next = [...messages];
+
+	for (const [messageId, parts] of streamParts) {
+		const seq = streamFirstSeq.get(messageId) ?? 0;
+		const idx = next.findIndex((message) => message.id === messageId);
+		const streamMessage: MappedThreadMessage = {
+			id: messageId,
+			role: "assistant",
+			content: parts,
+			seq,
+			status:
+				activeMessageId === messageId ? ("running" as const) : ("complete" as const),
+		};
+
+		if (idx >= 0) {
+			next[idx] = { ...streamMessage, seq: next[idx]!.seq };
+		} else {
+			next = [...next, streamMessage];
+		}
+	}
+
+	return next.sort((a, b) => a.seq - b.seq);
+}
+
+function applyAssistantMessageStatus(
+	messages: MappedThreadMessage[],
+	isJobTerminal?: boolean,
+): MappedThreadMessage[] {
+	const lastStreamAssistantIdx = findLastStreamAssistantIndex(messages);
+	if (lastStreamAssistantIdx < 0) return messages;
+
+	return messages.map((message, index) => {
+		if (message.role !== "assistant" || typeof message.content === "string") {
+			return message;
+		}
+
+		if (isJobTerminal && index === lastStreamAssistantIdx) {
+			return { ...message, status: "complete" as const };
+		}
+		if (!isJobTerminal && index === lastStreamAssistantIdx) {
+			return { ...message, status: "running" as const };
+		}
+		if (index < lastStreamAssistantIdx) {
+			return { ...message, status: "complete" as const };
+		}
+		return message;
+	});
 }
 
 function applyDataPartToProgress(
 	progress: IngestProgressState,
-	part: IngestDataPart,
+	part: IngestClientDataPart,
 ): IngestProgressState {
 	switch (part.type) {
 		case INGEST_DATA_PART.PHASE:
@@ -139,6 +303,8 @@ function applyDataPartToProgress(
 				skippedDuplicate: part.data.skippedDuplicate,
 				invalid: part.data.invalid,
 			};
+		case INGEST_DATA_PART.PERSIST_PROGRESS:
+			return progress;
 		default:
 			return progress;
 	}
@@ -146,47 +312,72 @@ function applyDataPartToProgress(
 
 export function mergeJobEvents(
 	current: {
-		messages: MappedAssistantMessage[];
+		messages: MappedThreadMessage[];
 		progress: IngestProgressState;
 		lastSeq: number;
 		events: JobEventRecord[];
+		streamParts?: StreamPartsState;
+		streamFirstSeq?: Map<string, number>;
+		isJobTerminal?: boolean;
 	},
 	incoming: JobEventRecord[],
 ): {
-	messages: MappedAssistantMessage[];
+	messages: MappedThreadMessage[];
 	progress: IngestProgressState;
 	lastSeq: number;
 	events: JobEventRecord[];
+	streamParts: StreamPartsState;
+	streamFirstSeq: Map<string, number>;
 } {
-	let { messages, progress, lastSeq, events } = current;
+	let { messages, progress, lastSeq, events, isJobTerminal } = current;
+	let streamParts = current.streamParts;
+	let streamFirstSeq = current.streamFirstSeq;
+	if (!streamParts) {
+		({ streamParts, streamFirstSeq } =
+			rebuildStreamPartsFromMessages(messages));
+	}
+	streamFirstSeq ??= new Map<string, number>();
+	let activeStreamMessageId: string | null = null;
 
 	for (const event of incoming) {
 		if (event.seq <= lastSeq) continue;
 
 		events = [...events, event];
 
-		const label = timelineLabelForPayload(event.payload);
-		if (label) {
-			progress = {
-				...progress,
-				timeline: [
-					...progress.timeline,
-					{ seq: event.seq, label, createdAt: event.createdAt },
-				].slice(-20),
-			};
-		}
-
-		const text = messageForPayload(event.payload);
-		if (text) {
-			messages = [
-				...messages,
-				{
-					id: `job-event-${event.seq}`,
-					role: "assistant",
-					content: text,
-					seq: event.seq,
-				},
-			];
+		if (isIngestStreamPartEvent(event.payload)) {
+			const { messageId } = event.payload;
+			if (!streamFirstSeq.has(messageId)) {
+				streamFirstSeq = new Map(streamFirstSeq);
+				streamFirstSeq.set(messageId, event.seq);
+			}
+			streamParts = mergeStreamParts(streamParts, event.payload);
+			activeStreamMessageId = messageId;
+			messages = upsertStreamMessages(
+				messages,
+				streamParts,
+				streamFirstSeq,
+				activeStreamMessageId,
+			);
+		} else {
+			const text = messageForPayload(event.payload);
+			const role = roleForPayload(event.payload);
+			if (text && role) {
+				const lastMessage = messages.at(-1);
+				const isDuplicate =
+					typeof lastMessage?.content === "string" &&
+					lastMessage.content === text;
+				if (!isDuplicate) {
+					messages = [
+						...messages,
+						{
+							id: `job-event-${event.seq}`,
+							role,
+							content: text,
+							seq: event.seq,
+						},
+					];
+				}
+			}
 		}
 
 		if (isIngestDataPart(event.payload)) {
@@ -196,7 +387,16 @@ export function mergeJobEvents(
 		lastSeq = event.seq;
 	}
 
-	return { messages, progress, lastSeq, events };
+	messages = applyAssistantMessageStatus(messages, isJobTerminal);
+
+	return {
+		messages,
+		progress,
+		lastSeq,
+		events,
+		streamParts,
+		streamFirstSeq,
+	};
 }
 
 export function formatPhaseLabel(phase: IngestPhase | null): string | null {

@@ -1,5 +1,5 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
-import type { generateObject } from "ai";
+import type { generateObject, streamText } from "ai";
 import type { AppDatabase } from "@/db/client";
 import type { PersistQuestionsDeps } from "@/features/ai/jobs/ingest/persist-questions";
 import type { getAiModel } from "@/lib/ai-config";
@@ -31,6 +31,7 @@ export type RunIngestDeps = {
 	persistQuestionsDeps: PersistQuestionsDeps;
 	getAiModel?: typeof getAiModel;
 	generateObject?: typeof generateObject;
+	streamText?: typeof streamText;
 	sleep?: (ms: number) => Promise<void>;
 };
 

@@ -46,6 +46,14 @@ vi.mock("@/lib/auth-client", () => ({
 	},
 }));
 
+vi.mock("@/features/background-processes/hooks/use-active-jobs", () => ({
+	useActiveJobs: () => ({
+		data: { jobs: [] },
+		isLoading: false,
+		isError: false,
+	}),
+}));
+
 function renderShell(ui: React.ReactNode) {
 	return render(ui);
 }

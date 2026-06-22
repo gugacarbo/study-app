@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	INITIAL_INGEST_PROGRESS,
 	type IngestProgressState,
-	type MappedAssistantMessage,
+	type MappedThreadMessage,
 	mergeJobEvents,
+	type StreamPartsState,
 } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
 	fetchJobEvents,
@@ -29,11 +30,13 @@ export type JobSyncState = {
 	phase: string | null;
 	error: string | null;
 	metadata: IngestJobMetadata | null;
-	messages: MappedAssistantMessage[];
+	messages: MappedThreadMessage[];
 	progress: IngestProgressState;
 	events: JobEventRecord[];
 	lastSeq: number;
 	isTerminal: boolean;
+	streamParts?: StreamPartsState;
+	streamFirstSeq?: Map<string, number>;
 };
 
 const INITIAL_SYNC_STATE: JobSyncState = {
@@ -46,6 +49,8 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	events: [],
 	lastSeq: 0,
 	isTerminal: false,
+	streamParts: undefined,
+	streamFirstSeq: undefined,
 };
 
 function applyJobResponse(
