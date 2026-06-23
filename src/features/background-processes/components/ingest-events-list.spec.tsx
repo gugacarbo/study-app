@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { IngestEventsGroupedList } from "@/features/background-processes/components/ingest-events-grouped-list";
 import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
@@ -25,7 +25,7 @@ describe("IngestEventsGroupedList", () => {
 			<IngestEventsGroupedList
 				isLoading={false}
 				status={JOB_STATUS.RUNNING}
-				phase={INGEST_PHASE.READING_FILE}
+				phase={null}
 				error={null}
 				events={[
 					{
@@ -51,8 +51,9 @@ describe("IngestEventsGroupedList", () => {
 		);
 
 		expect(screen.getByText(INITIALIZATION_GROUP_LABEL)).toBeInTheDocument();
-		expect(screen.getByText("Lendo arquivo")).toBeInTheDocument();
-		expect(screen.getAllByText(/arquivo lido/i).length).toBeGreaterThan(0);
+		expect(screen.getByText(PHASE_TEXT[INGEST_PHASE.READING_FILE])).toBeInTheDocument();
+		expect(screen.getByText(/#3/)).toBeInTheDocument();
+		expect(screen.getByText(/arquivo lido/i)).toBeInTheDocument();
 		expect(screen.queryByText(/"type":/)).not.toBeInTheDocument();
 	});
 
@@ -111,7 +112,7 @@ describe("IngestEventsGroupedList", () => {
 		expect(initTrigger).toHaveAttribute("data-state", "closed");
 		expect(readingTrigger).toHaveAttribute("data-state", "closed");
 		expect(extractingTrigger).toHaveAttribute("data-state", "open");
-		expect(within(extractingTrigger).getByText("2")).toBeInTheDocument();
+		expect(within(extractingTrigger).getByText("1")).toBeInTheDocument();
 	});
 
 	it("shows failed state on the active group with error message", () => {
@@ -163,7 +164,7 @@ describe("IngestEventsGroupedList", () => {
 		).toBeInTheDocument();
 	});
 
-	it("renders the active system sequence inline in the phase content", () => {
+	it("renders system message with distinct visual per kind", () => {
 		render(
 			<IngestEventsGroupedList
 				isLoading={false}
@@ -183,17 +184,23 @@ describe("IngestEventsGroupedList", () => {
 			/>,
 		);
 
-		expect(screen.getAllByText(/arquivo lido: 100 caracteres/i)).toHaveLength(2);
-		expect(screen.queryByText("Mensagens do sistema")).not.toBeInTheDocument();
-		expect(screen.queryByText(/#1/)).not.toBeInTheDocument();
+		expect(screen.getByText(/arquivo lido: 100 caracteres/i)).toBeInTheDocument();
+		expect(screen.queryByText("Sistema")).not.toBeInTheDocument();
+		const label = screen.getByText(/arquivo lido: 100 caracteres/i);
+		const row = label.closest("li");
+		expect(row).toBeInTheDocument();
+		expect(row).toHaveClass("border-l-2");
+		expect(row).toHaveClass("border-l-chart-2");
+		expect(row).toHaveClass("bg-chart-2/10");
+		expect(row).not.toHaveTextContent(/#1/);
 	});
 
-	it("keeps repeated system messages in the expanded history instead of deduping", () => {
+	it("deduplicates system messages by kind within group", () => {
 		render(
 			<IngestEventsGroupedList
 				isLoading={false}
 				status={JOB_STATUS.RUNNING}
-				phase={null}
+				phase={INGEST_PHASE.READING_FILE}
 				error={null}
 				events={[
 					{
@@ -206,6 +213,14 @@ describe("IngestEventsGroupedList", () => {
 					},
 					{
 						seq: 2,
+						payload: {
+							type: INGEST_DATA_PART.PHASE,
+							data: { phase: INGEST_PHASE.READING_FILE },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 3,
 						payload: {
 							type: "data-ingest-system-info",
 							data: { kind: "file-read", payload: { charCount: 200 } },
@@ -216,11 +231,11 @@ describe("IngestEventsGroupedList", () => {
 			/>,
 		);
 
-		expect(screen.getAllByText(/arquivo lido: 200 caracteres/i)).toHaveLength(2);
-		expect(screen.getByText(/arquivo lido: 100 caracteres/i)).toBeInTheDocument();
+		expect(screen.getByText(/arquivo lido: 200 caracteres/i)).toBeInTheDocument();
+		expect(screen.queryByText(/arquivo lido: 100 caracteres/i)).not.toBeInTheDocument();
 	});
 
-	it("collapses a finished system sequence to the latest message and expands on click", () => {
+	it("system messages appear in system group with distinct visuals", () => {
 		render(
 			<IngestEventsGroupedList
 				isLoading={false}
@@ -244,57 +259,11 @@ describe("IngestEventsGroupedList", () => {
 						},
 						createdAt: null,
 					},
-					{
-						seq: 3,
-						payload: {
-							type: INGEST_DATA_PART.STREAM_PROGRESS,
-							data: { questionsSeen: 1 },
-						},
-						createdAt: null,
-					},
 				]}
 			/>,
 		);
 
-		expect(screen.queryByText(/lendo arquivo…/i)).not.toBeInTheDocument();
+		expect(screen.getByText("Mensagens do sistema")).toBeInTheDocument();
 		expect(screen.getByText(/arquivo lido: 50 caracteres/i)).toBeInTheDocument();
-		expect(screen.getByText(/1 atualização/i)).toBeInTheDocument();
-
-		fireEvent.click(
-			screen.getByRole("button", { name: /arquivo lido: 50 caracteres/i }),
-		);
-
-		expect(screen.getAllByText(/arquivo lido: 50 caracteres/i)).toHaveLength(2);
-	});
-
-	it("starts the active inline system sequence expanded", () => {
-		render(
-			<IngestEventsGroupedList
-				isLoading={false}
-				status={JOB_STATUS.RUNNING}
-				phase={INGEST_PHASE.READING_FILE}
-				error={null}
-				events={[
-					{
-						seq: 1,
-						payload: {
-							type: "data-ingest-system-info",
-							data: { kind: "phase", payload: { phase: INGEST_PHASE.READING_FILE } },
-						},
-						createdAt: null,
-					},
-					{
-						seq: 2,
-						payload: {
-							type: "data-ingest-system-info",
-							data: { kind: "file-read", payload: { charCount: 50 } },
-						},
-						createdAt: null,
-					},
-				]}
-			/>,
-		);
-
-		expect(screen.getAllByText(/arquivo lido: 50 caracteres/i)).toHaveLength(2);
 	});
 });
