@@ -60,6 +60,8 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0016 | `docs/specs/admin/0016-admin-jobs.md`             | ADR-0009, ADR-0004, SPEC-0004                       | implemented |
 | SPEC-0019 | `docs/specs/ui/0019-ingest-realtime-ux.md`        | ADR-0008, ADR-0009, SPEC-0014, SPEC-0018            | implemented |
 | SPEC-0020 | `docs/specs/ui/0020-ingest-agent-thread.md`       | ADR-0007, ADR-0008, ADR-0009, SPEC-0004, SPEC-0018, SPEC-0019 | accepted    |
+| SPEC-0021 | `docs/specs/exams/0021-edicao-visualizacao-questoes.md` | ADR-0008, SPEC-0019, SPEC-0020                   | implemented |
+| SPEC-0022 | `docs/specs/ui/0022-ingest-system-message-groups.md` | ADR-0008, SPEC-0019, SPEC-0020                   | draft       |
 
 ## Pendências
 
