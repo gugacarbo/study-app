@@ -105,6 +105,62 @@ describe("JobMonitorPage", () => {
 		expect(screen.getByText(/atividade/i)).toBeInTheDocument();
 	});
 
+	it("shows extracted question previews in the progress panel", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.RUNNING,
+					phase: "extracting",
+					error: null,
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					events: [
+						{
+							seq: 1,
+							payload: {
+								type: "tool-call",
+								messageId: "ingest-step-1",
+								toolCallId: "tc-1",
+								toolName: "submit_question",
+								argsText: JSON.stringify({
+									question: "Qual e a capital de Santa Catarina?",
+									topic: "Geografia",
+									options: [
+										{ key: "A", text: "Florianopolis" },
+										{ key: "B", text: "Blumenau" },
+									],
+									answers: ["A"],
+								}),
+								state: "running",
+							},
+							createdAt: null,
+						},
+						{
+							seq: 2,
+							payload: {
+								type: "tool-result",
+								messageId: "ingest-step-1",
+								toolCallId: "tc-1",
+								result: { ok: true, index: 1 },
+							},
+							createdAt: null,
+						},
+					],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByText("Qual e a capital de Santa Catarina?"),
+			).toBeInTheDocument();
+			expect(screen.getByText(/geografia/i)).toBeInTheDocument();
+		});
+	});
+
 	it("shows Ver prova link when job completed with examId", async () => {
 		vi.stubGlobal(
 			"fetch",

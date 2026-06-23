@@ -6,12 +6,12 @@ import {
 	formatEventLabel,
 	formatEventType,
 	type IngestClientDataPart,
+	type IngestEventType,
+	type IngestStreamPartEvent,
 	isIngestStreamPartEvent,
 	messageForPayload,
 	PHASE_LABELS,
 	roleForPayload,
-	type IngestEventType,
-	type IngestStreamPartEvent,
 } from "@/features/background-processes/lib/ingest-event-labels";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
 import type { IngestPhase } from "@/lib/job-kinds";
@@ -36,6 +36,11 @@ export type IngestProgressState = {
 	persisted: number | null;
 	skippedDuplicate: number | null;
 	invalid: number | null;
+	extractedQuestionsPreview: {
+		index: number;
+		question: string;
+		topic: string;
+	}[];
 };
 
 export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
@@ -45,6 +50,7 @@ export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
 	persisted: null,
 	skippedDuplicate: null,
 	invalid: null,
+	extractedQuestionsPreview: [],
 };
 
 export type StreamPartsState = Map<string, AssistantContentPart[]>;
@@ -74,7 +80,11 @@ function isIngestDataPart(payload: unknown): payload is IngestClientDataPart {
 function parseArgsText(argsText: string): ReadonlyJSONObject {
 	try {
 		const parsed: unknown = JSON.parse(argsText);
-		if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+		if (
+			typeof parsed === "object" &&
+			parsed !== null &&
+			!Array.isArray(parsed)
+		) {
 			return parsed as ReadonlyJSONObject;
 		}
 	} catch {
@@ -219,9 +229,7 @@ function rebuildStreamPartsFromMessages(messages: MappedThreadMessage[]): {
 	return { streamParts, streamFirstSeq };
 }
 
-function findLastStreamAssistantIndex(
-	messages: MappedThreadMessage[],
-): number {
+function findLastStreamAssistantIndex(messages: MappedThreadMessage[]): number {
 	for (let index = messages.length - 1; index >= 0; index -= 1) {
 		const message = messages[index];
 		if (message?.role === "assistant" && Array.isArray(message.content)) {
@@ -248,11 +256,13 @@ function upsertStreamMessages(
 			content: parts,
 			seq,
 			status:
-				activeMessageId === messageId ? ("running" as const) : ("complete" as const),
+				activeMessageId === messageId
+					? ("running" as const)
+					: ("complete" as const),
 		};
 
 		if (idx >= 0) {
-			next[idx] = { ...streamMessage, seq: next[idx]!.seq };
+			next[idx] = { ...streamMessage, seq: next[idx]?.seq ?? streamMessage.seq };
 		} else {
 			next = [...next, streamMessage];
 		}
@@ -310,6 +320,71 @@ function applyDataPartToProgress(
 	}
 }
 
+function extractQuestionPreviewFromStreamParts(
+	streamParts: StreamPartsState,
+	event: Extract<IngestStreamPartEvent, { type: "tool-result" }>,
+): IngestProgressState["extractedQuestionsPreview"][number] | null {
+	const messageParts = streamParts.get(event.messageId);
+	if (!messageParts) return null;
+
+	const toolCallPart = messageParts.find(
+		(part) =>
+			part.type === "tool-call" &&
+			part.toolCallId === event.toolCallId &&
+			part.toolName === "submit_question",
+	);
+	if (toolCallPart?.type !== "tool-call") return null;
+
+	const result = event.result;
+	if (!result || typeof result !== "object") return null;
+	const ok = "ok" in result ? result.ok : undefined;
+	const index = "index" in result ? result.index : undefined;
+	if (ok !== true || typeof index !== "number") return null;
+	const args =
+		toolCallPart.args && typeof toolCallPart.args === "object"
+			? toolCallPart.args
+			: null;
+	if (!args) return null;
+
+	const question = "question" in args ? args.question : undefined;
+	const topic = "topic" in args ? args.topic : undefined;
+	if (typeof question !== "string" || typeof topic !== "string") return null;
+
+	return {
+		index,
+		question,
+		topic,
+	};
+}
+
+function applyStreamPartToProgress(
+	progress: IngestProgressState,
+	streamParts: StreamPartsState,
+	event: IngestStreamPartEvent,
+): IngestProgressState {
+	if (event.type !== "tool-result") return progress;
+
+	const preview = extractQuestionPreviewFromStreamParts(streamParts, event);
+	if (!preview) return progress;
+
+	const existingIndex = progress.extractedQuestionsPreview.findIndex(
+		(item) => item.index === preview.index,
+	);
+	if (existingIndex >= 0) {
+		const nextPreview = [...progress.extractedQuestionsPreview];
+		nextPreview[existingIndex] = preview;
+		return { ...progress, extractedQuestionsPreview: nextPreview };
+	}
+
+	return {
+		...progress,
+		extractedQuestionsPreview: [
+			...progress.extractedQuestionsPreview,
+			preview,
+		].sort((a, b) => a.index - b.index),
+	};
+}
+
 export function mergeJobEvents(
 	current: {
 		messages: MappedThreadMessage[];
@@ -357,6 +432,11 @@ export function mergeJobEvents(
 				streamParts,
 				streamFirstSeq,
 				activeStreamMessageId,
+			);
+			progress = applyStreamPartToProgress(
+				progress,
+				streamParts,
+				event.payload,
 			);
 		} else {
 			const text = messageForPayload(event.payload);

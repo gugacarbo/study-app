@@ -19,7 +19,7 @@ export const INGEST_AGENT_SYSTEM_PROMPT =
 	"Extraia questões objetivas de prova universitária em português. " +
 	"Preencha topic com uma classificação curta do assunto de cada questão. " +
 	"Use as tools sequencialmente: chame submit_question para cada questão encontrada " +
-	"(question, options, answers, topic) e finish_extraction ao terminar informando o total. " +
+	"(question, options, answers, topic) e finish_extraction ao terminar informando o total e um resumo final de até 150 caracteres. " +
 	"Não responda com JSON solto, markdown ou texto livre — use apenas as tools.";
 
 export const MAX_AGENT_STEPS = 50;

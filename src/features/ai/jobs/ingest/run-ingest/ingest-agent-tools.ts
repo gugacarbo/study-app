@@ -10,8 +10,20 @@ import {
 } from "@/features/ai/jobs/ingest/ingest-events";
 import {
 	buildStreamToolResultPart,
+	buildStreamTextPart,
 	serializeIngestStreamPart,
 } from "./ingest-stream-parts";
+
+export const FINISH_EXTRACTION_SUMMARY_MAX_LENGTH = 150;
+
+export const finishExtractionInputSchema = z.object({
+	total: z.number().int().nonnegative(),
+	summary: z
+		.string()
+		.trim()
+		.min(1)
+		.max(FINISH_EXTRACTION_SUMMARY_MAX_LENGTH),
+});
 
 export type SubmitQuestionResult =
 	| { ok: true; index: number }
@@ -20,6 +32,7 @@ export type SubmitQuestionResult =
 export type FinishExtractionResult = {
 	ok: true;
 	total: number;
+	summary: string;
 };
 
 export type IngestAgentToolsContext = {
@@ -82,17 +95,21 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 		}),
 		finish_extraction: tool({
 			description:
-				"Signal that question extraction is complete. Pass the total number of questions submitted.",
-			inputSchema: z.object({
-				total: z.number().int().nonnegative(),
-			}),
+				"Signal that question extraction is complete. Pass the total number of questions submitted and a short summary up to 150 characters.",
+			inputSchema: finishExtractionInputSchema,
 			execute: async (input, { toolCallId }) => {
 				ctx.onFinishExtraction();
 				const result: FinishExtractionResult = {
 					ok: true,
 					total: input.total,
+					summary: input.summary,
 				};
 				await persistToolResult(toolCallId, result);
+				await ctx.append(
+					serializeIngestStreamPart(
+						buildStreamTextPart(ctx.getCurrentMessageId(), input.summary),
+					),
+				);
 				return result;
 			},
 		}),

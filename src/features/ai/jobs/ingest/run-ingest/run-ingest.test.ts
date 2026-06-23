@@ -14,6 +14,10 @@ import {
 	type RunIngestDeps,
 	runIngest,
 } from "@/features/ai/jobs/ingest/run-ingest";
+import {
+	FINISH_EXTRACTION_SUMMARY_MAX_LENGTH,
+	finishExtractionInputSchema,
+} from "@/features/ai/jobs/ingest/run-ingest/ingest-agent-tools";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
 import {
 	INGEST_MODE,
@@ -101,6 +105,32 @@ function createMockStreamText(questions: unknown[]) {
 				}
 			}
 
+			const summary = `${questions.length} questão(ões) extraída(s) da prova.`;
+			yield {
+				type: "tool-call",
+				toolCallId: "finish-1",
+				toolName: "finish_extraction",
+				input: {
+					total: questions.length,
+					summary,
+				},
+			};
+
+			const finishExecute = _options.tools?.finish_extraction?.execute;
+			if (finishExecute) {
+				await finishExecute(
+					{
+						total: questions.length,
+						summary,
+					},
+					{
+						toolCallId: "finish-1",
+						messages: [],
+						abortSignal: _options.abortSignal,
+					},
+				);
+			}
+
 			yield {
 				type: "finish-step",
 				response: {},
@@ -173,6 +203,29 @@ function createRunDeps(input?: {
 }
 
 describe("runIngest", () => {
+	it("requires finish_extraction summary with max 150 chars", () => {
+		expect(
+			finishExtractionInputSchema.safeParse({
+				total: 3,
+				summary: "Resumo curto da extração",
+			}).success,
+		).toBe(true);
+
+		expect(
+			finishExtractionInputSchema.safeParse({
+				total: 3,
+				summary: "",
+			}).success,
+		).toBe(false);
+
+		expect(
+			finishExtractionInputSchema.safeParse({
+				total: 3,
+				summary: "a".repeat(FINISH_EXTRACTION_SUMMARY_MAX_LENGTH + 1),
+			}).success,
+		).toBe(false);
+	});
+
 	it("no-ops when job status is not queued", async () => {
 		const updateJobStatus = vi.fn(async () => undefined);
 		const deps: RunIngestDeps = {
@@ -636,6 +689,30 @@ describe("runIngest", () => {
 					type: "tool-result",
 					messageId: "ingest-step-1",
 					result: { ok: true, index: 2 },
+				}),
+				expect.objectContaining({
+					type: "tool-call",
+					messageId: "ingest-step-1",
+					toolName: "finish_extraction",
+					argsText: JSON.stringify({
+						total: 2,
+						summary: "2 questão(ões) extraída(s) da prova.",
+					}),
+					state: "running",
+				}),
+				expect.objectContaining({
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					result: {
+						ok: true,
+						total: 2,
+						summary: "2 questão(ões) extraída(s) da prova.",
+					},
+				}),
+				expect.objectContaining({
+					type: "text",
+					messageId: "ingest-step-1",
+					text: "2 questão(ões) extraída(s) da prova.",
 				}),
 			]),
 		);

@@ -348,6 +348,13 @@ export function messageForPayload(payload: unknown): string | null {
 	if (isIngestDataPart(payload) && payload.type === INGEST_DATA_PART.PHASE) {
 		return null;
 	}
+	if (
+		isIngestDataPart(payload) &&
+		(payload.type === INGEST_DATA_PART.STREAM_PROGRESS ||
+			payload.type === INGEST_DATA_PART.PERSIST_PROGRESS)
+	) {
+		return null;
+	}
 	return formatEventLabel(payload);
 }
 

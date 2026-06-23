@@ -96,11 +96,10 @@ describe("mergeJobEvents", () => {
 		]);
 
 		expect(result.progress.questionsSeen).toBe(5);
-		expect(result.messages[0]?.role).toBe("assistant");
-		expect(result.messages[0]?.content).toContain("5 questões");
+		expect(result.messages).toHaveLength(0);
 	});
 
-	it("maps persist progress as assistant message", () => {
+	it("keeps persist progress out of the activity thread", () => {
 		const result = mergeJobEvents(emptyState, [
 			{
 				seq: 4,
@@ -112,11 +111,7 @@ describe("mergeJobEvents", () => {
 			},
 		]);
 
-		expect(result.messages).toHaveLength(1);
-		expect(result.messages[0]?.role).toBe("assistant");
-		expect(result.messages[0]?.content).toBe(
-			"Salvando 3/12 questão(ões)…",
-		);
+		expect(result.messages).toHaveLength(0);
 	});
 
 	it("maps summary part as assistant", () => {
@@ -142,8 +137,7 @@ describe("mergeJobEvents", () => {
 	});
 
 	it("skips duplicate chat messages with identical content", () => {
-		const completionText =
-			"Importação concluída: 8 questão(ões) salva(s).";
+		const completionText = "Importação concluída: 8 questão(ões) salva(s).";
 		const afterSummary = mergeJobEvents(emptyState, [
 			{
 				seq: 1,
@@ -246,10 +240,7 @@ describe("mergeJobEvents", () => {
 			},
 		]);
 
-		const result = mergeJobEvents(
-			{ ...running, isJobTerminal: true },
-			[],
-		);
+		const result = mergeJobEvents({ ...running, isJobTerminal: true }, []);
 
 		expect(result.messages[0]?.status).toBe("complete");
 	});
@@ -269,7 +260,9 @@ describe("mergeStreamParts", () => {
 			delta: "bar",
 		});
 
-		expect(state.get(messageId)).toEqual([{ type: "reasoning", text: "foobar" }]);
+		expect(state.get(messageId)).toEqual([
+			{ type: "reasoning", text: "foobar" },
+		]);
 	});
 
 	it("replaces reasoning text on reasoning flush", () => {
@@ -336,6 +329,179 @@ describe("mergeStreamParts", () => {
 			expect(part.result).toBeUndefined();
 		}
 	});
+
+	it("keeps successful submit_question results on the tool-call part", () => {
+		const result = mergeJobEvents(emptyState, [
+			{
+				seq: 1,
+				payload: {
+					type: "tool-call",
+					messageId: "ingest-step-1",
+					toolCallId: "tc-1",
+					toolName: "submit_question",
+					argsText: JSON.stringify({
+						question: "Qual e a capital de Santa Catarina?",
+						topic: "Geografia",
+						options: [
+							{ key: "A", text: "Florianopolis" },
+							{ key: "B", text: "Blumenau" },
+						],
+						answers: ["A"],
+					}),
+					state: "running",
+				},
+				createdAt: null,
+			},
+			{
+				seq: 2,
+				payload: {
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					toolCallId: "tc-1",
+					result: { ok: true, index: 1 },
+				},
+				createdAt: null,
+			},
+		]);
+
+		const message = result.messages.find(
+			(candidate) => candidate.id === "ingest-step-1",
+		);
+		expect(Array.isArray(message?.content)).toBe(true);
+
+		const toolCallPart = Array.isArray(message?.content)
+			? message.content.find((part) => part.type === "tool-call")
+			: undefined;
+
+		expect(toolCallPart?.type).toBe("tool-call");
+		if (toolCallPart?.type === "tool-call") {
+			expect(toolCallPart.result).toEqual({ ok: true, index: 1 });
+			expect(toolCallPart.args).toMatchObject({
+				question: "Qual e a capital de Santa Catarina?",
+				topic: "Geografia",
+			});
+		}
+	});
+
+	it("keeps failed submit_question results on the tool-call part", () => {
+		const result = mergeJobEvents(emptyState, [
+			{
+				seq: 1,
+				payload: {
+					type: "tool-call",
+					messageId: "ingest-step-1",
+					toolCallId: "tc-1",
+					toolName: "submit_question",
+					argsText: JSON.stringify({
+						question: "Pergunta invalida",
+						topic: "Teste",
+						options: [],
+						answers: [],
+					}),
+					state: "running",
+				},
+				createdAt: null,
+			},
+			{
+				seq: 2,
+				payload: {
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					toolCallId: "tc-1",
+					result: { ok: false, reason: "invalid_question" },
+					isError: true,
+				},
+				createdAt: null,
+			},
+		]);
+
+		const message = result.messages.find(
+			(candidate) => candidate.id === "ingest-step-1",
+		);
+		expect(Array.isArray(message?.content)).toBe(true);
+
+		const toolCallPart = Array.isArray(message?.content)
+			? message.content.find((part) => part.type === "tool-call")
+			: undefined;
+
+		expect(toolCallPart?.type).toBe("tool-call");
+		if (toolCallPart?.type === "tool-call") {
+			expect(toolCallPart.result).toEqual({
+				ok: false,
+				reason: "invalid_question",
+			});
+			expect(toolCallPart.isError).toBe(true);
+		}
+	});
+
+	it("adds finish_extraction summary as a rendered text part", () => {
+		const summary = "2 questoes extraidas de algebra linear";
+		const result = mergeJobEvents(emptyState, [
+			{
+				seq: 1,
+				payload: {
+					type: "tool-call",
+					messageId: "ingest-step-1",
+					toolCallId: "tc-finish",
+					toolName: "finish_extraction",
+					argsText: JSON.stringify({
+						total: 2,
+						summary,
+					}),
+					state: "running",
+				},
+				createdAt: null,
+			},
+			{
+				seq: 2,
+				payload: {
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					toolCallId: "tc-finish",
+					result: {
+						ok: true,
+						total: 2,
+						summary,
+					},
+				},
+				createdAt: null,
+			},
+			{
+				seq: 3,
+				payload: {
+					type: "text",
+					messageId: "ingest-step-1",
+					text: summary,
+				},
+				createdAt: null,
+			},
+		]);
+
+		expect(result.messages[0]?.content).toEqual([
+			{
+				type: "tool-call",
+				toolCallId: "tc-finish",
+				toolName: "finish_extraction",
+				argsText: JSON.stringify({
+					total: 2,
+					summary,
+				}),
+				args: {
+					total: 2,
+					summary,
+				},
+				result: {
+					ok: true,
+					total: 2,
+					summary,
+				},
+			},
+			{
+				type: "text",
+				text: summary,
+			},
+		]);
+	});
 });
 
 describe("formatEventLabel", () => {
@@ -365,9 +531,9 @@ describe("formatEventLabel", () => {
 				text: INGEST_SYSTEM_TEXT.LLM_CALL,
 			}),
 		).toBe("Chamando modelo para extração…");
-		expect(
-			formatEventLabel({ type: "text", text: "Tentativa 2/3…" }),
-		).toBe("Tentativa 2/3…");
+		expect(formatEventLabel({ type: "text", text: "Tentativa 2/3…" })).toBe(
+			"Tentativa 2/3…",
+		);
 		expect(
 			formatEventLabel({
 				type: "text",
@@ -453,9 +619,7 @@ describe("isPhaseStatusText", () => {
 	});
 
 	it("rejects non-system assistant text", () => {
-		expect(isPhaseStatusText("Identifiquei 5 questões até agora…")).toBe(
-			false,
-		);
+		expect(isPhaseStatusText("Identifiquei 5 questões até agora…")).toBe(false);
 	});
 });
 
@@ -472,12 +636,21 @@ describe("roleForPayload", () => {
 		expect(roleForPayload({ type: "text", text })).toBe("system");
 	});
 
-	it("maps persist progress to assistant role", () => {
+	it("keeps persist progress out of assistant role mapping", () => {
 		expect(
 			roleForPayload({
 				type: INGEST_DATA_PART.PERSIST_PROGRESS,
 				data: { saved: 2, total: 5 },
 			}),
-		).toBe("assistant");
+		).toBeNull();
+	});
+
+	it("keeps stream progress out of assistant role mapping", () => {
+		expect(
+			roleForPayload({
+				type: INGEST_DATA_PART.STREAM_PROGRESS,
+				data: { questionsSeen: 2 },
+			}),
+		).toBeNull();
 	});
 });

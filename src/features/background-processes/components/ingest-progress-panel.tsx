@@ -136,6 +136,25 @@ export function IngestProgressPanel({
 				) : null}
 			</div>
 
+			{progress.extractedQuestionsPreview.length > 0 ? (
+				<div className="flex min-h-0 flex-col gap-2">
+					<h3 className="text-sm font-medium">Questões extraídas</h3>
+					<ol className="flex flex-col gap-2 overflow-y-auto pr-1">
+						{progress.extractedQuestionsPreview.map((item) => (
+							<li
+								key={item.index}
+								className="rounded-md border bg-muted/30 px-3 py-2"
+							>
+								<p className="text-sm leading-relaxed">{item.question}</p>
+								<p className="mt-1 text-xs text-muted-foreground">
+									Tópico: {item.topic}
+								</p>
+							</li>
+						))}
+					</ol>
+				</div>
+			) : null}
+
 			{error ? (
 				<p className="text-sm text-destructive" role="alert">
 					{error}
