@@ -1,8 +1,7 @@
 import {
 	buildIngestPhasePart,
-	buildIngestTextPart,
+	buildIngestPhaseSystemInfo,
 	serializeIngestDataPart,
-	serializeIngestJobEventPart,
 } from "@/features/ai/jobs/ingest/ingest-events";
 import {
 	type INGEST_PHASE,
@@ -10,7 +9,6 @@ import {
 	JOB_STATUS,
 	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
-import { PHASE_TEXT } from "./constants";
 import type { BackgroundJobRow, RunIngestContext } from "./types";
 
 export async function failJob(
@@ -48,6 +46,6 @@ export async function emitPhase(
 	);
 	await ctx.deps.appendJobEvent(
 		ctx.jobId,
-		serializeIngestJobEventPart(buildIngestTextPart(PHASE_TEXT[phase])),
+		serializeIngestDataPart(buildIngestPhaseSystemInfo(phase)),
 	);
 }

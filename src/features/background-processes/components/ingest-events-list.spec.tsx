@@ -149,4 +149,104 @@ describe("IngestEventsGroupedList", () => {
 			screen.getByText(/nenhum evento registrado ainda/i),
 		).toBeInTheDocument();
 	});
+
+	it("renders system message with distinct visual", () => {
+		render(
+			<IngestEventsGroupedList
+				isLoading={false}
+				status={JOB_STATUS.RUNNING}
+				phase={null}
+				error={null}
+				events={[
+					{
+						seq: 1,
+						payload: {
+							type: "data-ingest-system-info",
+							data: { kind: "file-read", payload: { charCount: 100 } },
+						},
+						createdAt: null,
+					},
+				]}
+			/>,
+		);
+
+		expect(screen.getByText(/arquivo lido: 100 caracteres/i)).toBeInTheDocument();
+		expect(screen.queryByText("Sistema")).not.toBeInTheDocument();
+		const systemMessage = screen.getByText(/arquivo lido: 100 caracteres/i);
+		const row = systemMessage.closest("li");
+		expect(row).toBeInTheDocument();
+		expect(row).toHaveClass("bg-primary/5");
+	});
+
+	it("deduplicates system messages by kind within group", () => {
+		render(
+			<IngestEventsGroupedList
+				isLoading={false}
+				status={JOB_STATUS.RUNNING}
+				phase={INGEST_PHASE.READING_FILE}
+				error={null}
+				events={[
+					{
+						seq: 1,
+						payload: {
+							type: "data-ingest-system-info",
+							data: { kind: "file-read", payload: { charCount: 100 } },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 2,
+						payload: {
+							type: INGEST_DATA_PART.PHASE,
+							data: { phase: INGEST_PHASE.READING_FILE },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 3,
+						payload: {
+							type: "data-ingest-system-info",
+							data: { kind: "file-read", payload: { charCount: 200 } },
+						},
+						createdAt: null,
+					},
+				]}
+			/>,
+		);
+
+		expect(screen.getByText(/arquivo lido: 200 caracteres/i)).toBeInTheDocument();
+		expect(screen.queryByText(/arquivo lido: 100 caracteres/i)).not.toBeInTheDocument();
+	});
+
+	it("system messages appear in correct phase group", () => {
+		render(
+			<IngestEventsGroupedList
+				isLoading={false}
+				status={JOB_STATUS.RUNNING}
+				phase={INGEST_PHASE.READING_FILE}
+				error={null}
+				events={[
+					{
+						seq: 1,
+						payload: {
+							type: "data-ingest-system-info",
+							data: { kind: "phase", payload: { phase: INGEST_PHASE.READING_FILE } },
+						},
+						createdAt: null,
+					},
+					{
+						seq: 2,
+						payload: {
+							type: "data-ingest-system-info",
+							data: { kind: "file-read", payload: { charCount: 50 } },
+						},
+						createdAt: null,
+					},
+				]}
+			/>,
+		);
+
+		expect(screen.getByText("Lendo arquivo")).toBeInTheDocument();
+		expect(screen.getByText(/arquivo lido: 50 caracteres/i)).toBeInTheDocument();
+	});
 });

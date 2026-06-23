@@ -6,6 +6,7 @@ export const INGEST_DATA_PART = {
 	SKIPPED_DUPLICATE: "data-ingest-skipped-duplicate",
 	SUMMARY: "data-ingest-summary",
 	PERSIST_PROGRESS: "data-ingest-persist-progress",
+	SYSTEM_INFO: "data-ingest-system-info",
 } as const;
 
 export type IngestPhasePart = {
@@ -45,12 +46,29 @@ export type IngestTextPart = {
 
 export type IngestJobEventPart = IngestDataPart | IngestTextPart;
 
+export type IngestSystemInfoKind =
+	| "phase"
+	| "file-read"
+	| "llm-call"
+	| "llm-retry"
+	| "persist-validating"
+	| "persist-progress";
+
+export type IngestSystemInfoPart = {
+	type: typeof INGEST_DATA_PART.SYSTEM_INFO;
+	data: {
+		kind: IngestSystemInfoKind;
+		payload: Record<string, unknown>;
+	};
+};
+
 export type IngestDataPart =
 	| IngestPhasePart
 	| IngestStreamProgressPart
 	| IngestSkippedDuplicatePart
 	| IngestSummaryPart
-	| IngestPersistProgressPart;
+	| IngestPersistProgressPart
+	| IngestSystemInfoPart;
 
 export function buildIngestPhasePart(phase: IngestPhase): IngestPhasePart {
 	return {
@@ -120,6 +138,60 @@ export function buildIngestLlmRetryText(
 
 export function buildIngestPersistValidatingText(total: number): string {
 	return `Validando ${total} questão(ões)…`;
+}
+
+export function buildIngestPhaseSystemInfo(
+	phase: IngestPhase,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "phase", payload: { phase } },
+	};
+}
+
+export function buildIngestFileReadSystemInfo(
+	charCount: number,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "file-read", payload: { charCount } },
+	};
+}
+
+export function buildIngestLlmCallSystemInfo(): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "llm-call", payload: {} },
+	};
+}
+
+export function buildIngestLlmRetrySystemInfo(
+	attempt: number,
+	maxAttempts: number,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "llm-retry", payload: { attempt, maxAttempts } },
+	};
+}
+
+export function buildIngestPersistValidatingSystemInfo(
+	total: number,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "persist-validating", payload: { total } },
+	};
+}
+
+export function buildIngestPersistProgressSystemInfo(
+	saved: number,
+	total: number,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "persist-progress", payload: { saved, total } },
+	};
 }
 
 export function serializeIngestDataPart(part: IngestDataPart): string {

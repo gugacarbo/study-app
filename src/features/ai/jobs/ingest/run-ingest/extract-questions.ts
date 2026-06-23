@@ -1,12 +1,10 @@
 import { generateObject, zodSchema } from "ai";
 import { extractedQuestionsRootSchema } from "@/features/ai/jobs/ingest/extracted-question";
 import {
-	buildIngestLlmCallText,
-	buildIngestLlmRetryText,
+	buildIngestLlmCallSystemInfo,
+	buildIngestLlmRetrySystemInfo,
 	buildIngestStreamProgressPart,
-	buildIngestTextPart,
 	serializeIngestDataPart,
-	serializeIngestJobEventPart,
 } from "@/features/ai/jobs/ingest/ingest-events";
 import { getAiModel } from "@/lib/ai-config";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
@@ -70,10 +68,8 @@ export async function extractQuestionsWithGenerateObject(
 		if (attempt > 0) {
 			await ctx.deps.appendJobEvent(
 				ctx.jobId,
-				serializeIngestJobEventPart(
-					buildIngestTextPart(
-						buildIngestLlmRetryText(attempt + 1, maxAttempts),
-					),
+				serializeIngestDataPart(
+					buildIngestLlmRetrySystemInfo(attempt + 1, maxAttempts),
 				),
 			);
 		}
@@ -159,7 +155,7 @@ export async function extractQuestions(
 
 	await ctx.deps.appendJobEvent(
 		ctx.jobId,
-		serializeIngestJobEventPart(buildIngestTextPart(buildIngestLlmCallText())),
+		serializeIngestDataPart(buildIngestLlmCallSystemInfo()),
 	);
 
 	const maxAttempts = MAX_LLM_RETRIES + 1;
@@ -168,10 +164,8 @@ export async function extractQuestions(
 		if (attempt > 0) {
 			await ctx.deps.appendJobEvent(
 				ctx.jobId,
-				serializeIngestJobEventPart(
-					buildIngestTextPart(
-						buildIngestLlmRetryText(attempt + 1, maxAttempts),
-					),
+				serializeIngestDataPart(
+					buildIngestLlmRetrySystemInfo(attempt + 1, maxAttempts),
 				),
 			);
 		}

@@ -1,7 +1,8 @@
 import { getExamById } from "@/db/queries/exams";
 import {
 	buildIngestPersistProgressPart,
-	buildIngestPersistValidatingText,
+	buildIngestPersistProgressSystemInfo,
+	buildIngestPersistValidatingSystemInfo,
 	buildIngestSummaryPart,
 	buildIngestTextPart,
 	serializeIngestDataPart,
@@ -108,9 +109,7 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 				if (saved === 0) {
 					await ctx.deps.appendJobEvent(
 						ctx.jobId,
-						serializeIngestJobEventPart(
-							buildIngestTextPart(buildIngestPersistValidatingText(total)),
-						),
+						serializeIngestDataPart(buildIngestPersistValidatingSystemInfo(total)),
 					);
 				}
 				await ctx.deps.appendJobEvent(
@@ -118,6 +117,10 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 					serializeIngestDataPart(
 						buildIngestPersistProgressPart(saved, total),
 					),
+				);
+				await ctx.deps.appendJobEvent(
+					ctx.jobId,
+					serializeIngestDataPart(buildIngestPersistProgressSystemInfo(saved, total)),
 				);
 				await ctx.deps.persistQuestionsDeps.onPersistProgress?.(saved, total);
 			},

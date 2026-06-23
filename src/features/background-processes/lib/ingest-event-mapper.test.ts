@@ -672,3 +672,147 @@ describe("roleForPayload", () => {
 		).toBeNull();
 	});
 });
+
+describe("mergeJobEvents — system info", () => {
+	it("maps system info to system message with fixed id by kind", () => {
+		const result1 = mergeJobEvents(emptyState, [
+			{
+				seq: 1,
+				payload: {
+					type: "data-ingest-system-info",
+					data: { kind: "file-read", payload: { charCount: 100 } },
+				},
+				createdAt: null,
+			},
+		]);
+
+		expect(result1.messages).toHaveLength(1);
+		expect(result1.messages[0]?.role).toBe("system");
+		expect(result1.messages[0]?.id).toBe("system:file-read");
+		expect(result1.messages[0]?.content).toBe("Arquivo lido: 100 caracteres");
+
+		const result2 = mergeJobEvents(
+			{
+				messages: result1.messages,
+				progress: result1.progress,
+				lastSeq: result1.lastSeq,
+				events: result1.events,
+			},
+			[
+				{
+					seq: 2,
+					payload: {
+						type: "data-ingest-system-info",
+						data: { kind: "file-read", payload: { charCount: 200 } },
+					},
+					createdAt: null,
+				},
+			],
+		);
+
+		expect(result2.messages).toHaveLength(1);
+		expect(result2.messages[0]?.id).toBe("system:file-read");
+		expect(result2.messages[0]?.content).toBe("Arquivo lido: 200 caracteres");
+		expect(result2.lastSeq).toBe(2);
+
+		const result3 = mergeJobEvents(
+			{
+				messages: result2.messages,
+				progress: result2.progress,
+				lastSeq: result2.lastSeq,
+				events: result2.events,
+			},
+			[
+				{
+					seq: 3,
+					payload: {
+						type: "data-ingest-system-info",
+						data: { kind: "llm-call", payload: {} },
+					},
+					createdAt: null,
+				},
+			],
+		);
+
+		expect(result3.messages).toHaveLength(2);
+		const llmCallMsg = result3.messages.find(
+			(m) => m.id === "system:llm-call",
+		);
+		expect(llmCallMsg).toBeDefined();
+		expect(llmCallMsg?.role).toBe("system");
+		expect(llmCallMsg?.content).toBe("Chamando modelo para extração…");
+	});
+
+	it("system info updates progress state", () => {
+		const result = mergeJobEvents(emptyState, [
+			{
+				seq: 1,
+				payload: {
+					type: "data-ingest-system-info",
+					data: { kind: "phase", payload: { phase: "reading_file" } },
+				},
+				createdAt: null,
+			},
+			{
+				seq: 2,
+				payload: {
+					type: "data-ingest-system-info",
+					data: {
+						kind: "persist-progress",
+						payload: { saved: 5, total: 10 },
+					},
+				},
+				createdAt: null,
+			},
+		]);
+
+		expect(result.progress.phase).toBe(INGEST_PHASE.READING_FILE);
+		expect(result.progress.persisted).toBe(5);
+	});
+});
+
+describe("formatEventLabel — system info", () => {
+	it("returns human-readable text for each system info kind", () => {
+		expect(
+			formatEventLabel({
+				type: "data-ingest-system-info",
+				data: { kind: "phase", payload: { phase: "reading_file" } },
+			}),
+		).toBe("Lendo arquivo…");
+
+		expect(
+			formatEventLabel({
+				type: "data-ingest-system-info",
+				data: { kind: "file-read", payload: { charCount: 1000 } },
+			}),
+		).toBe("Arquivo lido: 1.000 caracteres");
+
+		expect(
+			formatEventLabel({
+				type: "data-ingest-system-info",
+				data: { kind: "llm-call", payload: {} },
+			}),
+		).toBe("Chamando modelo para extração…");
+
+		expect(
+			formatEventLabel({
+				type: "data-ingest-system-info",
+				data: { kind: "llm-retry", payload: { attempt: 2, maxAttempts: 3 } },
+			}),
+		).toBe("Tentativa 2/3…");
+
+		expect(
+			formatEventLabel({
+				type: "data-ingest-system-info",
+				data: { kind: "persist-validating", payload: { total: 5 } },
+			}),
+		).toBe("Validando 5 questão(ões)…");
+
+		expect(
+			formatEventLabel({
+				type: "data-ingest-system-info",
+				data: { kind: "persist-progress", payload: { saved: 3, total: 10 } },
+			}),
+		).toBe("Salvando 3/10 questão(ões)…");
+	});
+});

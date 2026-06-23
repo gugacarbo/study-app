@@ -1,4 +1,5 @@
 import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
+import { isSystemInfoPart } from "@/features/background-processes/lib/ingest-event-labels";
 import { PHASE_LABELS } from "@/features/background-processes/lib/ingest-event-labels";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
 import {
@@ -25,18 +26,32 @@ const PHASE_ORDER: (IngestPhase | null)[] = [
 	INGEST_PHASE.PERSISTING,
 ];
 
-function isPhaseEvent(
+function resolvePhaseFromPayload(
 	payload: unknown,
-): payload is { type: typeof INGEST_DATA_PART.PHASE; data: { phase: IngestPhase } } {
-	return (
-		!!payload &&
-		typeof payload === "object" &&
+): IngestPhase | null {
+	if (!payload || typeof payload !== "object") return null;
+
+	// INGEST_DATA_PART.PHASE type
+	if (
 		"type" in payload &&
 		(payload as { type: string }).type === INGEST_DATA_PART.PHASE &&
 		"data" in payload &&
 		typeof (payload as { data: unknown }).data === "object" &&
 		(payload as { data: { phase?: unknown } }).data?.phase != null
-	);
+	) {
+		return (payload as { data: { phase: IngestPhase } }).data.phase;
+	}
+
+	// System-info "phase" kind
+	if (
+		isSystemInfoPart(payload) &&
+		payload.data.kind === "phase" &&
+		payload.data.payload?.phase != null
+	) {
+		return payload.data.payload.phase as IngestPhase;
+	}
+
+	return null;
 }
 
 function groupLabelForPhase(phase: IngestPhase | null): string {
@@ -70,8 +85,9 @@ export function groupEventsByPhase(events: JobEventRecord[]): IngestEventGroup[]
 		const label = groupLabelForPhase(currentPhase);
 		appendToGroup(groups, label, currentPhase, event);
 
-		if (isPhaseEvent(event.payload)) {
-			currentPhase = event.payload.data.phase;
+		const phase = resolvePhaseFromPayload(event.payload);
+		if (phase !== null) {
+			currentPhase = phase;
 		}
 	}
 

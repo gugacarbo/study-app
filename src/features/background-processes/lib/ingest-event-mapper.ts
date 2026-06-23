@@ -5,6 +5,8 @@ import {
 	formatEventDetails,
 	formatEventLabel,
 	formatEventType,
+	formatSystemInfoLabel,
+	isSystemInfoPart,
 	type IngestClientDataPart,
 	type IngestEventType,
 	type IngestStreamPartEvent,
@@ -72,7 +74,8 @@ function isIngestDataPart(payload: unknown): payload is IngestClientDataPart {
 		type === INGEST_DATA_PART.STREAM_PROGRESS ||
 		type === INGEST_DATA_PART.SKIPPED_DUPLICATE ||
 		type === INGEST_DATA_PART.SUMMARY ||
-		type === INGEST_DATA_PART.PERSIST_PROGRESS
+		type === INGEST_DATA_PART.PERSIST_PROGRESS ||
+		type === INGEST_DATA_PART.SYSTEM_INFO
 	);
 }
 
@@ -308,6 +311,14 @@ function applyDataPartToProgress(
 			};
 		case INGEST_DATA_PART.PERSIST_PROGRESS:
 			return progress;
+		case INGEST_DATA_PART.SYSTEM_INFO:
+			if (part.data.kind === "phase") {
+				return { ...progress, phase: part.data.payload.phase as IngestPhase };
+			}
+			if (part.data.kind === "persist-progress") {
+				return { ...progress, persisted: part.data.payload.saved as number };
+			}
+			return progress;
 		default:
 			return progress;
 	}
@@ -443,6 +454,26 @@ export function mergeJobEvents(
 				streamParts,
 				event.payload,
 			);
+		} else if (isSystemInfoPart(event.payload)) {
+			const text = formatSystemInfoLabel(event.payload.data.kind, event.payload.data.payload);
+			const kind = event.payload.data.kind;
+			const msgId = `system:${kind}`;
+			const existingIdx = messages.findIndex((m) => m.id === msgId);
+			const newMessage: MappedThreadMessage = {
+				id: msgId,
+				role: "system",
+				content: text ?? "",
+				seq: event.seq,
+			};
+			if (existingIdx >= 0) {
+				messages = [
+					...messages.slice(0, existingIdx),
+					newMessage,
+					...messages.slice(existingIdx + 1),
+				];
+			} else {
+				messages = [...messages, newMessage];
+			}
 		} else {
 			const text = messageForPayload(event.payload);
 			const role = roleForPayload(event.payload);
@@ -462,6 +493,15 @@ export function mergeJobEvents(
 						},
 					];
 				}
+			}
+		}
+
+		if (isSystemInfoPart(event.payload)) {
+			if (event.payload.data.kind === "phase") {
+				progress = { ...progress, phase: event.payload.data.payload.phase as IngestPhase };
+			}
+			if (event.payload.data.kind === "persist-progress") {
+				progress = { ...progress, persisted: event.payload.data.payload.saved as number };
 			}
 		}
 

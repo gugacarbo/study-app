@@ -2,13 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import * as examsQueries from "@/db/queries/exams";
 import * as filesQueries from "@/db/queries/files";
-import {
-	INGEST_DATA_PART,
-	buildIngestFileReadText,
-	buildIngestLlmCallText,
-	buildIngestLlmRetryText,
-	buildIngestPersistValidatingText,
-} from "@/features/ai/jobs/ingest/ingest-events";
+import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
 import {
 	type BackgroundJobRow,
 	type RunIngestDeps,
@@ -103,6 +97,25 @@ function createMockStreamText(questions: unknown[]) {
 						abortSignal: _options.abortSignal,
 					});
 				}
+			}
+
+			yield {
+				type: "tool-call",
+				toolCallId: "list-1",
+				toolName: "list_questions",
+				input: {},
+			};
+
+			const listExecute = _options.tools?.list_questions?.execute;
+			if (listExecute) {
+				await listExecute(
+					{},
+					{
+						toolCallId: "list-1",
+						messages: [],
+						abortSignal: _options.abortSignal,
+					},
+				);
 			}
 
 			const summary = `${questions.length} questão(ões) extraída(s) da prova.`;
@@ -439,16 +452,21 @@ describe("runIngest", () => {
 					data: { phase: INGEST_PHASE.READING_FILE },
 				}),
 				expect.objectContaining({
-					type: "text",
-					text: buildIngestFileReadText(fileContent.length),
+					type: "data-ingest-system-info",
+					data: expect.objectContaining({
+						kind: "file-read",
+						payload: { charCount: 8 },
+					}),
 				}),
 				expect.objectContaining({
 					type: INGEST_DATA_PART.PHASE,
 					data: { phase: INGEST_PHASE.EXTRACTING },
 				}),
 				expect.objectContaining({
-					type: "text",
-					text: buildIngestLlmCallText(),
+					type: "data-ingest-system-info",
+					data: expect.objectContaining({
+						kind: "llm-call",
+					}),
 				}),
 				expect.objectContaining({
 					type: INGEST_DATA_PART.STREAM_PROGRESS,
@@ -458,12 +476,21 @@ describe("runIngest", () => {
 					data: { phase: INGEST_PHASE.PERSISTING },
 				}),
 				expect.objectContaining({
-					type: "text",
-					text: buildIngestPersistValidatingText(2),
+					type: "data-ingest-system-info",
+					data: expect.objectContaining({
+						kind: "persist-validating",
+						payload: { total: 2 },
+					}),
 				}),
 				expect.objectContaining({
 					type: INGEST_DATA_PART.PERSIST_PROGRESS,
 					data: { saved: 2, total: 2 },
+				}),
+				expect.objectContaining({
+					type: "data-ingest-system-info",
+					data: expect.objectContaining({
+						kind: "persist-progress",
+					}),
 				}),
 				expect.objectContaining({
 					type: INGEST_DATA_PART.SUMMARY,
@@ -517,13 +544,22 @@ describe("runIngest", () => {
 
 		const textPayloads = appendJobEvent.mock.calls
 			.map((call) => JSON.parse(call[1]))
-			.filter((payload) => payload.type === "text");
+			.filter((payload) => payload.type === "data-ingest-system-info");
 
 		expect(textPayloads).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ text: buildIngestLlmCallText() }),
 				expect.objectContaining({
-					text: buildIngestLlmRetryText(2, 3),
+					type: "data-ingest-system-info",
+					data: expect.objectContaining({
+						kind: "llm-call",
+					}),
+				}),
+				expect.objectContaining({
+					type: "data-ingest-system-info",
+					data: expect.objectContaining({
+						kind: "llm-retry",
+						payload: { attempt: 2, maxAttempts: 3 },
+					}),
 				}),
 			]),
 		);
@@ -693,6 +729,22 @@ describe("runIngest", () => {
 				expect.objectContaining({
 					type: "tool-call",
 					messageId: "ingest-step-1",
+					toolName: "list_questions",
+					argsText: JSON.stringify({}),
+					state: "running",
+				}),
+				expect.objectContaining({
+					type: "tool-result",
+					messageId: "ingest-step-1",
+					result: {
+						ok: true,
+						total: 2,
+						questions,
+					},
+				}),
+				expect.objectContaining({
+					type: "tool-call",
+					messageId: "ingest-step-1",
 					toolName: "finish_extraction",
 					argsText: JSON.stringify({
 						total: 2,
@@ -707,6 +759,7 @@ describe("runIngest", () => {
 						ok: true,
 						total: 2,
 						summary: "2 questão(ões) extraída(s) da prova.",
+						verified: true,
 					},
 				}),
 				{

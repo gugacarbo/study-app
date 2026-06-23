@@ -41,6 +41,7 @@ export type IngestEventType =
 	| "Tool"
 	| "Resumo"
 	| "Duplicata"
+	| "Sistema"
 	| "Outro";
 
 const PHASE_LABELS: Record<IngestPhase, string> = {
@@ -108,6 +109,18 @@ function isSystemTextPart(
 		typeof (payload as { text: unknown }).text === "string" &&
 		!hasMessageId(payload)
 	);
+}
+
+export function isSystemInfoPart(
+	payload: unknown,
+): payload is { type: typeof INGEST_DATA_PART.SYSTEM_INFO; data: { kind: string; payload: Record<string, unknown> } } {
+	if (!payload || typeof payload !== "object") return false;
+	const obj = payload as Record<string, unknown>;
+	if (obj.type !== INGEST_DATA_PART.SYSTEM_INFO) return false;
+	if (!obj.data || typeof obj.data !== "object") return false;
+	const data = obj.data as Record<string, unknown>;
+	if (typeof data.kind !== "string" || !data.kind) return false;
+	return true;
 }
 
 export function isIngestStreamPartEvent(
@@ -188,6 +201,56 @@ function messageForSummaryPart(part: IngestSummaryPart): string {
 	return `Importação concluída: ${parts.join(", ")}.`;
 }
 
+export function formatSystemInfoLabel(
+	kind: string,
+	payload: Record<string, unknown>,
+): string | null {
+	switch (kind) {
+		case "phase": {
+			const phase = payload.phase;
+			if (typeof phase === "string" && Object.values(INGEST_PHASE).includes(phase as IngestPhase)) {
+				const p = phase as IngestPhase;
+				return `${PHASE_LABELS[p] ?? p}…`;
+			}
+			return null;
+		}
+		case "file-read": {
+			const charCount = payload.charCount;
+			if (typeof charCount === "number") {
+				return `Arquivo lido: ${charCount.toLocaleString("pt-BR")} caracteres`;
+			}
+			return null;
+		}
+		case "llm-call":
+			return INGEST_SYSTEM_TEXT.LLM_CALL;
+		case "llm-retry": {
+			const attempt = payload.attempt;
+			const maxAttempts = payload.maxAttempts;
+			if (typeof attempt === "number" && typeof maxAttempts === "number") {
+				return `Tentativa ${attempt}/${maxAttempts}…`;
+			}
+			return null;
+		}
+		case "persist-validating": {
+			const total = payload.total;
+			if (typeof total === "number") {
+				return `Validando ${total} questão(ões)…`;
+			}
+			return null;
+		}
+		case "persist-progress": {
+			const saved = payload.saved;
+			const total = payload.total;
+			if (typeof saved === "number" && typeof total === "number") {
+				return `Salvando ${saved}/${total} questão(ões)…`;
+			}
+			return null;
+		}
+		default:
+			return null;
+	}
+}
+
 function messageForStreamPart(part: IngestStreamPartEvent): string {
 	switch (part.type) {
 		case "reasoning-delta":
@@ -204,6 +267,9 @@ function messageForStreamPart(part: IngestStreamPartEvent): string {
 }
 
 export function formatEventLabel(payload: unknown): string | null {
+	if (isSystemInfoPart(payload)) {
+		return formatSystemInfoLabel(payload.data.kind, payload.data.payload);
+	}
 	if (isIngestStreamPartEvent(payload)) {
 		return messageForStreamPart(payload);
 	}
@@ -240,6 +306,7 @@ export function formatEventType(payload: unknown): IngestEventType {
 		}
 	}
 	if (isSystemTextPart(payload)) return "Texto";
+	if (isSystemInfoPart(payload)) return "Sistema";
 	if (!isIngestDataPart(payload)) return "Outro";
 
 	switch (payload.type) {
@@ -261,6 +328,32 @@ export function formatEventType(payload: unknown): IngestEventType {
 export function formatEventDetails(
 	payload: unknown,
 ): { label: string; value: string }[] {
+	if (isSystemInfoPart(payload)) {
+		const { kind, payload: data } = payload.data;
+		switch (kind) {
+			case "phase":
+				return [{ label: "Fase", value: PHASE_LABELS[data.phase as IngestPhase] ?? String(data.phase) }];
+			case "file-read":
+				return [{ label: "Caracteres", value: (data.charCount as number)?.toLocaleString("pt-BR") }];
+			case "llm-retry":
+				return [
+					{ label: "Tentativa", value: String(data.attempt) },
+					{ label: "Máximo", value: String(data.maxAttempts) },
+				];
+			case "persist-validating":
+				return [{ label: "Total", value: String(data.total) }];
+			case "persist-progress":
+				return [
+					{ label: "Salvas", value: String(data.saved) },
+					{ label: "Total", value: String(data.total) },
+				];
+			default:
+				return Object.entries(data).map(([key, value]) => ({
+					label: key,
+					value: typeof value === "object" ? JSON.stringify(value) : String(value),
+				}));
+		}
+	}
 	if (isIngestStreamPartEvent(payload)) {
 		switch (payload.type) {
 			case "reasoning-delta":
@@ -344,6 +437,9 @@ export function formatEventDetails(
 }
 
 export function messageForPayload(payload: unknown): string | null {
+	if (isSystemInfoPart(payload)) {
+		return formatSystemInfoLabel(payload.data.kind, payload.data.payload);
+	}
 	if (isIngestStreamPartEvent(payload)) return null;
 	if (isIngestDataPart(payload) && payload.type === INGEST_DATA_PART.PHASE) {
 		return null;
@@ -359,6 +455,7 @@ export function messageForPayload(payload: unknown): string | null {
 }
 
 export function roleForPayload(payload: unknown): "system" | "assistant" | null {
+	if (isSystemInfoPart(payload)) return "system";
 	if (isIngestStreamPartEvent(payload)) return null;
 	const text = messageForPayload(payload);
 	if (!text) return null;

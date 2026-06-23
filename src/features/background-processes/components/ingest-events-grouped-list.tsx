@@ -2,9 +2,11 @@ import {
 	CheckIcon,
 	ChevronDownIcon,
 	CircleIcon,
+	InfoIcon,
 	LoaderCircleIcon,
 	XCircleIcon,
 } from "lucide-react";
+import { isSystemInfoPart } from "@/features/background-processes/lib/ingest-event-labels";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -65,7 +67,59 @@ function GroupStatusIcon({ status }: { status: IngestGroupStatus }) {
 	}
 }
 
+function IngestSystemMessageRow({ event }: { event: JobEventRecord }) {
+	const label = eventLabel(event);
+	const details = formatEventDetails(event.payload);
+
+	return (
+		<li className="flex items-center gap-3 rounded-md border bg-primary/5 p-3">
+			<div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+				<InfoIcon className="size-3.5 text-primary" aria-hidden />
+			</div>
+			<div className="min-w-0 flex-1">
+				<p className="text-sm font-medium text-foreground">{label}</p>
+				{details.length > 0 ? (
+					<div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+						{details.map((detail) => (
+							<span key={detail.label}>
+								<span className="font-medium">{detail.label}:</span> {detail.value}
+							</span>
+						))}
+					</div>
+				) : null}
+			</div>
+			<span className="shrink-0 font-mono text-xs text-muted-foreground">
+				#{event.seq}
+			</span>
+		</li>
+	);
+}
+
+function dedupeSystemInfoEvents(events: JobEventRecord[]): JobEventRecord[] {
+	const seenKinds = new Map<string, number[]>();
+	const toRemove = new Set<number>();
+
+	for (const event of events) {
+		if (isSystemInfoPart(event.payload)) {
+			const kind = event.payload.data.kind;
+			if (seenKinds.has(kind)) {
+				const prevSeq = seenKinds.get(kind)![0]!;
+				toRemove.add(prevSeq);
+				seenKinds.set(kind, [event.seq, ...seenKinds.get(kind)!.slice(1)]);
+			} else {
+				seenKinds.set(kind, [event.seq]);
+			}
+		}
+	}
+
+	return events.filter((e) => !toRemove.has(e.seq));
+}
+
 function IngestEventRow({ event }: { event: JobEventRecord }) {
+	if (isSystemInfoPart(event.payload)) {
+		return <IngestSystemMessageRow event={event} />;
+	}
+
 	const details = formatEventDetails(event.payload);
 	const hasDetails = details.length > 0;
 
@@ -155,7 +209,8 @@ export function IngestEventsGroupedList({
 	phase,
 	error,
 }: IngestEventsGroupedListProps) {
-	const groups = groupEventsByPhase(events);
+	const dedupedEvents = dedupeSystemInfoEvents(events);
+	const groups = groupEventsByPhase(dedupedEvents);
 
 	return (
 		<div
