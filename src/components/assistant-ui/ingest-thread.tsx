@@ -101,8 +101,6 @@ function StatusBadge({
 	const statusLabel =
 		status != null ? (STATUS_BADGE_LABELS[status] ?? status) : "Carregando…";
 	const isFailed = status === JOB_STATUS.FAILED;
-	const isActive =
-		status === JOB_STATUS.QUEUED || status === JOB_STATUS.RUNNING;
 
 	const phaseLabel = phase
 		? (PHASE_BADGE_LABELS[phase] ?? formatPhaseLabel(phase as Parameters<typeof formatPhaseLabel>[0]))
@@ -134,9 +132,6 @@ function StatusBadge({
 					) : null}
 					{progress?.persisted != null ? (
 						<span>{progress.persisted} salva(s)</span>
-					) : null}
-					{isActive ? (
-						<span className="text-muted-foreground">Atualizando em tempo real…</span>
 					) : null}
 				</TooltipContent>
 			</Tooltip>
