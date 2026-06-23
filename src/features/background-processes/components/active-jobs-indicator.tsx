@@ -31,6 +31,7 @@ const STATUS_LABELS: Record<JobStatus, string> = {
 const PHASE_LABELS: Record<IngestPhase, string> = {
 	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
 	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
+	[INGEST_PHASE.REVIEWING]: "Revisando questões",
 	[INGEST_PHASE.PERSISTING]: "Salvando questões",
 };
 

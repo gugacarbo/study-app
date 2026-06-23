@@ -15,12 +15,14 @@ import { cn } from "@/lib/utils";
 const INGEST_STEPS = [
 	INGEST_PHASE.READING_FILE,
 	INGEST_PHASE.EXTRACTING,
+	INGEST_PHASE.REVIEWING,
 	INGEST_PHASE.PERSISTING,
 ] as const;
 
 const STEP_LABELS: Record<(typeof INGEST_STEPS)[number], string> = {
 	[INGEST_PHASE.READING_FILE]: "Leitura",
 	[INGEST_PHASE.EXTRACTING]: "Extração",
+	[INGEST_PHASE.REVIEWING]: "Revisão",
 	[INGEST_PHASE.PERSISTING]: "Persistência",
 };
 

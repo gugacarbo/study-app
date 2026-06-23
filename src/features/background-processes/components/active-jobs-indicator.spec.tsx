@@ -70,7 +70,7 @@ describe("ActiveJobsIndicator", () => {
 						id: jobId,
 						kind: JOB_KIND.INGEST,
 						status: JOB_STATUS.RUNNING,
-						phase: "extracting",
+						phase: "reviewing",
 						metadata: { fileName: "prova.txt" },
 					},
 				],
@@ -85,7 +85,7 @@ describe("ActiveJobsIndicator", () => {
 		await openIndicatorMenu();
 		expect(screen.getByText("prova.txt")).toBeInTheDocument();
 		expect(
-			screen.getByText(/em execução · extraindo questões/i),
+			screen.getByText(/em execução · revisando questões/i),
 		).toBeInTheDocument();
 
 		fireEvent.click(screen.getByText("prova.txt"));

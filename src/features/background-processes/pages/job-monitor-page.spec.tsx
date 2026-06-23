@@ -72,7 +72,7 @@ describe("JobMonitorPage", () => {
 				ok: true,
 				json: async () => ({
 					status: JOB_STATUS.RUNNING,
-					phase: "extracting",
+					phase: "reviewing",
 					error: null,
 					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
 					events: [
@@ -80,7 +80,7 @@ describe("JobMonitorPage", () => {
 							seq: 1,
 							payload: {
 								type: "text",
-								text: PHASE_TEXT[INGEST_PHASE.EXTRACTING],
+								text: PHASE_TEXT[INGEST_PHASE.REVIEWING],
 							},
 							createdAt: null,
 						},
@@ -97,7 +97,7 @@ describe("JobMonitorPage", () => {
 			).toBeInTheDocument();
 			expect(screen.getByText(/em andamento/i)).toBeInTheDocument();
 			expect(
-				screen.getByText(PHASE_TEXT[INGEST_PHASE.EXTRACTING]),
+				screen.getByText(PHASE_TEXT[INGEST_PHASE.REVIEWING]),
 			).toBeInTheDocument();
 		});
 		expect(screen.getByRole("tab", { name: /progresso/i })).toBeInTheDocument();
@@ -156,6 +156,154 @@ describe("JobMonitorPage", () => {
 			expect(
 				screen.getByText("Qual e a capital de Santa Catarina?"),
 			).toBeInTheDocument();
+		});
+	});
+
+	it("shows list_questions results in the activity thread", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.RUNNING,
+					phase: "extracting",
+					error: null,
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					events: [
+						{
+							seq: 1,
+							payload: {
+								type: "tool-call",
+								messageId: "ingest-step-1",
+								toolCallId: "submit-1",
+								toolName: "submit_question",
+								argsText: JSON.stringify({
+									question: "Questão 1?",
+									topic: "Álgebra",
+									options: [{ key: "A", text: "1" }],
+									answers: ["A"],
+								}),
+								state: "running",
+							},
+							createdAt: null,
+						},
+						{
+							seq: 2,
+							payload: {
+								type: "tool-result",
+								messageId: "ingest-step-1",
+								toolCallId: "submit-1",
+								result: { ok: true, index: 1 },
+							},
+							createdAt: null,
+						},
+						{
+							seq: 3,
+							payload: {
+								type: "tool-call",
+								messageId: "ingest-step-1",
+								toolCallId: "submit-2",
+								toolName: "submit_question",
+								argsText: JSON.stringify({
+									question: "Questão 2?",
+									topic: "Álgebra",
+									options: [{ key: "A", text: "2" }],
+									answers: ["A"],
+								}),
+								state: "running",
+							},
+							createdAt: null,
+						},
+						{
+							seq: 4,
+							payload: {
+								type: "tool-result",
+								messageId: "ingest-step-1",
+								toolCallId: "submit-2",
+								result: { ok: true, index: 2 },
+							},
+							createdAt: null,
+						},
+						{
+							seq: 5,
+							payload: {
+								type: "tool-call",
+								messageId: "ingest-step-1",
+								toolCallId: "list-1",
+								toolName: "list_questions",
+								argsText: JSON.stringify({}),
+								state: "running",
+							},
+							createdAt: null,
+						},
+						{
+							seq: 6,
+							payload: {
+								type: "tool-result",
+								messageId: "ingest-step-1",
+								toolCallId: "list-1",
+								result: {
+									ok: true,
+									total: 2,
+									questions: [
+										{
+											question: "Questão 1?",
+											topic: "Álgebra",
+											options: [{ key: "A", text: "1" }],
+											answers: ["A"],
+										},
+										{
+											question: "Questão 2?",
+											topic: "Álgebra",
+											options: [{ key: "A", text: "2" }],
+											answers: ["A"],
+										},
+									],
+								},
+							},
+							createdAt: null,
+						},
+						{
+							seq: 7,
+							payload: {
+								type: "tool-call",
+								messageId: "ingest-step-1",
+								toolCallId: "finish-1",
+								toolName: "finish_extraction",
+								argsText: JSON.stringify({
+									total: 2,
+									summary: "2 questões extraídas.",
+								}),
+								state: "running",
+							},
+							createdAt: null,
+						},
+						{
+							seq: 8,
+							payload: {
+								type: "tool-result",
+								messageId: "ingest-step-1",
+								toolCallId: "finish-1",
+								result: {
+									ok: true,
+									total: 2,
+									summary: "2 questões extraídas.",
+									verified: true,
+								},
+							},
+							createdAt: null,
+						},
+					],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(screen.getAllByText(/"total": 2/).length).toBeGreaterThan(0);
+			expect(screen.getAllByText(/Questão 1\?/).length).toBeGreaterThan(0);
+			expect(screen.getAllByText(/Questão 2\?/).length).toBeGreaterThan(0);
 		});
 	});
 

@@ -342,6 +342,64 @@ describe("mergeStreamParts", () => {
 		expect(state.has(messageId)).toBe(false);
 	});
 
+	it("re-attaches a deferred tool result when the tool-call arrives later", () => {
+		const firstPass = mergeJobEvents(emptyState, [
+			{
+				seq: 1,
+				payload: {
+					type: "tool-result",
+					messageId: "ingest-step-3",
+					toolCallId: "tc-list",
+					result: {
+						ok: true,
+						total: 2,
+						questions: [
+							{ question: "Questão 1?", options: [], answers: [], topic: "A" },
+							{ question: "Questão 2?", options: [], answers: [], topic: "B" },
+						],
+					},
+				},
+				createdAt: null,
+			},
+		]);
+
+		expect(firstPass.messages).toHaveLength(0);
+
+		const secondPass = mergeJobEvents(firstPass, [
+			{
+				seq: 2,
+				payload: {
+					type: "tool-call",
+					messageId: "ingest-step-3",
+					toolCallId: "tc-list",
+					toolName: "list_questions",
+					argsText: "{}",
+					state: "running",
+				},
+				createdAt: null,
+			},
+		]);
+
+		expect(secondPass.messages).toHaveLength(1);
+		expect(secondPass.messages[0]?.content).toEqual([
+			{
+				type: "tool-call",
+				toolCallId: "tc-list",
+				toolName: "list_questions",
+				argsText: "{}",
+				args: {},
+				result: {
+					ok: true,
+					total: 2,
+					questions: [
+						{ question: "Questão 1?", options: [], answers: [], topic: "A" },
+						{ question: "Questão 2?", options: [], answers: [], topic: "B" },
+					],
+				},
+			},
+		]);
+	});
+
 	it("keeps successful submit_question results on the tool-call part", () => {
 		const result = mergeJobEvents(emptyState, [
 			{

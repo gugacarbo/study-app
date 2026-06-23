@@ -13,7 +13,11 @@ import {
 	XCircleIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { isSystemInfoPart } from "@/features/background-processes/lib/ingest-event-labels";
+import {
+	isSystemInfoPart,
+	isSystemStatusText,
+	isSystemTextPart,
+} from "@/features/background-processes/lib/ingest-event-labels";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -34,7 +38,7 @@ import {
 	type IngestGroupStatus,
 } from "@/features/background-processes/lib/group-ingest-events";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
-import type { JobStatus } from "@/lib/job-kinds";
+import { JOB_STATUS, type JobStatus } from "@/lib/job-kinds";
 import { cn } from "@/lib/utils";
 
 type IngestEventsGroupedListProps = {
@@ -74,44 +78,82 @@ function GroupStatusIcon({ status }: { status: IngestGroupStatus }) {
 	}
 }
 
-const SYSTEM_KIND_VISUALS: Record<string, { icon: LucideIcon; color: string }> = {
-	phase: { icon: ArrowRightIcon, color: "chart-3" },
-	"file-read": { icon: FileTextIcon, color: "chart-2" },
-	"llm-call": { icon: SparklesIcon, color: "chart-1" },
-	"llm-retry": { icon: RefreshCwIcon, color: "chart-5" },
-	"persist-validating": { icon: ClipboardCheckIcon, color: "chart-4" },
-	"persist-progress": { icon: DatabaseIcon, color: "chart-3" },
+type SystemKindVisual = {
+	icon: LucideIcon;
+	borderClass: string;
+	bgClass: string;
+	circleClass: string;
+	textClass: string;
+};
+
+const SYSTEM_KIND_VISUALS: Record<string, SystemKindVisual> = {
+	phase: {
+		icon: ArrowRightIcon,
+		borderClass: "border-l-chart-3",
+		bgClass: "bg-chart-3/10",
+		circleClass: "bg-chart-3/15",
+		textClass: "text-chart-3",
+	},
+	"file-read": {
+		icon: FileTextIcon,
+		borderClass: "border-l-chart-2",
+		bgClass: "bg-chart-2/10",
+		circleClass: "bg-chart-2/15",
+		textClass: "text-chart-2",
+	},
+	"llm-call": {
+		icon: SparklesIcon,
+		borderClass: "border-l-chart-1",
+		bgClass: "bg-chart-1/10",
+		circleClass: "bg-chart-1/15",
+		textClass: "text-chart-1",
+	},
+	"llm-retry": {
+		icon: RefreshCwIcon,
+		borderClass: "border-l-chart-5",
+		bgClass: "bg-chart-5/10",
+		circleClass: "bg-chart-5/15",
+		textClass: "text-chart-5",
+	},
+	"persist-validating": {
+		icon: ClipboardCheckIcon,
+		borderClass: "border-l-chart-4",
+		bgClass: "bg-chart-4/10",
+		circleClass: "bg-chart-4/15",
+		textClass: "text-chart-4",
+	},
+	"persist-progress": {
+		icon: DatabaseIcon,
+		borderClass: "border-l-chart-3",
+		bgClass: "bg-chart-3/10",
+		circleClass: "bg-chart-3/15",
+		textClass: "text-chart-3",
+	},
+};
+
+const SYSTEM_KIND_FALLBACK: SystemKindVisual = {
+	icon: InfoIcon,
+	borderClass: "border-l-muted-foreground",
+	bgClass: "bg-muted/50",
+	circleClass: "bg-muted-foreground/15",
+	textClass: "text-muted-foreground",
 };
 
 function IngestSystemMessageRow({ event }: { event: JobEventRecord }) {
 	const kind = isSystemInfoPart(event.payload) ? event.payload.data.kind : "";
 	const label = eventLabel(event);
 	const details = formatEventDetails(event.payload);
-	const visual = SYSTEM_KIND_VISUALS[kind] ?? { icon: InfoIcon, color: "muted-foreground" };
-	const cssVar = `--${visual.color}`;
+	const v = SYSTEM_KIND_VISUALS[kind] ?? SYSTEM_KIND_FALLBACK;
 
 	return (
 		<li
-			className="flex items-start gap-3 rounded-md border-l-2 p-3"
-			style={{
-				borderLeftColor: `var(${cssVar})`,
-				backgroundColor: `color-mix(in oklab, var(${cssVar}) 5%, transparent)`,
-			}}
+			className={`flex items-start gap-3 rounded-md border-l-2 p-3 ${v.borderClass} ${v.bgClass}`}
 		>
-			<div
-				className="flex size-6 shrink-0 items-center justify-center rounded-full"
-				style={{ backgroundColor: `color-mix(in oklab, var(${cssVar}) 10%, transparent)` }}
-			>
-				<visual.icon
-					className="size-3.5"
-					aria-hidden
-					style={{ color: `var(${cssVar})` }}
-				/>
+			<div className={`flex size-6 shrink-0 items-center justify-center rounded-full ${v.circleClass}`}>
+				<v.icon className={`size-3.5 ${v.textClass}`} aria-hidden />
 			</div>
 			<div className="min-w-0 flex-1">
-				<p className="text-sm font-medium" style={{ color: `var(${cssVar})` }}>
-					{label}
-				</p>
+				<p className={`text-sm font-medium ${v.textClass}`}>{label}</p>
 				{details.length > 0 ? (
 					<div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
 						{details.map((detail) => (
@@ -233,6 +275,31 @@ function IngestEventGroupSection({
 	);
 }
 
+const SYSTEM_GROUP_LABEL = "Mensagens do sistema";
+
+function isSystemEvent(event: JobEventRecord): boolean {
+	if (isSystemInfoPart(event.payload)) return true;
+	if (isSystemTextPart(event.payload) && isSystemStatusText(event.payload.text)) {
+		return true;
+	}
+	return false;
+}
+
+function systemGroupStatus(
+	hasEvents: boolean,
+	jobStatus: JobStatus | null,
+): IngestGroupStatus {
+	if (!hasEvents) return "pending";
+	if (
+		jobStatus === JOB_STATUS.COMPLETED ||
+		jobStatus === JOB_STATUS.FAILED ||
+		jobStatus === JOB_STATUS.CANCELLED
+	) {
+		return "done";
+	}
+	return "active";
+}
+
 export function IngestEventsGroupedList({
 	events,
 	isLoading,
@@ -241,7 +308,15 @@ export function IngestEventsGroupedList({
 	error,
 }: IngestEventsGroupedListProps) {
 	const dedupedEvents = dedupeSystemInfoEvents(events);
-	const groups = groupEventsByPhase(dedupedEvents);
+	const systemEvents = dedupedEvents.filter(isSystemEvent);
+	const regularEvents = dedupedEvents.filter((e) => !isSystemEvent(e));
+	const phaseGroups = groupEventsByPhase(regularEvents);
+	const sysStatus = systemGroupStatus(systemEvents.length > 0, status);
+	const hasSystemGroup = sysStatus !== "pending";
+	const allGroupLabels = [
+		...phaseGroups.map((g) => g.label),
+		...(hasSystemGroup ? [SYSTEM_GROUP_LABEL] : []),
+	];
 
 	return (
 		<div
@@ -252,7 +327,7 @@ export function IngestEventsGroupedList({
 				<p className="text-xs text-muted-foreground">Atualizando…</p>
 			) : null}
 
-			{groups.length === 0 ? (
+			{allGroupLabels.length === 0 ? (
 				<p className="text-sm text-muted-foreground">
 					{isLoading
 						? "Carregando eventos…"
@@ -261,12 +336,19 @@ export function IngestEventsGroupedList({
 			) : (
 				<Accordion
 					type="multiple"
-					defaultValue={groups
-						.filter((g) => isIngestGroupExpanded(getIngestGroupStatus(g, status, phase)))
-						.map((g) => g.label)}
+					defaultValue={[
+						...phaseGroups
+							.filter((g) =>
+								isIngestGroupExpanded(getIngestGroupStatus(g, status, phase)),
+							)
+							.map((g) => g.label),
+						...(isIngestGroupExpanded(sysStatus)
+							? [SYSTEM_GROUP_LABEL]
+							: []),
+					]}
 					className="flex min-h-0 flex-1 flex-col gap-3"
 				>
-					{groups.map((group) => {
+					{phaseGroups.map((group) => {
 						const groupStatus = getIngestGroupStatus(group, status, phase);
 						const errorMessage =
 							groupStatus === "failed" && error ? error : null;
@@ -280,6 +362,18 @@ export function IngestEventsGroupedList({
 							/>
 						);
 					})}
+					{hasSystemGroup ? (
+						<IngestEventGroupSection
+							key={`system-${sysStatus}`}
+							group={{
+								label: SYSTEM_GROUP_LABEL,
+								phase: null,
+								events: systemEvents,
+							}}
+							groupStatus={sysStatus}
+							errorMessage={null}
+						/>
+					) : null}
 				</Accordion>
 			)}
 		</div>

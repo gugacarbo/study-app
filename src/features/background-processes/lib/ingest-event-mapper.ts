@@ -55,6 +55,10 @@ export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
 };
 
 export type StreamPartsState = Map<string, AssistantContentPart[]>;
+export type PendingToolResultsState = Map<
+	string,
+	{ result: unknown; isError?: boolean }
+>;
 
 export {
 	formatEventDetails,
@@ -110,6 +114,10 @@ function findToolCallPartIndex(
 
 function findTextPartIndex(parts: AssistantContentPart[]): number {
 	return parts.findIndex((part) => part.type === "text");
+}
+
+function buildPendingToolResultKey(messageId: string, toolCallId: string): string {
+	return `${messageId}:${toolCallId}`;
 }
 
 export function mergeStreamParts(
@@ -409,6 +417,7 @@ export function mergeJobEvents(
 		events: JobEventRecord[];
 		streamParts?: StreamPartsState;
 		streamFirstSeq?: Map<string, number>;
+		pendingToolResults?: PendingToolResultsState;
 		isJobTerminal?: boolean;
 	},
 	incoming: JobEventRecord[],
@@ -419,10 +428,12 @@ export function mergeJobEvents(
 	events: JobEventRecord[];
 	streamParts: StreamPartsState;
 	streamFirstSeq: Map<string, number>;
+	pendingToolResults: PendingToolResultsState;
 } {
 	let { messages, progress, lastSeq, events, isJobTerminal } = current;
 	let streamParts = current.streamParts;
 	let streamFirstSeq = current.streamFirstSeq;
+	let pendingToolResults = current.pendingToolResults ?? new Map();
 	if (!streamParts) {
 		({ streamParts, streamFirstSeq } =
 			rebuildStreamPartsFromMessages(messages));
@@ -441,19 +452,72 @@ export function mergeJobEvents(
 				streamFirstSeq = new Map(streamFirstSeq);
 				streamFirstSeq.set(messageId, event.seq);
 			}
-			streamParts = mergeStreamParts(streamParts, event.payload);
-			activeStreamMessageId = messageId;
-			messages = upsertStreamMessages(
-				messages,
-				streamParts,
-				streamFirstSeq,
-				activeStreamMessageId,
-			);
-			progress = applyStreamPartToProgress(
-				progress,
-				streamParts,
-				event.payload,
-			);
+			if (event.payload.type === "tool-result") {
+				const hasMatchingToolCall =
+					findToolCallPartIndex(
+						streamParts.get(messageId) ?? [],
+						event.payload.toolCallId,
+					) >= 0;
+
+				if (hasMatchingToolCall) {
+					streamParts = mergeStreamParts(streamParts, event.payload);
+					activeStreamMessageId = messageId;
+					messages = upsertStreamMessages(
+						messages,
+						streamParts,
+						streamFirstSeq,
+						activeStreamMessageId,
+					);
+					progress = applyStreamPartToProgress(
+						progress,
+						streamParts,
+						event.payload,
+					);
+				} else {
+					pendingToolResults = new Map(pendingToolResults);
+					pendingToolResults.set(
+						buildPendingToolResultKey(messageId, event.payload.toolCallId),
+						{
+							result: event.payload.result,
+							...(event.payload.isError ? { isError: true } : {}),
+						},
+					);
+				}
+			} else {
+				streamParts = mergeStreamParts(streamParts, event.payload);
+				activeStreamMessageId = messageId;
+
+				if (event.payload.type === "tool-call") {
+					const pendingKey = buildPendingToolResultKey(
+						messageId,
+						event.payload.toolCallId,
+					);
+					const pendingResult = pendingToolResults.get(pendingKey);
+					if (pendingResult) {
+						pendingToolResults = new Map(pendingToolResults);
+						pendingToolResults.delete(pendingKey);
+						streamParts = mergeStreamParts(streamParts, {
+							type: "tool-result",
+							messageId,
+							toolCallId: event.payload.toolCallId,
+							result: pendingResult.result,
+							isError: pendingResult.isError,
+						});
+					}
+				}
+
+				messages = upsertStreamMessages(
+					messages,
+					streamParts,
+					streamFirstSeq,
+					activeStreamMessageId,
+				);
+				progress = applyStreamPartToProgress(
+					progress,
+					streamParts,
+					event.payload,
+				);
+			}
 		} else if (isSystemInfoPart(event.payload)) {
 			const text = formatSystemInfoLabel(event.payload.data.kind, event.payload.data.payload);
 			const kind = event.payload.data.kind;
@@ -521,6 +585,7 @@ export function mergeJobEvents(
 		events,
 		streamParts,
 		streamFirstSeq,
+		pendingToolResults,
 	};
 }
 

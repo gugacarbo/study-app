@@ -27,6 +27,12 @@ describe("formatSystemInfoLabel", () => {
 		).toBe("Salvando questões…");
 	});
 
+	it("returns human text for phase REVIEWING", () => {
+		expect(
+			formatSystemInfoLabel("phase", { phase: INGEST_PHASE.REVIEWING }),
+		).toBe("Revisando questões…");
+	});
+
 	it("returns human text for file-read with charCount", () => {
 		expect(
 			formatSystemInfoLabel("file-read", { charCount: 1000 }),

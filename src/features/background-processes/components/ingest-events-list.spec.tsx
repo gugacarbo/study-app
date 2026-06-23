@@ -16,7 +16,7 @@ describe("IngestEventsGroupedList", () => {
 			<IngestEventsGroupedList
 				isLoading={false}
 				status={JOB_STATUS.RUNNING}
-				phase={INGEST_PHASE.READING_FILE}
+				phase={null}
 				error={null}
 				events={[
 					{
@@ -42,7 +42,7 @@ describe("IngestEventsGroupedList", () => {
 		);
 
 		expect(screen.getByText(INITIALIZATION_GROUP_LABEL)).toBeInTheDocument();
-		expect(screen.getByText("Lendo arquivo")).toBeInTheDocument();
+		expect(screen.getByText(PHASE_TEXT[INGEST_PHASE.READING_FILE])).toBeInTheDocument();
 		expect(screen.getByText(/#3/)).toBeInTheDocument();
 		expect(screen.getByText(/arquivo lido/i)).toBeInTheDocument();
 		expect(screen.queryByText(/"type":/)).not.toBeInTheDocument();
@@ -82,6 +82,11 @@ describe("IngestEventsGroupedList", () => {
 						payload: { type: "text", text: "Chamando modelo para extração…" },
 						createdAt: null,
 					},
+					{
+						seq: 5,
+						payload: { type: "text", text: "Processando respostas…" },
+						createdAt: null,
+					},
 				]}
 			/>,
 		);
@@ -119,7 +124,7 @@ describe("IngestEventsGroupedList", () => {
 					},
 					{
 						seq: 2,
-						payload: { type: "text", text: "Chamando modelo para extração…" },
+						payload: { type: "text", text: "Executando extração" },
 						createdAt: null,
 					},
 				]}
@@ -176,6 +181,8 @@ describe("IngestEventsGroupedList", () => {
 		const row = label.closest("li");
 		expect(row).toBeInTheDocument();
 		expect(row).toHaveClass("border-l-2");
+		expect(row).toHaveClass("border-l-chart-2");
+		expect(row).toHaveClass("bg-chart-2/10");
 		expect(row).not.toHaveTextContent(/#1/);
 	});
 
@@ -219,7 +226,7 @@ describe("IngestEventsGroupedList", () => {
 		expect(screen.queryByText(/arquivo lido: 100 caracteres/i)).not.toBeInTheDocument();
 	});
 
-	it("system messages appear in correct phase group", () => {
+	it("system messages appear in system group with distinct visuals", () => {
 		render(
 			<IngestEventsGroupedList
 				isLoading={false}
@@ -247,7 +254,7 @@ describe("IngestEventsGroupedList", () => {
 			/>,
 		);
 
-		expect(screen.getByText("Lendo arquivo")).toBeInTheDocument();
+		expect(screen.getByText("Mensagens do sistema")).toBeInTheDocument();
 		expect(screen.getByText(/arquivo lido: 50 caracteres/i)).toBeInTheDocument();
 	});
 });

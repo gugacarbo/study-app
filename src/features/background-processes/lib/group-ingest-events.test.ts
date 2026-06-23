@@ -72,6 +72,22 @@ describe("groupEventsByPhase", () => {
 		expect(groups[0]?.label).toBe(INITIALIZATION_GROUP_LABEL);
 		expect(groups[1]?.label).toBe("Salvando questões");
 	});
+
+	it("creates reviewing group before persisting", () => {
+		const groups = groupEventsByPhase([
+			event(1, {
+				type: INGEST_DATA_PART.PHASE,
+				data: { phase: INGEST_PHASE.REVIEWING },
+			}),
+			event(2, {
+				type: "text",
+				text: "Revisão concluída.",
+			}),
+		]);
+
+		expect(groups).toHaveLength(2);
+		expect(groups[1]?.label).toBe("Revisando questões");
+	});
 });
 
 describe("getIngestGroupStatus", () => {

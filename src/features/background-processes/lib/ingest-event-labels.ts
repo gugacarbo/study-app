@@ -47,6 +47,7 @@ export type IngestEventType =
 const PHASE_LABELS: Record<IngestPhase, string> = {
 	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
 	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
+	[INGEST_PHASE.REVIEWING]: "Revisando questões",
 	[INGEST_PHASE.PERSISTING]: "Salvando questões",
 };
 
@@ -74,6 +75,13 @@ export function isPhaseStatusText(text: string): boolean {
 	return false;
 }
 
+/** True only for system *status* texts (file-read, llm-call, llm-retry, persist-validating),
+ * excluding phase transition texts that drive phase grouping. */
+export function isSystemStatusText(text: string): boolean {
+	if (PHASE_TEXT_VALUES.has(text)) return false;
+	return isPhaseStatusText(text);
+}
+
 function isIngestDataPart(payload: unknown): payload is IngestClientDataPart {
 	if (!payload || typeof payload !== "object" || !("type" in payload)) {
 		return false;
@@ -97,7 +105,7 @@ function hasMessageId(payload: unknown): payload is { messageId: string } {
 	);
 }
 
-function isSystemTextPart(
+export function isSystemTextPart(
 	payload: unknown,
 ): payload is { type: "text"; text: string } {
 	return (

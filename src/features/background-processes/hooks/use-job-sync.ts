@@ -5,6 +5,7 @@ import {
 	type IngestProgressState,
 	type MappedThreadMessage,
 	mergeJobEvents,
+	type PendingToolResultsState,
 	type StreamPartsState,
 } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
@@ -37,6 +38,7 @@ export type JobSyncState = {
 	isTerminal: boolean;
 	streamParts?: StreamPartsState;
 	streamFirstSeq?: Map<string, number>;
+	pendingToolResults?: PendingToolResultsState;
 };
 
 const INITIAL_SYNC_STATE: JobSyncState = {
@@ -51,6 +53,7 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	isTerminal: false,
 	streamParts: undefined,
 	streamFirstSeq: undefined,
+	pendingToolResults: undefined,
 };
 
 function createReplayBaseState(
@@ -80,6 +83,7 @@ function applyJobResponse(
 			events: baseState.events,
 			streamParts: baseState.streamParts,
 			streamFirstSeq: baseState.streamFirstSeq,
+			pendingToolResults: baseState.pendingToolResults,
 			isJobTerminal: TERMINAL.has(data.status),
 		},
 		data.events,
@@ -97,6 +101,7 @@ function applyJobResponse(
 		isTerminal: TERMINAL.has(data.status),
 		streamParts: merged.streamParts,
 		streamFirstSeq: merged.streamFirstSeq,
+		pendingToolResults: merged.pendingToolResults,
 	};
 }
 
@@ -132,6 +137,9 @@ export function useJobSync(jobId: string, enabled = true) {
 					progress: prev.progress,
 					lastSeq: lastSeqRef.current,
 					events: prev.events,
+					streamParts: prev.streamParts,
+					streamFirstSeq: prev.streamFirstSeq,
+					pendingToolResults: prev.pendingToolResults,
 				},
 				events,
 			);
@@ -144,6 +152,7 @@ export function useJobSync(jobId: string, enabled = true) {
 				lastSeq: merged.lastSeq,
 				streamParts: merged.streamParts,
 				streamFirstSeq: merged.streamFirstSeq,
+				pendingToolResults: merged.pendingToolResults,
 			};
 		});
 	}, []);
