@@ -25,4 +25,4 @@
 | [SPEC-0018](ui/0018-job-monitor-redesign.md)            | Monitor de job ingest: UI moderna com assistant-ui e eventos humanizados      | implemented |
 | [SPEC-0019](ui/0019-ingest-realtime-ux.md)              | Ingest em tempo real: upload unificado, eventos granulares e indicador global | implemented |
 | [SPEC-0020](ui/0020-ingest-agent-thread.md)             | Ingest agente: thread rica com reasoning, tools e stream parts                | implemented |
-| [SPEC-0021](exams/0021-edicao-visualizacao-questoes.md) | Edição inline e visualização aprimorada de questões no detalhe da prova       | draft       |
+| [SPEC-0021](exams/0021-edicao-visualizacao-questoes.md) | Edição inline e visualização aprimorada de questões no detalhe da prova       | implemented |

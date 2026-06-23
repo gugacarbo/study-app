@@ -667,11 +667,13 @@
     "path": "docs/specs/exams/0021-edicao-visualizacao-questoes.md",
     "layer": "specs",
     "title": "Edição inline e visualização aprimorada de questões no detalhe da prova",
-    "status": "draft",
+    "status": "implemented",
     "builds-on": [
       "SPEC-0008"
     ],
     "superseded-by": null,
-    "implemented-by": []
+    "implemented-by": [
+      "2026-06-22"
+    ]
   }
 ]

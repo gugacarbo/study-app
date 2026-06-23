@@ -1,8 +1,8 @@
 ---
-status: draft
+status: implemented
 date: 2026-06-22
 builds-on: [SPEC-0008]
-implemented-by: []
+implemented-by: [2026-06-22]
 ---
 
 # Edição inline e visualização aprimorada de questões no detalhe da prova
@@ -104,5 +104,8 @@ npm run docs-check                # exit 0
 ## Verificação
 
 ```text
-(preencher no fechamento)
+typecheck: exit 0
+tests: 14 passed (exam-question-item.spec.tsx + question-edit-form.spec.tsx)
+docs-check: exit 0 (após preenchimento)
+comportamento verificado: accordion expandível, gabarito visível, edição inline com formulário, validação Zod, adição/remoção de alternativas, toggle scoringMode
 ```
