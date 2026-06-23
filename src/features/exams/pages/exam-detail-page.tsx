@@ -1,3 +1,4 @@
+import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExamDetailActions } from "@/features/exams/components/exam-detail-actions";
@@ -5,6 +6,7 @@ import { ExamDetailHeader } from "@/features/exams/components/exam-detail-header
 import { ExamQuestionList } from "@/features/exams/components/exam-question-list";
 import { useExam } from "@/features/exams/hooks/use-exam";
 import { useIngestJobByExam } from "@/features/exams/hooks/use-ingest-job-by-exam";
+import { useQuestionImprovementDrafts } from "@/features/exams/hooks/use-question-improvement-drafts";
 
 type ExamDetailPageProps = {
 	examId: string;
@@ -32,12 +34,23 @@ function ExamDetailPageSkeleton() {
 export function ExamDetailPageContent({ examId }: ExamDetailPageProps) {
 	const { data: exam } = useExam(examId);
 	const { data: ingestJobId } = useIngestJobByExam(examId);
+	const { data: drafts = [] } = useQuestionImprovementDrafts(examId);
+	const draftsByQuestionId = new Map<string, QuestionImprovementDraftRecord>(
+		(drafts as QuestionImprovementDraftRecord[]).map((draft) => [
+			draft.questionId,
+			draft,
+		]),
+	);
 
 	return (
 		<div className="flex flex-col gap-6">
 			<ExamDetailHeader exam={exam} ingestJobId={ingestJobId} />
-			<ExamDetailActions />
-			<ExamQuestionList examId={examId} questions={exam.questions} />
+			<ExamDetailActions examId={examId} questions={exam.questions} />
+			<ExamQuestionList
+				examId={examId}
+				questions={exam.questions}
+				draftsByQuestionId={draftsByQuestionId}
+			/>
 		</div>
 	);
 }

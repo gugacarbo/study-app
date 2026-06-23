@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Accordion } from "@/components/ui/accordion";
 import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
+import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
 const singleAnswerQuestion: QuestionDetail = {
@@ -37,6 +38,8 @@ const partialAnswerQuestion: QuestionDetail = {
 
 const updateQuestionMock = vi.fn();
 const invalidateExamMock = vi.fn();
+const approveDraftMock = vi.fn();
+const discardDraftMock = vi.fn();
 
 vi.mock("@/features/exams/hooks/use-update-question", () => ({
 	useUpdateQuestion: () => ({
@@ -45,11 +48,26 @@ vi.mock("@/features/exams/hooks/use-update-question", () => ({
 	}),
 }));
 
+vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => ({
+	useQuestionImprovementDraftActions: () => ({
+		approveDraft: {
+			mutateAsync: approveDraftMock,
+			isPending: false,
+		},
+		discardDraft: {
+			mutateAsync: discardDraftMock,
+			isPending: false,
+		},
+	}),
+}));
+
 describe("ExamQuestionItem", () => {
 	afterEach(() => {
 		cleanup();
 		updateQuestionMock.mockClear();
 		invalidateExamMock.mockClear();
+		approveDraftMock.mockClear();
+		discardDraftMock.mockClear();
 	});
 
 	function renderWithAccordion(ui: ReactElement) {
@@ -108,8 +126,8 @@ describe("ExamQuestionItem", () => {
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
-		expect(items[1]?.className).toContain("bg-primary/10");
-		expect(items[0]?.className).not.toContain("bg-primary/10");
+		expect(items[1]?.className).toContain("bg-emerald-50/50");
+		expect(items[0]?.className).not.toContain("bg-emerald-50/50");
 	});
 
 	it("highlights correct answers inline for partial-answer question", () => {
@@ -125,9 +143,9 @@ describe("ExamQuestionItem", () => {
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
-		expect(items[0]?.className).toContain("bg-primary/10");
-		expect(items[2]?.className).toContain("bg-primary/10");
-		expect(items[1]?.className).not.toContain("bg-primary/10");
+		expect(items[0]?.className).toContain("bg-emerald-50/50");
+		expect(items[2]?.className).toContain("bg-emerald-50/50");
+		expect(items[1]?.className).not.toContain("bg-emerald-50/50");
 	});
 
 	it("switches to edit form when Edit button is clicked", () => {
@@ -149,5 +167,62 @@ describe("ExamQuestionItem", () => {
 		expect(
 			screen.getByRole("button", { name: /cancelar/i }),
 		).toBeInTheDocument();
+	});
+
+	it("shows pending improvement actions when a draft exists", async () => {
+		const draft: QuestionImprovementDraftRecord = {
+			id: "draft-1",
+			userId: "user-1",
+			examId: "exam-1",
+			questionId: "q1",
+			jobId: "job-1",
+			status: "pending_review",
+			originalSnapshot: {
+				question: "Qual a capital do Brasil?",
+				options: singleAnswerQuestion.options,
+				answers: ["B"],
+				topic: "Geografia",
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			improvedSnapshot: {
+				question: "Qual é a capital federal do Brasil?",
+				options: [
+					{ key: "A", text: "São Paulo" },
+					{ key: "B", text: "Brasília" },
+					{ key: "C", text: "Belo Horizonte" },
+				],
+				answers: ["B"],
+				topic: "Geografia do Brasil",
+				scoringMode: "exact",
+				explanation: "Brasília é a capital.",
+				deepExplanation: null,
+			},
+			summary: "Refinei os distratores.",
+			metadata: null,
+			createdAt: null,
+			updatedAt: null,
+		};
+
+		renderWithAccordion(
+			<ExamQuestionItem
+				index={1}
+				examId="exam-1"
+				question={singleAnswerQuestion}
+				draft={draft}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
+
+		expect(screen.getByText(/melhoria pendente/i)).toBeInTheDocument();
+		expect(screen.getByText(/qual é a capital federal do brasil/i)).toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: /aprovar melhoria/i }));
+		expect(approveDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });
+
+		fireEvent.click(screen.getByRole("button", { name: /descartar melhoria/i }));
+		expect(discardDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });
 	});
 });

@@ -16,6 +16,8 @@ type IngestJobThreadProps = {
 	phase?: string | null;
 	metadata?: IngestJobMetadata | null;
 	progress?: IngestProgressState;
+	title?: string;
+	showHeader?: boolean;
 };
 
 export function IngestJobThread({
@@ -25,9 +27,12 @@ export function IngestJobThread({
 	phase,
 	metadata,
 	progress,
+	title,
+	showHeader,
 }: IngestJobThreadProps) {
+	const assistantMessages = messages.filter((m) => m.role !== "system");
 	const runtime = useExternalStoreRuntime<MappedThreadMessage>({
-		messages,
+		messages: assistantMessages,
 		isRunning,
 		isDisabled: true,
 		convertMessage: (message) => ({
@@ -46,6 +51,8 @@ export function IngestJobThread({
 				phase={phase}
 				metadata={metadata}
 				progress={progress}
+				title={title}
+				showHeader={showHeader}
 			/>
 		</AssistantRuntimeProvider>
 	);

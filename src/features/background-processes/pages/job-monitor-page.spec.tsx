@@ -96,9 +96,6 @@ describe("JobMonitorPage", () => {
 				screen.getByRole("region", { name: /chat do agente/i }),
 			).toBeInTheDocument();
 			expect(screen.getByText(/em andamento/i)).toBeInTheDocument();
-			expect(
-				screen.getByText(PHASE_TEXT[INGEST_PHASE.REVIEWING]),
-			).toBeInTheDocument();
 		});
 		expect(screen.getByRole("tab", { name: /progresso/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /eventos \(1\)/i })).toBeInTheDocument();
@@ -404,5 +401,76 @@ describe("JobMonitorPage", () => {
 			expect(screen.getByLabelText(/^arquivo$/i)).toBeInTheDocument();
 		});
 		expect(navigate).not.toHaveBeenCalled();
+	});
+
+	it("reuses activity and progress layout for improve-questions jobs", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.RUNNING,
+					phase: "processing_questions",
+					error: null,
+					metadata: {
+						examId: "exam-1",
+						modelId: "model-1",
+						questionIds: ["q-1"],
+						concurrencyLimit: 2,
+						totalCount: 1,
+						queuedCount: 0,
+						runningCount: 1,
+						completedCount: 0,
+						failedCount: 0,
+						cancelledCount: 0,
+						pendingReviewCount: 0,
+						items: [
+							{
+								questionId: "q-1",
+								questionNumber: 1,
+								status: "running",
+								stage: "drafting",
+							},
+						],
+					},
+					events: [
+						{
+							seq: 1,
+							payload: {
+								type: "data-improve-question-stage",
+								data: { questionId: "q-1", stage: "drafting" },
+							},
+							createdAt: null,
+						},
+						{
+							seq: 2,
+							payload: {
+								type: "text",
+								questionId: "q-1",
+								messageId: "improve:q-1:step:1",
+								text: "Refinando a questão...",
+							},
+							createdAt: null,
+						},
+					],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("region", { name: /atividade do job/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("region", { name: /progresso do job/i }),
+			).toBeInTheDocument();
+			expect(screen.getAllByText(/questão 1/i).length).toBeGreaterThan(0);
+			expect(screen.getByText(/refinando a questão/i)).toBeInTheDocument();
+			expect(
+				screen.getByRole("tab", { name: /eventos \(2\)/i }),
+			).toBeInTheDocument();
+		});
 	});
 });

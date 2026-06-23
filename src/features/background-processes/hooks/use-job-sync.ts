@@ -9,12 +9,18 @@ import {
 	type StreamPartsState,
 } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
+	type ImproveMonitorState,
+	isImproveQuestionsJobMetadata,
+	mergeImproveJobEvents,
+} from "@/features/background-processes/lib/improve-event-mapper";
+import {
 	fetchJobEvents,
 	JOB_POLL_INTERVAL_MS,
 	type JobEventRecord,
 	type JobEventsResponse,
 } from "@/features/background-processes/lib/jobs-api";
 import {
+	type ImproveQuestionsJobMetadata,
 	type IngestJobMetadata,
 	JOB_STATUS,
 	type JobStatus,
@@ -30,9 +36,10 @@ export type JobSyncState = {
 	status: JobStatus | null;
 	phase: string | null;
 	error: string | null;
-	metadata: IngestJobMetadata | null;
+	metadata: IngestJobMetadata | ImproveQuestionsJobMetadata | null;
 	messages: MappedThreadMessage[];
 	progress: IngestProgressState;
+	improve: ImproveMonitorState | null;
 	events: JobEventRecord[];
 	lastSeq: number;
 	isTerminal: boolean;
@@ -48,6 +55,7 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	metadata: null,
 	messages: [],
 	progress: INITIAL_INGEST_PROGRESS,
+	improve: null,
 	events: [],
 	lastSeq: 0,
 	isTerminal: false,
@@ -65,6 +73,13 @@ function createReplayBaseState(
 		phase: data.phase,
 		error: data.error,
 		metadata: data.metadata,
+		improve: isImproveQuestionsJobMetadata(data.metadata)
+			? mergeImproveJobEvents({
+					metadata: data.metadata,
+					incoming: [],
+					isJobTerminal: TERMINAL.has(data.status),
+				})
+			: null,
 		isTerminal: TERMINAL.has(data.status),
 	};
 }
@@ -96,6 +111,14 @@ function applyJobResponse(
 		metadata: data.metadata,
 		messages: merged.messages,
 		progress: merged.progress,
+		improve: isImproveQuestionsJobMetadata(data.metadata)
+			? mergeImproveJobEvents({
+					current: baseState.improve,
+					metadata: data.metadata,
+					incoming: data.events,
+					isJobTerminal: TERMINAL.has(data.status),
+				})
+			: null,
 		events: merged.events,
 		lastSeq: merged.lastSeq,
 		isTerminal: TERMINAL.has(data.status),
@@ -148,6 +171,15 @@ export function useJobSync(jobId: string, enabled = true) {
 				...prev,
 				messages: merged.messages,
 				progress: merged.progress,
+				improve:
+					isImproveQuestionsJobMetadata(prev.metadata)
+						? mergeImproveJobEvents({
+								current: prev.improve,
+								metadata: prev.metadata,
+								incoming: events,
+								isJobTerminal: prev.isTerminal,
+							})
+						: prev.improve,
 				events: merged.events,
 				lastSeq: merged.lastSeq,
 				streamParts: merged.streamParts,

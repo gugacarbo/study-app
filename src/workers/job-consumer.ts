@@ -13,6 +13,7 @@ export type JobConsumerBindings = {
 	DB: D1Database;
 	FILES_BUCKET: R2Bucket;
 	MEMORY_BUCKET?: R2Bucket;
+	TAVILY_API_KEY?: string;
 };
 
 export async function handleJobConsumer(

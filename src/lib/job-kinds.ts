@@ -1,6 +1,7 @@
 export const JOB_KIND = {
 	INGEST: "ingest",
 	EXPLAIN_QUESTION: "explain-question",
+	IMPROVE_QUESTIONS: "improve-questions",
 	CONNECTION_TEST: "connection-test",
 	MODEL_BENCHMARK: "model-benchmark",
 } as const;
@@ -84,6 +85,60 @@ export type IngestJobMetadata = {
 	reviewWarning?: "review_fallback";
 };
 
+export const IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY = 2;
+
+export const IMPROVE_BATCH_PHASE = {
+	PREPARING_BATCH: "preparing_batch",
+	DISPATCHING_AGENTS: "dispatching_agents",
+	PROCESSING_QUESTIONS: "processing_questions",
+	FINALIZING_BATCH: "finalizing_batch",
+} as const;
+
+export type ImproveBatchPhase =
+	(typeof IMPROVE_BATCH_PHASE)[keyof typeof IMPROVE_BATCH_PHASE];
+
+export const IMPROVE_QUESTION_STAGE = {
+	QUEUED: "queued",
+	LOADING_QUESTION: "loading_question",
+	RESEARCHING: "researching",
+	DRAFTING: "drafting",
+	SAVING_DRAFT: "saving_draft",
+} as const;
+
+export type ImproveQuestionStage =
+	(typeof IMPROVE_QUESTION_STAGE)[keyof typeof IMPROVE_QUESTION_STAGE];
+
+export type ImproveQuestionItemStatus =
+	| "queued"
+	| "running"
+	| "completed"
+	| "failed"
+	| "cancelled";
+
+export type ImproveQuestionItem = {
+	questionId: string;
+	questionNumber: number;
+	status: ImproveQuestionItemStatus;
+	stage: ImproveQuestionStage;
+	summary?: string;
+	error?: string;
+};
+
+export type ImproveQuestionsJobMetadata = {
+	examId: string;
+	modelId: string;
+	questionIds: string[];
+	concurrencyLimit: number;
+	totalCount: number;
+	queuedCount: number;
+	runningCount: number;
+	completedCount: number;
+	failedCount: number;
+	cancelledCount: number;
+	pendingReviewCount: number;
+	items: ImproveQuestionItem[];
+};
+
 export function parseIngestJobMetadata(
 	raw: string | null,
 ): IngestJobMetadata | null {
@@ -97,6 +152,42 @@ export function parseIngestJobMetadata(
 
 export function serializeIngestJobMetadata(
 	metadata: IngestJobMetadata,
+): string {
+	return JSON.stringify(metadata);
+}
+
+export function parseImproveQuestionsJobMetadata(
+	raw: string | null,
+): ImproveQuestionsJobMetadata | null {
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw) as Partial<ImproveQuestionsJobMetadata>;
+		if (
+			typeof parsed !== "object" ||
+			parsed == null ||
+			typeof parsed.examId !== "string" ||
+			typeof parsed.modelId !== "string" ||
+			!Array.isArray(parsed.questionIds) ||
+			typeof parsed.concurrencyLimit !== "number" ||
+			typeof parsed.totalCount !== "number" ||
+			typeof parsed.queuedCount !== "number" ||
+			typeof parsed.runningCount !== "number" ||
+			typeof parsed.completedCount !== "number" ||
+			typeof parsed.failedCount !== "number" ||
+			typeof parsed.cancelledCount !== "number" ||
+			typeof parsed.pendingReviewCount !== "number" ||
+			!Array.isArray(parsed.items)
+		) {
+			return null;
+		}
+		return parsed as ImproveQuestionsJobMetadata;
+	} catch {
+		return null;
+	}
+}
+
+export function serializeImproveQuestionsJobMetadata(
+	metadata: ImproveQuestionsJobMetadata,
 ): string {
 	return JSON.stringify(metadata);
 }

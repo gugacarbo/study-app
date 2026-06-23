@@ -1,4 +1,6 @@
+import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	AccordionContent,
@@ -6,6 +8,7 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { QuestionEditForm } from "@/features/exams/components/question-edit-form";
+import { useQuestionImprovementDraftActions } from "@/features/exams/hooks/use-question-improvement-draft-actions";
 import { useUpdateQuestion } from "@/features/exams/hooks/use-update-question";
 import type { QuestionFormInput } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
@@ -14,6 +17,7 @@ type ExamQuestionItemProps = {
 	index: number;
 	examId: string;
 	question: QuestionDetail;
+	draft?: QuestionImprovementDraftRecord;
 };
 
 function formatTopic(topic: string | null): string {
@@ -28,10 +32,12 @@ export function ExamQuestionItem({
 	index,
 	examId,
 	question,
+	draft,
 }: ExamQuestionItemProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [displayQuestion, setDisplayQuestion] = useState(question);
 	const updateQuestion = useUpdateQuestion(examId);
+	const { approveDraft, discardDraft } = useQuestionImprovementDraftActions(examId);
 
 	const answerSet = new Set(displayQuestion.answers);
 
@@ -47,6 +53,20 @@ export function ExamQuestionItem({
 
 	function handleCancel() {
 		setIsEditing(false);
+	}
+
+	async function handleApproveDraft() {
+		if (!draft) return;
+		await approveDraft.mutateAsync({ draftId: draft.id });
+		setDisplayQuestion({
+			...displayQuestion,
+			...draft.improvedSnapshot,
+		});
+	}
+
+	async function handleDiscardDraft() {
+		if (!draft) return;
+		await discardDraft.mutateAsync({ draftId: draft.id });
 	}
 
 	return (
@@ -77,6 +97,45 @@ export function ExamQuestionItem({
 				) : (
 					<>
 						<div className="border-t pt-(--card-spacing) pb-(--card-spacing)">
+							{draft ? (
+								<div className="mb-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/20">
+									<div className="flex items-center justify-between gap-2">
+										<Badge variant="secondary">Melhoria pendente</Badge>
+										<div className="flex gap-2">
+											<Button
+												type="button"
+												size="sm"
+												onClick={() => void handleApproveDraft()}
+												disabled={approveDraft.isPending}
+											>
+												Aprovar melhoria
+											</Button>
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												onClick={() => void handleDiscardDraft()}
+												disabled={discardDraft.isPending}
+											>
+												Descartar melhoria
+											</Button>
+										</div>
+									</div>
+									{draft.summary ? (
+										<p className="text-muted-foreground">{draft.summary}</p>
+									) : null}
+									<div className="grid gap-3 md:grid-cols-2">
+										<div>
+											<p className="mb-1 font-medium">Original</p>
+											<p>{draft.originalSnapshot.question}</p>
+										</div>
+										<div>
+											<p className="mb-1 font-medium">Melhorada</p>
+											<p>{draft.improvedSnapshot.question}</p>
+										</div>
+									</div>
+								</div>
+							) : null}
 							<p className="text-sm leading-relaxed">
 								{displayQuestion.question}
 							</p>

@@ -31,14 +31,21 @@ import {
 	type ToolCallMessagePartProps,
 	useAuiState,
 } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 import {
 	ArrowDownIcon,
 	CheckIcon,
+	ChevronDownIcon,
+	ChevronUpIcon,
 	CircleIcon,
 	LoaderCircleIcon,
 	XIcon,
 	DollarSign,
 } from "lucide-react";
+import {
+	SYSTEM_KIND_FALLBACK,
+	SYSTEM_KIND_VISUALS,
+} from "@/features/background-processes/lib/system-kind-visuals";
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
 import { formatPhaseLabel } from "@/features/background-processes/lib/ingest-event-mapper";
@@ -55,6 +62,8 @@ export type IngestThreadProps = {
 	phase?: string | null;
 	metadata?: IngestJobMetadata | null;
 	progress?: IngestProgressState;
+	title?: string;
+	showHeader?: boolean;
 };
 
 const STATUS_BADGE_LABELS: Partial<Record<JobStatus, string>> = {
@@ -204,16 +213,75 @@ const IngestThreadMessage: FC = () => {
 	return <IngestAssistantMessage />;
 };
 
-const IngestSystemMessage: FC = () => (
-	<MessagePrimitive.Root
-		className="flex w-full justify-center py-1"
-		data-role="system"
-	>
-		<div className="rounded-full bg-muted px-3 py-1.5 text-center text-xs text-muted-foreground">
-			<MessagePrimitive.Parts />
-		</div>
-	</MessagePrimitive.Root>
-);
+function parseSystemMessageId(id: string | undefined): string | null {
+	if (!id) return null;
+	if (id.startsWith("system:")) return id.slice("system:".length);
+	return null;
+}
+
+const IngestSystemMessage: FC = () => {
+	const { id, content, status, isLast } = useAuiState((s) => ({
+		id: s.message.id,
+		content:
+			typeof s.message.content === "string" ? s.message.content : "",
+		status: s.message.status,
+		isLast: s.message.isLast,
+	}));
+	const isRunning = useAuiState((s) => s.thread.isRunning);
+	const kind = parseSystemMessageId(id);
+	const visual = kind
+		? (SYSTEM_KIND_VISUALS[kind] ?? SYSTEM_KIND_FALLBACK)
+		: SYSTEM_KIND_FALLBACK;
+	const Icon = visual.icon;
+	const active = isLast && isRunning && status?.type !== "complete";
+	const [manuallyExpanded, setManuallyExpanded] = useState(false);
+
+	const isExpanded = isLast || manuallyExpanded;
+	const isCompact = !isExpanded;
+
+	return (
+		<MessagePrimitive.Root
+			className="flex w-full justify-center py-1"
+			data-role="system"
+			data-message-id={id}
+		>
+			<div
+				className={cn(
+					"flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-all",
+					visual.borderClass,
+					visual.bgClass,
+					visual.textClass,
+					active && "animate-pulse",
+					isCompact && "opacity-70",
+				)}
+			>
+				<Icon className="size-3.5" aria-hidden />
+				<span
+					className={cn(
+						"font-medium",
+						isCompact && "max-w-[12rem] truncate",
+					)}
+				>
+					{content}
+				</span>
+				{!isLast ? (
+					<button
+						type="button"
+						onClick={() => setManuallyExpanded((v) => !v)}
+						className="-me-1 rounded-full p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
+						aria-label={manuallyExpanded ? "Recolher" : "Expandir"}
+					>
+						{manuallyExpanded ? (
+							<ChevronUpIcon className="size-3" aria-hidden />
+						) : (
+							<ChevronDownIcon className="size-3" aria-hidden />
+						)}
+					</button>
+				) : null}
+			</div>
+		</MessagePrimitive.Root>
+	);
+};
 
 // Tool calls: always start collapsed.
 const IngestToolPart: FC<ToolCallMessagePartProps> = (part) => (
@@ -337,6 +405,8 @@ export const IngestThread: FC<IngestThreadProps> = ({
 	phase,
 	metadata,
 	progress,
+	title = "Atividade",
+	showHeader = true,
 }) => (
 	<ThreadPrimitive.Root
 		className="aui-root aui-thread-root bg-background flex h-full min-h-0 flex-col"
@@ -344,18 +414,20 @@ export const IngestThread: FC<IngestThreadProps> = ({
 			["--thread-max-width" as string]: "100%",
 		}}
 	>
-		<div className="border-b px-4 py-2">
-			<div className="flex items-center gap-2">
-				<h2 className="text-sm font-medium">Atividade</h2>
-				<StatusBadge
-					status={status}
-					phase={phase}
-					metadata={metadata}
-					progress={progress}
-				/>
-				<TokenUsageBadge metadata={metadata} />
+		{showHeader ? (
+			<div className="border-b px-4 py-2">
+				<div className="flex items-center gap-2">
+					<h2 className="text-sm font-medium">{title}</h2>
+					<StatusBadge
+						status={status}
+						phase={phase}
+						metadata={metadata}
+						progress={progress}
+					/>
+					<TokenUsageBadge metadata={metadata} />
+				</div>
 			</div>
-		</div>
+		) : null}
 		<ThreadPrimitive.Viewport
 			autoScroll
 			turnAnchor="top"

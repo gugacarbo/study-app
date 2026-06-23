@@ -1,18 +1,10 @@
 import {
-	ArrowRightIcon,
 	CheckIcon,
 	ChevronDownIcon,
 	CircleIcon,
-	ClipboardCheckIcon,
-	DatabaseIcon,
-	FileTextIcon,
-	InfoIcon,
 	LoaderCircleIcon,
-	RefreshCwIcon,
-	SparklesIcon,
 	XCircleIcon,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import {
 	isSystemInfoPart,
 	isSystemStatusText,
@@ -38,6 +30,10 @@ import {
 	type IngestGroupStatus,
 } from "@/features/background-processes/lib/group-ingest-events";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
+import {
+	SYSTEM_KIND_VISUALS,
+	SYSTEM_KIND_FALLBACK,
+} from "@/features/background-processes/lib/system-kind-visuals";
 import { JOB_STATUS, type JobStatus } from "@/lib/job-kinds";
 import { cn } from "@/lib/utils";
 
@@ -77,67 +73,6 @@ function GroupStatusIcon({ status }: { status: IngestGroupStatus }) {
 			return <CircleIcon className="size-4 text-muted-foreground" aria-hidden />;
 	}
 }
-
-type SystemKindVisual = {
-	icon: LucideIcon;
-	borderClass: string;
-	bgClass: string;
-	circleClass: string;
-	textClass: string;
-};
-
-const SYSTEM_KIND_VISUALS: Record<string, SystemKindVisual> = {
-	phase: {
-		icon: ArrowRightIcon,
-		borderClass: "border-l-chart-3",
-		bgClass: "bg-chart-3/10",
-		circleClass: "bg-chart-3/15",
-		textClass: "text-chart-3",
-	},
-	"file-read": {
-		icon: FileTextIcon,
-		borderClass: "border-l-chart-2",
-		bgClass: "bg-chart-2/10",
-		circleClass: "bg-chart-2/15",
-		textClass: "text-chart-2",
-	},
-	"llm-call": {
-		icon: SparklesIcon,
-		borderClass: "border-l-chart-1",
-		bgClass: "bg-chart-1/10",
-		circleClass: "bg-chart-1/15",
-		textClass: "text-chart-1",
-	},
-	"llm-retry": {
-		icon: RefreshCwIcon,
-		borderClass: "border-l-chart-5",
-		bgClass: "bg-chart-5/10",
-		circleClass: "bg-chart-5/15",
-		textClass: "text-chart-5",
-	},
-	"persist-validating": {
-		icon: ClipboardCheckIcon,
-		borderClass: "border-l-chart-4",
-		bgClass: "bg-chart-4/10",
-		circleClass: "bg-chart-4/15",
-		textClass: "text-chart-4",
-	},
-	"persist-progress": {
-		icon: DatabaseIcon,
-		borderClass: "border-l-chart-3",
-		bgClass: "bg-chart-3/10",
-		circleClass: "bg-chart-3/15",
-		textClass: "text-chart-3",
-	},
-};
-
-const SYSTEM_KIND_FALLBACK: SystemKindVisual = {
-	icon: InfoIcon,
-	borderClass: "border-l-muted-foreground",
-	bgClass: "bg-muted/50",
-	circleClass: "bg-muted-foreground/15",
-	textClass: "text-muted-foreground",
-};
 
 function IngestSystemMessageRow({ event }: { event: JobEventRecord }) {
 	const kind = isSystemInfoPart(event.payload) ? event.payload.data.kind : "";

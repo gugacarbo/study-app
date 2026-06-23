@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import { useJobSync } from "@/features/background-processes/hooks/use-job-sync";
 import { JOB_STATUS } from "@/lib/job-kinds";
 
@@ -11,6 +12,9 @@ function SyncProbe({ jobId, onUpdate }: { jobId: string; onUpdate: (state: Retur
 		<div>
 			<span data-testid="event-count">{sync.events.length}</span>
 			<span data-testid="message-count">{sync.messages.length}</span>
+			<span data-testid="improve-question-count">
+				{sync.improve?.questions.length ?? 0}
+			</span>
 			<span data-testid="status">{sync.status ?? ""}</span>
 		</div>
 	);
@@ -201,6 +205,114 @@ describe("useJobSync", () => {
 			type: "tool-call",
 			toolName: "submit_question",
 			result: { ok: true, index: 1 },
+		});
+	});
+
+	it("derives per-question improve monitor state from structured improve events", async () => {
+		const jobResponse = {
+			status: JOB_STATUS.RUNNING,
+			phase: "processing_questions",
+			error: null,
+			metadata: {
+				examId: "exam-1",
+				modelId: "model-1",
+				questionIds: ["q-1"],
+				concurrencyLimit: 2,
+				totalCount: 1,
+				queuedCount: 0,
+				runningCount: 1,
+				completedCount: 0,
+				failedCount: 0,
+				cancelledCount: 0,
+				pendingReviewCount: 0,
+				items: [
+					{
+						questionId: "q-1",
+						questionNumber: 1,
+						status: "running",
+						stage: "drafting",
+					},
+				],
+			},
+			events: [
+				{
+					seq: 1,
+					payload: {
+						type: "data-improve-question-stage",
+						data: { questionId: "q-1", stage: "drafting" },
+					},
+					createdAt: null,
+				},
+				{
+					seq: 2,
+					payload: {
+						type: "text",
+						questionId: "q-1",
+						messageId: "improve:q-1:step:1",
+						text: "Refinando a questão...",
+					},
+					createdAt: null,
+				},
+				{
+					seq: 3,
+					payload: {
+						type: "tool-call",
+						questionId: "q-1",
+						messageId: "improve:q-1:step:1",
+						toolCallId: "tool-1",
+						toolName: "get_question",
+						argsText: JSON.stringify({ questionId: "q-1" }),
+						state: "running",
+					},
+					createdAt: null,
+				},
+			],
+		};
+
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => jobResponse,
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const client = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		});
+
+		let latestImprove: ImproveMonitorState | null = null;
+
+		render(
+			<QueryClientProvider client={client}>
+				<SyncProbe
+					jobId="job-1"
+					onUpdate={(state) => {
+						latestImprove = state.improve;
+					}}
+				/>
+			</QueryClientProvider>,
+		);
+
+		await waitFor(() => {
+			expect(latestImprove?.questions).toHaveLength(1);
+		});
+
+		const getLatestImprove = (): ImproveMonitorState => {
+			if (!latestImprove) {
+				throw new Error("Expected improve state to be available");
+			}
+			return latestImprove;
+		};
+		const improveQuestion = getLatestImprove().questions[0];
+		expect(improveQuestion).toMatchObject({
+			questionId: "q-1",
+			questionNumber: 1,
+			status: "running",
+			stage: "drafting",
+			messages: [
+				expect.objectContaining({
+					id: "improve:q-1:step:1",
+				}),
+			],
 		});
 	});
 });

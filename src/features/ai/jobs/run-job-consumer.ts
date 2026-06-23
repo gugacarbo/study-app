@@ -13,7 +13,12 @@ import {
 	type RunIngestDeps,
 	runIngest,
 } from "@/features/ai/jobs/ingest/run-ingest";
+import { runImproveQuestionAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-agent";
+import { runImproveQuestionsBatch } from "@/features/ai/jobs/improve-questions/run-improve-questions-batch";
+import { JobEventAppender } from "@/features/ai/jobs/shared/job-event-appender";
 import { JOB_KIND } from "@/lib/job-kinds";
+import { parseImproveQuestionsJobMetadata } from "@/lib/job-kinds";
+import { getAiModel } from "@/lib/ai-config";
 import type { JobConsumerBindings } from "@/workers/job-consumer";
 
 export type RunJobConsumerContext = {
@@ -47,6 +52,64 @@ export async function runJobConsumer(
 				});
 			}
 			break;
+		case JOB_KIND.IMPROVE_QUESTIONS: {
+			const metadata = parseImproveQuestionsJobMetadata(ctx.job.metadata);
+			if (!metadata) {
+				await updateJobStatus(ctx.db, ctx.job.id, {
+					status: "failed",
+					error: "invalid_improve_questions_metadata",
+				});
+				return;
+			}
+			const eventAppender = new JobEventAppender(ctx.job.id, async (jobId, payload) => {
+				await appendJobEvent(ctx.db, jobId, payload);
+			});
+
+			await runImproveQuestionsBatch({
+				jobId: ctx.job.id,
+				metadata,
+				deps: {
+					appendJobEvent: async (jobId, payload) => {
+						if (jobId !== ctx.job.id) {
+							throw new Error("Unexpected job id for improve-questions appender");
+						}
+						await eventAppender.append(payload);
+					},
+					updateJobStatus: async (jobId, patch) => {
+						await updateJobStatus(ctx.db, jobId, patch);
+					},
+					isCancelRequested: async () => {
+						const job = await getJobByIdInternal(ctx.db, ctx.job.id);
+						return job?.cancelRequestedAt != null;
+					},
+					executeQuestion: async ({ questionId }) => {
+						const model = await getAiModel({
+							db: ctx.db,
+							userId: ctx.job.userId,
+							modelId: metadata.modelId,
+						});
+						return runImproveQuestionAgent({
+							db: ctx.db,
+							jobId: ctx.job.id,
+							userId: ctx.job.userId,
+							examId: metadata.examId,
+							questionId,
+							model: model as never,
+							appendJobEvent: async (jobId, payload) => {
+								if (jobId !== ctx.job.id) {
+									throw new Error(
+										"Unexpected job id for improve question appender",
+									);
+								}
+								await eventAppender.append(payload);
+							},
+							webSearchApiKey: ctx.env.TAVILY_API_KEY,
+						});
+					},
+				},
+			});
+			break;
+		}
 		case JOB_KIND.EXPLAIN_QUESTION:
 		case JOB_KIND.CONNECTION_TEST:
 		case JOB_KIND.MODEL_BENCHMARK:

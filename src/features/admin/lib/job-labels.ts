@@ -9,6 +9,7 @@ import {
 export const JOB_KIND_LABELS: Record<JobKind, string> = {
 	[JOB_KIND.INGEST]: "Ingestão",
 	[JOB_KIND.EXPLAIN_QUESTION]: "Explicação",
+	[JOB_KIND.IMPROVE_QUESTIONS]: "Melhoria",
 	[JOB_KIND.CONNECTION_TEST]: "Teste de conexão",
 	[JOB_KIND.MODEL_BENCHMARK]: "Benchmark",
 };

@@ -2,12 +2,12 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
 	ACTIVE_INGEST_STATUSES,
 	type IngestJobMetadata,
+	type ImproveQuestionsJobMetadata,
 	isCancellableJobStatus,
 	JOB_KIND,
 	JOB_STATUS,
 	type JobStatus,
 	parseIngestJobMetadata,
-	serializeIngestJobMetadata,
 } from "@/lib/job-kinds";
 import { type JsonObject, parseJsonObject } from "@/lib/json-value";
 import type { AppDatabase } from "../client";
@@ -28,11 +28,16 @@ type JobUpdateValues = {
 };
 
 function serializeMetadata(
-	metadata: IngestJobMetadata | string | null | undefined,
+	metadata:
+		| IngestJobMetadata
+		| ImproveQuestionsJobMetadata
+		| string
+		| null
+		| undefined,
 ): string | null {
 	if (metadata == null) return null;
 	if (typeof metadata === "string") return metadata;
-	return serializeIngestJobMetadata(metadata);
+	return JSON.stringify(metadata);
 }
 
 export async function createJob(
@@ -42,7 +47,7 @@ export async function createJob(
 		userId: string;
 		kind: string;
 		status: JobStatus;
-		metadata?: IngestJobMetadata | string | null;
+		metadata?: IngestJobMetadata | ImproveQuestionsJobMetadata | string | null;
 		phase?: string | null;
 	},
 ) {
@@ -93,7 +98,7 @@ export async function updateJobStatus(
 		status?: JobStatus;
 		phase?: string | null;
 		error?: string | null;
-		metadata?: IngestJobMetadata | string | null;
+		metadata?: IngestJobMetadata | ImproveQuestionsJobMetadata | string | null;
 	},
 ) {
 	const values: JobUpdateValues = {

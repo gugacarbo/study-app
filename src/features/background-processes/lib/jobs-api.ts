@@ -1,5 +1,9 @@
 import { isJobErrorCode, type JobErrorBody } from "@/lib/job-errors";
-import type { IngestJobMetadata, JobStatus } from "@/lib/job-kinds";
+import type {
+	ImproveQuestionsJobMetadata,
+	IngestJobMetadata,
+	JobStatus,
+} from "@/lib/job-kinds";
 
 export const JOB_POLL_INTERVAL_MS = 1500;
 
@@ -13,7 +17,7 @@ export type JobEventsResponse = {
 	status: JobStatus;
 	phase: string | null;
 	error: string | null;
-	metadata: IngestJobMetadata | null;
+	metadata: IngestJobMetadata | ImproveQuestionsJobMetadata | null;
 	events: JobEventRecord[];
 };
 
