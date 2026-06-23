@@ -16,6 +16,8 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminR2LogsIndexRouteImport } from './routes/admin/r2-logs/index'
+import { Route as AdminLlmLogsIndexRouteImport } from './routes/admin/llm-logs/index'
 import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
 import { Route as AdminConfigIndexRouteImport } from './routes/admin/config/index'
 import { Route as AppExamsIndexRouteImport } from './routes/_app/exams/index'
@@ -62,6 +64,16 @@ const ApiJobsIndexRoute = ApiJobsIndexRouteImport.update({
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   id: '/users/',
   path: '/users/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminR2LogsIndexRoute = AdminR2LogsIndexRouteImport.update({
+  id: '/r2-logs/',
+  path: '/r2-logs/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminLlmLogsIndexRoute = AdminLlmLogsIndexRouteImport.update({
+  id: '/llm-logs/',
+  path: '/llm-logs/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminJobsIndexRoute = AdminJobsIndexRouteImport.update({
@@ -141,6 +153,8 @@ export interface FileRoutesByFullPath {
   '/exams/': typeof AppExamsIndexRoute
   '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
+  '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
+  '/admin/r2-logs/': typeof AdminR2LogsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
@@ -161,6 +175,8 @@ export interface FileRoutesByTo {
   '/exams': typeof AppExamsIndexRoute
   '/admin/config': typeof AdminConfigIndexRoute
   '/admin/jobs': typeof AdminJobsIndexRoute
+  '/admin/llm-logs': typeof AdminLlmLogsIndexRoute
+  '/admin/r2-logs': typeof AdminR2LogsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
@@ -184,6 +200,8 @@ export interface FileRoutesById {
   '/_app/exams/': typeof AppExamsIndexRoute
   '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
+  '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
+  '/admin/r2-logs/': typeof AdminR2LogsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
@@ -207,6 +225,8 @@ export interface FileRouteTypes {
     | '/exams/'
     | '/admin/config/'
     | '/admin/jobs/'
+    | '/admin/llm-logs/'
+    | '/admin/r2-logs/'
     | '/admin/users/'
     | '/api/jobs/'
     | '/api/jobs/$id/cancel'
@@ -227,6 +247,8 @@ export interface FileRouteTypes {
     | '/exams'
     | '/admin/config'
     | '/admin/jobs'
+    | '/admin/llm-logs'
+    | '/admin/r2-logs'
     | '/admin/users'
     | '/api/jobs'
     | '/api/jobs/$id/cancel'
@@ -249,6 +271,8 @@ export interface FileRouteTypes {
     | '/_app/exams/'
     | '/admin/config/'
     | '/admin/jobs/'
+    | '/admin/llm-logs/'
+    | '/admin/r2-logs/'
     | '/admin/users/'
     | '/api/jobs/'
     | '/api/jobs/$id/cancel'
@@ -324,6 +348,20 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/admin/users/'
       preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/r2-logs/': {
+      id: '/admin/r2-logs/'
+      path: '/r2-logs'
+      fullPath: '/admin/r2-logs/'
+      preLoaderRoute: typeof AdminR2LogsIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/llm-logs/': {
+      id: '/admin/llm-logs/'
+      path: '/llm-logs'
+      fullPath: '/admin/llm-logs/'
+      preLoaderRoute: typeof AdminLlmLogsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/jobs/': {
@@ -444,6 +482,8 @@ interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminConfigIndexRoute: typeof AdminConfigIndexRoute
   AdminJobsIndexRoute: typeof AdminJobsIndexRoute
+  AdminLlmLogsIndexRoute: typeof AdminLlmLogsIndexRoute
+  AdminR2LogsIndexRoute: typeof AdminR2LogsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
 
@@ -451,6 +491,8 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminConfigIndexRoute: AdminConfigIndexRoute,
   AdminJobsIndexRoute: AdminJobsIndexRoute,
+  AdminLlmLogsIndexRoute: AdminLlmLogsIndexRoute,
+  AdminR2LogsIndexRoute: AdminR2LogsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
 

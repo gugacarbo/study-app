@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
-import { ListTodoIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import { CpuIcon, HardDriveIcon, ListTodoIcon, SettingsIcon, UsersIcon } from "lucide-react";
 
 export type AdminNavItem = {
-	to: "/admin/config" | "/admin/users" | "/admin/jobs";
+	to: "/admin/config" | "/admin/users" | "/admin/jobs" | "/admin/llm-logs" | "/admin/r2-logs";
 	label: string;
 	icon: LucideIcon;
 	match: (pathname: string) => boolean;
@@ -26,6 +26,18 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 		label: "Jobs",
 		icon: ListTodoIcon,
 		match: (pathname) => pathname.startsWith("/admin/jobs"),
+	},
+	{
+		to: "/admin/llm-logs",
+		label: "LLM Logs",
+		icon: CpuIcon,
+		match: (pathname) => pathname.startsWith("/admin/llm-logs"),
+	},
+	{
+		to: "/admin/r2-logs",
+		label: "R2 Logs",
+		icon: HardDriveIcon,
+		match: (pathname) => pathname.startsWith("/admin/r2-logs"),
 	},
 ];
 
