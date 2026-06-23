@@ -13,6 +13,7 @@ import {
 	ToolGroupContent,
 	ToolGroupRoot,
 	ToolGroupTrigger,
+	shouldRenderToolGroup,
 } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
@@ -74,6 +75,9 @@ const IngestAssistantMessage: FC = () => (
 								</div>
 							);
 						case "group-tool":
+							if (!shouldRenderToolGroup(part.indices.length)) {
+								return <>{children}</>;
+							}
 							return (
 								<ToolGroupRoot variant="ghost">
 									<ToolGroupTrigger

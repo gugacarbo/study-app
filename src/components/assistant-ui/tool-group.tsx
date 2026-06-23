@@ -19,6 +19,11 @@ import {
 import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
+const MIN_TOOL_CALLS_TO_GROUP = 4;
+
+export function shouldRenderToolGroup(count: number): boolean {
+  return count >= MIN_TOOL_CALLS_TO_GROUP;
+}
 
 const toolGroupVariants = cva("aui-tool-group-root group/tool-group w-full", {
   variants: {
