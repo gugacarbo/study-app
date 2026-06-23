@@ -55,6 +55,7 @@ export function ModelDialog({
 			}}
 		>
 			<DialogContent
+				className="w-[calc(100%-2rem)] max-w-6xl sm:max-w-6xl lg:max-w-6xl"
 				onInteractOutside={(event) => {
 					if (testOpen) event.preventDefault();
 				}}
@@ -77,6 +78,16 @@ export function ModelDialog({
 									modelId: model.modelId,
 									displayName: model.displayName,
 									enabled: model.enabled,
+									contextWindow: model.contextWindow,
+									maxOutputTokens: model.maxOutputTokens,
+									inputCostPerMillion: model.inputCostPerMillion,
+									outputCostPerMillion: model.outputCostPerMillion,
+									thinkingEffortLevels: model.thinkingEffortLevels,
+									defaultThinkingEffort: model.defaultThinkingEffort,
+									thinkingEnabled: model.thinkingEnabled,
+									thinkingParamName: model.thinkingParamName,
+									metadata: model.metadata,
+									requestParams: model.requestParams,
 								}
 							: undefined
 					}
