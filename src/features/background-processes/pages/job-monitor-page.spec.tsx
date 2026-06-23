@@ -318,6 +318,45 @@ describe("JobMonitorPage", () => {
 		});
 	});
 
+	it("renders finish_extraction alerts below the final summary", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.COMPLETED,
+					phase: null,
+					error: null,
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					events: [
+						{
+							seq: 1,
+							payload: {
+								type: "text",
+								text:
+									"2 questões extraídas.\n\nAlertas:\n- Questão 1 ficou com diagrama omitido.\n- Questão 2 exigiu revisão manual.",
+							},
+							createdAt: null,
+						},
+					],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(screen.getByText("2 questões extraídas.")).toBeInTheDocument();
+			expect(screen.getByText("Alertas:")).toBeInTheDocument();
+			expect(
+				screen.getByText("Questão 1 ficou com diagrama omitido."),
+			).toBeInTheDocument();
+			expect(
+				screen.getByText("Questão 2 exigiu revisão manual."),
+			).toBeInTheDocument();
+		});
+	});
+
 	it("shows Ver prova link when job completed with examId", async () => {
 		vi.stubGlobal(
 			"fetch",
