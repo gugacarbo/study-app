@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExamDetailPageContent } from "@/features/exams/pages/exam-detail-page";
@@ -8,6 +9,10 @@ const mockUseExam = vi.fn();
 vi.mock("@/features/exams/hooks/use-exam", () => ({
 	useExam: (examId: string) => mockUseExam(examId),
 	examQueryKey: (examId: string) => ["exams", examId],
+}));
+
+vi.mock("@/features/exams/hooks/use-ingest-job-by-exam", () => ({
+	useIngestJobByExam: () => ({ data: null }),
 }));
 
 const examWithQuestions: ExamDetail = {
@@ -26,6 +31,8 @@ const examWithQuestions: ExamDetail = {
 			answers: ["B"],
 			topic: "Aritmética",
 			scoringMode: "exact",
+			explanation: null,
+			deepExplanation: null,
 		},
 	],
 };

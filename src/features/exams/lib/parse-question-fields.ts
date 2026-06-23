@@ -74,5 +74,7 @@ export function parseQuestionRow(row: QuestionRow): QuestionDetail | null {
 		answers: parsed.data.answers.map((answer) => answer.trim()),
 		topic: row.topic,
 		scoringMode: scoringMode.data,
+		explanation: row.explanation,
+		deepExplanation: row.deepExplanation,
 	};
 }

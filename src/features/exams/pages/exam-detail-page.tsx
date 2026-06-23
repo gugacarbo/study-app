@@ -37,7 +37,7 @@ export function ExamDetailPageContent({ examId }: ExamDetailPageProps) {
 		<div className="flex flex-col gap-6">
 			<ExamDetailHeader exam={exam} ingestJobId={ingestJobId} />
 			<ExamDetailActions />
-			<ExamQuestionList questions={exam.questions} />
+			<ExamQuestionList examId={examId} questions={exam.questions} />
 		</div>
 	);
 }

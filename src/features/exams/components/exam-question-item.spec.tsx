@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Accordion } from "@/components/ui/accordion";
 import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
@@ -16,6 +16,8 @@ const singleAnswerQuestion: QuestionDetail = {
 	answers: ["B"],
 	topic: "Geografia",
 	scoringMode: "exact",
+	explanation: null,
+	deepExplanation: null,
 };
 
 const partialAnswerQuestion: QuestionDetail = {
@@ -29,18 +31,38 @@ const partialAnswerQuestion: QuestionDetail = {
 	answers: ["A", "C"],
 	topic: null,
 	scoringMode: "partial",
+	explanation: null,
+	deepExplanation: null,
 };
 
+const updateQuestionMock = vi.fn();
+const invalidateExamMock = vi.fn();
+
+vi.mock("@/features/exams/hooks/use-update-question", () => ({
+	useUpdateQuestion: () => ({
+		mutate: updateQuestionMock,
+		isPending: false,
+	}),
+}));
+
 describe("ExamQuestionItem", () => {
-	afterEach(() => cleanup());
+	afterEach(() => {
+		cleanup();
+		updateQuestionMock.mockClear();
+		invalidateExamMock.mockClear();
+	});
 
 	function renderWithAccordion(ui: ReactElement) {
 		return render(<Accordion type="multiple">{ui}</Accordion>);
 	}
 
-	it("expands to show question text and options", () => {
+	it("expands to show question text and options in lowercase", () => {
 		renderWithAccordion(
-			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,
+			<ExamQuestionItem
+				index={1}
+				examId="exam-1"
+				question={singleAnswerQuestion}
+			/>,
 		);
 
 		expect(
@@ -50,13 +72,22 @@ describe("ExamQuestionItem", () => {
 		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 
 		expect(screen.getByText("Qual a capital do Brasil?")).toBeInTheDocument();
-		expect(screen.getByText(/São Paulo/)).toBeInTheDocument();
-		expect(screen.getByText(/Brasília/)).toBeInTheDocument();
+
+		const optionList = screen.getByTestId("question-options");
+		const items = optionList.querySelectorAll("li");
+		expect(items).toHaveLength(3);
+		expect(items[0]?.textContent).toMatch(/a\)\s*São Paulo/);
+		expect(items[1]?.textContent).toMatch(/b\)\s*Brasília/);
+		expect(items[2]?.textContent).toMatch(/c\)\s*Rio de Janeiro/);
 	});
 
 	it("shows null topic as Geral in trigger", () => {
 		renderWithAccordion(
-			<ExamQuestionItem index={2} question={partialAnswerQuestion} />,
+			<ExamQuestionItem
+				index={2}
+				examId="exam-1"
+				question={partialAnswerQuestion}
+			/>,
 		);
 
 		expect(
@@ -64,33 +95,59 @@ describe("ExamQuestionItem", () => {
 		).toBeInTheDocument();
 	});
 
-	it("reveals single-answer gabarito on demand", () => {
+	it("shows correct answer permanently for single-answer question", () => {
 		renderWithAccordion(
-			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,
+			<ExamQuestionItem
+				index={1}
+				examId="exam-1"
+				question={singleAnswerQuestion}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
+
+		expect(screen.getByText("Gabarito")).toBeInTheDocument();
+		expect(screen.getByText(/b\) Brasília/)).toBeInTheDocument();
+		expect(screen.queryByText(/a\) São Paulo/)).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /revelar resposta/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows partial gabarito with multiple correct options", () => {
+		renderWithAccordion(
+			<ExamQuestionItem
+				index={2}
+				examId="exam-1"
+				question={partialAnswerQuestion}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Q2 · Geral/i }));
+
+		expect(screen.getByText(/a\) 2/)).toBeInTheDocument();
+		expect(screen.getByText(/c\) 3/)).toBeInTheDocument();
+		expect(screen.queryByText(/b\) 4/)).not.toBeInTheDocument();
+	});
+
+	it("switches to edit form when Edit button is clicked", () => {
+		renderWithAccordion(
+			<ExamQuestionItem
+				index={1}
+				examId="exam-1"
+				question={singleAnswerQuestion}
+			/>,
 		);
 
 		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 		fireEvent.click(
-			screen.getByRole("button", { name: /revelar resposta/i }),
+			screen.getByRole("button", { name: /editar pergunta/i }),
 		);
 
-		expect(screen.getByText("Gabarito")).toBeInTheDocument();
-		expect(screen.getByText("B) Brasília")).toBeInTheDocument();
-		expect(screen.queryByText("A) São Paulo")).not.toBeInTheDocument();
-	});
-
-	it("reveals partial gabarito with multiple correct options", () => {
-		renderWithAccordion(
-			<ExamQuestionItem index={2} question={partialAnswerQuestion} />,
-		);
-
-		fireEvent.click(screen.getByRole("button", { name: /Q2 · Geral/i }));
-		fireEvent.click(
-			screen.getByRole("button", { name: /revelar resposta/i }),
-		);
-
-		expect(screen.getByText("A) 2")).toBeInTheDocument();
-		expect(screen.getByText("C) 3")).toBeInTheDocument();
-		expect(screen.queryByText("B) 4")).not.toBeInTheDocument();
+		expect(screen.getByLabelText(/enunciado/i)).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /salvar/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /cancelar/i }),
+		).toBeInTheDocument();
 	});
 });

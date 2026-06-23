@@ -35,6 +35,8 @@ describe("parseQuestionRow", () => {
 			answers: ["A"],
 			topic: "Topic",
 			scoringMode: "exact",
+			explanation: null,
+			deepExplanation: null,
 		});
 	});
 

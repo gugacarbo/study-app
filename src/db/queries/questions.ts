@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
 
@@ -67,6 +67,52 @@ export async function existsNormalizedQuestion(
 	return rows.some(
 		(row) => normalizeQuestionText(row.question) === normalizedText,
 	);
+}
+
+export async function updateQuestionById(
+	db: AppDatabase,
+	input: {
+		questionId: string;
+		userId: string;
+		question: string;
+		options: string;
+		answers: string;
+		scoringMode: "exact" | "partial";
+		topic?: string | null;
+		explanation?: string | null;
+		deepExplanation?: string | null;
+	},
+): Promise<boolean> {
+	const rows = await db
+		.select({ examId: schema.questions.examId })
+		.from(schema.questions)
+		.innerJoin(schema.exams, eq(schema.exams.id, schema.questions.examId))
+		.where(
+			and(
+				eq(schema.questions.id, input.questionId),
+				eq(schema.exams.userId, input.userId),
+			),
+		)
+		.limit(1);
+
+	if (rows.length === 0) {
+		return false;
+	}
+
+	await db
+		.update(schema.questions)
+		.set({
+			question: input.question,
+			options: input.options,
+			answers: input.answers,
+			scoringMode: input.scoringMode,
+			topic: input.topic ?? null,
+			explanation: input.explanation ?? null,
+			deepExplanation: input.deepExplanation ?? null,
+		})
+		.where(eq(schema.questions.id, input.questionId));
+
+	return true;
 }
 
 export async function batchInsertQuestions(

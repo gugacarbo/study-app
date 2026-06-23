@@ -7,6 +7,8 @@ export type QuestionDetail = {
 	answers: string[];
 	topic: string | null;
 	scoringMode: "exact" | "partial";
+	explanation: string | null;
+	deepExplanation: string | null;
 };
 
 export type ExamDetail = {

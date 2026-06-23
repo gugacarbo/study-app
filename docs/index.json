@@ -661,5 +661,17 @@
       "tests/setup.ts",
       "docs/specs/exams/0004-pipeline-ingestao.md"
     ]
+  },
+  {
+    "id": "SPEC-0021",
+    "path": "docs/specs/exams/0021-edicao-visualizacao-questoes.md",
+    "layer": "specs",
+    "title": "Edição inline e visualização aprimorada de questões no detalhe da prova",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0008"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]
