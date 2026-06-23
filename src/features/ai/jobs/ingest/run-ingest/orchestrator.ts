@@ -76,15 +76,17 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 		return;
 	}
 
-	const extractedQuestions = await extractQuestions(
+	const extractionResult = await extractQuestions(
 		ctx,
 		job,
 		metadata,
 		fileText,
 	);
-	if (extractedQuestions === null) {
+	if (extractionResult === null) {
 		return;
 	}
+	const extractedQuestions = extractionResult.questions;
+	const extractionUsage = extractionResult.usage;
 
 	if (await ctx.deps.isCancelRequested(ctx.jobId)) {
 		await cancelJob(ctx);
@@ -188,6 +190,13 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 		persistedCount: persistResult.persistedCount,
 		skippedDuplicateCount: persistResult.skippedDuplicateCount,
 		invalidCount: persistResult.invalidCount,
+		...(extractionUsage
+			? {
+					inputTokens: extractionUsage.inputTokens,
+					outputTokens: extractionUsage.outputTokens,
+					totalTokens: extractionUsage.totalTokens,
+				}
+			: {}),
 		...(persistResult.warning ? { warning: persistResult.warning } : {}),
 		...(reviewResult.reviewWarning
 			? { reviewWarning: reviewResult.reviewWarning }

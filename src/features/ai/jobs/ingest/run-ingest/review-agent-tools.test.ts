@@ -178,7 +178,11 @@ describe("createReviewAgentTools", () => {
 		});
 
 		const success = await tools.finish_review.execute?.(
-			{ total: 1, summary: "Revisão concluída." },
+			{
+				total: 1,
+				summary: "Revisão concluída.",
+				alerts: ["Alternativa B foi ajustada manualmente."],
+			},
 			{
 				toolCallId: "finish-3",
 				messages: [],
@@ -190,8 +194,12 @@ describe("createReviewAgentTools", () => {
 			ok: true,
 			total: 1,
 			summary: "Revisão concluída.",
+			alerts: ["Alternativa B foi ajustada manualmente."],
 			verified: true,
 		});
+		expect(append).toHaveBeenLastCalledWith(
+			expect.stringContaining("- Alternativa B foi ajustada manualmente."),
+		);
 		expect(onFinishReview).toHaveBeenCalledTimes(1);
 	});
 });

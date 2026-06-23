@@ -8,7 +8,7 @@ import {
 } from "@/features/ai/jobs/ingest/ingest-events";
 import { getAiModel } from "@/lib/ai-config";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
-import type { IngestJobMetadata } from "@/lib/job-kinds";
+import type { IngestJobMetadata, TokenUsage } from "@/lib/job-kinds";
 import { serializeIngestJobMetadata } from "@/lib/job-kinds";
 import {
 	createLlmLogCallId,
@@ -60,7 +60,7 @@ export async function extractQuestionsWithGenerateObject(
 	model: Awaited<ReturnType<typeof getAiModel>>,
 	callId: string,
 	startedAt: number,
-): Promise<unknown[] | null> {
+): Promise<{ questions: unknown[]; usage?: TokenUsage } | null> {
 	const generate = ctx.deps.generateObject ?? generateObject;
 	const sleep = ctx.deps.sleep ?? defaultSleep;
 	const maxAttempts = MAX_LLM_RETRIES + 1;
@@ -96,17 +96,23 @@ export async function extractQuestionsWithGenerateObject(
 				);
 			}
 
+			const usage: TokenUsage | undefined =
+				"usage" in result
+					? {
+							inputTokens: result.usage.inputTokens ?? 0,
+							outputTokens: result.usage.outputTokens ?? 0,
+							totalTokens: result.usage.totalTokens ?? 0,
+						}
+					: undefined;
+
 			await logLlmCallComplete(callId, {
 				status: "success",
 				durationMs: Date.now() - startedAt,
 				responsePayload: JSON.stringify(result.object),
-				tokenMeta:
-					"usage" in result
-						? JSON.stringify(result.usage)
-						: undefined,
+				tokenMeta: usage ? JSON.stringify(usage) : undefined,
 			});
 
-			return questions;
+			return { questions, usage };
 		} catch (error) {
 			const isLastAttempt = attempt >= MAX_LLM_RETRIES;
 			if (!isLastAttempt && isTransientLlmError(error)) {
@@ -128,12 +134,17 @@ export async function extractQuestionsWithGenerateObject(
 	return null;
 }
 
+export type ExtractQuestionsReturn = {
+	questions: unknown[];
+	usage?: TokenUsage;
+};
+
 export async function extractQuestions(
 	ctx: RunIngestContext,
 	job: BackgroundJobRow,
 	metadata: IngestJobMetadata,
 	fileText: string,
-): Promise<unknown[] | null> {
+): Promise<ExtractQuestionsReturn | null> {
 	const resolveModel = ctx.deps.getAiModel ?? getAiModel;
 	const sleep = ctx.deps.sleep ?? defaultSleep;
 
@@ -195,7 +206,10 @@ export async function extractQuestions(
 			});
 			await persistExtractionMode(ctx, metadata, agentResult.extractionMode);
 
-			return agentResult.questions;
+			return {
+				questions: agentResult.questions,
+				usage: agentResult.usage,
+			};
 		} catch (error) {
 			if (isToolCallingUnsupportedError(error)) {
 				break;
@@ -217,7 +231,7 @@ export async function extractQuestions(
 		}
 	}
 
-	const fallbackQuestions = await extractQuestionsWithGenerateObject(
+	const fallbackResult = await extractQuestionsWithGenerateObject(
 		ctx,
 		job,
 		metadata,
@@ -226,10 +240,13 @@ export async function extractQuestions(
 		callId,
 		startedAt,
 	);
-	if (fallbackQuestions === null) {
+	if (fallbackResult === null) {
 		return null;
 	}
 
 	await persistExtractionMode(ctx, metadata, "fallback");
-	return fallbackQuestions;
+	return {
+		questions: fallbackResult.questions,
+		usage: fallbackResult.usage,
+	};
 }

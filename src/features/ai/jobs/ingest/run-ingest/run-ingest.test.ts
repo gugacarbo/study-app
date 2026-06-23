@@ -358,11 +358,12 @@ function createRunDeps(input?: {
 }
 
 describe("runIngest", () => {
-	it("requires finish_extraction summary with max 150 chars", () => {
+	it("requires finish_extraction summary with max 400 chars and optional alerts", () => {
 		expect(
 			finishExtractionInputSchema.safeParse({
 				total: 3,
 				summary: "Resumo curto da extração",
+				alerts: ["Questão 4 exigiu revisão manual."],
 			}).success,
 		).toBe(true);
 

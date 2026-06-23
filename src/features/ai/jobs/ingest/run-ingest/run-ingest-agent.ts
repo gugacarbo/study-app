@@ -6,6 +6,7 @@ import {
 	type streamText as streamTextFn,
 } from "ai";
 import type { ExtractedQuestion } from "@/features/ai/jobs/ingest/extracted-question";
+import type { TokenUsage } from "@/lib/job-kinds";
 import { createIngestAgentTools } from "./ingest-agent-tools";
 import {
 	buildIngestStepMessageId,
@@ -21,6 +22,7 @@ import { INGEST_AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from "./constants";
 export type RunIngestAgentResult = {
 	questions: ExtractedQuestion[];
 	extractionMode: "agent";
+	usage?: TokenUsage;
 };
 
 export type RunIngestAgentOptions = {
@@ -303,8 +305,21 @@ export async function runIngestAgent(
 		}
 	}
 
+	let usage: TokenUsage | undefined;
+	try {
+		const raw = await result.usage;
+		usage = {
+			inputTokens: raw.inputTokens ?? 0,
+			outputTokens: raw.outputTokens ?? 0,
+			totalTokens: raw.totalTokens ?? 0,
+		};
+	} catch {
+		// usage may not be available (e.g. mock/custom streamText)
+	}
+
 	return {
 		questions,
 		extractionMode: "agent",
+		usage,
 	};
 }

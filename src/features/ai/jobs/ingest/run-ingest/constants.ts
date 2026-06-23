@@ -22,7 +22,7 @@ export const INGEST_AGENT_SYSTEM_PROMPT =
 	"Use as tools sequencialmente: chame submit_question para cada questão encontrada " +
 	"(question, options, answers, topic). Se perceber qualquer erro depois de submeter, use update_question com o draftQuestionId retornado pela tool para corrigir a questão, " +
 	"mantendo a mesma quantidade de alternativas. Depois chame list_questions no final para revisar a lista completa " +
-	"e confirmar que nenhuma questão ficou faltando, e só então chame finish_extraction informando o total e um resumo final de até 150 caracteres. " +
+	"e confirmar que nenhuma questão ficou faltando, e só então chame finish_extraction informando o total, um resumo final de até 400 caracteres e alertas opcionais se algo precisar de atenção. " +
 	"Não responda com JSON solto, markdown ou texto livre — use apenas as tools.";
 
 export const REVIEW_AGENT_SYSTEM_PROMPT =

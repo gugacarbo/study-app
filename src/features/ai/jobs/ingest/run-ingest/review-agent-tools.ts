@@ -11,6 +11,8 @@ import {
 } from "@/features/ai/jobs/ingest/run-ingest/ingest-stream-parts";
 import {
 	FINISH_EXTRACTION_SUMMARY_MAX_LENGTH,
+	finishExtractionAlertsSchema,
+	formatFinalizationSummaryMessage,
 } from "@/features/ai/jobs/ingest/run-ingest/ingest-agent-tools";
 import { canonicalizeReviewQuestion } from "@/features/ai/jobs/ingest/run-ingest/review-question";
 
@@ -31,6 +33,7 @@ const updateQuestionInputSchema = extractedQuestionSchema.extend({
 const finishReviewInputSchema = z.object({
 	total: z.number().int().nonnegative(),
 	summary: z.string().trim().min(1).max(FINISH_EXTRACTION_SUMMARY_MAX_LENGTH),
+	alerts: finishExtractionAlertsSchema,
 });
 
 type UpdateQuestionResult =
@@ -51,7 +54,13 @@ type ListQuestionsResult = {
 
 type FinishReviewResult =
 	| { ok: false; reason: "questions_not_verified" | "submitted_total_mismatch" }
-	| { ok: true; total: number; summary: string; verified: true };
+	| {
+			ok: true;
+			total: number;
+			summary: string;
+			alerts?: string[];
+			verified: true;
+	  };
 
 export type ReviewAgentToolsContext = {
 	append: (payload: string) => Promise<void>;
@@ -152,7 +161,7 @@ export function createReviewAgentTools(ctx: ReviewAgentToolsContext) {
 		}),
 		finish_review: tool({
 			description:
-				"Finish the review only after calling list_questions and confirming the reviewed total.",
+				"Finish the review only after calling list_questions and confirming the reviewed total. Include a final summary up to 400 characters and optional alerts when needed.",
 			inputSchema: finishReviewInputSchema,
 			execute: async (input, { toolCallId }) => {
 				if (verifiedRevision !== submittedRevision) {
@@ -177,11 +186,16 @@ export function createReviewAgentTools(ctx: ReviewAgentToolsContext) {
 					ok: true,
 					total: input.total,
 					summary: input.summary,
+					...(input.alerts?.length ? { alerts: input.alerts } : {}),
 					verified: true,
 				};
 				await persistToolResult(toolCallId, result);
 				await ctx.append(
-					serializeIngestJobEventPart(buildIngestTextPart(input.summary)),
+					serializeIngestJobEventPart(
+						buildIngestTextPart(
+							formatFinalizationSummaryMessage(input.summary, input.alerts),
+						),
+					),
 				);
 				return result;
 			},
