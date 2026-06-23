@@ -1,4 +1,5 @@
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -9,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { IngestUploadForm } from "@/features/exams/components/ingest-upload-form";
 
 const navigate = vi.fn();
+const createIngestJob = vi.fn();
+const uploadIngestJobFileWithProgress = vi.fn();
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual =
@@ -19,12 +22,24 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 	};
 });
 
+vi.mock("@/features/exams/lib/ingest-api", () => ({
+	createIngestJob: () => createIngestJob(),
+	uploadIngestJobFileWithProgress: (
+		jobId: string,
+		file: File,
+		onProgress: (percent: number) => void,
+	) => uploadIngestJobFileWithProgress(jobId, file, onProgress),
+}));
+
 describe("IngestUploadForm", () => {
 	afterEach(() => {
 		cleanup();
+		vi.useRealTimers();
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 		navigate.mockClear();
+		createIngestJob.mockReset();
+		uploadIngestJobFileWithProgress.mockReset();
 	});
 
 	it("disables submit without file", () => {
@@ -40,13 +55,8 @@ describe("IngestUploadForm", () => {
 	});
 
 	it("navigates to job monitor with pendingFile after create", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ jobId: "job-1", examId: "exam-1" }),
-			}),
-		);
+		createIngestJob.mockResolvedValueOnce({ jobId: "job-1", examId: "exam-1" });
+		uploadIngestJobFileWithProgress.mockResolvedValueOnce(undefined);
 
 		render(<IngestUploadForm />);
 
@@ -55,27 +65,25 @@ describe("IngestUploadForm", () => {
 			target: { files: [file] },
 		});
 
-		fireEvent.click(screen.getByRole("button", { name: /importar prova/i }));
+		await act(async () => {
+			fireEvent.click(screen.getByRole("button", { name: /importar prova/i }));
+		});
 
 		await waitFor(() => {
 			expect(navigate).toHaveBeenCalledWith({
 				to: "/jobs/$jobId",
 				params: { jobId: "job-1" },
-				state: { pendingFile: file },
 			});
-		});
-		expect(fetch).toHaveBeenCalledTimes(1);
+		}, { timeout: 2000 });
+		expect(uploadIngestJobFileWithProgress).toHaveBeenCalledWith(
+			"job-1",
+			file,
+			expect.any(Function),
+		);
 	});
 
 	it("displays error when job creation fails", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValueOnce({
-				ok: false,
-				status: 500,
-				json: async () => ({ error: "internal_error" }),
-			}),
-		);
+		createIngestJob.mockRejectedValueOnce(new Error("Erro HTTP 500"));
 
 		render(<IngestUploadForm />);
 
@@ -90,5 +98,73 @@ describe("IngestUploadForm", () => {
 			expect(screen.getByRole("alert")).toBeInTheDocument();
 		});
 		expect(navigate).not.toHaveBeenCalled();
+	});
+
+	it("shows upload progress on the form screen before navigating", async () => {
+		createIngestJob.mockResolvedValueOnce({ jobId: "job-1", examId: "exam-1" });
+		uploadIngestJobFileWithProgress.mockImplementationOnce(
+			async (_jobId: string, _file: File, onProgress: (percent: number) => void) => {
+				onProgress(42);
+			},
+		);
+
+		render(<IngestUploadForm />);
+
+		const file = new File(["conteúdo"], "prova.md", { type: "text/markdown" });
+		fireEvent.change(screen.getByLabelText(/^arquivo$/i), {
+			target: { files: [file] },
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole("button", { name: /importar prova/i }));
+		});
+
+		expect(screen.getByText(/enviando… 42%/i)).toBeInTheDocument();
+		expect(screen.getByRole("progressbar", { name: /progresso do envio/i })).toBeInTheDocument();
+
+		await waitFor(() => {
+			expect(navigate).toHaveBeenCalledWith({
+				to: "/jobs/$jobId",
+				params: { jobId: "job-1" },
+			});
+		}, { timeout: 2000 });
+	});
+
+	it("keeps upload progress visible for at least 1 second before navigating", async () => {
+		vi.useFakeTimers();
+		createIngestJob.mockResolvedValueOnce({ jobId: "job-1", examId: "exam-1" });
+		uploadIngestJobFileWithProgress.mockImplementationOnce(
+			async (_jobId: string, _file: File, onProgress: (percent: number) => void) => {
+				onProgress(100);
+			},
+		);
+
+		render(<IngestUploadForm />);
+
+		const file = new File(["conteúdo"], "prova.md", { type: "text/markdown" });
+		fireEvent.change(screen.getByLabelText(/^arquivo$/i), {
+			target: { files: [file] },
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole("button", { name: /importar prova/i }));
+		});
+
+		expect(screen.getByText(/enviando… 100%/i)).toBeInTheDocument();
+		expect(navigate).not.toHaveBeenCalled();
+
+		await act(async () => {
+			vi.advanceTimersByTime(999);
+		});
+		expect(navigate).not.toHaveBeenCalled();
+
+		await act(async () => {
+			vi.advanceTimersByTime(1);
+		});
+
+		expect(navigate).toHaveBeenCalledWith({
+			to: "/jobs/$jobId",
+			params: { jobId: "job-1" },
+		});
 	});
 });

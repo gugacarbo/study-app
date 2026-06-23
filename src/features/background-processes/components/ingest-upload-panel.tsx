@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UploadProgress } from "@/components/upload-progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +10,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { uploadIngestJobFileWithProgress } from "@/features/exams/lib/ingest-api";
-import { cn } from "@/lib/utils";
 
 export type IngestUploadPanelProps = {
 	jobId: string;
@@ -18,26 +18,6 @@ export type IngestUploadPanelProps = {
 };
 
 type UploadUiState = "idle" | "uploading" | "failed";
-
-function UploadProgressBar({ value }: { value: number }) {
-	return (
-		<div
-			role="progressbar"
-			aria-valuenow={value}
-			aria-valuemin={0}
-			aria-valuemax={100}
-			aria-label="Progresso do envio"
-			className="relative h-2 w-full overflow-hidden rounded-full bg-primary/20"
-		>
-			<div
-				className={cn(
-					"h-full rounded-full bg-primary transition-[width] duration-200",
-				)}
-				style={{ width: `${value}%` }}
-			/>
-		</div>
-	);
-}
 
 export function IngestUploadPanel({
 	jobId,
@@ -125,13 +105,7 @@ export function IngestUploadPanel({
 			</div>
 
 			{isUploading && displayFile ? (
-				<div className="space-y-3">
-					<p className="text-sm font-medium">{displayFile.name}</p>
-					<UploadProgressBar value={progress} />
-					<p className="text-sm text-muted-foreground">
-						Enviando… {progress}%
-					</p>
-				</div>
+				<UploadProgress fileName={displayFile.name} progress={progress} />
 			) : (
 				<form className="space-y-4" onSubmit={(e) => void handleManualSubmit(e)}>
 					<FieldGroup>
