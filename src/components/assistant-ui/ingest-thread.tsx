@@ -38,7 +38,7 @@ import {
 	LoaderCircleIcon,
 	XIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
 import { formatPhaseLabel } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
@@ -158,16 +158,9 @@ const IngestSystemMessage: FC = () => (
 	</MessagePrimitive.Root>
 );
 
-function shouldAutoOpenIngestTool(part: ToolCallMessagePartProps): boolean {
-	if (part.toolName === "list_questions" || part.toolName === "finish_extraction") {
-		return part.result !== undefined;
-	}
-
-	return part.status.type === "incomplete";
-}
-
+// Tool calls: always start collapsed.
 const IngestToolPart: FC<ToolCallMessagePartProps> = (part) => (
-	<ToolFallback.Root defaultOpen={shouldAutoOpenIngestTool(part)}>
+	<ToolFallback.Root defaultOpen={false}>
 		<ToolFallback.Trigger toolName={part.toolName} status={part.status} />
 		<ToolFallback.Content>
 			<ToolFallback.Error status={part.status} />
@@ -176,6 +169,37 @@ const IngestToolPart: FC<ToolCallMessagePartProps> = (part) => (
 		</ToolFallback.Content>
 	</ToolFallback.Root>
 );
+
+// Tool group: starts expanded while its sequence is the active one, then
+// collapses once a subsequent group takes over. Mirrors the behavior of the
+// built-in reasoning group.
+const IngestToolGroup: FC<
+	PropsWithChildren<{ startIndex: number; endIndex: number }>
+> = ({ children, startIndex, endIndex }) => {
+	const isActive = useAuiState((s) => {
+		if (s.message.status?.type !== "running") return false;
+		const lastIndex = s.message.parts.length - 1;
+		if (lastIndex < 0) return false;
+		const lastPart = s.message.parts[lastIndex];
+		if (lastPart?.type !== "tool-call") return false;
+		return lastIndex >= startIndex && lastIndex <= endIndex;
+	});
+
+	const [open, setOpen] = useState(isActive);
+	useEffect(() => {
+		setOpen(isActive);
+	}, [isActive]);
+
+	return (
+		<ToolGroupRoot variant="ghost" open={open} onOpenChange={setOpen}>
+			<ToolGroupTrigger
+				count={endIndex - startIndex + 1}
+				active={isActive}
+			/>
+			<ToolGroupContent>{children}</ToolGroupContent>
+		</ToolGroupRoot>
+	);
+};
 
 const IngestAssistantMessage: FC = () => (
 	<MessagePrimitive.Root
@@ -209,13 +233,14 @@ const IngestAssistantMessage: FC = () => (
 								return <>{children}</>;
 							}
 							return (
-								<ToolGroupRoot variant="ghost" defaultOpen>
-									<ToolGroupTrigger
-										count={part.indices.length}
-										active={part.status.type === "running"}
-									/>
-									<ToolGroupContent>{children}</ToolGroupContent>
-								</ToolGroupRoot>
+								<IngestToolGroup
+									startIndex={part.indices[0] ?? 0}
+									endIndex={
+										part.indices[part.indices.length - 1] ?? 0
+									}
+								>
+									{children}
+								</IngestToolGroup>
 							);
 						case "group-reasoning": {
 							const running = part.status.type === "running";

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JobMonitorPage } from "@/features/background-processes/pages/job-monitor-page";
 import { PHASE_TEXT } from "@/features/ai/jobs/ingest/run-ingest/constants";
@@ -299,6 +299,17 @@ describe("JobMonitorPage", () => {
 		);
 
 		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		// Tool calls are collapsed by default; expand the list_questions call
+		// to inspect its result payload.
+		const listQuestionsTrigger = await waitFor(() => {
+			const trigger = screen.getByRole("button", {
+				name: /list_questions/i,
+			});
+			expect(trigger).toBeInTheDocument();
+			return trigger;
+		});
+		fireEvent.click(listQuestionsTrigger);
 
 		await waitFor(() => {
 			expect(screen.getAllByText(/"total": 2/).length).toBeGreaterThan(0);
