@@ -16,6 +16,13 @@ import {
 	shouldRenderToolGroup,
 } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Badge } from "@/components/ui/badge";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
 	AuiIf,
 	groupPartByType,
@@ -23,12 +30,119 @@ import {
 	ThreadPrimitive,
 	useAuiState,
 } from "@assistant-ui/react";
-import { ArrowDownIcon } from "lucide-react";
+import {
+	ArrowDownIcon,
+	CheckIcon,
+	CircleIcon,
+	LoaderCircleIcon,
+	XIcon,
+} from "lucide-react";
 import type { FC } from "react";
+import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
+import { formatPhaseLabel } from "@/features/background-processes/lib/ingest-event-mapper";
+import {
+	INGEST_PHASE,
+	type IngestJobMetadata,
+	JOB_STATUS,
+	type JobStatus,
+} from "@/lib/job-kinds";
 
 export type IngestThreadProps = {
 	isRunning: boolean;
+	status?: JobStatus | null;
+	phase?: string | null;
+	metadata?: IngestJobMetadata | null;
+	progress?: IngestProgressState;
 };
+
+const STATUS_BADGE_LABELS: Partial<Record<JobStatus, string>> = {
+	[JOB_STATUS.AWAITING_UPLOAD]: "Aguardando upload",
+	[JOB_STATUS.QUEUED]: "Na fila",
+	[JOB_STATUS.RUNNING]: "Em execução",
+	[JOB_STATUS.COMPLETED]: "Concluído",
+	[JOB_STATUS.FAILED]: "Falhou",
+	[JOB_STATUS.CANCELLED]: "Cancelado",
+};
+
+const PHASE_BADGE_LABELS: Record<string, string> = {
+	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
+	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
+	[INGEST_PHASE.PERSISTING]: "Salvando questões",
+};
+
+function StatusIcon({ status }: { status: JobStatus | null | undefined }) {
+	switch (status) {
+		case JOB_STATUS.QUEUED:
+		case JOB_STATUS.RUNNING:
+			return (
+				<LoaderCircleIcon className="size-3 animate-spin" aria-hidden />
+			);
+		case JOB_STATUS.COMPLETED:
+			return <CheckIcon className="size-3" aria-hidden />;
+		case JOB_STATUS.FAILED:
+		case JOB_STATUS.CANCELLED:
+			return <XIcon className="size-3" aria-hidden />;
+		default:
+			return <CircleIcon className="size-3" aria-hidden />;
+	}
+}
+
+function StatusBadge({
+	status,
+	phase,
+	metadata,
+	progress,
+}: {
+	status: JobStatus | null | undefined;
+	phase: string | null | undefined;
+	metadata: IngestJobMetadata | null | undefined;
+	progress: IngestProgressState | undefined;
+}) {
+	const statusLabel =
+		status != null ? (STATUS_BADGE_LABELS[status] ?? status) : "Carregando…";
+	const isFailed = status === JOB_STATUS.FAILED;
+	const isActive =
+		status === JOB_STATUS.QUEUED || status === JOB_STATUS.RUNNING;
+
+	const phaseLabel = phase
+		? (PHASE_BADGE_LABELS[phase] ?? formatPhaseLabel(phase as Parameters<typeof formatPhaseLabel>[0]))
+		: null;
+
+	return (
+		<TooltipProvider>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Badge
+						variant={isFailed ? "destructive" : "secondary"}
+						className="gap-1.5"
+					>
+						<StatusIcon status={status} />
+						{statusLabel}
+					</Badge>
+				</TooltipTrigger>
+				<TooltipContent side="bottom" className="flex flex-col gap-1">
+					{metadata?.fileName ? (
+						<span className="font-medium">{metadata.fileName}</span>
+					) : null}
+					{phaseLabel ? (
+						<span>Fase: {phaseLabel}</span>
+					) : null}
+					{progress?.questionsSeen != null && progress.questionsSeen > 0 ? (
+						<span>
+							{progress.questionsSeen} questão(ões) identificada(s)
+						</span>
+					) : null}
+					{progress?.persisted != null ? (
+						<span>{progress.persisted} salva(s)</span>
+					) : null}
+					{isActive ? (
+						<span className="text-muted-foreground">Atualizando em tempo real…</span>
+					) : null}
+				</TooltipContent>
+			</Tooltip>
+		</TooltipProvider>
+	);
+}
 
 const IngestThreadMessage: FC = () => {
 	const role = useAuiState((s) => s.message.role);
@@ -119,7 +233,13 @@ const IngestScrollToBottom: FC = () => (
 	</ThreadPrimitive.ScrollToBottom>
 );
 
-export const IngestThread: FC<IngestThreadProps> = ({ isRunning }) => (
+export const IngestThread: FC<IngestThreadProps> = ({
+	isRunning,
+	status,
+	phase,
+	metadata,
+	progress,
+}) => (
 	<ThreadPrimitive.Root
 		className="aui-root aui-thread-root bg-background flex h-full min-h-0 flex-col"
 		style={{
@@ -127,7 +247,15 @@ export const IngestThread: FC<IngestThreadProps> = ({ isRunning }) => (
 		}}
 	>
 		<div className="border-b px-4 py-2">
-			<h2 className="text-sm font-medium">Atividade</h2>
+			<div className="flex items-center gap-2">
+				<h2 className="text-sm font-medium">Atividade</h2>
+				<StatusBadge
+					status={status}
+					phase={phase}
+					metadata={metadata}
+					progress={progress}
+				/>
+			</div>
 		</div>
 		<ThreadPrimitive.Viewport
 			autoScroll

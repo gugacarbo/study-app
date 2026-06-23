@@ -85,9 +85,6 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	return (
 		<div className="flex min-h-0 flex-1 flex-col gap-4">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<p className="text-sm text-muted-foreground">
-					Acompanhe a extração de questões pelo agente em tempo real.
-				</p>
 				{canCancel ? (
 					<Button
 						variant="outline"
@@ -111,6 +108,10 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 					<IngestJobThread
 						messages={monitor.messages}
 						isRunning={isRunning}
+						status={monitor.status}
+						phase={monitor.phase}
+						metadata={monitor.metadata}
+						progress={monitor.progress}
 					/>
 				}
 				sidebar={
