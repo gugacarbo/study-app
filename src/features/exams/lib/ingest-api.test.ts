@@ -73,7 +73,7 @@ describe("uploadIngestJobFileWithProgress", () => {
 			this.status = 413;
 			this.responseText = JSON.stringify({
 				error: "file_too_large",
-				maxBytes: 524_288,
+				maxBytes: 1_048_576,
 			});
 			const listeners = new Map<string, Array<(event?: unknown) => void>>();
 			for (const call of xhr.addEventListener.mock.calls) {
@@ -98,7 +98,7 @@ describe("uploadIngestJobFileWithProgress", () => {
 
 		await expect(
 			uploadIngestJobFileWithProgress("job-1", file, vi.fn()),
-		).rejects.toThrow(/512 KB/i);
+		).rejects.toThrow(/1024 KB/i);
 
 		vi.unstubAllGlobals();
 	});
