@@ -142,13 +142,10 @@ export function IngestProgressPanel({
 					<ol className="flex flex-col gap-2 overflow-y-auto pr-1">
 						{progress.extractedQuestionsPreview.map((item) => (
 							<li
-								key={item.index}
+								key={item.toolCallId}
 								className="rounded-md border bg-muted/30 px-3 py-2"
 							>
 								<p className="text-sm leading-relaxed">{item.question}</p>
-								<p className="mt-1 text-xs text-muted-foreground">
-									Tópico: {item.topic}
-								</p>
 							</li>
 						))}
 					</ol>

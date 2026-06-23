@@ -37,9 +37,8 @@ export type IngestProgressState = {
 	skippedDuplicate: number | null;
 	invalid: number | null;
 	extractedQuestionsPreview: {
-		index: number;
+		toolCallId: string;
 		question: string;
-		topic: string;
 	}[];
 };
 
@@ -320,10 +319,25 @@ function applyDataPartToProgress(
 	}
 }
 
-function extractQuestionPreviewFromStreamParts(
+function extractQuestionPreviewFromToolCall(
+	event: Extract<IngestStreamPartEvent, { type: "tool-call" }>,
+): IngestProgressState["extractedQuestionsPreview"][number] | null {
+	if (event.toolName !== "submit_question") return null;
+
+	const args = parseArgsText(event.argsText);
+	const question = "question" in args ? args.question : undefined;
+	if (typeof question !== "string") return null;
+
+	return {
+		toolCallId: event.toolCallId,
+		question,
+	};
+}
+
+function extractFailedQuestionPreviewToolCallId(
 	streamParts: StreamPartsState,
 	event: Extract<IngestStreamPartEvent, { type: "tool-result" }>,
-): IngestProgressState["extractedQuestionsPreview"][number] | null {
+): string | null {
 	const messageParts = streamParts.get(event.messageId);
 	if (!messageParts) return null;
 
@@ -338,23 +352,9 @@ function extractQuestionPreviewFromStreamParts(
 	const result = event.result;
 	if (!result || typeof result !== "object") return null;
 	const ok = "ok" in result ? result.ok : undefined;
-	const index = "index" in result ? result.index : undefined;
-	if (ok !== true || typeof index !== "number") return null;
-	const args =
-		toolCallPart.args && typeof toolCallPart.args === "object"
-			? toolCallPart.args
-			: null;
-	if (!args) return null;
+	if (ok !== false) return null;
 
-	const question = "question" in args ? args.question : undefined;
-	const topic = "topic" in args ? args.topic : undefined;
-	if (typeof question !== "string" || typeof topic !== "string") return null;
-
-	return {
-		index,
-		question,
-		topic,
-	};
+	return event.toolCallId;
 }
 
 function applyStreamPartToProgress(
@@ -362,26 +362,37 @@ function applyStreamPartToProgress(
 	streamParts: StreamPartsState,
 	event: IngestStreamPartEvent,
 ): IngestProgressState {
+	if (event.type === "tool-call") {
+		const preview = extractQuestionPreviewFromToolCall(event);
+		if (!preview) return progress;
+
+		const exists = progress.extractedQuestionsPreview.some(
+			(item) => item.toolCallId === preview.toolCallId,
+		);
+		if (exists) return progress;
+
+		return {
+			...progress,
+			extractedQuestionsPreview: [
+				...progress.extractedQuestionsPreview,
+				preview,
+			],
+		};
+	}
+
 	if (event.type !== "tool-result") return progress;
 
-	const preview = extractQuestionPreviewFromStreamParts(streamParts, event);
-	if (!preview) return progress;
-
-	const existingIndex = progress.extractedQuestionsPreview.findIndex(
-		(item) => item.index === preview.index,
+	const failedToolCallId = extractFailedQuestionPreviewToolCallId(
+		streamParts,
+		event,
 	);
-	if (existingIndex >= 0) {
-		const nextPreview = [...progress.extractedQuestionsPreview];
-		nextPreview[existingIndex] = preview;
-		return { ...progress, extractedQuestionsPreview: nextPreview };
-	}
+	if (!failedToolCallId) return progress;
 
 	return {
 		...progress,
-		extractedQuestionsPreview: [
-			...progress.extractedQuestionsPreview,
-			preview,
-		].sort((a, b) => a.index - b.index),
+		extractedQuestionsPreview: progress.extractedQuestionsPreview.filter(
+			(item) => item.toolCallId !== failedToolCallId,
+		),
 	};
 }
 
