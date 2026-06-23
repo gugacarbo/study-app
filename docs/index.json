@@ -675,24 +675,5 @@
     "implemented-by": [
       "2026-06-22"
     ]
-  },
-  {
-    "id": "SPEC-0022",
-    "path": "docs/specs/ui/0022-ingest-system-message-groups.md",
-    "layer": "specs",
-    "title": "Upload job: agrupar mensagens de sistema como blocos de chat expansíveis",
-    "status": "implemented",
-    "builds-on": [
-      "ADR-0008",
-      "SPEC-0019",
-      "SPEC-0020"
-    ],
-    "superseded-by": null,
-    "implemented-by": [
-      "src/features/background-processes/lib/group-ingest-events.ts",
-      "src/features/background-processes/lib/group-ingest-events.test.ts",
-      "src/features/background-processes/components/ingest-events-grouped-list.tsx",
-      "src/features/background-processes/components/ingest-events-list.spec.tsx"
-    ]
   }
 ]
