@@ -50,11 +50,62 @@ export function LlmLogDetail({
 					return <span>{Number(v)}ms</span>;
 				},
 			},
+			{
+				key: "inputTokens",
+				label: "Input tokens",
+				render: (v) =>
+					v != null ? (
+						<span className="tabular-nums">
+							{Number(v).toLocaleString("pt-BR")}
+						</span>
+					) : (
+						<span className="text-muted-foreground">—</span>
+					),
+			},
+			{
+				key: "outputTokens",
+				label: "Output tokens",
+				render: (v) =>
+					v != null ? (
+						<span className="tabular-nums">
+							{Number(v).toLocaleString("pt-BR")}
+						</span>
+					) : (
+						<span className="text-muted-foreground">—</span>
+					),
+			},
+			{
+				key: "totalTokens",
+				label: "Total tokens",
+				render: (v) =>
+					v != null ? (
+						<span className="tabular-nums">
+							{Number(v).toLocaleString("pt-BR")}
+						</span>
+					) : (
+						<span className="text-muted-foreground">—</span>
+					),
+			},
+			{
+				key: "cost",
+				label: "Custo estimado",
+				render: (v) =>
+					v != null ? (
+						<span className="tabular-nums">
+							{`US$ ${Number(v).toLocaleString("en-US", {
+								minimumFractionDigits: 2,
+								maximumFractionDigits: 6,
+							})}`}
+						</span>
+					) : (
+						<span className="text-muted-foreground">—</span>
+					),
+			},
 			{ key: "chunks", label: "Chunks" },
 			{ key: "finalChars", label: "Final chars" },
 			{
 				key: "tokenMeta",
-				label: "Token meta",
+				label: "Token meta (raw)",
 				type: "code",
 				render: (v) => {
 					if (v == null) return <span className="text-muted-foreground">—</span>;

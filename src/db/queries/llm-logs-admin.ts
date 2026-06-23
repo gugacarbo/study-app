@@ -17,19 +17,24 @@ export type LlmLogsTimePoint = {
 	errorCount: number;
 };
 
+export type LlmLogRow = {
+	id: string;
+	userId: string;
+	callId: string;
+	callType: string;
+	provider: string;
+	model: string;
+	status: string;
+	durationMs: number | null;
+	errorMessage: string | null;
+	createdAt: string | null;
+	tokenMeta: string | null;
+	inputCostPerMillion: number | null;
+	outputCostPerMillion: number | null;
+};
+
 export type LlmLogsPage = {
-	rows: Array<{
-		id: string;
-		userId: string;
-		callId: string;
-		callType: string;
-		provider: string;
-		model: string;
-		status: string;
-		durationMs: number | null;
-		errorMessage: string | null;
-		createdAt: string | null;
-	}>;
+	rows: LlmLogRow[];
 	total: number;
 	page: number;
 	pageSize: number;
@@ -56,6 +61,33 @@ function buildFilters(filters: LlmLogsListFilters) {
 	if (filters.dateTo) conditions.push(lte(schema.llmLogs.createdAt, filters.dateTo));
 	return conditions.length > 0 ? and(...conditions) : undefined;
 }
+
+function modelCostsCTE(db: AppDatabase) {
+	return db.$with("model_costs").as(
+		db
+			.select({
+				modelId: schema.aiModels.modelId,
+				inputCostPerMillion: sql<number>`max(${schema.aiModels.inputCostPerMillion})`.as("input_cost_per_million"),
+				outputCostPerMillion: sql<number>`max(${schema.aiModels.outputCostPerMillion})`.as("output_cost_per_million"),
+			})
+			.from(schema.aiModels)
+			.groupBy(schema.aiModels.modelId),
+	);
+}
+
+const LLM_LOG_COLUMNS = {
+	id: schema.llmLogs.id,
+	userId: schema.llmLogs.userId,
+	callId: schema.llmLogs.callId,
+	callType: schema.llmLogs.callType,
+	provider: schema.llmLogs.provider,
+	model: schema.llmLogs.model,
+	status: schema.llmLogs.status,
+	durationMs: schema.llmLogs.durationMs,
+	errorMessage: schema.llmLogs.errorMessage,
+	createdAt: schema.llmLogs.createdAt,
+	tokenMeta: schema.llmLogs.tokenMeta,
+};
 
 export async function getLlmLogsStats(
 	db: AppDatabase,
@@ -121,6 +153,7 @@ export async function getLlmLogsPage(
 ): Promise<LlmLogsPage> {
 	const where = buildFilters(filters);
 	const offset = (page - 1) * pageSize;
+	const modelCosts = modelCostsCTE(db);
 
 	const [countResult] = await db
 		.select({ total: count() })
@@ -129,15 +162,21 @@ export async function getLlmLogsPage(
 	const total = Number(countResult.total);
 
 	const rows = await db
-		.select()
+		.with(modelCosts)
+		.select({
+			...LLM_LOG_COLUMNS,
+			inputCostPerMillion: modelCosts.inputCostPerMillion,
+			outputCostPerMillion: modelCosts.outputCostPerMillion,
+		})
 		.from(schema.llmLogs)
+		.leftJoin(modelCosts, eq(schema.llmLogs.model, modelCosts.modelId))
 		.where(where)
 		.orderBy(desc(schema.llmLogs.createdAt), desc(schema.llmLogs.id))
 		.limit(pageSize)
 		.offset(offset);
 
 	return {
-		rows,
+		rows: rows as LlmLogRow[],
 		total,
 		page,
 		pageSize,
@@ -147,11 +186,20 @@ export async function getLlmLogsPage(
 export async function getLlmLogById(
 	db: AppDatabase,
 	id: string,
-) {
+): Promise<LlmLogRow | null> {
+	const modelCosts = modelCostsCTE(db);
+
 	const rows = await db
-		.select()
+		.with(modelCosts)
+		.select({
+			...LLM_LOG_COLUMNS,
+			inputCostPerMillion: modelCosts.inputCostPerMillion,
+			outputCostPerMillion: modelCosts.outputCostPerMillion,
+		})
 		.from(schema.llmLogs)
+		.leftJoin(modelCosts, eq(schema.llmLogs.model, modelCosts.modelId))
 		.where(eq(schema.llmLogs.id, id))
 		.limit(1);
-	return rows[0] ?? null;
+
+	return (rows[0] as LlmLogRow | undefined) ?? null;
 }

@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createDb } from "@/db/client";
-import { requireDB } from "@/functions/db";
-import { requireAdminSession } from "@/lib/rbac";
 import { getLlmLogsPage, getLlmLogById } from "@/db/queries/llm-logs-admin";
+import { requireDB } from "@/functions/db";
+import { enrichLlmLogRow } from "@/features/admin/lib/llm-log-usage";
 import { llmLogsFiltersSchema } from "@/features/admin/schemas/llm-logs-filters";
+import { requireAdminSession } from "@/lib/rbac";
 import { z } from "zod";
 
 const listSchema = z.object({
@@ -19,7 +20,11 @@ export const listLlmLogs = createServerFn({ method: "POST" })
 		const headers = getRequest().headers;
 		await requireAdminSession(headers);
 		const db = createDb(await requireDB());
-		return getLlmLogsPage(db, data.page, data.pageSize, data.filters);
+		const page = await getLlmLogsPage(db, data.page, data.pageSize, data.filters);
+		return {
+			...page,
+			rows: page.rows.map(enrichLlmLogRow),
+		};
 	});
 
 const detailSchema = z.object({
@@ -32,5 +37,6 @@ export const getLlmLogDetail = createServerFn({ method: "POST" })
 		const headers = getRequest().headers;
 		await requireAdminSession(headers);
 		const db = createDb(await requireDB());
-		return getLlmLogById(db, data.id);
+		const row = await getLlmLogById(db, data.id);
+		return row ? enrichLlmLogRow(row) : null;
 	});

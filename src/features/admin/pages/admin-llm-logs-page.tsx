@@ -1,7 +1,12 @@
 "use client";
 
 import { Suspense, useCallback, useState } from "react";
-import { ActivityIcon, CheckCircle2Icon, ClockIcon, XCircleIcon } from "lucide-react";
+import {
+	ActivityIcon,
+	CheckCircle2Icon,
+	ClockIcon,
+	XCircleIcon,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LlmLogsFilters } from "@/features/admin/components/logs/llm-logs-filters";
@@ -124,6 +129,40 @@ function AdminLlmLogsPageContent() {
 			header: "Duração",
 			width: "80px",
 			render: (v) => (v != null ? `${Number(v)}ms` : "—"),
+		},
+		{
+			key: "inputTokens",
+			header: "Input tokens",
+			width: "100px",
+			render: (v) => (v != null ? Number(v).toLocaleString("pt-BR") : "—"),
+		},
+		{
+			key: "outputTokens",
+			header: "Output tokens",
+			width: "100px",
+			render: (v) => (v != null ? Number(v).toLocaleString("pt-BR") : "—"),
+		},
+		{
+			key: "totalTokens",
+			header: "Total tokens",
+			width: "100px",
+			render: (v) => (v != null ? Number(v).toLocaleString("pt-BR") : "—"),
+		},
+		{
+			key: "cost",
+			header: "Custo",
+			width: "100px",
+			render: (v) => {
+				if (v == null) return <span className="text-muted-foreground">—</span>;
+				return (
+					<span className="tabular-nums">
+						{`US$ ${Number(v).toLocaleString("en-US", {
+							minimumFractionDigits: 2,
+							maximumFractionDigits: 6,
+						})}`}
+					</span>
+				);
+			},
 		},
 		{ key: "errorMessage", header: "Erro", width: "200px" },
 	];

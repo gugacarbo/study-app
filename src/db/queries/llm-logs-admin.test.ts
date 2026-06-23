@@ -167,4 +167,86 @@ describe("llm-logs-admin queries", () => {
 		expect(log?.provider).toBe("openai");
 		expect(log?.durationMs).toBe(150);
 	});
+
+	it("getLlmLogById includes tokenMeta and model costs", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const providerId = createId();
+		const logId = createId();
+		await seedUser(db, userId);
+
+		await db.insert(schema.aiProviders).values({
+			id: providerId,
+			userId,
+			name: "OpenAI",
+			baseUrl: "https://api.openai.com/v1",
+			apiKey: "enc:secret",
+		});
+		await db.insert(schema.aiModels).values({
+			id: createId(),
+			providerId,
+			modelId: "gpt-4o-mini",
+			displayName: "GPT-4o Mini",
+			inputCostPerMillion: 0.15,
+			outputCostPerMillion: 0.6,
+		});
+
+		await db.insert(schema.llmLogs).values({
+			id: logId,
+			userId,
+			callId: createId(),
+			callType: "ingest",
+			provider: "openai-compatible",
+			model: "gpt-4o-mini",
+			status: "success",
+			tokenMeta: JSON.stringify({ inputTokens: 1000, outputTokens: 500, totalTokens: 1500 }),
+			createdAt: "2026-06-01T00:00:00.000Z",
+		});
+
+		const log = await getLlmLogById(db, logId);
+		expect(log?.tokenMeta).toBe(JSON.stringify({ inputTokens: 1000, outputTokens: 500, totalTokens: 1500 }));
+		expect(log?.inputCostPerMillion).toBe(0.15);
+		expect(log?.outputCostPerMillion).toBe(0.6);
+	});
+
+	it("getLlmLogsPage includes tokenMeta and model costs", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const providerId = createId();
+		await seedUser(db, userId);
+
+		await db.insert(schema.aiProviders).values({
+			id: providerId,
+			userId,
+			name: "OpenAI",
+			baseUrl: "https://api.openai.com/v1",
+			apiKey: "enc:secret",
+		});
+		await db.insert(schema.aiModels).values({
+			id: createId(),
+			providerId,
+			modelId: "gpt-4o",
+			displayName: "GPT-4o",
+			inputCostPerMillion: 2.5,
+			outputCostPerMillion: 10,
+		});
+
+		await db.insert(schema.llmLogs).values({
+			id: createId(),
+			userId,
+			callId: createId(),
+			callType: "ingest",
+			provider: "openai-compatible",
+			model: "gpt-4o",
+			status: "success",
+			tokenMeta: JSON.stringify({ inputTokens: 2000, outputTokens: 1000, totalTokens: 3000 }),
+			createdAt: "2026-06-01T00:00:00.000Z",
+		});
+
+		const page = await getLlmLogsPage(db, 1, 10, {});
+		expect(page.rows).toHaveLength(1);
+		expect(page.rows[0]?.tokenMeta).toBe(JSON.stringify({ inputTokens: 2000, outputTokens: 1000, totalTokens: 3000 }));
+		expect(page.rows[0]?.inputCostPerMillion).toBe(2.5);
+		expect(page.rows[0]?.outputCostPerMillion).toBe(10);
+	});
 });
