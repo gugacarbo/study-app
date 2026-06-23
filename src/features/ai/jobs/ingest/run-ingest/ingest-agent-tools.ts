@@ -30,11 +30,20 @@ export type SubmitQuestionResult =
 	| { ok: true; index: number }
 	| { ok: false; reason: string };
 
-export type FinishExtractionResult = {
+export type ListQuestionsResult = {
 	ok: true;
 	total: number;
-	summary: string;
+	questions: ExtractedQuestion[];
 };
+
+export type FinishExtractionResult =
+	| { ok: false; reason: "questions_not_verified" | "submitted_total_mismatch" }
+	| {
+			ok: true;
+			total: number;
+			summary: string;
+			verified: true;
+	  };
 
 export type IngestAgentToolsContext = {
 	append: (payload: string) => Promise<void>;
@@ -49,6 +58,9 @@ function formatValidationReason(error: z.ZodError): string {
 }
 
 export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
+	let submittedRevision = 0;
+	let verifiedRevision = -1;
+
 	const persistToolResult = async (
 		toolCallId: string,
 		result: unknown,
@@ -83,6 +95,7 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 				}
 
 				ctx.questions.push(parsed.data);
+				submittedRevision += 1;
 				const index = ctx.questions.length;
 
 				await ctx.append(
@@ -94,16 +107,50 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 				return result;
 			},
 		}),
+		list_questions: tool({
+			description:
+				"List all extracted questions currently buffered so you can verify nothing was missed before finishing extraction.",
+			inputSchema: z.object({}),
+			execute: async (_input, { toolCallId }) => {
+				verifiedRevision = submittedRevision;
+				const result: ListQuestionsResult = {
+					ok: true,
+					total: ctx.questions.length,
+					questions: [...ctx.questions],
+				};
+				await persistToolResult(toolCallId, result);
+				return result;
+			},
+		}),
 		finish_extraction: tool({
 			description:
-				"Signal that question extraction is complete. Pass the total number of questions submitted and a short summary up to 150 characters.",
+				"Signal that question extraction is complete only after calling list_questions to verify every extracted question. Pass the total submitted and a short summary up to 150 characters.",
 			inputSchema: finishExtractionInputSchema,
 			execute: async (input, { toolCallId }) => {
+				if (verifiedRevision !== submittedRevision) {
+					const result: FinishExtractionResult = {
+						ok: false,
+						reason: "questions_not_verified",
+					};
+					await persistToolResult(toolCallId, result, true);
+					return result;
+				}
+
+				if (input.total !== ctx.questions.length) {
+					const result: FinishExtractionResult = {
+						ok: false,
+						reason: "submitted_total_mismatch",
+					};
+					await persistToolResult(toolCallId, result, true);
+					return result;
+				}
+
 				ctx.onFinishExtraction();
 				const result: FinishExtractionResult = {
 					ok: true,
 					total: input.total,
 					summary: input.summary,
+					verified: true,
 				};
 				await persistToolResult(toolCallId, result);
 				await ctx.append(

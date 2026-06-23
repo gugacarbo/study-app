@@ -1,5 +1,4 @@
 import {
-	hasToolCall,
 	stepCountIs,
 	streamText,
 	UnsupportedFunctionalityError,
@@ -247,7 +246,7 @@ export async function runIngestAgent(
 		system: INGEST_AGENT_SYSTEM_PROMPT,
 		prompt: options.fileText,
 		tools,
-		stopWhen: [stepCountIs(MAX_AGENT_STEPS), hasToolCall("finish_extraction")],
+		stopWhen: [stepCountIs(MAX_AGENT_STEPS)],
 		abortSignal: abortController.signal,
 	});
 
