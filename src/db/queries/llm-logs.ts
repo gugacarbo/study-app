@@ -57,23 +57,33 @@ export async function insertLlmLog(db: AppDatabase, log: LlmLogInsert) {
 		});
 }
 
+export type CompleteLlmLogUpdate = {
+	status: "success" | "error";
+	responsePayload?: string | null;
+	durationMs?: number | null;
+	errorMessage?: string | null;
+	chunks?: number | null;
+	finalChars?: number | null;
+	tokenMeta?: string | null;
+};
+
 export async function completeLlmLog(
 	db: AppDatabase,
 	callId: string,
-	update: {
-		status: "success" | "error";
-		responsePayload?: string | null;
-		durationMs?: number | null;
-		errorMessage?: string | null;
-	},
+	update: CompleteLlmLogUpdate,
 ) {
+	const setValues: Record<string, unknown> = {
+		status: update.status,
+	};
+	if (update.durationMs !== undefined) setValues.durationMs = update.durationMs;
+	if (update.errorMessage !== undefined) setValues.errorMessage = update.errorMessage;
+	if (update.responsePayload !== undefined) setValues.responsePayload = update.responsePayload;
+	if (update.chunks !== undefined) setValues.chunks = update.chunks;
+	if (update.finalChars !== undefined) setValues.finalChars = update.finalChars;
+	if (update.tokenMeta !== undefined) setValues.tokenMeta = update.tokenMeta;
+
 	await db
 		.update(schema.llmLogs)
-		.set({
-			status: update.status,
-			responsePayload: update.responsePayload ?? null,
-			durationMs: update.durationMs ?? null,
-			errorMessage: update.errorMessage ?? null,
-		})
+		.set(setValues)
 		.where(eq(schema.llmLogs.callId, callId));
 }

@@ -16,6 +16,7 @@ import {
 	logLlmCallStart,
 } from "@/lib/llm-logging";
 import {
+	INGEST_AGENT_SYSTEM_PROMPT,
 	INGEST_SYSTEM_PROMPT,
 	MAX_LLM_RETRIES,
 	RETRY_BACKOFF_MS,
@@ -98,6 +99,11 @@ export async function extractQuestionsWithGenerateObject(
 			await logLlmCallComplete(callId, {
 				status: "success",
 				durationMs: Date.now() - startedAt,
+				responsePayload: JSON.stringify(result.object),
+				tokenMeta:
+					"usage" in result
+						? JSON.stringify(result.usage)
+						: undefined,
 			});
 
 			return questions;
@@ -151,6 +157,8 @@ export async function extractQuestions(
 		callType: "ingest",
 		provider: "openai-compatible",
 		model: metadata.modelId,
+		systemPrompt: INGEST_AGENT_SYSTEM_PROMPT,
+		requestPayload: fileText.slice(0, 5000),
 	});
 
 	await ctx.deps.appendJobEvent(
@@ -183,6 +191,7 @@ export async function extractQuestions(
 			await logLlmCallComplete(callId, {
 				status: "success",
 				durationMs: Date.now() - startedAt,
+				responsePayload: JSON.stringify({ questionsCount: agentResult.questions.length }),
 			});
 			await persistExtractionMode(ctx, metadata, agentResult.extractionMode);
 
