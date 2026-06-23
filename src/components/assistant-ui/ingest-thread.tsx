@@ -37,6 +37,7 @@ import {
 	CircleIcon,
 	LoaderCircleIcon,
 	XIcon,
+	DollarSign,
 } from "lucide-react";
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
@@ -134,6 +135,62 @@ function StatusBadge({
 					) : null}
 					{progress?.persisted != null ? (
 						<span>{progress.persisted} salva(s)</span>
+					) : null}
+				</TooltipContent>
+			</Tooltip>
+		</TooltipProvider>
+	);
+}
+
+function formatTokenCount(value: number): string {
+	return value.toLocaleString("pt-BR");
+}
+
+function TokenUsageBadge({
+	metadata,
+}: {
+	metadata: IngestJobMetadata | null | undefined;
+}) {
+	const totalTokens = metadata?.totalTokens;
+	const inputTokens = metadata?.inputTokens;
+	const outputTokens = metadata?.outputTokens;
+	const cost = metadata?.cost;
+
+	if (totalTokens == null && inputTokens == null && outputTokens == null) {
+		return null;
+	}
+
+	const total = totalTokens ?? (inputTokens ?? 0) + (outputTokens ?? 0);
+
+	return (
+		<TooltipProvider>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Badge variant="outline" className="ml-auto gap-1">
+						<DollarSign className="size-3" />
+						{formatTokenCount(total)}
+					</Badge>
+				</TooltipTrigger>
+				<TooltipContent side="bottom" className="flex flex-col gap-1">
+					{inputTokens != null ? (
+						<span>
+							Entrada: {formatTokenCount(inputTokens)} tokens
+						</span>
+					) : null}
+					{outputTokens != null ? (
+						<span>
+							Saída: {formatTokenCount(outputTokens)} tokens
+						</span>
+					) : null}
+					{total != null ? (
+						<span>
+							Total: {formatTokenCount(total)} tokens
+						</span>
+					) : null}
+					{cost != null ? (
+						<span>
+							Custo: R$ {cost.toFixed(4)}
+						</span>
 					) : null}
 				</TooltipContent>
 			</Tooltip>
@@ -296,6 +353,7 @@ export const IngestThread: FC<IngestThreadProps> = ({
 					metadata={metadata}
 					progress={progress}
 				/>
+				<TokenUsageBadge metadata={metadata} />
 			</div>
 		</div>
 		<ThreadPrimitive.Viewport
