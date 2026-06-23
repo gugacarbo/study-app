@@ -54,6 +54,18 @@ export async function listQuestionsByExam(
 		.orderBy(schema.questions.createdAt);
 }
 
+export async function getQuestionById(
+	db: AppDatabase,
+	questionId: string,
+): Promise<QuestionRow | null> {
+	const rows = await db
+		.select()
+		.from(schema.questions)
+		.where(eq(schema.questions.id, questionId))
+		.limit(1);
+	return rows[0] ?? null;
+}
+
 export async function existsNormalizedQuestion(
 	db: AppDatabase,
 	examId: string,
