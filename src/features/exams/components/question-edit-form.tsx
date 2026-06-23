@@ -3,6 +3,10 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+	RadioGroup,
+	RadioGroupItem,
+} from "@/components/ui/radio";
+import {
 	Field,
 	FieldContent,
 	FieldError,
@@ -10,7 +14,6 @@ import {
 	FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -24,6 +27,7 @@ import {
 	type QuestionFormInput,
 } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
+import { MinusIcon, PlusIcon } from "lucide-react";
 
 type QuestionEditFormProps = {
 	question: QuestionDetail;
@@ -101,6 +105,10 @@ export function QuestionEditForm({
 				currentAnswers.filter((key) => key !== removedKey),
 			);
 		}
+	}
+
+	function handleSelectAnswer(key: string) {
+		form.setValue("answers", [key]);
 	}
 
 	function handleToggleAnswer(key: string, checked: boolean) {
@@ -189,18 +197,56 @@ export function QuestionEditForm({
 			</div>
 
 			<div className="flex flex-col gap-3">
-				<FieldTitle>Alternativas</FieldTitle>
+				<div className="flex items-center justify-between">
+					<FieldTitle>Alternativas</FieldTitle>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						disabled={watchedOptions.length >= 10}
+						onClick={handleAddOption}
+					>
+						<PlusIcon className="mr-1 h-3 w-3" />
+						Adicionar
+					</Button>
+				</div>
 				{fields.map((field, index) => {
 					const option = watchedOptions[index] ?? field;
 					const textError = form.formState.errors.options?.[index]?.text;
+					const isCorrect = watchedAnswers.includes(option.key);
 					return (
 						<div
 							key={field.id}
-							className="flex items-start gap-2"
+							className="flex items-center gap-2"
 						>
-							<div className="pt-2 text-sm font-medium text-muted-foreground">
+							{watchedScoringMode === "exact" ? (
+								<RadioGroup
+									value={watchedAnswers[0] ?? ""}
+									onValueChange={handleSelectAnswer}
+									className="flex items-center"
+								>
+									<RadioGroupItem
+										value={option.key}
+										id={`correct-${option.key}`}
+										aria-label={`Correta ${option.key.toLowerCase()}`}
+									/>
+								</RadioGroup>
+							) : (
+								<Checkbox
+									id={`correct-${option.key}`}
+									checked={isCorrect}
+									onCheckedChange={(checked) =>
+										handleToggleAnswer(
+											option.key,
+											checked === true,
+										)
+									}
+									aria-label={`Correta ${option.key.toLowerCase()}`}
+								/>
+							)}
+							<span className="shrink-0 text-sm font-medium text-muted-foreground">
 								{option.key.toLowerCase()})
-							</div>
+							</span>
 							<div className="flex-1">
 								<Input
 									{...form.register(`options.${index}.text`)}
@@ -213,29 +259,16 @@ export function QuestionEditForm({
 									</p>
 								)}
 							</div>
-							<div className="flex items-center gap-2 pt-2">
-								<Checkbox
-									id={`correct-${option.key}`}
-									checked={watchedAnswers.includes(option.key)}
-									onCheckedChange={(checked) =>
-										handleToggleAnswer(
-											option.key,
-											checked === true,
-										)
-									}
-								/>
-								<Label htmlFor={`correct-${option.key}`}>
-									Correta
-								</Label>
-							</div>
 							<Button
 								type="button"
 								variant="ghost"
-								size="sm"
+								size="icon"
+								className="shrink-0 text-muted-foreground hover:text-destructive"
 								disabled={watchedOptions.length <= 2}
 								onClick={() => handleRemoveOption(index)}
+								aria-label={`Remover alternativa ${option.key}`}
 							>
-								Remover
+								<MinusIcon className="h-4 w-4" />
 							</Button>
 						</div>
 					);
@@ -245,16 +278,6 @@ export function QuestionEditForm({
 						{form.formState.errors.answers.message}
 					</p>
 				)}
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					className="self-start"
-					disabled={watchedOptions.length >= 10}
-					onClick={handleAddOption}
-				>
-					Adicionar alternativa
-				</Button>
 			</div>
 
 			<Field orientation="vertical">

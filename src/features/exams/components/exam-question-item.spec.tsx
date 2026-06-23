@@ -95,7 +95,7 @@ describe("ExamQuestionItem", () => {
 		).toBeInTheDocument();
 	});
 
-	it("shows correct answer permanently for single-answer question", () => {
+	it("highlights correct answer inline for single-answer question", () => {
 		renderWithAccordion(
 			<ExamQuestionItem
 				index={1}
@@ -106,15 +106,13 @@ describe("ExamQuestionItem", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 
-		expect(screen.getByText("Gabarito")).toBeInTheDocument();
-		expect(screen.getByText(/b\) Brasília/)).toBeInTheDocument();
-		expect(screen.queryByText(/a\) São Paulo/)).not.toBeInTheDocument();
-		expect(
-			screen.queryByRole("button", { name: /revelar resposta/i }),
-		).not.toBeInTheDocument();
+		const optionList = screen.getByTestId("question-options");
+		const items = optionList.querySelectorAll("li");
+		expect(items[1]?.className).toContain("bg-primary/10");
+		expect(items[0]?.className).not.toContain("bg-primary/10");
 	});
 
-	it("shows partial gabarito with multiple correct options", () => {
+	it("highlights correct answers inline for partial-answer question", () => {
 		renderWithAccordion(
 			<ExamQuestionItem
 				index={2}
@@ -125,9 +123,11 @@ describe("ExamQuestionItem", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /Q2 · Geral/i }));
 
-		expect(screen.getByText(/a\) 2/)).toBeInTheDocument();
-		expect(screen.getByText(/c\) 3/)).toBeInTheDocument();
-		expect(screen.queryByText(/b\) 4/)).not.toBeInTheDocument();
+		const optionList = screen.getByTestId("question-options");
+		const items = optionList.querySelectorAll("li");
+		expect(items[0]?.className).toContain("bg-primary/10");
+		expect(items[2]?.className).toContain("bg-primary/10");
+		expect(items[1]?.className).not.toContain("bg-primary/10");
 	});
 
 	it("switches to edit form when Edit button is clicked", () => {

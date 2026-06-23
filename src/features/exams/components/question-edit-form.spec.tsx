@@ -18,6 +18,13 @@ const baseQuestion: QuestionDetail = {
 	deepExplanation: "Explicação longa",
 };
 
+const partialQuestion: QuestionDetail = {
+	...baseQuestion,
+	id: "q2",
+	scoringMode: "partial",
+	answers: ["A", "C"],
+};
+
 describe("QuestionEditForm", () => {
 	afterEach(() => {
 		cleanup();
@@ -40,6 +47,32 @@ describe("QuestionEditForm", () => {
 		expect(screen.getByText("a)")).toBeInTheDocument();
 		expect(screen.getByText("b)")).toBeInTheDocument();
 		expect(screen.getByText("c)")).toBeInTheDocument();
+	});
+
+	it("uses radio buttons in exact mode for correct answer selection", () => {
+		render(
+			<QuestionEditForm
+				question={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const radios = screen.getAllByRole("radio");
+		expect(radios).toHaveLength(3);
+	});
+
+	it("uses checkboxes in partial mode for correct answer selection", () => {
+		render(
+			<QuestionEditForm
+				question={partialQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const checkboxes = screen.getAllByRole("checkbox");
+		expect(checkboxes).toHaveLength(3);
 	});
 
 	it("submits updated data", async () => {
@@ -86,7 +119,7 @@ describe("QuestionEditForm", () => {
 		expect(onCancel).toHaveBeenCalledOnce();
 	});
 
-	it("adds a new option with the next letter", () => {
+	it("adds a new option when add button is clicked", () => {
 		render(
 			<QuestionEditForm
 				question={baseQuestion}
@@ -96,23 +129,22 @@ describe("QuestionEditForm", () => {
 		);
 
 		fireEvent.click(
-			screen.getAllByRole("button", { name: /adicionar alternativa/i })[0],
+			screen.getAllByRole("button", { name: /adicionar/i })[0],
 		);
 
 		expect(screen.getByText("d)")).toBeInTheDocument();
 	});
 
 	it("removes an option and clears its answer selection", () => {
-		const onSubmit = vi.fn();
 		render(
 			<QuestionEditForm
 				question={baseQuestion}
-				onSubmit={onSubmit}
+				onSubmit={vi.fn()}
 				onCancel={vi.fn()}
 			/>,
 		);
 
-		const removeButtons = screen.getAllByRole("button", { name: /remover/i });
+		const removeButtons = screen.getAllByRole("button", { name: /remover alternativa/i });
 		expect(removeButtons).toHaveLength(3);
 
 		fireEvent.click(removeButtons[0]);
@@ -122,7 +154,7 @@ describe("QuestionEditForm", () => {
 		expect(screen.getByText("c)")).toBeInTheDocument();
 	});
 
-	it("limits exact mode to a single correct answer", async () => {
+	it("selects a single answer via radio in exact mode", async () => {
 		const onSubmit = vi.fn();
 		render(
 			<QuestionEditForm
@@ -132,8 +164,8 @@ describe("QuestionEditForm", () => {
 			/>,
 		);
 
-		const checkboxes = screen.getAllByRole("checkbox", { name: /correta/i });
-		fireEvent.click(checkboxes[0]);
+		const radios = screen.getAllByRole("radio");
+		fireEvent.click(radios[0]);
 
 		fireEvent.click(screen.getAllByRole("button", { name: /salvar/i })[0]);
 

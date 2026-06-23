@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExamDetailPageContent } from "@/features/exams/pages/exam-detail-page";
@@ -13,6 +12,15 @@ vi.mock("@/features/exams/hooks/use-exam", () => ({
 
 vi.mock("@/features/exams/hooks/use-ingest-job-by-exam", () => ({
 	useIngestJobByExam: () => ({ data: null }),
+}));
+
+vi.mock("@/features/exams/hooks/use-update-question", () => ({
+	useUpdateQuestion: () => ({
+		mutate: vi.fn(),
+		mutateAsync: vi.fn(),
+		isPending: false,
+		isError: false,
+	}),
 }));
 
 const examWithQuestions: ExamDetail = {

@@ -34,9 +34,6 @@ export function ExamQuestionItem({
 	const updateQuestion = useUpdateQuestion(examId);
 
 	const answerSet = new Set(displayQuestion.answers);
-	const correctOptions = displayQuestion.options.filter((option) =>
-		answerSet.has(option.key),
-	);
 
 	async function handleSubmit(data: QuestionFormInput) {
 		const updated = await updateQuestion.mutateAsync({
@@ -84,42 +81,37 @@ export function ExamQuestionItem({
 								{displayQuestion.question}
 							</p>
 						</div>
-						<div className="flex flex-col gap-4 pb-(--card-spacing) pt-(--card-spacing)">
-							<ul className="flex flex-col gap-2" data-testid="question-options">
-								{displayQuestion.options.map((option) => (
-									<li
-										key={option.key}
-										className="text-sm text-muted-foreground"
-									>
-										<span className="font-medium text-foreground">
-											{formatOptionKey(option.key)})
-										</span>{" "}
-										{option.text}
-									</li>
-								))}
+						<div className="flex flex-col gap-2 pb-(--card-spacing) pt-(--card-spacing)">
+							<ul className="flex flex-col gap-1.5" data-testid="question-options">
+								{displayQuestion.options.map((option) => {
+									const isCorrect = answerSet.has(option.key);
+									return (
+										<li
+											key={option.key}
+											className={`flex items-start gap-2 rounded-md px-2.5 py-1.5 text-sm ${
+												isCorrect
+													? "bg-primary/10 text-primary font-medium ring-1 ring-primary/25"
+													: "text-muted-foreground"
+											}`}
+										>
+											<span className="font-medium tabular-nums">
+												{formatOptionKey(option.key)})
+											</span>
+											<span>{option.text}</span>
+											{isCorrect && (
+												<span className="ml-auto text-xs uppercase tracking-wider opacity-70">
+													correta
+												</span>
+											)}
+										</li>
+									);
+								})}
 							</ul>
-							<div className="rounded-md bg-muted px-3 py-2 text-sm">
-								<p className="font-medium">Gabarito</p>
-								{correctOptions.length > 0 ? (
-									<ul className="mt-1 flex flex-col gap-1">
-										{correctOptions.map((option) => (
-											<li key={option.key}>
-												{formatOptionKey(option.key)}){" "}
-												{option.text}
-											</li>
-										))}
-									</ul>
-								) : (
-									<p className="mt-1 text-muted-foreground">
-										Resposta não disponível.
-									</p>
-								)}
-							</div>
 							<Button
 								type="button"
 								variant="outline"
 								size="sm"
-								className="self-start"
+								className="mt-2 self-start"
 								onClick={() => setIsEditing(true)}
 							>
 								Editar pergunta
