@@ -59,6 +59,12 @@ export function isCancellableJobStatus(status: string): boolean {
 	return (CANCELLABLE_JOB_STATUSES as readonly string[]).includes(status);
 }
 
+export type TokenUsage = {
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+};
+
 export type IngestJobMetadata = {
 	examId: string;
 	modelId: string;
@@ -70,6 +76,10 @@ export type IngestJobMetadata = {
 	persistedCount?: number;
 	skippedDuplicateCount?: number;
 	invalidCount?: number;
+	inputTokens?: number;
+	outputTokens?: number;
+	totalTokens?: number;
+	cost?: number;
 	warning?: IngestWarning;
 	reviewWarning?: "review_fallback";
 };
