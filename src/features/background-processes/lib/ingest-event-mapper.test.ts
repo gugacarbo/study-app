@@ -513,6 +513,11 @@ describe("mergeStreamParts", () => {
 
 	it("adds finish_extraction summary as a final assistant message", () => {
 		const summary = "2 questoes extraidas de algebra linear";
+		const alerts = [
+			"Questão 1 ficou com imagem omitida.",
+			"Questão 2 teve alternativa reconstruída.",
+		];
+		const finalMessage = `${summary}\n\nAlertas:\n- ${alerts[0]}\n- ${alerts[1]}`;
 		const result = mergeJobEvents(emptyState, [
 			{
 				seq: 1,
@@ -524,6 +529,7 @@ describe("mergeStreamParts", () => {
 					argsText: JSON.stringify({
 						total: 2,
 						summary,
+						alerts,
 					}),
 					state: "running",
 				},
@@ -539,6 +545,7 @@ describe("mergeStreamParts", () => {
 						ok: true,
 						total: 2,
 						summary,
+						alerts,
 					},
 				},
 				createdAt: null,
@@ -547,7 +554,7 @@ describe("mergeStreamParts", () => {
 				seq: 3,
 				payload: {
 					type: "text",
-					text: summary,
+					text: finalMessage,
 				},
 				createdAt: null,
 			},
@@ -561,21 +568,24 @@ describe("mergeStreamParts", () => {
 				argsText: JSON.stringify({
 					total: 2,
 					summary,
+					alerts,
 				}),
 				args: {
 					total: 2,
 					summary,
+					alerts,
 				},
 				result: {
 					ok: true,
 					total: 2,
 					summary,
+					alerts,
 				},
 			},
 		]);
 		expect(result.messages[1]).toMatchObject({
 			role: "assistant",
-			content: summary,
+			content: finalMessage,
 		});
 	});
 });
