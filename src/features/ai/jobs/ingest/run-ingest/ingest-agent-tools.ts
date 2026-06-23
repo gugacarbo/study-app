@@ -16,7 +16,15 @@ import {
 } from "./ingest-stream-parts";
 import { canonicalizeReviewQuestion } from "./review-question";
 
-export const FINISH_EXTRACTION_SUMMARY_MAX_LENGTH = 150;
+export const FINISH_EXTRACTION_SUMMARY_MAX_LENGTH = 400;
+export const finishExtractionAlertSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.max(FINISH_EXTRACTION_SUMMARY_MAX_LENGTH);
+export const finishExtractionAlertsSchema = z
+	.array(finishExtractionAlertSchema)
+	.optional();
 
 export const finishExtractionInputSchema = z.object({
 	total: z.number().int().nonnegative(),
@@ -25,6 +33,7 @@ export const finishExtractionInputSchema = z.object({
 		.trim()
 		.min(1)
 		.max(FINISH_EXTRACTION_SUMMARY_MAX_LENGTH),
+	alerts: finishExtractionAlertsSchema,
 });
 
 export type SubmitQuestionResult =
@@ -69,6 +78,7 @@ export type FinishExtractionResult =
 			ok: true;
 			total: number;
 			summary: string;
+			alerts?: string[];
 			verified: true;
 	  };
 
@@ -100,6 +110,17 @@ function buildListQuestionsModelOutput(
 			topic: question.topic,
 		})),
 	});
+}
+
+export function formatFinalizationSummaryMessage(
+	summary: string,
+	alerts?: string[],
+): string {
+	if (!alerts?.length) {
+		return summary;
+	}
+
+	return `${summary}\n\nAlertas:\n${alerts.map((alert) => `- ${alert}`).join("\n")}`;
 }
 
 export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
@@ -237,7 +258,7 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 		}),
 		finish_extraction: tool({
 			description:
-				"Signal that question extraction is complete only after calling list_questions to verify every extracted question. Pass the total submitted and a short summary up to 150 characters.",
+				"Signal that question extraction is complete only after calling list_questions to verify every extracted question. Pass the total submitted, a final summary up to 400 characters, and optional alerts when needed.",
 			inputSchema: finishExtractionInputSchema,
 			execute: async (input, { toolCallId }) => {
 				if (verifiedRevision !== submittedRevision) {
@@ -263,11 +284,16 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 					ok: true,
 					total: input.total,
 					summary: input.summary,
+					...(input.alerts?.length ? { alerts: input.alerts } : {}),
 					verified: true,
 				};
 				await persistToolResult(toolCallId, result);
 				await ctx.append(
-					serializeIngestJobEventPart(buildIngestTextPart(input.summary)),
+					serializeIngestJobEventPart(
+						buildIngestTextPart(
+							formatFinalizationSummaryMessage(input.summary, input.alerts),
+						),
+					),
 				);
 				return result;
 			},

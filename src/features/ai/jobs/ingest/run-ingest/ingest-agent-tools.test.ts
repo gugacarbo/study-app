@@ -245,6 +245,10 @@ describe("createIngestAgentTools", () => {
 			{
 				total: 1,
 				summary: "1 questão extraída.",
+				alerts: [
+					"Questão 1 ficou com enunciado parcialmente ilegível.",
+					"Tabela original não foi preservada.",
+				],
 			},
 			{
 				toolCallId: "finish-3",
@@ -257,8 +261,18 @@ describe("createIngestAgentTools", () => {
 			ok: true,
 			total: 1,
 			summary: "1 questão extraída.",
+			alerts: [
+				"Questão 1 ficou com enunciado parcialmente ilegível.",
+				"Tabela original não foi preservada.",
+			],
 			verified: true,
 		});
+		expect(append).toHaveBeenLastCalledWith(
+			expect.stringContaining("- Questão 1 ficou com enunciado parcialmente ilegível."),
+		);
+		expect(append).toHaveBeenLastCalledWith(
+			expect.stringContaining("- Tabela original não foi preservada."),
+		);
 		expect(onFinishExtraction).toHaveBeenCalledTimes(1);
 	});
 });
