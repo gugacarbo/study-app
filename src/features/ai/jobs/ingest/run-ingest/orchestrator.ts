@@ -21,6 +21,7 @@ import {
 import { extractQuestions } from "./extract-questions";
 import { cancelJob, emitPhase, failJob } from "./job-lifecycle";
 import { readIngestFileText } from "./read-file";
+import { buildReviewDrafts, reviewQuestions } from "./review-questions";
 import type { RunIngestContext } from "./types";
 
 export async function runIngest(ctx: RunIngestContext): Promise<void> {
@@ -91,6 +92,42 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 	}
 
 	await ctx.deps.updateJobStatus(ctx.jobId, {
+		phase: INGEST_PHASE.REVIEWING,
+	});
+	await emitPhase(ctx, INGEST_PHASE.REVIEWING);
+
+	const reviewDrafts = buildReviewDrafts(
+		extractedQuestions as Array<{
+			question: string;
+			options: { key: string; text: string }[];
+			answers: string[];
+			topic: string;
+		}>,
+	);
+	const reviewResult = await reviewQuestions(
+		ctx,
+		job,
+		metadata.examId,
+		reviewDrafts,
+	);
+
+	if (await ctx.deps.isCancelRequested(ctx.jobId)) {
+		await cancelJob(ctx);
+		return;
+	}
+
+	if (reviewResult.reviewWarning) {
+		await ctx.deps.appendJobEvent(
+			ctx.jobId,
+			serializeIngestJobEventPart(
+				buildIngestTextPart(
+					"Revisão automática indisponível; salvando extração original.",
+				),
+			),
+		);
+	}
+
+	await ctx.deps.updateJobStatus(ctx.jobId, {
 		phase: INGEST_PHASE.PERSISTING,
 	});
 	await emitPhase(ctx, INGEST_PHASE.PERSISTING);
@@ -98,7 +135,7 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 	const persistResult = await persistQuestions({
 		db: ctx.db,
 		examId: metadata.examId,
-		questions: extractedQuestions,
+		questions: reviewResult.questions,
 		deps: {
 			...ctx.deps.persistQuestionsDeps,
 			onSkippedDuplicate: async (part) => {
@@ -147,10 +184,14 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 	const finalMetadata: IngestJobMetadata = {
 		...metadata,
 		extractedCount: persistResult.extractedCount,
+		reviewedCount: reviewResult.reviewedCount,
 		persistedCount: persistResult.persistedCount,
 		skippedDuplicateCount: persistResult.skippedDuplicateCount,
 		invalidCount: persistResult.invalidCount,
 		...(persistResult.warning ? { warning: persistResult.warning } : {}),
+		...(reviewResult.reviewWarning
+			? { reviewWarning: reviewResult.reviewWarning }
+			: {}),
 	};
 
 	if (persistResult.persistedCount === 0) {

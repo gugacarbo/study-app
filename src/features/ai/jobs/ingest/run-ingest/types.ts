@@ -32,6 +32,7 @@ export type RunIngestDeps = {
 	getAiModel?: typeof getAiModel;
 	generateObject?: typeof generateObject;
 	streamText?: typeof streamText;
+	reviewStreamText?: typeof streamText;
 	sleep?: (ms: number) => Promise<void>;
 };
 

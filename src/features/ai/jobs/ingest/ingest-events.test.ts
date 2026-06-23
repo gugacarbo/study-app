@@ -40,6 +40,14 @@ describe("buildIngestPhaseSystemInfo", () => {
 			data: { kind: "phase", payload: { phase: INGEST_PHASE.PERSISTING } },
 		});
 	});
+
+	it("returns correct structure for REVIEWING phase", () => {
+		const result = buildIngestPhaseSystemInfo(INGEST_PHASE.REVIEWING);
+		expect(result).toEqual({
+			type: "data-ingest-system-info",
+			data: { kind: "phase", payload: { phase: INGEST_PHASE.REVIEWING } },
+		});
+	});
 });
 
 describe("buildIngestFileReadSystemInfo", () => {

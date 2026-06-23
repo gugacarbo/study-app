@@ -164,10 +164,151 @@ function createMockStreamText(questions: unknown[]) {
 	}) as unknown as RunIngestDeps["streamText"];
 }
 
+function createMockReviewStreamText(
+	updater?: (question: ReturnType<typeof makeQuestion>) => ReturnType<typeof makeQuestion>,
+) {
+	return vi.fn((_options) => {
+		async function* streamParts() {
+			yield {
+				type: "start-step",
+				request: {},
+				warnings: [],
+			};
+			yield {
+				type: "reasoning-delta",
+				id: "reason-1",
+				text: "Revisando as questões…",
+			};
+			yield {
+				type: "reasoning-end",
+				id: "reason-1",
+			};
+
+			yield {
+				type: "tool-call",
+				toolCallId: "list-review-1",
+				toolName: "list_questions",
+				input: {},
+			};
+
+			const listExecute = _options.tools?.list_questions?.execute;
+			const listResult = listExecute
+				? await listExecute(
+						{},
+						{
+							toolCallId: "list-review-1",
+							messages: [],
+							abortSignal: _options.abortSignal,
+						},
+					)
+				: undefined;
+
+			const questions = Array.isArray(listResult?.questions)
+				? listResult.questions
+				: [];
+
+			for (const question of questions) {
+				const nextQuestion = updater ? updater(question) : question;
+				yield {
+					type: "tool-call",
+					toolCallId: `update-${question.draftQuestionId}`,
+					toolName: "update_question",
+					input: {
+						draftQuestionId: question.draftQuestionId,
+						question: nextQuestion.question,
+						options: nextQuestion.options,
+						answers: nextQuestion.answers,
+						topic: nextQuestion.topic,
+					},
+				};
+
+				const updateExecute = _options.tools?.update_question?.execute;
+				if (updateExecute) {
+					await updateExecute(
+						{
+							draftQuestionId: question.draftQuestionId,
+							question: nextQuestion.question,
+							options: nextQuestion.options,
+							answers: nextQuestion.answers,
+							topic: nextQuestion.topic,
+						},
+						{
+							toolCallId: `update-${question.draftQuestionId}`,
+							messages: [],
+							abortSignal: _options.abortSignal,
+						},
+					);
+				}
+			}
+
+			yield {
+				type: "tool-call",
+				toolCallId: "list-review-2",
+				toolName: "list_questions",
+				input: {},
+			};
+
+			if (listExecute) {
+				await listExecute(
+					{},
+					{
+						toolCallId: "list-review-2",
+						messages: [],
+						abortSignal: _options.abortSignal,
+					},
+				);
+			}
+
+			yield {
+				type: "tool-call",
+				toolCallId: "finish-review-1",
+				toolName: "finish_review",
+				input: {
+					total: questions.length,
+					summary: "Revisão concluída.",
+				},
+			};
+
+			const finishExecute = _options.tools?.finish_review?.execute;
+			if (finishExecute) {
+				await finishExecute(
+					{
+						total: questions.length,
+						summary: "Revisão concluída.",
+					},
+					{
+						toolCallId: "finish-review-1",
+						messages: [],
+						abortSignal: _options.abortSignal,
+					},
+				);
+			}
+
+			yield {
+				type: "finish-step",
+				response: {},
+				usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+				finishReason: "tool-calls",
+				rawFinishReason: "tool_calls",
+				providerMetadata: undefined,
+			};
+			yield {
+				type: "finish",
+				finishReason: "stop",
+				rawFinishReason: "stop",
+				totalUsage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+			};
+		}
+
+		return { fullStream: streamParts() };
+	}) as unknown as RunIngestDeps["streamText"];
+}
+
 function createRunDeps(input?: {
 	questions?: unknown[];
 	getAiModel?: RunIngestDeps["getAiModel"];
 	streamText?: RunIngestDeps["streamText"];
+	reviewStreamText?: RunIngestDeps["streamText"];
 	generateObject?: RunIngestDeps["generateObject"];
 	persistQuestionsDeps?: RunIngestDeps["persistQuestionsDeps"];
 }): {
@@ -207,6 +348,7 @@ function createRunDeps(input?: {
 			getAiModel,
 			generateObject,
 			streamText,
+			reviewStreamText: input?.reviewStreamText,
 			sleep: vi.fn(async () => undefined),
 			persistQuestionsDeps,
 		},
@@ -461,6 +603,10 @@ describe("runIngest", () => {
 				expect.objectContaining({
 					type: INGEST_DATA_PART.PHASE,
 					data: { phase: INGEST_PHASE.EXTRACTING },
+				}),
+				expect.objectContaining({
+					type: INGEST_DATA_PART.PHASE,
+					data: { phase: INGEST_PHASE.REVIEWING },
 				}),
 				expect.objectContaining({
 					type: "data-ingest-system-info",
@@ -719,12 +865,20 @@ describe("runIngest", () => {
 				expect.objectContaining({
 					type: "tool-result",
 					messageId: "ingest-step-1",
-					result: { ok: true, index: 1 },
+					result: {
+						ok: true,
+						index: 1,
+						draftQuestionId: "draft-1",
+					},
 				}),
 				expect.objectContaining({
 					type: "tool-result",
 					messageId: "ingest-step-1",
-					result: { ok: true, index: 2 },
+					result: {
+						ok: true,
+						index: 2,
+						draftQuestionId: "draft-2",
+					},
 				}),
 				expect.objectContaining({
 					type: "tool-call",
@@ -767,6 +921,145 @@ describe("runIngest", () => {
 					text: "2 questão(ões) extraída(s) da prova.",
 				},
 			]),
+		);
+	});
+
+	it("persists reviewed questions when the review agent succeeds", async () => {
+		const batchInsertQuestions = vi.fn(async () => undefined);
+		const reviewedQuestion = {
+			question: "Qual é a capital?",
+			options: [
+				{ key: "B", text: "B) Brasília" },
+				{ key: "A", text: "A) São Paulo" },
+			],
+			answers: ["B"],
+			topic: "Geografia",
+		};
+		const { deps, updateJobStatus } = createRunDeps({
+			questions: [makeQuestion(1)],
+			streamText: createMockStreamText([makeQuestion(1)]),
+			reviewStreamText: createMockReviewStreamText(() => reviewedQuestion),
+			persistQuestionsDeps: {
+				existsNormalizedQuestion: vi.fn(async () => false),
+				batchInsertQuestions,
+			},
+		});
+
+		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
+			id: examId,
+			userId,
+			name: "Prova",
+			source: "prova.md",
+			createdAt: null,
+		});
+		vi.spyOn(filesQueries, "getFileByIdWithOwnership").mockResolvedValue({
+			id: fileId,
+			examId,
+			name: "prova.md",
+			r2Key: "users/user/files/prova.md",
+			mimeType: "text/markdown",
+			size: 10,
+			ttlSeconds: 0,
+			createdAt: null,
+		});
+		vi.spyOn(r2Audit, "auditedR2Get").mockResolvedValue({
+			arrayBuffer: async () => new TextEncoder().encode("conteúdo").buffer,
+		} as never);
+		vi.spyOn(llmLogging, "logLlmCallStart").mockResolvedValue(undefined);
+		vi.spyOn(llmLogging, "logLlmCallComplete").mockResolvedValue(undefined);
+
+		await runIngest({
+			jobId,
+			db: {} as AppDatabase,
+			filesBucket: {} as never,
+			deps,
+		});
+
+		expect(batchInsertQuestions).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				expect.objectContaining({
+					question: "Qual é a capital?",
+					options: JSON.stringify([
+						{ key: "A", text: "Brasília" },
+						{ key: "B", text: "São Paulo" },
+					]),
+					answers: JSON.stringify(["A"]),
+					topic: "Geografia",
+				}),
+			]),
+		);
+		expect(updateJobStatus).toHaveBeenCalledWith(
+			jobId,
+			expect.objectContaining({
+				status: JOB_STATUS.COMPLETED,
+				metadata: expect.stringContaining('"reviewedCount":1'),
+			}),
+		);
+	});
+
+	it("falls back to raw extracted questions when review fails", async () => {
+		const batchInsertQuestions = vi.fn(async () => undefined);
+		const reviewStreamText = vi.fn(() => {
+			throw new Error("review_failed");
+		}) as unknown as RunIngestDeps["streamText"];
+		const { deps, appendJobEvent, updateJobStatus } = createRunDeps({
+			questions: [makeQuestion(1)],
+			streamText: createMockStreamText([makeQuestion(1)]),
+			reviewStreamText,
+			persistQuestionsDeps: {
+				existsNormalizedQuestion: vi.fn(async () => false),
+				batchInsertQuestions,
+			},
+		});
+
+		vi.spyOn(examsQueries, "getExamById").mockResolvedValue({
+			id: examId,
+			userId,
+			name: "Prova",
+			source: "prova.md",
+			createdAt: null,
+		});
+		vi.spyOn(filesQueries, "getFileByIdWithOwnership").mockResolvedValue({
+			id: fileId,
+			examId,
+			name: "prova.md",
+			r2Key: "users/user/files/prova.md",
+			mimeType: "text/markdown",
+			size: 10,
+			ttlSeconds: 0,
+			createdAt: null,
+		});
+		vi.spyOn(r2Audit, "auditedR2Get").mockResolvedValue({
+			arrayBuffer: async () => new TextEncoder().encode("conteúdo").buffer,
+		} as never);
+		vi.spyOn(llmLogging, "logLlmCallStart").mockResolvedValue(undefined);
+		vi.spyOn(llmLogging, "logLlmCallComplete").mockResolvedValue(undefined);
+
+		await runIngest({
+			jobId,
+			db: {} as AppDatabase,
+			filesBucket: {} as never,
+			deps,
+		});
+
+		expect(batchInsertQuestions).toHaveBeenCalledWith(
+			expect.arrayContaining([
+				expect.objectContaining({
+					question: "Questão 1?",
+					options: JSON.stringify(makeQuestion(1).options),
+				}),
+			]),
+		);
+		expect(appendJobEvent).toHaveBeenCalledWith(
+			jobId,
+			expect.stringContaining("Revisão automática indisponível; salvando extração original."),
+		);
+		expect(updateJobStatus).toHaveBeenCalledWith(
+			jobId,
+			expect.objectContaining({
+				status: JOB_STATUS.COMPLETED,
+				metadata: expect.stringContaining('"reviewWarning":"review_fallback"'),
+			}),
 		);
 	});
 });
