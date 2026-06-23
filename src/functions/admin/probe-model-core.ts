@@ -5,13 +5,17 @@ import type { AppDatabase } from "@/db/client";
 import { getByIdForUser as getModelByIdForUser } from "@/db/queries/ai-models";
 import { getByIdForUser as getProviderByIdForUser } from "@/db/queries/ai-providers";
 import type {
+	ModelProbeHttp,
 	ModelProbeRequest,
 	ModelProbeResult,
 } from "@/features/admin/types/model-probe";
 import { decryptSecret } from "@/lib/config-encryption";
 
+export type { ModelProbeHttp };
+
 export const PROBE_PROMPT = "ping";
 export const PROBE_MAX_OUTPUT_TOKENS = 256;
+export const PROBE_DEFAULT_TIMEOUT_MS = 30_000;
 const RESPONSE_BODY_MAX_LENGTH = 2000;
 
 function truncateText(value: string, maxLength: number) {
@@ -47,7 +51,13 @@ export function formatProbeError(error: unknown): ModelProbeResult["response"] {
 }
 
 export function buildProbeRequest(
-	input: { id: string; modelId?: string },
+	input: {
+		id: string;
+		modelId?: string;
+		timeoutMs?: number;
+		prompt?: string;
+		reasoningEffort?: string | null;
+	},
 	overrides: Partial<ModelProbeRequest> = {},
 ): ModelProbeRequest {
 	const testedModelId = input.modelId?.trim() ?? overrides.testedModelId ?? "";
@@ -58,21 +68,43 @@ export function buildProbeRequest(
 		displayName: overrides.displayName ?? "",
 		providerName: overrides.providerName ?? "",
 		providerBaseUrl: overrides.providerBaseUrl ?? "",
-		prompt: PROBE_PROMPT,
+		prompt: input.prompt?.trim() || overrides.prompt || PROBE_PROMPT,
 		maxOutputTokens: PROBE_MAX_OUTPUT_TOKENS,
+		timeoutMs: input.timeoutMs ?? overrides.timeoutMs ?? PROBE_DEFAULT_TIMEOUT_MS,
+		reasoningEffort:
+			input.reasoningEffort?.trim() ?? overrides.reasoningEffort ?? null,
 		...overrides,
+	};
+}
+
+export function buildProbeProviderOptions(
+	reasoningEffort?: string | null,
+): { openai: { reasoningEffort: string } } | undefined {
+	const normalized = reasoningEffort?.trim();
+	if (!normalized) return undefined;
+	return {
+		openai: {
+			reasoningEffort: normalized,
+		},
 	};
 }
 
 export type ResolvedProbeModel = {
 	request: ModelProbeRequest;
 	model: LanguageModelV3;
+	withFetch: (fetch: typeof globalThis.fetch) => LanguageModelV3;
 };
 
 export async function resolveProbeModel(
 	db: AppDatabase,
 	userId: string,
-	input: { id: string; modelId?: string },
+	input: {
+		id: string;
+		modelId?: string;
+		timeoutMs?: number;
+		prompt?: string;
+		reasoningEffort?: string | null;
+	},
 ): Promise<
 	| { ok: true; probe: ResolvedProbeModel }
 	| { ok: false; result: ModelProbeResult }
@@ -97,6 +129,7 @@ export async function resolveProbeModel(
 		displayName: model.displayName,
 		providerName: provider?.name ?? "",
 		providerBaseUrl: provider?.baseUrl ?? "",
+		timeoutMs: input.timeoutMs ?? PROBE_DEFAULT_TIMEOUT_MS,
 	});
 
 	if (!provider) {
@@ -111,16 +144,22 @@ export async function resolveProbeModel(
 	}
 
 	const apiKey = await decryptSecret(provider.apiKey);
-	const openai = createOpenAI({
-		baseURL: provider.baseUrl,
-		apiKey,
-	});
+
+	function createModel(fetch?: typeof globalThis.fetch) {
+		const openai = createOpenAI({
+			baseURL: provider.baseUrl,
+			apiKey,
+			fetch,
+		});
+		return openai.chat(providerModelId);
+	}
 
 	return {
 		ok: true,
 		probe: {
 			request,
-			model: openai.chat(providerModelId),
+			model: createModel(),
+			withFetch: createModel,
 		},
 	};
 }

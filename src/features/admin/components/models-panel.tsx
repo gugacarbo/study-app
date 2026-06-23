@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	Card,
@@ -11,14 +12,24 @@ import {
 	DiscoverModelsDialog,
 	ModelDialog,
 } from "@/features/admin/components/models-dialogs";
+import { ModelTestStreamDialog } from "@/features/admin/components/model-test-stream-dialog";
 import { ModelsPanelToolbar } from "@/features/admin/components/models-panel-toolbar";
 import {
 	type ModelRow,
 	ModelsTable,
 } from "@/features/admin/components/models-table";
-import type { AdminAiConfig } from "@/features/admin/hooks/use-admin-ai-config";
+import {
+	ADMIN_AI_CONFIG_KEY,
+	type AdminAiConfig,
+} from "@/features/admin/hooks/use-admin-ai-config";
+import { useModelProbeStream } from "@/features/admin/hooks/use-model-probe-stream";
 import { usePanelAction } from "@/features/admin/hooks/use-panel-action";
 import type { ModelFormValues } from "@/features/admin/schemas/model";
+import {
+	PROBE_DEFAULT_TIMEOUT_MS,
+	PROBE_MAX_OUTPUT_TOKENS,
+	PROBE_PROMPT,
+} from "@/functions/admin/probe-model-core";
 
 type ModelsPanelProps = {
 	providers: AdminAiConfig["providers"];
@@ -37,6 +48,7 @@ export function ModelsPanel({
 	onDelete,
 	onDiscover,
 }: ModelsPanelProps) {
+	const queryClient = useQueryClient();
 	const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
 	const [dialog, setDialog] = useState<"create" | ModelRow | null>(null);
 	const [discoverOpen, setDiscoverOpen] = useState(false);
@@ -44,10 +56,25 @@ export function ModelsPanel({
 		Array<{ modelId: string; displayName: string }>
 	>([]);
 	const [selected, setSelected] = useState<Set<string>>(new Set());
+	const [testModel, setTestModel] = useState<ModelRow | null>(null);
+	const [testDefaults, setTestDefaults] = useState<{
+		modelId: string;
+		prompt: string;
+		timeoutMs: number;
+		reasoningEffort?: string | null;
+	} | null>(null);
 	const { error, busy, run } = usePanelAction();
+	const { state: probeState, start: startProbe, reset: resetProbe } =
+		useModelProbeStream();
 
 	const providerModels = models.filter((m) => m.providerId === providerId);
 	const provider = providers.find((p) => p.id === providerId);
+
+	useEffect(() => {
+		if (!testModel) return;
+		if (probeState.status !== "done" && probeState.status !== "error") return;
+		void queryClient.invalidateQueries({ queryKey: ADMIN_AI_CONFIG_KEY });
+	}, [probeState.status, testModel, queryClient]);
 
 	return (
 		<Card>
@@ -91,6 +118,16 @@ export function ModelsPanel({
 							await onDelete(model.id);
 						})
 					}
+					onTest={(model) => {
+						resetProbe();
+						setTestModel(model);
+						setTestDefaults({
+							modelId: model.modelId,
+							prompt: PROBE_PROMPT,
+							timeoutMs: PROBE_DEFAULT_TIMEOUT_MS,
+							reasoningEffort: model.defaultThinkingEffort,
+						});
+					}}
 				/>
 			</CardContent>
 			<ModelDialog
@@ -100,6 +137,9 @@ export function ModelsPanel({
 				providerName={provider?.name}
 				providerBaseUrl={provider?.baseUrl}
 				busy={busy}
+				onTestResult={() =>
+					queryClient.invalidateQueries({ queryKey: ADMIN_AI_CONFIG_KEY })
+				}
 				onClose={() => setDialog(null)}
 				onSubmit={(values) =>
 					run(async () => {
@@ -135,6 +175,39 @@ export function ModelsPanel({
 						setDiscoverOpen(false);
 					})
 				}
+			/>
+			<ModelTestStreamDialog
+				open={testModel !== null}
+				title={`Teste: ${testModel?.displayName ?? "modelo"}`}
+				stream={probeState}
+				defaultConfig={
+					testDefaults ?? {
+						modelId: testModel?.modelId ?? "",
+						prompt: PROBE_PROMPT,
+						timeoutMs: PROBE_DEFAULT_TIMEOUT_MS,
+						reasoningEffort: testModel?.defaultThinkingEffort ?? null,
+					}
+				}
+				onStart={(config) => {
+					if (!testModel) return;
+					void startProbe({
+						modelRowId: testModel.id,
+						savedModelId: testModel.modelId,
+						testedModelId: config.modelId,
+						displayName: testModel.displayName,
+						providerName: provider?.name ?? "",
+						providerBaseUrl: provider?.baseUrl ?? "",
+						maxOutputTokens: PROBE_MAX_OUTPUT_TOKENS,
+						timeoutMs: config.timeoutMs,
+						prompt: config.prompt,
+						reasoningEffort: config.reasoningEffort,
+					});
+				}}
+				onClose={() => {
+					setTestModel(null);
+					setTestDefaults(null);
+					resetProbe();
+				}}
 			/>
 		</Card>
 	);

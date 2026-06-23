@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { upsert as upsertModelQuery } from "@/db/queries/ai-models";
+import {
+	getByIdForUser,
+	upsert as upsertModelQuery,
+} from "@/db/queries/ai-models";
 import {
 	CONFIG_KEY_DEFAULT_AI_MODEL,
 	getConfigValue,
@@ -124,12 +127,13 @@ describe("admin models handlers", () => {
 				providerBaseUrl: "https://api.openai.com/v1",
 				prompt: "ping",
 				maxOutputTokens: 256,
+				timeoutMs: 45000,
 			},
 			response: { ok: true, text: "p" },
 		});
 
 		const result = await testModelHandler(
-			{ id: modelRowId, modelId: "gpt-4o-mini" },
+			{ id: modelRowId, modelId: "gpt-4o-mini", timeoutMs: 45000 },
 			new Headers(),
 		);
 
@@ -141,7 +145,43 @@ describe("admin models handlers", () => {
 		expect(probeModel).toHaveBeenCalledWith(testDb, adminUserId, {
 			id: modelRowId,
 			modelId: "gpt-4o-mini",
+			timeoutMs: 45000,
 		});
+		expect((await getByIdForUser(testDb, modelRowId, adminUserId))?.healthStatus).toBe(
+			"health",
+		);
+	});
+
+	it("testModel persists offline when the probe fails", async () => {
+		const providerId = await seedProvider(testDb, adminUserId);
+		const modelRowId = createId();
+		await upsertModelQuery(testDb, {
+			id: modelRowId,
+			providerId,
+			modelId: "gpt-4o",
+			displayName: "GPT-4o",
+		});
+		vi.mocked(probeModel).mockResolvedValueOnce({
+			ok: false,
+			request: {
+				modelRowId,
+				savedModelId: "gpt-4o",
+				testedModelId: "gpt-4o",
+				displayName: "GPT-4o",
+				providerName: "OpenAI",
+				providerBaseUrl: "https://api.openai.com/v1",
+				prompt: "ping",
+				maxOutputTokens: 256,
+				timeoutMs: 30000,
+			},
+			response: { ok: false, error: "timeout" },
+		});
+
+		await testModelHandler({ id: modelRowId }, new Headers());
+
+		expect((await getByIdForUser(testDb, modelRowId, adminUserId))?.healthStatus).toBe(
+			"offline",
+		);
 	});
 
 	it("testModel returns 404 for another user's model", async () => {

@@ -32,4 +32,7 @@ export const setDefaultModelSchema = z.object({
 export const testModelSchema = z.object({
 	id: z.string().uuid(),
 	modelId: z.string().trim().min(1).optional(),
+	timeoutMs: z.number().int().positive().max(300000).optional(),
+	prompt: z.string().trim().min(1).optional(),
+	reasoningEffort: z.string().trim().min(1).nullable().optional(),
 });

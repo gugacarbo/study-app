@@ -4,6 +4,7 @@ import {
 	deleteModel,
 	getByIdForUser,
 	listByProviderForUser,
+	updateHealthStatus,
 	upsert,
 } from "@/db/queries/ai-models";
 import { insert as insertProvider } from "@/db/queries/ai-providers";
@@ -102,6 +103,7 @@ describe("ai-models queries", () => {
 		expect(models).toHaveLength(1);
 		expect(models[0]?.displayName).toBe("GPT-4o updated");
 		expect(models[0]?.enabled).toBe(false);
+		expect(models[0]?.healthStatus).toBe("offline");
 	});
 
 	it("deleteModel removes only owned models", async () => {
@@ -122,5 +124,28 @@ describe("ai-models queries", () => {
 		expect(await getByIdForUser(db, modelId, ownerId)).not.toBeNull();
 		await deleteModel(db, modelId, ownerId);
 		expect(await getByIdForUser(db, modelId, ownerId)).toBeNull();
+	});
+
+	it("updateHealthStatus persists the latest probe status", async () => {
+		const db = createTestDb();
+		const ownerId = createId();
+		const providerId = await seedProvider(db, ownerId);
+		const modelId = createId();
+		await upsert(db, {
+			id: modelId,
+			providerId,
+			modelId: "gpt-4o",
+			displayName: "GPT-4o",
+		});
+
+		await updateHealthStatus(db, modelId, ownerId, "health");
+		expect((await getByIdForUser(db, modelId, ownerId))?.healthStatus).toBe(
+			"health",
+		);
+
+		await updateHealthStatus(db, modelId, ownerId, "offline");
+		expect((await getByIdForUser(db, modelId, ownerId))?.healthStatus).toBe(
+			"offline",
+		);
 	});
 });

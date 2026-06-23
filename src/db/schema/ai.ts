@@ -45,6 +45,7 @@ export const aiModels = sqliteTable(
 		thinkingEnabled: integer("thinking_enabled", { mode: "boolean" }),
 		thinkingParamName: text("thinking_param_name"),
 		enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+		healthStatus: text("health_status"),
 		metadata: text("metadata"),
 		requestParams: text("request_params"),
 		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),

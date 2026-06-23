@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
 	type ModelFormValues,
 	modelFormSchema,
 } from "@/features/admin/schemas/model";
+import { PROBE_DEFAULT_TIMEOUT_MS } from "@/functions/admin/probe-model-core";
 
 type ModelFormProps = {
 	defaultValues?: Partial<ModelFormValues>;
@@ -22,7 +24,7 @@ type ModelFormProps = {
 	isTesting?: boolean;
 	onSubmit: (values: ModelFormValues) => void;
 	onCancel?: () => void;
-	onTest?: (modelId: string) => void;
+	onTest?: (input: { modelId: string; timeoutMs: number }) => void;
 };
 
 export function ModelForm({
@@ -53,6 +55,9 @@ export function ModelForm({
 			...defaultValues,
 		},
 	});
+	const [testTimeoutSeconds, setTestTimeoutSeconds] = useState(
+		PROBE_DEFAULT_TIMEOUT_MS / 1000,
+	);
 
 	return (
 		<form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
@@ -276,14 +281,42 @@ export function ModelForm({
 
 			<div className="flex items-center justify-between gap-2 pt-2">
 				{onTest ? (
-					<Button
-						type="button"
-						variant="outline"
-						disabled={isTesting || isSubmitting}
-						onClick={() => onTest(form.getValues("modelId"))}
-					>
-						{isTesting ? "Testando…" : "Testar"}
-					</Button>
+					<div className="flex items-end gap-2">
+						<Field>
+							<FieldLabel htmlFor="test-timeout-seconds">
+								Timeout do teste (s)
+							</FieldLabel>
+							<FieldContent>
+								<Input
+									id="test-timeout-seconds"
+									type="number"
+									min={1}
+									step={1}
+									value={testTimeoutSeconds}
+									onChange={(event) => {
+										const value = Number(event.target.value);
+										setTestTimeoutSeconds(
+											Number.isFinite(value) && value > 0 ? value : 1,
+										);
+									}}
+									className="w-32"
+								/>
+							</FieldContent>
+						</Field>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={isTesting || isSubmitting}
+							onClick={() =>
+								onTest({
+									modelId: form.getValues("modelId"),
+									timeoutMs: testTimeoutSeconds * 1000,
+								})
+							}
+						>
+							{isTesting ? "Testando…" : "Testar"}
+						</Button>
+					</div>
 				) : (
 					<span />
 				)}

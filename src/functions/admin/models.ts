@@ -6,6 +6,7 @@ import {
 	deleteModel as deleteModelQuery,
 	getByIdForUser as getModelByIdForUser,
 	listByProviderForUser,
+	updateHealthStatus,
 	upsert as upsertModelQuery,
 } from "@/db/queries/ai-models";
 import { getByIdForUser as getProviderByIdForUser } from "@/db/queries/ai-providers";
@@ -90,7 +91,14 @@ export async function testModelHandler(
 	const db = createDb(await requireDB());
 	const model = await getModelByIdForUser(db, input.id, session.user.id);
 	if (!model) throw new Response("Not Found", { status: 404 });
-	return probeModel(db, session.user.id, input);
+	const result = await probeModel(db, session.user.id, input);
+	await updateHealthStatus(
+		db,
+		input.id,
+		session.user.id,
+		result.ok ? "health" : "offline",
+	);
+	return result;
 }
 
 export async function setDefaultModelHandler(

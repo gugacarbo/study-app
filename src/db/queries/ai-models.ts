@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
 
 export type AiModelRow = typeof schema.aiModels.$inferSelect;
+export type AiModelHealthStatus = "health" | "offline";
 
 export async function listByProviderForUser(
 	db: AppDatabase,
@@ -80,6 +81,7 @@ export async function upsert(db: AppDatabase, input: AiModelUpsertInput) {
 		thinkingEnabled: input.thinkingEnabled ?? null,
 		thinkingParamName: input.thinkingParamName ?? null,
 		enabled: input.enabled ?? true,
+		healthStatus: "offline" as const,
 		metadata: input.metadata ?? null,
 		requestParams: input.requestParams ?? null,
 	};
@@ -126,4 +128,24 @@ export async function deleteModel(
 	const owned = await getByIdForUser(db, modelId, userId);
 	if (!owned) return;
 	await db.delete(schema.aiModels).where(eq(schema.aiModels.id, modelId));
+}
+
+export async function updateHealthStatus(
+	db: AppDatabase,
+	modelId: string,
+	userId: string,
+	healthStatus: AiModelHealthStatus,
+) {
+	const owned = await getByIdForUser(db, modelId, userId);
+	if (!owned) return false;
+
+	await db
+		.update(schema.aiModels)
+		.set({
+			healthStatus,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
+		})
+		.where(eq(schema.aiModels.id, modelId));
+
+	return true;
 }

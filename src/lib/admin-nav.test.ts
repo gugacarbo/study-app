@@ -2,13 +2,21 @@ import { describe, expect, it } from "vitest";
 import { ADMIN_NAV_ITEMS, getAdminPageTitle } from "@/lib/admin-nav";
 
 describe("ADMIN_NAV_ITEMS match", () => {
-	const [configItem, usersItem, jobsItem] = ADMIN_NAV_ITEMS;
+	const [configItem, modelsItem, usersItem, jobsItem] = ADMIN_NAV_ITEMS;
 
 	it("marks config routes as active by prefix", () => {
 		expect(configItem.match("/admin/config")).toBe(true);
 		expect(configItem.match("/admin/config/")).toBe(true);
+		expect(configItem.match("/admin/models")).toBe(false);
 		expect(configItem.match("/admin/users")).toBe(false);
 		expect(configItem.match("/admin/jobs")).toBe(false);
+	});
+
+	it("marks models routes as active by prefix", () => {
+		expect(modelsItem.match("/admin/models")).toBe(true);
+		expect(modelsItem.match("/admin/models/")).toBe(true);
+		expect(modelsItem.match("/admin/config")).toBe(false);
+		expect(modelsItem.match("/admin/users")).toBe(false);
 	});
 
 	it("marks users routes as active by prefix", () => {

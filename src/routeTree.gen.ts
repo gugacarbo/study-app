@@ -17,6 +17,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
 import { Route as AdminR2LogsIndexRouteImport } from './routes/admin/r2-logs/index'
+import { Route as AdminModelsIndexRouteImport } from './routes/admin/models/index'
 import { Route as AdminLlmLogsIndexRouteImport } from './routes/admin/llm-logs/index'
 import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
 import { Route as AdminConfigIndexRouteImport } from './routes/admin/config/index'
@@ -72,6 +73,11 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
 const AdminR2LogsIndexRoute = AdminR2LogsIndexRouteImport.update({
   id: '/r2-logs/',
   path: '/r2-logs/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminModelsIndexRoute = AdminModelsIndexRouteImport.update({
+  id: '/models/',
+  path: '/models/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminLlmLogsIndexRoute = AdminLlmLogsIndexRouteImport.update({
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
+  '/admin/models/': typeof AdminModelsIndexRoute
   '/admin/r2-logs/': typeof AdminR2LogsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/admin/config': typeof AdminConfigIndexRoute
   '/admin/jobs': typeof AdminJobsIndexRoute
   '/admin/llm-logs': typeof AdminLlmLogsIndexRoute
+  '/admin/models': typeof AdminModelsIndexRoute
   '/admin/r2-logs': typeof AdminR2LogsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
+  '/admin/models/': typeof AdminModelsIndexRoute
   '/admin/r2-logs/': typeof AdminR2LogsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/admin/config/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
+    | '/admin/models/'
     | '/admin/r2-logs/'
     | '/admin/users/'
     | '/api/jobs/'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/admin/config'
     | '/admin/jobs'
     | '/admin/llm-logs'
+    | '/admin/models'
     | '/admin/r2-logs'
     | '/admin/users'
     | '/api/jobs'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '/admin/config/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
+    | '/admin/models/'
     | '/admin/r2-logs/'
     | '/admin/users/'
     | '/api/jobs/'
@@ -393,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/r2-logs'
       fullPath: '/admin/r2-logs/'
       preLoaderRoute: typeof AdminR2LogsIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/models/': {
+      id: '/admin/models/'
+      path: '/models'
+      fullPath: '/admin/models/'
+      preLoaderRoute: typeof AdminModelsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/llm-logs/': {
@@ -549,6 +568,7 @@ interface AdminRouteRouteChildren {
   AdminConfigIndexRoute: typeof AdminConfigIndexRoute
   AdminJobsIndexRoute: typeof AdminJobsIndexRoute
   AdminLlmLogsIndexRoute: typeof AdminLlmLogsIndexRoute
+  AdminModelsIndexRoute: typeof AdminModelsIndexRoute
   AdminR2LogsIndexRoute: typeof AdminR2LogsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
 }
@@ -558,6 +578,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminConfigIndexRoute: AdminConfigIndexRoute,
   AdminJobsIndexRoute: AdminJobsIndexRoute,
   AdminLlmLogsIndexRoute: AdminLlmLogsIndexRoute,
+  AdminModelsIndexRoute: AdminModelsIndexRoute,
   AdminR2LogsIndexRoute: AdminR2LogsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
 }
