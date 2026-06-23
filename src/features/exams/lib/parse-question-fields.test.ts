@@ -57,6 +57,8 @@ describe("parseQuestionRow", () => {
 			answers: ["A", "B"],
 			topic: null,
 			scoringMode: "partial",
+			explanation: null,
+			deepExplanation: null,
 		});
 	});
 

@@ -90,7 +90,7 @@ export function ExamQuestionItem({
 											key={option.key}
 											className={`flex items-start gap-2 rounded-md px-2.5 py-1.5 text-sm ${
 												isCorrect
-													? "bg-primary/10 text-primary font-medium ring-1 ring-primary/25"
+													? "border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20"
 													: "text-muted-foreground"
 											}`}
 										>
@@ -98,11 +98,6 @@ export function ExamQuestionItem({
 												{formatOptionKey(option.key)})
 											</span>
 											<span>{option.text}</span>
-											{isCorrect && (
-												<span className="ml-auto text-xs uppercase tracking-wider opacity-70">
-													correta
-												</span>
-											)}
 										</li>
 									);
 								})}
