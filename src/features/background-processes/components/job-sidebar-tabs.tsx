@@ -1,4 +1,4 @@
-import { IngestEventsGroupedList } from "@/features/background-processes/components/ingest-events-grouped-list";
+import IngestEventsGroupedList from "@/features/background-processes/components/ingest-events-grouped-list";
 import { IngestProgressPanel } from "@/features/background-processes/components/ingest-progress-panel";
 import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";

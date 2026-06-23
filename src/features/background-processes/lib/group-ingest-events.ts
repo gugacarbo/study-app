@@ -1,6 +1,10 @@
 import { INGEST_DATA_PART } from "@/features/ai/jobs/ingest/ingest-events";
-import { isSystemInfoPart } from "@/features/background-processes/lib/ingest-event-labels";
-import { PHASE_LABELS } from "@/features/background-processes/lib/ingest-event-labels";
+import {
+	isSystemInfoPart,
+	isSystemStatusText,
+	isSystemTextPart,
+	PHASE_LABELS,
+} from "@/features/background-processes/lib/ingest-event-labels";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
 import {
 	INGEST_PHASE,
@@ -11,10 +15,24 @@ import {
 
 export const INITIALIZATION_GROUP_LABEL = "Inicialização" as const;
 
+export type IngestSystemGroupState = "active" | "closed-history";
+
+export type IngestPhaseGroupItem =
+	| {
+			type: "event";
+			event: JobEventRecord;
+	  }
+	| {
+			type: "system-group";
+			id: string;
+			events: JobEventRecord[];
+			state: IngestSystemGroupState;
+	  };
+
 export type IngestEventGroup = {
 	label: string;
 	phase: IngestPhase | null;
-	events: JobEventRecord[];
+	items: IngestPhaseGroupItem[];
 };
 
 export type IngestGroupStatus = "done" | "active" | "pending" | "failed";
@@ -68,27 +86,75 @@ function appendToGroup(
 	groups: IngestEventGroup[],
 	label: string,
 	phase: IngestPhase | null,
-	event: JobEventRecord,
-): void {
+): IngestEventGroup {
 	const last = groups.at(-1);
 	if (last && last.label === label && last.phase === phase) {
-		last.events.push(event);
+		return last;
+	}
+	const group = { label, phase, items: [] as IngestPhaseGroupItem[] };
+	groups.push(group);
+	return group;
+}
+
+export function isSystemEvent(event: JobEventRecord): boolean {
+	if (isSystemInfoPart(event.payload)) return true;
+	if (isSystemTextPart(event.payload) && isSystemStatusText(event.payload.text)) {
+		return true;
+	}
+	return false;
+}
+
+function closeActiveSystemGroup(group: IngestEventGroup | null): void {
+	const lastItem = group?.items.at(-1);
+	if (lastItem?.type === "system-group" && lastItem.state === "active") {
+		lastItem.state = "closed-history";
+	}
+}
+
+function appendPhaseEvent(
+	group: IngestEventGroup,
+	event: JobEventRecord,
+): void {
+	group.items.push({ type: "event", event });
+}
+
+function appendSystemEvent(
+	group: IngestEventGroup,
+	event: JobEventRecord,
+): void {
+	const lastItem = group.items.at(-1);
+	if (lastItem?.type === "system-group" && lastItem.state === "active") {
+		lastItem.events.push(event);
 		return;
 	}
-	groups.push({ label, phase, events: [event] });
+	group.items.push({
+		type: "system-group",
+		id: `${group.label}-system-${event.seq}`,
+		events: [event],
+		state: "active",
+	});
 }
 
 export function groupEventsByPhase(events: JobEventRecord[]): IngestEventGroup[] {
 	const groups: IngestEventGroup[] = [];
 	let currentPhase: IngestPhase | null = null;
+	let currentGroup: IngestEventGroup | null = null;
 
 	for (const event of events) {
 		const label = groupLabelForPhase(currentPhase);
-		appendToGroup(groups, label, currentPhase, event);
+		currentGroup = appendToGroup(groups, label, currentPhase);
+		if (isSystemEvent(event)) {
+			appendSystemEvent(currentGroup, event);
+		} else {
+			closeActiveSystemGroup(currentGroup);
+			appendPhaseEvent(currentGroup, event);
+		}
 
 		const phase = resolvePhaseFromPayload(event.payload);
 		if (phase !== null) {
+			closeActiveSystemGroup(currentGroup);
 			currentPhase = phase;
+			currentGroup = null;
 		}
 	}
 
