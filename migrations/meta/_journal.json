@@ -43,6 +43,20 @@
       "when": 1782227660775,
       "tag": "0005_lively_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782300000000,
+      "tag": "0006_mellow_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1782301000000,
+      "tag": "0007_candid_offline_default",
+      "breakpoints": true
     }
   ]
 }
