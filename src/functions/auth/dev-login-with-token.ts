@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const devLoginSchema = z.object({
-	token: z.string().trim().min(1),
+	email: z.string().trim().email(),
 });
 
 export const devLoginWithToken = createServerFn({ method: "POST" })
@@ -11,5 +11,5 @@ export const devLoginWithToken = createServerFn({ method: "POST" })
 		const { devLoginWithTokenHandler } = await import(
 			"./dev-login-with-token.server"
 		);
-		return devLoginWithTokenHandler(data.token);
+		return devLoginWithTokenHandler(data.email);
 	});

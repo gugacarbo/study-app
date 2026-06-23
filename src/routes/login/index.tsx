@@ -1,5 +1,5 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useRef, useState } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,7 @@ import {
 import { isAllowedSignupEmail } from "@/lib/auth-allowed-email-domain";
 import { authClient } from "@/lib/auth-client";
 
-const isDev =
-	import.meta.env?.DEV ?? process.env.NODE_ENV === "development";
+const isDev = import.meta.env?.DEV ?? process.env.NODE_ENV === "development";
 
 export const Route = createFileRoute("/login/")({
 	beforeLoad: async () => {
@@ -45,21 +44,30 @@ export function LoginPageContent({
 		"idle",
 	);
 	const [message, setMessage] = useState<string | null>(null);
-	const [devToken, setDevToken] = useState("");
 	const [devStatus, setDevStatus] = useState<"idle" | "loading">("idle");
-	const router = useRouter();
+	const emailInputRef = useRef<HTMLInputElement | null>(null);
 	const allowedDomainsHint = formatAllowedDomainsHint(
 		allowedSignupEmailDomains,
 	);
+	const trimmedEmail = email.trim();
+
+	function showUnauthorizedEmailMessage() {
+		setStatus("error");
+		setMessage(formatUnauthorizedEmailMessage(allowedSignupEmailDomains));
+	}
+
+	function getCurrentEmail() {
+		return emailInputRef.current?.value.trim() ?? trimmedEmail;
+	}
 
 	async function handleSubmit(event: React.FormEvent) {
 		event.preventDefault();
 		setStatus("loading");
 		setMessage(null);
 
-		if (!isAllowedSignupEmail(email, allowedSignupEmailDomains)) {
-			setStatus("error");
-			setMessage(formatUnauthorizedEmailMessage(allowedSignupEmailDomains));
+		const currentEmail = getCurrentEmail();
+		if (!isAllowedSignupEmail(currentEmail, allowedSignupEmailDomains)) {
+			showUnauthorizedEmailMessage();
 			return;
 		}
 
@@ -67,7 +75,7 @@ export function LoginPageContent({
 		const callbackURL = params.get("redirect") || "/";
 
 		const result = await authClient.signIn.magicLink({
-			email,
+			email: currentEmail,
 			callbackURL,
 		});
 
@@ -83,19 +91,28 @@ export function LoginPageContent({
 		);
 	}
 
-	async function handleDevTokenSubmit(event: React.FormEvent) {
-		event.preventDefault();
+	async function handleDevAutoLogin() {
 		if (!isDev) return;
 
 		setDevStatus("loading");
 		setMessage(null);
 
+		const currentEmail = getCurrentEmail();
+		if (!isAllowedSignupEmail(currentEmail, allowedSignupEmailDomains)) {
+			showUnauthorizedEmailMessage();
+			setDevStatus("idle");
+			return;
+		}
+
+		const params = new URLSearchParams(window.location.search);
+		const redirectTo = params.get("redirect") || "/";
+
 		try {
-			await devLoginWithToken({ data: { token: devToken.trim() } });
-			await router.navigate({ to: "/" });
+			await devLoginWithToken({ data: { email: currentEmail } });
+			window.location.assign(redirectTo);
 		} catch {
 			setStatus("error");
-			setMessage("Não foi possível aplicar o token.");
+			setMessage("Não foi possível autenticar automaticamente.");
 		} finally {
 			setDevStatus("idle");
 		}
@@ -116,6 +133,7 @@ export function LoginPageContent({
 					<Label htmlFor="email">Email</Label>
 					<Input
 						id="email"
+						ref={emailInputRef}
 						type="email"
 						autoComplete="email"
 						value={email}
@@ -146,36 +164,26 @@ export function LoginPageContent({
 			) : null}
 
 			{isDev ? (
-				<form
-					className="space-y-3 border-t border-border pt-4"
-					onSubmit={handleDevTokenSubmit}
-				>
+				<div className="space-y-3 border-t border-border pt-4">
 					<div className="space-y-1">
 						<p className="text-xs font-medium text-muted-foreground">Dev</p>
 						<p className="text-xs text-muted-foreground">
-							Cole o session token (D1) ou o valor do cookie{" "}
-							<code className="text-[11px]">better-auth.session_token</code>.
+							Usa o email preenchido acima para criar ou reaproveitar uma sessão
+							local automaticamente.
 						</p>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="dev-token">Token</Label>
-						<Input
-							id="dev-token"
-							value={devToken}
-							onChange={(event) => setDevToken(event.target.value)}
-							placeholder="session token ou cookie value"
-							autoComplete="off"
-						/>
-					</div>
 					<Button
-						type="submit"
+						type="button"
 						variant="outline"
-						disabled={devStatus === "loading" || !devToken.trim()}
+						disabled={devStatus === "loading"}
 						className="w-full"
+						onClick={handleDevAutoLogin}
 					>
-						{devStatus === "loading" ? "Aplicando…" : "Aplicar token"}
+						{devStatus === "loading"
+							? "Autenticando…"
+							: "Entrar automaticamente"}
 					</Button>
-				</form>
+				</div>
 			) : null}
 		</div>
 	);
