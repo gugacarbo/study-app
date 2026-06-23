@@ -45,13 +45,48 @@ export const questions = sqliteTable(
 	(table) => [index("idx_questions_exam_id").on(table.examId)],
 );
 
+export const questionImprovementDrafts = sqliteTable(
+	"question_improvement_drafts",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		examId: text("exam_id")
+			.notNull()
+			.references(() => exams.id, { onDelete: "cascade" }),
+		questionId: text("question_id")
+			.notNull()
+			.references(() => questions.id, { onDelete: "cascade" }),
+		jobId: text("job_id").notNull(),
+		status: text("status").notNull().default("pending_review"),
+		originalSnapshot: text("original_snapshot").notNull(),
+		improvedSnapshot: text("improved_snapshot").notNull(),
+		summary: text("summary"),
+		metadata: text("metadata"),
+		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		index("idx_question_improvement_drafts_exam").on(table.examId, table.status),
+		index("idx_question_improvement_drafts_question").on(
+			table.questionId,
+			table.status,
+		),
+	],
+);
+
 export const attempts = sqliteTable(
 	"attempts",
 	{
 		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
 		examId: text("exam_id")
 			.notNull()
 			.references(() => exams.id, { onDelete: "cascade" }),
+		config: text("config").notNull().default("{}"),
 		topic: text("topic"),
 		totalQuestions: integer("total_questions").notNull(),
 		answeredQuestions: integer("answered_questions").notNull().default(0),
@@ -62,7 +97,13 @@ export const attempts = sqliteTable(
 		updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 	},
 	(table) => [
+		index("idx_attempts_user_id").on(table.userId),
 		index("idx_attempts_exam_id").on(table.examId),
+		index("idx_attempts_user_exam_status").on(
+			table.userId,
+			table.examId,
+			table.status,
+		),
 		index("idx_attempts_status").on(table.status),
 	],
 );

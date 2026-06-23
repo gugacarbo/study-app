@@ -4,6 +4,7 @@ import { ExamDetailPageContent } from "@/features/exams/pages/exam-detail-page";
 import type { ExamDetail } from "@/features/exams/types/exam-detail";
 
 const mockUseExam = vi.fn();
+const mockUseQuestionImprovementDrafts = vi.fn();
 
 vi.mock("@/features/exams/hooks/use-exam", () => ({
 	useExam: (examId: string) => mockUseExam(examId),
@@ -16,6 +17,46 @@ vi.mock("@/features/exams/hooks/use-ingest-job-by-exam", () => ({
 
 vi.mock("@/features/exams/hooks/use-update-question", () => ({
 	useUpdateQuestion: () => ({
+		mutate: vi.fn(),
+		mutateAsync: vi.fn(),
+		isPending: false,
+		isError: false,
+	}),
+}));
+
+vi.mock("@/features/exams/hooks/use-question-improvement-drafts", () => ({
+	useQuestionImprovementDrafts: (examId: string) =>
+		mockUseQuestionImprovementDrafts(examId),
+}));
+
+vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => ({
+	useQuestionImprovementDraftActions: () => ({
+		approveDraft: {
+			mutateAsync: vi.fn(),
+			isPending: false,
+		},
+		discardDraft: {
+			mutateAsync: vi.fn(),
+			isPending: false,
+		},
+	}),
+}));
+
+vi.mock("@/features/exams/hooks/use-improve-questions-job", () => ({
+	useImproveQuestionsJob: () => ({
+		submit: vi.fn(),
+		isPending: false,
+		error: null,
+	}),
+}));
+
+vi.mock("@/features/quiz/hooks/use-active-attempt", () => ({
+	useActiveAttempt: () => ({ data: null }),
+	activeAttemptQueryKey: (examId: string) => ["quiz", "active-attempt", examId],
+}));
+
+vi.mock("@/features/quiz/hooks/use-start-attempt", () => ({
+	useStartAttempt: () => ({
 		mutate: vi.fn(),
 		mutateAsync: vi.fn(),
 		isPending: false,
@@ -57,10 +98,12 @@ describe("ExamDetailPageContent", () => {
 	afterEach(() => {
 		cleanup();
 		mockUseExam.mockReset();
+		mockUseQuestionImprovementDrafts.mockReset();
 	});
 
 	it("renders header, disabled CTAs, and question list", () => {
 		mockUseExam.mockReturnValue({ data: examWithQuestions });
+		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [] });
 
 		render(
 			<ExamDetailPageContent examId="11111111-1111-4111-8111-111111111111" />,
@@ -68,9 +111,8 @@ describe("ExamDetailPageContent", () => {
 
 		expect(screen.getByRole("heading", { name: /prova de matemática/i })).toBeInTheDocument();
 		expect(screen.getByText(/1 questão/i)).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: /iniciar quiz/i })).toBeDisabled();
-		expect(screen.getByRole("button", { name: /explicações/i })).toBeDisabled();
-		expect(screen.getByText("Em breve")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /fazer quiz/i })).toBeEnabled();
+		expect(screen.getByRole("button", { name: /melhorar/i })).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /Q1 · Aritmética/i }),
 		).toBeInTheDocument();
@@ -78,6 +120,7 @@ describe("ExamDetailPageContent", () => {
 
 	it("shows empty state when exam has no questions", () => {
 		mockUseExam.mockReturnValue({ data: emptyExam });
+		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [] });
 
 		render(
 			<ExamDetailPageContent examId="22222222-2222-4222-8222-222222222222" />,
