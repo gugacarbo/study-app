@@ -4,6 +4,7 @@ import { ExamDetailActions } from "@/features/exams/components/exam-detail-actio
 import { ExamDetailHeader } from "@/features/exams/components/exam-detail-header";
 import { ExamQuestionList } from "@/features/exams/components/exam-question-list";
 import { useExam } from "@/features/exams/hooks/use-exam";
+import { useIngestJobByExam } from "@/features/exams/hooks/use-ingest-job-by-exam";
 
 type ExamDetailPageProps = {
 	examId: string;
@@ -30,10 +31,11 @@ function ExamDetailPageSkeleton() {
 
 export function ExamDetailPageContent({ examId }: ExamDetailPageProps) {
 	const { data: exam } = useExam(examId);
+	const { data: ingestJobId } = useIngestJobByExam(examId);
 
 	return (
 		<div className="flex flex-col gap-6">
-			<ExamDetailHeader exam={exam} />
+			<ExamDetailHeader exam={exam} ingestJobId={ingestJobId} />
 			<ExamDetailActions />
 			<ExamQuestionList questions={exam.questions} />
 		</div>

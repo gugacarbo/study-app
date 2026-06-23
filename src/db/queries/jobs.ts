@@ -209,6 +209,31 @@ export async function listActiveJobsForUser(
 		.limit(5);
 }
 
+export async function getIngestJobIdByExamId(
+	db: AppDatabase,
+	userId: string,
+	examId: string,
+): Promise<string | null> {
+	const rows = await db
+		.select({ id: schema.backgroundJobs.id, metadata: schema.backgroundJobs.metadata })
+		.from(schema.backgroundJobs)
+		.where(
+			and(
+				eq(schema.backgroundJobs.userId, userId),
+				eq(schema.backgroundJobs.kind, JOB_KIND.INGEST),
+			),
+		)
+		.orderBy(desc(schema.backgroundJobs.createdAt))
+		.limit(50);
+	for (const row of rows) {
+		const metadata = parseIngestJobMetadata(row.metadata);
+		if (metadata?.examId === examId) {
+			return row.id;
+		}
+	}
+	return null;
+}
+
 export async function hasActiveIngestJob(
 	db: AppDatabase,
 	userId: string,

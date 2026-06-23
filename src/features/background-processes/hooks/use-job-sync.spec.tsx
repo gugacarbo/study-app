@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useJobSync } from "@/features/background-processes/hooks/use-job-sync";
 import { JOB_STATUS } from "@/lib/job-kinds";
@@ -80,5 +80,127 @@ describe("useJobSync", () => {
 			(call) => String(call[0]).includes("/events") && !String(call[0]).includes("after="),
 		);
 		expect(replayUrl).toBeDefined();
+	});
+
+	it("rebuilds the thread from a full replay instead of keeping stale partial stream state", async () => {
+		const partialResponse = {
+			status: JOB_STATUS.RUNNING,
+			phase: "extracting",
+			error: null,
+			metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+			events: [
+				{
+					seq: 2,
+					payload: {
+						type: "tool-result",
+						messageId: "ingest-step-1",
+						toolCallId: "tc-1",
+						result: { ok: true, index: 1 },
+					},
+					createdAt: null,
+				},
+			],
+		};
+		const fullResponse = {
+			status: JOB_STATUS.RUNNING,
+			phase: "extracting",
+			error: null,
+			metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+			events: [
+				{
+					seq: 1,
+					payload: {
+						type: "tool-call",
+						messageId: "ingest-step-1",
+						toolCallId: "tc-1",
+						toolName: "submit_question",
+						argsText: JSON.stringify({
+							question: "Capital de Santa Catarina?",
+							topic: "Geografia",
+							options: [],
+							answers: ["A"],
+						}),
+						state: "running",
+					},
+					createdAt: null,
+				},
+				{
+					seq: 2,
+					payload: {
+						type: "tool-result",
+						messageId: "ingest-step-1",
+						toolCallId: "tc-1",
+						result: { ok: true, index: 1 },
+					},
+					createdAt: null,
+				},
+			],
+		};
+		let callCount = 0;
+		const fetchMock = vi.fn().mockImplementation(async () => {
+			callCount += 1;
+			return {
+				ok: true,
+				json: async () => (callCount >= 3 ? fullResponse : partialResponse),
+			};
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const client = new QueryClient({
+			defaultOptions: {
+				queries: {
+					retry: false,
+				},
+			},
+		});
+
+		let latestSync: ReturnType<typeof useJobSync> | null = null;
+		const getLatestSync = (): ReturnType<typeof useJobSync> => {
+			if (latestSync === null) {
+				throw new Error("Expected sync state to be available");
+			}
+			return latestSync;
+		};
+
+		render(
+			<QueryClientProvider client={client}>
+				<SyncProbe
+					jobId="job-1"
+					onUpdate={(state) => {
+						latestSync = state;
+					}}
+				/>
+			</QueryClientProvider>,
+		);
+
+		await waitFor(() => {
+			expect(latestSync?.lastSeq).toBe(2);
+		});
+		expect(getLatestSync().messages).toHaveLength(0);
+
+		await act(async () => {
+			await getLatestSync().refetchFromStart();
+		});
+
+		await waitFor(() => {
+			const message = latestSync?.messages[0];
+			expect(message?.id).toBe("ingest-step-1");
+			expect(Array.isArray(message?.content)).toBe(true);
+		});
+
+		const firstMessage = getLatestSync().messages[0];
+		const toolCallPart = Array.isArray(firstMessage?.content)
+			? firstMessage.content.find(
+					(
+						part: { type: string; toolName?: string; result?: unknown },
+					) => part.type === "tool-call",
+				)
+			: undefined;
+
+		expect(toolCallPart).toMatchObject({
+			type: "tool-call",
+			toolName: "submit_question",
+			result: { ok: true, index: 1 },
+		});
 	});
 });

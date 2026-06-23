@@ -53,16 +53,34 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	streamFirstSeq: undefined,
 };
 
+function createReplayBaseState(
+	data: Pick<JobEventsResponse, "status" | "phase" | "error" | "metadata">,
+): JobSyncState {
+	return {
+		...INITIAL_SYNC_STATE,
+		status: data.status,
+		phase: data.phase,
+		error: data.error,
+		metadata: data.metadata,
+		isTerminal: TERMINAL.has(data.status),
+	};
+}
+
 function applyJobResponse(
 	prev: JobSyncState,
 	data: JobEventsResponse,
+	options?: { replace?: boolean },
 ): JobSyncState {
+	const baseState = options?.replace ? createReplayBaseState(data) : prev;
 	const merged = mergeJobEvents(
 		{
-			messages: prev.messages,
-			progress: prev.progress,
-			lastSeq: prev.lastSeq,
-			events: prev.events,
+			messages: baseState.messages,
+			progress: baseState.progress,
+			lastSeq: baseState.lastSeq,
+			events: baseState.events,
+			streamParts: baseState.streamParts,
+			streamFirstSeq: baseState.streamFirstSeq,
+			isJobTerminal: TERMINAL.has(data.status),
 		},
 		data.events,
 	);
@@ -77,6 +95,8 @@ function applyJobResponse(
 		events: merged.events,
 		lastSeq: merged.lastSeq,
 		isTerminal: TERMINAL.has(data.status),
+		streamParts: merged.streamParts,
+		streamFirstSeq: merged.streamFirstSeq,
 	};
 }
 
@@ -87,17 +107,21 @@ export function useJobSync(jobId: string, enabled = true) {
 	const prevJobIdRef = useRef(jobId);
 	const [state, setState] = useState<JobSyncState>(INITIAL_SYNC_STATE);
 
-	const mergeResponse = useCallback((data: JobEventsResponse) => {
+	const mergeResponse = useCallback(
+		(data: JobEventsResponse, options?: { replace?: boolean }) => {
 		setState((prev) => {
 			const next = applyJobResponse(
-				{ ...prev, lastSeq: lastSeqRef.current },
+				options?.replace ? prev : { ...prev, lastSeq: lastSeqRef.current },
 				data,
+				options,
 			);
 			lastSeqRef.current = next.lastSeq;
 			isTerminalRef.current = next.isTerminal;
 			return next;
 		});
-	}, []);
+	},
+	[],
+	);
 
 	const appendEvents = useCallback((events: JobEventRecord[]) => {
 		if (events.length === 0) return;
@@ -118,13 +142,15 @@ export function useJobSync(jobId: string, enabled = true) {
 				progress: merged.progress,
 				events: merged.events,
 				lastSeq: merged.lastSeq,
+				streamParts: merged.streamParts,
+				streamFirstSeq: merged.streamFirstSeq,
 			};
 		});
 	}, []);
 
 	const refetchFromStart = useCallback(async () => {
 		const data = await fetchJobEvents(jobId, 0);
-		mergeResponse(data);
+		mergeResponse(data, { replace: true });
 	}, [jobId, mergeResponse]);
 
 	const query = useQuery({

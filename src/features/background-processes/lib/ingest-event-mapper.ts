@@ -177,16 +177,6 @@ export function mergeStreamParts(
 						isError: event.isError,
 					};
 				}
-			} else {
-				parts.push({
-					type: "tool-call",
-					toolCallId: event.toolCallId,
-					toolName: "unknown",
-					argsText: "{}",
-					args: {},
-					result: event.result,
-					isError: event.isError,
-				});
 			}
 			break;
 		}
@@ -207,7 +197,11 @@ export function mergeStreamParts(
 		}
 	}
 
-	next.set(messageId, parts);
+	if (parts.length === 0) {
+		next.delete(messageId);
+	} else {
+		next.set(messageId, parts);
+	}
 	return next;
 }
 

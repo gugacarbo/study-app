@@ -709,11 +709,10 @@ describe("runIngest", () => {
 						summary: "2 questão(ões) extraída(s) da prova.",
 					},
 				}),
-				expect.objectContaining({
+				{
 					type: "text",
-					messageId: "ingest-step-1",
 					text: "2 questão(ões) extraída(s) da prova.",
-				}),
+				},
 			]),
 		);
 	});

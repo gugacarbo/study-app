@@ -1,5 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import { CheckIcon, CircleIcon, LoaderCircleIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { IngestProgressState } from "@/features/background-processes/lib/ingest-event-mapper";
 import { formatPhaseLabel } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
@@ -156,6 +158,27 @@ export function IngestProgressPanel({
 				<p className="text-sm text-destructive" role="alert">
 					{error}
 				</p>
+			) : null}
+
+			{status === JOB_STATUS.COMPLETED ? (
+				<div className="mt-auto flex flex-wrap gap-2 border-t pt-4">
+					{metadata?.examId ? (
+						<Button asChild>
+							<Link
+								to="/exams/$examId"
+								params={{ examId: metadata.examId }}
+							>
+								Ver prova
+							</Link>
+						</Button>
+					) : null}
+					<Button asChild variant="outline">
+						<Link to="/exams/new">Nova importação</Link>
+					</Button>
+					<Button asChild variant="secondary">
+						<Link to="/exams">Ver provas</Link>
+					</Button>
+				</div>
 			) : null}
 		</div>
 	);

@@ -139,10 +139,9 @@ describe("JobMonitorPage", () => {
 						{
 							seq: 2,
 							payload: {
-								type: "tool-result",
+								type: "reasoning-delta",
 								messageId: "ingest-step-1",
-								toolCallId: "tc-1",
-								result: { ok: true, index: 1 },
+								delta: "Analisando",
 							},
 							createdAt: null,
 						},
@@ -157,7 +156,6 @@ describe("JobMonitorPage", () => {
 			expect(
 				screen.getByText("Qual e a capital de Santa Catarina?"),
 			).toBeInTheDocument();
-			expect(screen.getByText(/geografia/i)).toBeInTheDocument();
 		});
 	});
 

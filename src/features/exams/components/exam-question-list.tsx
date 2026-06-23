@@ -1,3 +1,4 @@
+import { Accordion } from "@/components/ui/accordion";
 import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
@@ -15,12 +16,10 @@ export function ExamQuestionList({ questions }: ExamQuestionListProps) {
 	}
 
 	return (
-		<ul className="flex flex-col gap-3">
+		<Accordion type="multiple" className="flex flex-col gap-3">
 			{questions.map((question, index) => (
-				<li key={question.id}>
-					<ExamQuestionItem index={index + 1} question={question} />
-				</li>
+				<ExamQuestionItem key={question.id} index={index + 1} question={question} />
 			))}
-		</ul>
+		</Accordion>
 	);
 }

@@ -126,27 +126,6 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 				}
 			/>
 
-			{monitor.isTerminal && monitor.status === JOB_STATUS.COMPLETED ? (
-				<div className="flex flex-wrap gap-2 border-t pt-4">
-					{monitor.metadata?.examId ? (
-						<Button asChild>
-							<Link
-								to="/exams/$examId"
-								params={{ examId: monitor.metadata.examId }}
-							>
-								Ver prova
-							</Link>
-						</Button>
-					) : null}
-					<Button asChild variant="outline">
-						<Link to="/exams/new">Nova importação</Link>
-					</Button>
-					<Button asChild variant="secondary">
-						<Link to="/exams">Ver provas</Link>
-					</Button>
-				</div>
-			) : null}
-
 			{monitor.isTerminal && monitor.status === JOB_STATUS.FAILED ? (
 				<div className="border-t pt-4">
 					<Button asChild variant="outline">

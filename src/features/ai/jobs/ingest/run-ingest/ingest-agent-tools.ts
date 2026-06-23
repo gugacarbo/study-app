@@ -6,11 +6,12 @@ import {
 } from "@/features/ai/jobs/ingest/extracted-question";
 import {
 	buildIngestStreamProgressPart,
+	buildIngestTextPart,
 	serializeIngestDataPart,
+	serializeIngestJobEventPart,
 } from "@/features/ai/jobs/ingest/ingest-events";
 import {
 	buildStreamToolResultPart,
-	buildStreamTextPart,
 	serializeIngestStreamPart,
 } from "./ingest-stream-parts";
 
@@ -106,9 +107,7 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 				};
 				await persistToolResult(toolCallId, result);
 				await ctx.append(
-					serializeIngestStreamPart(
-						buildStreamTextPart(ctx.getCurrentMessageId(), input.summary),
-					),
+					serializeIngestJobEventPart(buildIngestTextPart(input.summary)),
 				);
 				return result;
 			},

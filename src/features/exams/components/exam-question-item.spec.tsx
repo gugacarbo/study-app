@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
+import { Accordion } from "@/components/ui/accordion";
 import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
@@ -32,8 +34,14 @@ const partialAnswerQuestion: QuestionDetail = {
 describe("ExamQuestionItem", () => {
 	afterEach(() => cleanup());
 
+	function renderWithAccordion(ui: ReactElement) {
+		return render(<Accordion type="multiple">{ui}</Accordion>);
+	}
+
 	it("expands to show question text and options", () => {
-		render(<ExamQuestionItem index={1} question={singleAnswerQuestion} />);
+		renderWithAccordion(
+			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,
+		);
 
 		expect(
 			screen.queryByText("Qual a capital do Brasil?"),
@@ -47,7 +55,9 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("shows null topic as Geral in trigger", () => {
-		render(<ExamQuestionItem index={2} question={partialAnswerQuestion} />);
+		renderWithAccordion(
+			<ExamQuestionItem index={2} question={partialAnswerQuestion} />,
+		);
 
 		expect(
 			screen.getByRole("button", { name: /Q2 · Geral/i }),
@@ -55,7 +65,9 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("reveals single-answer gabarito on demand", () => {
-		render(<ExamQuestionItem index={1} question={singleAnswerQuestion} />);
+		renderWithAccordion(
+			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 		fireEvent.click(
@@ -68,7 +80,9 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("reveals partial gabarito with multiple correct options", () => {
-		render(<ExamQuestionItem index={2} question={partialAnswerQuestion} />);
+		renderWithAccordion(
+			<ExamQuestionItem index={2} question={partialAnswerQuestion} />,
+		);
 
 		fireEvent.click(screen.getByRole("button", { name: /Q2 · Geral/i }));
 		fireEvent.click(

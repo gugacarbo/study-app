@@ -330,6 +330,18 @@ describe("mergeStreamParts", () => {
 		}
 	});
 
+	it("does not create an unknown tool placeholder for orphan tool results", () => {
+		const messageId = "ingest-step-1";
+		const state = mergeStreamParts(new Map(), {
+			type: "tool-result",
+			messageId,
+			toolCallId: "tc-1",
+			result: { ok: true, index: 1 },
+		});
+
+		expect(state.has(messageId)).toBe(false);
+	});
+
 	it("keeps successful submit_question results on the tool-call part", () => {
 		const result = mergeJobEvents(emptyState, [
 			{
@@ -381,6 +393,12 @@ describe("mergeStreamParts", () => {
 				topic: "Geografia",
 			});
 		}
+		expect(result.progress.extractedQuestionsPreview).toEqual([
+			{
+				toolCallId: "tc-1",
+				question: "Qual e a capital de Santa Catarina?",
+			},
+		]);
 	});
 
 	it("keeps failed submit_question results on the tool-call part", () => {
@@ -432,9 +450,10 @@ describe("mergeStreamParts", () => {
 			});
 			expect(toolCallPart.isError).toBe(true);
 		}
+		expect(result.progress.extractedQuestionsPreview).toEqual([]);
 	});
 
-	it("adds finish_extraction summary as a rendered text part", () => {
+	it("adds finish_extraction summary as a final assistant message", () => {
 		const summary = "2 questoes extraidas de algebra linear";
 		const result = mergeJobEvents(emptyState, [
 			{
@@ -470,7 +489,6 @@ describe("mergeStreamParts", () => {
 				seq: 3,
 				payload: {
 					type: "text",
-					messageId: "ingest-step-1",
 					text: summary,
 				},
 				createdAt: null,
@@ -496,11 +514,11 @@ describe("mergeStreamParts", () => {
 					summary,
 				},
 			},
-			{
-				type: "text",
-				text: summary,
-			},
 		]);
+		expect(result.messages[1]).toMatchObject({
+			role: "assistant",
+			content: summary,
+		});
 	});
 });
 

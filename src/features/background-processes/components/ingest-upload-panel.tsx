@@ -123,7 +123,7 @@ export function IngestUploadPanel({
 								}}
 							/>
 							<FieldDescription>
-								Formatos .txt ou .md, até 512 KB e 10.000 caracteres.
+								Formatos .txt ou .md, até 512 KB e 50.000 caracteres.
 							</FieldDescription>
 						</Field>
 					</FieldGroup>
