@@ -28,6 +28,7 @@ import {
 	groupPartByType,
 	MessagePrimitive,
 	ThreadPrimitive,
+	type ToolCallMessagePartProps,
 	useAuiState,
 } from "@assistant-ui/react";
 import {
@@ -67,6 +68,7 @@ const STATUS_BADGE_LABELS: Partial<Record<JobStatus, string>> = {
 const PHASE_BADGE_LABELS: Record<string, string> = {
 	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
 	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
+	[INGEST_PHASE.REVIEWING]: "Revisando questões",
 	[INGEST_PHASE.PERSISTING]: "Salvando questões",
 };
 
@@ -156,6 +158,25 @@ const IngestSystemMessage: FC = () => (
 	</MessagePrimitive.Root>
 );
 
+function shouldAutoOpenIngestTool(part: ToolCallMessagePartProps): boolean {
+	if (part.toolName === "list_questions" || part.toolName === "finish_extraction") {
+		return part.result !== undefined;
+	}
+
+	return part.status.type === "incomplete";
+}
+
+const IngestToolPart: FC<ToolCallMessagePartProps> = (part) => (
+	<ToolFallback.Root defaultOpen={shouldAutoOpenIngestTool(part)}>
+		<ToolFallback.Trigger toolName={part.toolName} status={part.status} />
+		<ToolFallback.Content>
+			<ToolFallback.Error status={part.status} />
+			<ToolFallback.Args argsText={part.argsText} />
+			<ToolFallback.Result result={part.result} />
+		</ToolFallback.Content>
+	</ToolFallback.Root>
+);
+
 const IngestAssistantMessage: FC = () => (
 	<MessagePrimitive.Root
 		data-role="assistant"
@@ -176,7 +197,7 @@ const IngestAssistantMessage: FC = () => (
 						case "reasoning":
 							return <Reasoning {...part} />;
 						case "tool-call":
-							return <ToolFallback {...part} />;
+							return <IngestToolPart {...part} />;
 						case "group-chainOfThought":
 							return (
 								<div data-slot="aui_chain-of-thought" className="mb-3">
@@ -188,7 +209,7 @@ const IngestAssistantMessage: FC = () => (
 								return <>{children}</>;
 							}
 							return (
-								<ToolGroupRoot variant="ghost">
+								<ToolGroupRoot variant="ghost" defaultOpen>
 									<ToolGroupTrigger
 										count={part.indices.length}
 										active={part.status.type === "running"}

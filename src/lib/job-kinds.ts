@@ -21,6 +21,7 @@ export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS];
 export const INGEST_PHASE = {
 	READING_FILE: "reading_file",
 	EXTRACTING: "extracting",
+	REVIEWING: "reviewing",
 	PERSISTING: "persisting",
 } as const;
 
@@ -65,10 +66,12 @@ export type IngestJobMetadata = {
 	fileId?: string;
 	fileName?: string;
 	extractedCount?: number;
+	reviewedCount?: number;
 	persistedCount?: number;
 	skippedDuplicateCount?: number;
 	invalidCount?: number;
 	warning?: IngestWarning;
+	reviewWarning?: "review_fallback";
 };
 
 export function parseIngestJobMetadata(

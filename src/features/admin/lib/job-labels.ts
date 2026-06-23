@@ -25,6 +25,7 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
 export const INGEST_PHASE_LABELS: Record<string, string> = {
 	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
 	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
+	[INGEST_PHASE.REVIEWING]: "Revisando questões",
 	[INGEST_PHASE.PERSISTING]: "Salvando questões",
 };
 
