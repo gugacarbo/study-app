@@ -150,7 +150,7 @@ describe("IngestEventsGroupedList", () => {
 		).toBeInTheDocument();
 	});
 
-	it("renders system message with distinct visual", () => {
+	it("renders system message with distinct visual per kind", () => {
 		render(
 			<IngestEventsGroupedList
 				isLoading={false}
@@ -172,10 +172,11 @@ describe("IngestEventsGroupedList", () => {
 
 		expect(screen.getByText(/arquivo lido: 100 caracteres/i)).toBeInTheDocument();
 		expect(screen.queryByText("Sistema")).not.toBeInTheDocument();
-		const systemMessage = screen.getByText(/arquivo lido: 100 caracteres/i);
-		const row = systemMessage.closest("li");
+		const label = screen.getByText(/arquivo lido: 100 caracteres/i);
+		const row = label.closest("li");
 		expect(row).toBeInTheDocument();
-		expect(row).toHaveClass("bg-primary/5");
+		expect(row).toHaveClass("border-l-2");
+		expect(row).not.toHaveTextContent(/#1/);
 	});
 
 	it("deduplicates system messages by kind within group", () => {

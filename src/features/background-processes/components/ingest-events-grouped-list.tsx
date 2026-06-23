@@ -1,11 +1,18 @@
 import {
+	ArrowRightIcon,
 	CheckIcon,
 	ChevronDownIcon,
 	CircleIcon,
+	ClipboardCheckIcon,
+	DatabaseIcon,
+	FileTextIcon,
 	InfoIcon,
 	LoaderCircleIcon,
+	RefreshCwIcon,
+	SparklesIcon,
 	XCircleIcon,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { isSystemInfoPart } from "@/features/background-processes/lib/ingest-event-labels";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
@@ -67,17 +74,44 @@ function GroupStatusIcon({ status }: { status: IngestGroupStatus }) {
 	}
 }
 
+const SYSTEM_KIND_VISUALS: Record<string, { icon: LucideIcon; color: string }> = {
+	phase: { icon: ArrowRightIcon, color: "chart-3" },
+	"file-read": { icon: FileTextIcon, color: "chart-2" },
+	"llm-call": { icon: SparklesIcon, color: "chart-1" },
+	"llm-retry": { icon: RefreshCwIcon, color: "chart-5" },
+	"persist-validating": { icon: ClipboardCheckIcon, color: "chart-4" },
+	"persist-progress": { icon: DatabaseIcon, color: "chart-3" },
+};
+
 function IngestSystemMessageRow({ event }: { event: JobEventRecord }) {
+	const kind = isSystemInfoPart(event.payload) ? event.payload.data.kind : "";
 	const label = eventLabel(event);
 	const details = formatEventDetails(event.payload);
+	const visual = SYSTEM_KIND_VISUALS[kind] ?? { icon: InfoIcon, color: "muted-foreground" };
+	const cssVar = `--${visual.color}`;
 
 	return (
-		<li className="flex items-center gap-3 rounded-md border bg-primary/5 p-3">
-			<div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-				<InfoIcon className="size-3.5 text-primary" aria-hidden />
+		<li
+			className="flex items-start gap-3 rounded-md border-l-2 p-3"
+			style={{
+				borderLeftColor: `var(${cssVar})`,
+				backgroundColor: `color-mix(in oklab, var(${cssVar}) 5%, transparent)`,
+			}}
+		>
+			<div
+				className="flex size-6 shrink-0 items-center justify-center rounded-full"
+				style={{ backgroundColor: `color-mix(in oklab, var(${cssVar}) 10%, transparent)` }}
+			>
+				<visual.icon
+					className="size-3.5"
+					aria-hidden
+					style={{ color: `var(${cssVar})` }}
+				/>
 			</div>
 			<div className="min-w-0 flex-1">
-				<p className="text-sm font-medium text-foreground">{label}</p>
+				<p className="text-sm font-medium" style={{ color: `var(${cssVar})` }}>
+					{label}
+				</p>
 				{details.length > 0 ? (
 					<div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
 						{details.map((detail) => (
@@ -88,9 +122,6 @@ function IngestSystemMessageRow({ event }: { event: JobEventRecord }) {
 					</div>
 				) : null}
 			</div>
-			<span className="shrink-0 font-mono text-xs text-muted-foreground">
-				#{event.seq}
-			</span>
 		</li>
 	);
 }
