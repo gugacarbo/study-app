@@ -5,6 +5,7 @@ import {
 	LoaderCircleIcon,
 	XCircleIcon,
 } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
 	Collapsible,
@@ -114,32 +115,24 @@ function IngestEventGroupSection({
 	groupStatus: IngestGroupStatus;
 	errorMessage: string | null;
 }) {
-	const expanded = isIngestGroupExpanded(groupStatus);
-
 	return (
-		<Collapsible
-			defaultOpen={expanded}
-			className="rounded-md border"
-		>
-			<CollapsibleTrigger
+		<AccordionItem value={group.label} className="rounded-md border">
+			<AccordionTrigger
 				className={cn(
-					"flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-					"hover:bg-muted/50",
+					"px-3 py-2 text-sm",
+					"hover:no-underline hover:bg-muted/50",
+					"[&_svg]:size-4",
 				)}
 			>
-				<GroupStatusIcon status={groupStatus} />
-				<span className="flex-1 font-medium">{group.label}</span>
-				<Badge variant="secondary" className="font-normal">
-					{group.events.length}
-				</Badge>
-				<ChevronDownIcon
-					className={cn(
-						"size-4 text-muted-foreground transition-transform",
-						expanded && "rotate-180",
-					)}
-				/>
-			</CollapsibleTrigger>
-			<CollapsibleContent className="border-t px-3 pb-3 pt-2">
+				<span className="flex items-center gap-2">
+					<GroupStatusIcon status={groupStatus} />
+					<span className="font-medium">{group.label}</span>
+					<Badge variant="secondary" className="font-normal">
+						{group.events.length}
+					</Badge>
+				</span>
+			</AccordionTrigger>
+			<AccordionContent className="max-h-72 overflow-y-auto border-t px-3 pb-3 pt-2">
 				{errorMessage ? (
 					<p className="mb-2 text-sm text-destructive" role="alert">
 						{errorMessage}
@@ -150,8 +143,8 @@ function IngestEventGroupSection({
 						<IngestEventRow key={event.seq} event={event} />
 					))}
 				</ul>
-			</CollapsibleContent>
-		</Collapsible>
+			</AccordionContent>
+		</AccordionItem>
 	);
 }
 
@@ -180,7 +173,13 @@ export function IngestEventsGroupedList({
 						: "Nenhum evento registrado ainda."}
 				</p>
 			) : (
-				<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+				<Accordion
+					type="multiple"
+					defaultValue={groups
+						.filter((g) => isIngestGroupExpanded(getIngestGroupStatus(g, status, phase)))
+						.map((g) => g.label)}
+					className="flex min-h-0 flex-1 flex-col gap-3"
+				>
 					{groups.map((group) => {
 						const groupStatus = getIngestGroupStatus(group, status, phase);
 						const errorMessage =
@@ -195,7 +194,7 @@ export function IngestEventsGroupedList({
 							/>
 						);
 					})}
-				</div>
+				</Accordion>
 			)}
 		</div>
 	);
