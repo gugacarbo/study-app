@@ -67,7 +67,7 @@ export function AppAccountMenu({ user, isAdmin }: AppAccountMenuProps) {
 					</DropdownMenuItem>
 					{isAdmin ? (
 						<DropdownMenuItem
-							onSelect={() => navigate({ to: "/admin/config" })}
+							onSelect={() => navigate({ to: "/admin" })}
 						>
 							<SettingsIcon />
 							Administração

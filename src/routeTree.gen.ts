@@ -20,7 +20,6 @@ import { Route as AdminR2LogsIndexRouteImport } from './routes/admin/r2-logs/ind
 import { Route as AdminModelsIndexRouteImport } from './routes/admin/models/index'
 import { Route as AdminLlmLogsIndexRouteImport } from './routes/admin/llm-logs/index'
 import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
-import { Route as AdminConfigIndexRouteImport } from './routes/admin/config/index'
 import { Route as AppExamsIndexRouteImport } from './routes/_app/exams/index'
 import { Route as ApiJobsActiveRouteImport } from './routes/api/jobs/active'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -88,11 +87,6 @@ const AdminLlmLogsIndexRoute = AdminLlmLogsIndexRouteImport.update({
 const AdminJobsIndexRoute = AdminJobsIndexRouteImport.update({
   id: '/jobs/',
   path: '/jobs/',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminConfigIndexRoute = AdminConfigIndexRouteImport.update({
-  id: '/config/',
-  path: '/config/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AppExamsIndexRoute = AppExamsIndexRouteImport.update({
@@ -177,7 +171,6 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/exams/': typeof AppExamsIndexRoute
-  '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
   '/admin/models/': typeof AdminModelsIndexRoute
@@ -203,7 +196,6 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/exams': typeof AppExamsIndexRoute
-  '/admin/config': typeof AdminConfigIndexRoute
   '/admin/jobs': typeof AdminJobsIndexRoute
   '/admin/llm-logs': typeof AdminLlmLogsIndexRoute
   '/admin/models': typeof AdminModelsIndexRoute
@@ -232,7 +224,6 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/_app/exams/': typeof AppExamsIndexRoute
-  '/admin/config/': typeof AdminConfigIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
   '/admin/models/': typeof AdminModelsIndexRoute
@@ -261,7 +252,6 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/jobs/active'
     | '/exams/'
-    | '/admin/config/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
     | '/admin/models/'
@@ -287,7 +277,6 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/jobs/active'
     | '/exams'
-    | '/admin/config'
     | '/admin/jobs'
     | '/admin/llm-logs'
     | '/admin/models'
@@ -315,7 +304,6 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/jobs/active'
     | '/_app/exams/'
-    | '/admin/config/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
     | '/admin/models/'
@@ -426,13 +414,6 @@ declare module '@tanstack/react-router' {
       path: '/jobs'
       fullPath: '/admin/jobs/'
       preLoaderRoute: typeof AdminJobsIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/config/': {
-      id: '/admin/config/'
-      path: '/config'
-      fullPath: '/admin/config/'
-      preLoaderRoute: typeof AdminConfigIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/_app/exams/': {
@@ -565,7 +546,6 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
-  AdminConfigIndexRoute: typeof AdminConfigIndexRoute
   AdminJobsIndexRoute: typeof AdminJobsIndexRoute
   AdminLlmLogsIndexRoute: typeof AdminLlmLogsIndexRoute
   AdminModelsIndexRoute: typeof AdminModelsIndexRoute
@@ -575,7 +555,6 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
-  AdminConfigIndexRoute: AdminConfigIndexRoute,
   AdminJobsIndexRoute: AdminJobsIndexRoute,
   AdminLlmLogsIndexRoute: AdminLlmLogsIndexRoute,
   AdminModelsIndexRoute: AdminModelsIndexRoute,

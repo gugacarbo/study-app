@@ -43,12 +43,14 @@ describe("AdminSidebarNav", () => {
 	});
 
 	it("renders all admin nav items with icon labels", () => {
-		renderNav("/admin/config");
+		renderNav("/admin/models");
 
 		expect(
 			screen.getByRole("navigation", { name: /administração/i }),
 		).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: /config/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /modelos/i }),
+		).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /usuários/i }),
 		).toBeInTheDocument();
@@ -58,7 +60,7 @@ describe("AdminSidebarNav", () => {
 	it("marks the matching route as active by pathname prefix", () => {
 		renderNav("/admin/users/settings");
 
-		expect(screen.getByRole("button", { name: /config/i })).toHaveAttribute(
+		expect(screen.getByRole("button", { name: /modelos/i })).toHaveAttribute(
 			"data-active",
 			"false",
 		);
@@ -74,7 +76,7 @@ describe("AdminSidebarNav", () => {
 
 	it("navigates via SPA and calls onNavigate on click", () => {
 		const onNavigate = vi.fn();
-		renderNav("/admin/config", { onNavigate });
+		renderNav("/admin/models", { onNavigate });
 
 		fireEvent.click(screen.getByRole("button", { name: /jobs/i }));
 
