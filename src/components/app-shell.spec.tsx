@@ -158,6 +158,7 @@ describe("AppShell", () => {
 			</AppShell>,
 		);
 
-		expect(container.firstChild).toHaveClass("max-w-screen-xl");
+		const main = container.querySelector("main");
+		expect(main).toHaveClass("max-w-full");
 	});
 });

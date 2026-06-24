@@ -21,10 +21,10 @@ export function AppNavDesktop({ pathname }: AppNavDesktopProps) {
 						to={item.to}
 						aria-current={active ? "page" : undefined}
 						className={cn(
-							"rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
+							"inline-flex h-9 items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-accent/50 data-[active]:bg-accent/50",
 							active
-								? "text-foreground font-medium"
-								: "text-muted-foreground hover:text-foreground",
+								? "bg-accent text-accent-foreground"
+								: "text-muted-foreground",
 						)}
 					>
 						{item.label}

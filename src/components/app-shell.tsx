@@ -20,26 +20,25 @@ export function AppShell({ user, isAdmin, children }: AppShellProps) {
 	const isWide = isWideAppShellPath(pathname);
 
 	return (
-		<div
-			className={cn(
-				"mx-auto flex h-dvh w-full flex-col bg-background",
-				isWide ? "max-w-screen-xl" : "max-w-4xl",
-			)}
-		>
+		<div className="flex h-dvh w-full flex-col overflow-hidden bg-background">
 			<AppHeader
 				user={user}
 				isAdmin={isAdmin}
 				pathname={pathname}
 				pageTitle={pageTitle}
 			/>
-			<main
-				className={cn(
-					"flex-1 px-4 py-4",
-					isWide ? "flex min-h-0 flex-col overflow-hidden" : "overflow-y-auto",
-				)}
-			>
-				{children}
-			</main>
+			<div className="flex min-h-0 flex-1 overflow-hidden">
+				<main
+					className={cn(
+						"mx-auto min-w-0 flex-1 overflow-y-auto px-4 py-5",
+						isWide
+							? "w-full max-w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:min-h-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0"
+							: "w-full max-w-5xl",
+					)}
+				>
+					{children}
+				</main>
+			</div>
 		</div>
 	);
 }
