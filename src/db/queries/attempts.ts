@@ -281,5 +281,124 @@ export async function getQuestionsForAttempt(
 	return rows;
 }
 
+export async function getAttemptStats(
+	db: AppDatabase,
+	userId: string,
+): Promise<{
+	totalAttempts: number;
+	incompleteAttempts: number;
+	overallAccuracy: number;
+}> {
+	const [totalRow] = await db
+		.select({ total: count(schema.attempts.id) })
+		.from(schema.attempts)
+		.where(eq(schema.attempts.userId, userId));
+
+	const [incompleteRow] = await db
+		.select({ total: count(schema.attempts.id) })
+		.from(schema.attempts)
+		.where(
+			and(eq(schema.attempts.userId, userId), eq(schema.attempts.status, "in_progress")),
+		);
+
+	const [completedRow] = await db
+		.select({
+			total: count(schema.attempts.id),
+			correct: sql<number>`SUM(${schema.attempts.correctAnswers})`,
+			totalQuestions: sql<number>`SUM(${schema.attempts.answeredQuestions})`,
+		})
+		.from(schema.attempts)
+		.where(and(eq(schema.attempts.userId, userId), eq(schema.attempts.status, "completed")));
+
+	const totalAttempts = Number(totalRow?.total ?? 0);
+	const incompleteAttempts = Number(incompleteRow?.total ?? 0);
+	const completedTotal = Number(completedRow?.total ?? 0);
+	const correctAnswers = Number(completedRow?.correct ?? 0);
+	const answeredQuestions = Number(completedRow?.totalQuestions ?? 0);
+
+	const overallAccuracy =
+		completedTotal > 0 && answeredQuestions > 0
+			? Math.round((correctAnswers / answeredQuestions) * 100)
+			: 0;
+
+	return {
+		totalAttempts,
+		incompleteAttempts,
+		overallAccuracy,
+	};
+}
+
+export type QuizStats = {
+	totalAttempts: number;
+	incompleteAttempts: number;
+	overallAccuracy: number;
+};
+
+export async function listAttemptsByExamId(
+	db: AppDatabase,
+	userId: string,
+	examId: string,
+): Promise<AttemptRow[]> {
+	return db
+		.select()
+		.from(schema.attempts)
+		.where(
+			and(
+				eq(schema.attempts.userId, userId),
+				eq(schema.attempts.examId, examId),
+			),
+		)
+		.orderBy(sql`${schema.attempts.startedAt} DESC`);
+}
+
+export async function getQuizStatsByUserId(
+	db: AppDatabase,
+	userId: string,
+): Promise<QuizStats> {
+	const [allAttempts] = await db
+		.select({ total: count(schema.attempts.id) })
+		.from(schema.attempts)
+		.where(eq(schema.attempts.userId, userId));
+
+	const [incomplete] = await db
+		.select({ total: count(schema.attempts.id) })
+		.from(schema.attempts)
+		.where(
+			and(
+				eq(schema.attempts.userId, userId),
+				eq(schema.attempts.status, "in_progress"),
+			),
+		);
+
+	const [completed] = await db
+		.select({
+			total: count(schema.attempts.id),
+			correct: sql<number>`COALESCE(SUM(${schema.attempts.correctAnswers}), 0)`,
+			totalAnswered: sql<number>`COALESCE(SUM(${schema.attempts.answeredQuestions}), 0)`,
+		})
+		.from(schema.attempts)
+		.where(
+			and(
+				eq(schema.attempts.userId, userId),
+				eq(schema.attempts.status, "completed"),
+			),
+		);
+
+	const completedTotal = completed?.total ?? 0;
+	const totalAnswered = completed?.totalAnswered ?? 0;
+	const correct = completed?.correct ?? 0;
+
+	const accuracy =
+		completedTotal > 0 && totalAnswered > 0
+			? Math.round((correct / totalAnswered) * 1000) / 10
+			: 0;
+
+	return {
+		totalAttempts: allAttempts?.total ?? 0,
+		incompleteAttempts: incomplete?.total ?? 0,
+		overallAccuracy: accuracy,
+	};
+}
+
 // Alias kept for backward compatibility with existing quiz server functions.
 export { listDistinctTopicsByExamId as listTopicsByExamId };
