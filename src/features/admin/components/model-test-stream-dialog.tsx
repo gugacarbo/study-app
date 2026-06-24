@@ -332,7 +332,7 @@ function ProbeStats({ stream }: { stream: ModelProbeStreamState }) {
 					<div
 						key={stat.id}
 						data-testid={`probe-stat-${stat.id}`}
-						className="rounded-md border bg-muted/15 px-2 py-1.5"
+						className="flex items-center justify-between gap-2 rounded-md border bg-muted/15 px-2 py-1"
 					>
 						<div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
 							<Icon
@@ -341,7 +341,7 @@ function ProbeStats({ stream }: { stream: ModelProbeStreamState }) {
 							/>
 							<span>{stat.label}</span>
 						</div>
-						<p className="mt-0.5 text-xs font-medium leading-none">{stat.value}</p>
+						<p className="text-xs font-medium leading-none">{stat.value}</p>
 					</div>
 				);
 			})}
@@ -472,9 +472,9 @@ export function ModelTestStreamDialog({
 
 				<div
 					data-testid="probe-form-layout"
-					className="grid gap-4 border-b px-6 py-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start"
+					className="grid gap-4 border-b px-6 py-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-stretch"
 				>
-					<div className="flex flex-col gap-2">
+					<div className="flex h-full min-h-0 flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<Label htmlFor="probe-prompt">Prompt do teste</Label>
 							<Button
@@ -495,7 +495,7 @@ export function ModelTestStreamDialog({
 						<Textarea
 							id="probe-prompt"
 							rows={2}
-							className="h-28 resize-none"
+							className="min-h-0 flex-1 resize-none"
 							value={formState.prompt}
 							disabled={isStreaming}
 							onChange={(event) =>
@@ -508,7 +508,7 @@ export function ModelTestStreamDialog({
 					</div>
 					<div
 						data-testid="probe-controls-layout"
-						className="grid grid-cols-2 items-end gap-3"
+						className="grid h-full min-h-0 grid-cols-2 content-between gap-3"
 					>
 						<div className="space-y-2 col-span-1">
 							<Label htmlFor="probe-timeout">Timeout (s)</Label>
@@ -554,10 +554,10 @@ export function ModelTestStreamDialog({
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="col-span-2">
+						<div className="col-span-2 flex">
 							<Button
 								type="button"
-								className="w-full h-9"
+								className="h-full min-h-9 w-full"
 								disabled={isStreaming}
 								onClick={handleStart}
 							>

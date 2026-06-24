@@ -57,7 +57,7 @@ describe("ModelTestStreamDialog", () => {
 		);
 		const prompt = screen.getByLabelText("Prompt do teste");
 		expect(prompt).toHaveAttribute("rows", "2");
-		expect(prompt.className).toContain("h-22");
+		expect(prompt.className).toContain("h-28");
 		expect(
 			screen.getByRole("button", { name: "Iniciar teste" }),
 		).toBeInTheDocument();
@@ -463,8 +463,8 @@ describe("ModelTestStreamDialog", () => {
 		const durationCard = screen.getByTestId("probe-stat-duration");
 
 		expect(statsStrip).toHaveClass("gap-2", "py-2");
-		expect(inputCard).toHaveClass("px-2", "py-1.5");
-		expect(durationCard).toHaveClass("px-2", "py-1.5");
+		expect(inputCard).toHaveClass("px-2", "py-1");
+		expect(durationCard).toHaveClass("px-2", "py-1");
 		expect(screen.getByTestId("probe-stat-icon-input")).toBeInTheDocument();
 		expect(screen.getByTestId("probe-stat-icon-ttft")).toBeInTheDocument();
 		expect(screen.getByTestId("probe-stat-icon-finish")).toBeInTheDocument();
