@@ -238,7 +238,7 @@ export async function streamModelProbeHandler(
 						db,
 						modelRowId,
 						session.user.id,
-						finalResult.ok ? "health" : "offline",
+						finalResult.ok ? "active" : "offline",
 					);
 					controller.enqueue(
 						encoder.encode(

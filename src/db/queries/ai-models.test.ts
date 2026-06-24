@@ -138,9 +138,9 @@ describe("ai-models queries", () => {
 			displayName: "GPT-4o",
 		});
 
-		await updateHealthStatus(db, modelId, ownerId, "health");
+		await updateHealthStatus(db, modelId, ownerId, "active");
 		expect((await getByIdForUser(db, modelId, ownerId))?.healthStatus).toBe(
-			"health",
+			"active",
 		);
 
 		await updateHealthStatus(db, modelId, ownerId, "offline");

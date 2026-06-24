@@ -23,11 +23,11 @@ const baseModel: ModelRow = {
 };
 
 describe("getModelStatusBadge", () => {
-	it("returns Health when the latest test succeeded", () => {
+	it("returns Active when the latest test succeeded", () => {
 		expect(
-			getModelStatusBadge({ ...baseModel, healthStatus: "health" }),
+			getModelStatusBadge({ ...baseModel, healthStatus: "active" }),
 		).toEqual({
-			label: "Health",
+			label: "Active",
 			variant: "outline",
 			className:
 				"border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/80 dark:bg-emerald-950/40 dark:text-emerald-300",

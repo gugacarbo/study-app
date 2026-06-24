@@ -16,6 +16,34 @@ import {
 	PROBE_PROMPT,
 } from "@/functions/admin/probe-model-core";
 
+function buildThinkingConfig(model: Pick<
+	ModelRow,
+	"thinkingEnabled" | "thinkingEffortLevels" | "defaultThinkingEffort"
+>) {
+	const levels = model.thinkingEffortLevels
+		?.split(/[,\n]/)
+		.map((item) => item.trim())
+		.filter(Boolean);
+
+	if (levels?.length) {
+		return {
+			thinkingMode: "levels" as const,
+			thinkingOptions: levels,
+			reasoningEffort:
+				model.defaultThinkingEffort && levels.includes(model.defaultThinkingEffort)
+					? model.defaultThinkingEffort
+					: levels[0],
+		};
+	}
+
+	const toggleOptions = ["off", "on"];
+	return {
+		thinkingMode: "toggle" as const,
+		thinkingOptions: toggleOptions,
+		reasoningEffort: model.thinkingEnabled === false ? "off" : "on",
+	};
+}
+
 export function ModelDialog({
 	open,
 	mode,
@@ -39,9 +67,11 @@ export function ModelDialog({
 }) {
 	const [testOpen, setTestOpen] = useState(false);
 	const [testDefaults, setTestDefaults] = useState<{
-		modelId: string;
+		testedModelId: string;
 		prompt: string;
 		timeoutMs: number;
+		thinkingMode: "toggle" | "levels";
+		thinkingOptions: string[];
 		reasoningEffort?: string | null;
 	} | null>(null);
 	const {
@@ -118,12 +148,13 @@ export function ModelDialog({
 						mode === "edit" && model
 							? ({ modelId, timeoutMs }) => {
 									const testedModelId = modelId.trim() || model.modelId;
+									const thinkingConfig = buildThinkingConfig(model);
 									resetProbe();
 									setTestDefaults({
-										modelId: testedModelId,
+										testedModelId,
 										prompt: PROBE_PROMPT,
 										timeoutMs,
-										reasoningEffort: model.defaultThinkingEffort,
+										...thinkingConfig,
 									});
 									setTestOpen(true);
 								}
@@ -137,10 +168,16 @@ export function ModelDialog({
 					stream={stream}
 					defaultConfig={
 						testDefaults ?? {
-							modelId: model?.modelId ?? "",
+							testedModelId: model?.modelId ?? "",
 							prompt: PROBE_PROMPT,
 							timeoutMs: 30_000,
-							reasoningEffort: model?.defaultThinkingEffort ?? null,
+							...(model
+								? buildThinkingConfig(model)
+								: {
+										thinkingMode: "toggle" as const,
+										thinkingOptions: ["off", "on"],
+										reasoningEffort: "on",
+									}),
 						}
 					}
 					onStart={(config) => {
@@ -148,7 +185,7 @@ export function ModelDialog({
 						void startProbe({
 							modelRowId: model.id,
 							savedModelId: model.modelId,
-							testedModelId: config.modelId,
+							testedModelId: config.testedModelId,
 							displayName: model.displayName,
 							providerName: providerName ?? "",
 							providerBaseUrl: providerBaseUrl ?? "",

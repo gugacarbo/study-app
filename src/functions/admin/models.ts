@@ -96,7 +96,7 @@ export async function testModelHandler(
 		db,
 		input.id,
 		session.user.id,
-		result.ok ? "health" : "offline",
+		result.ok ? "active" : "offline",
 	);
 	return result;
 }

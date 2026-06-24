@@ -13,9 +13,9 @@ import type { AdminAiConfig } from "@/features/admin/hooks/use-admin-ai-config";
 export type ModelRow = AdminAiConfig["models"][number];
 
 export function getModelStatusBadge(model: ModelRow) {
-	if (model.healthStatus === "health") {
+	if (model.healthStatus === "active") {
 		return {
-			label: "Health",
+			label: "Active",
 			variant: "outline" as const,
 			className:
 				"border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/80 dark:bg-emerald-950/40 dark:text-emerald-300",

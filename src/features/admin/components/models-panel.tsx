@@ -31,6 +31,33 @@ import {
 	PROBE_PROMPT,
 } from "@/functions/admin/probe-model-core";
 
+function buildThinkingConfig(model: Pick<
+	ModelRow,
+	"thinkingEnabled" | "thinkingEffortLevels" | "defaultThinkingEffort"
+>) {
+	const levels = model.thinkingEffortLevels
+		?.split(/[,\n]/)
+		.map((item) => item.trim())
+		.filter(Boolean);
+
+	if (levels?.length) {
+		return {
+			thinkingMode: "levels" as const,
+			thinkingOptions: levels,
+			reasoningEffort:
+				model.defaultThinkingEffort && levels.includes(model.defaultThinkingEffort)
+					? model.defaultThinkingEffort
+					: levels[0],
+		};
+	}
+
+	return {
+		thinkingMode: "toggle" as const,
+		thinkingOptions: ["off", "on"],
+		reasoningEffort: model.thinkingEnabled === false ? "off" : "on",
+	};
+}
+
 type ModelsPanelProps = {
 	providers: AdminAiConfig["providers"];
 	models: ModelRow[];
@@ -58,9 +85,11 @@ export function ModelsPanel({
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [testModel, setTestModel] = useState<ModelRow | null>(null);
 	const [testDefaults, setTestDefaults] = useState<{
-		modelId: string;
+		testedModelId: string;
 		prompt: string;
 		timeoutMs: number;
+		thinkingMode: "toggle" | "levels";
+		thinkingOptions: string[];
 		reasoningEffort?: string | null;
 	} | null>(null);
 	const { error, busy, run } = usePanelAction();
@@ -122,10 +151,10 @@ export function ModelsPanel({
 						resetProbe();
 						setTestModel(model);
 						setTestDefaults({
-							modelId: model.modelId,
+							testedModelId: model.modelId,
 							prompt: PROBE_PROMPT,
 							timeoutMs: PROBE_DEFAULT_TIMEOUT_MS,
-							reasoningEffort: model.defaultThinkingEffort,
+							...buildThinkingConfig(model),
 						});
 					}}
 				/>
@@ -182,10 +211,16 @@ export function ModelsPanel({
 				stream={probeState}
 				defaultConfig={
 					testDefaults ?? {
-						modelId: testModel?.modelId ?? "",
+						testedModelId: testModel?.modelId ?? "",
 						prompt: PROBE_PROMPT,
 						timeoutMs: PROBE_DEFAULT_TIMEOUT_MS,
-						reasoningEffort: testModel?.defaultThinkingEffort ?? null,
+						...(testModel
+							? buildThinkingConfig(testModel)
+							: {
+									thinkingMode: "toggle" as const,
+									thinkingOptions: ["off", "on"],
+									reasoningEffort: "on",
+								}),
 					}
 				}
 				onStart={(config) => {
@@ -193,7 +228,7 @@ export function ModelsPanel({
 					void startProbe({
 						modelRowId: testModel.id,
 						savedModelId: testModel.modelId,
-						testedModelId: config.modelId,
+						testedModelId: config.testedModelId,
 						displayName: testModel.displayName,
 						providerName: provider?.name ?? "",
 						providerBaseUrl: provider?.baseUrl ?? "",

@@ -3,7 +3,7 @@ import type { AppDatabase } from "../client";
 import * as schema from "../schema";
 
 export type AiModelRow = typeof schema.aiModels.$inferSelect;
-export type AiModelHealthStatus = "health" | "offline";
+export type AiModelHealthStatus = "active" | "offline";
 
 export async function listByProviderForUser(
 	db: AppDatabase,

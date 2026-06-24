@@ -148,7 +148,7 @@ describe("admin models handlers", () => {
 			timeoutMs: 45000,
 		});
 		expect((await getByIdForUser(testDb, modelRowId, adminUserId))?.healthStatus).toBe(
-			"health",
+			"active",
 		);
 	});
 
