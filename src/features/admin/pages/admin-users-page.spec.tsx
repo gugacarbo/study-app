@@ -21,6 +21,17 @@ vi.mock("@/features/admin/hooks/use-admin-users", () => ({
 	}),
 }));
 
+vi.mock("@/functions/auth/require-session", () => ({
+	getSession: vi.fn(async () => ({
+		user: {
+			id: "11111111-1111-4111-8111-111111111111",
+			name: "Admin",
+			email: "admin@aluno.ifsc.edu.br",
+		},
+		session: { id: "session-1" },
+	})),
+}));
+
 function renderWithQuery(ui: React.ReactNode) {
 	const client = new QueryClient();
 	return render(

@@ -6,8 +6,10 @@ import { createDb } from "@/db/client";
 import {
 	assignRoleToUser,
 	countUsersWithRole,
+	getUserRoleKeys,
 	isSeedRole,
 	ROLE_ADMIN,
+	ROLE_USER,
 	removeRoleFromUser,
 } from "@/db/queries/rbac";
 import { listUsersWithRoles } from "@/db/queries/users";
@@ -48,7 +50,16 @@ export async function setUserRoleHandler(
 	if (
 		input.action === "remove" &&
 		input.roleKey === ROLE_ADMIN &&
-		input.userId === session.user.id &&
+		input.userId === session.user.id
+	) {
+		throw new Response("Cannot remove admin role from your own account", {
+			status: 400,
+		});
+	}
+
+	if (
+		input.action === "remove" &&
+		input.roleKey === ROLE_ADMIN &&
 		(await countUsersWithRole(db, ROLE_ADMIN)) <= 1
 	) {
 		throw new Response("Cannot remove the last admin", { status: 400 });
@@ -58,7 +69,15 @@ export async function setUserRoleHandler(
 		await assignRoleToUser(db, input.userId, input.roleKey);
 		return;
 	}
+
+	const rolesBefore = await getUserRoleKeys(db, input.userId);
 	await removeRoleFromUser(db, input.userId, input.roleKey);
+	if (
+		input.roleKey === ROLE_ADMIN &&
+		!rolesBefore.includes(ROLE_USER)
+	) {
+		await assignRoleToUser(db, input.userId, ROLE_USER);
+	}
 }
 
 export const listUsers = createServerFn({ method: "GET" }).handler(async () =>
@@ -66,5 +85,13 @@ export const listUsers = createServerFn({ method: "GET" }).handler(async () =>
 );
 
 export const setUserRole = createServerFn({ method: "POST" })
-	.inputValidator((data: unknown) => setUserRoleSchema.parse(data))
+	.inputValidator((data: unknown) => {
+		const result = setUserRoleSchema.safeParse(data);
+		if (!result.success) {
+			throw new Response(JSON.stringify(result.error.flatten()), {
+				status: 400,
+			});
+		}
+		return result.data;
+	})
 	.handler(async ({ data }) => setUserRoleHandler(data, getRequest().headers));

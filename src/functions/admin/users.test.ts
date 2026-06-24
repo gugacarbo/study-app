@@ -1,4 +1,5 @@
 import type { D1Database } from "@cloudflare/workers-types";
+import { count, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppDatabase } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
@@ -84,12 +85,15 @@ describe("admin users", () => {
 	});
 
 	it("setUserRole remove drops role from target user", async () => {
-		const adminId = createId();
-		const target = await insertUser(testDb);
+		const isolatedDb = createTestDb();
+		mockCreateDb.mockReturnValue(isolatedDb);
 
-		await insertUser(testDb, adminId);
-		await assignRoleToUser(testDb, adminId, "admin");
-		await assignRoleToUser(testDb, target.id, "admin");
+		const adminId = createId();
+		const target = await insertUser(isolatedDb);
+
+		await insertUser(isolatedDb, adminId);
+		await assignRoleToUser(isolatedDb, adminId, "admin");
+		await assignRoleToUser(isolatedDb, target.id, "admin");
 
 		mockRequireAdminSession.mockResolvedValue({ user: { id: adminId } });
 		await setUserRoleHandler(
@@ -97,9 +101,16 @@ describe("admin users", () => {
 			new Headers(),
 		);
 
-		expect(await userHasPermission(testDb, target.id, "admin:access")).toBe(
+		expect(await userHasPermission(isolatedDb, target.id, "admin:access")).toBe(
 			false,
 		);
+		await expect(
+			isolatedDb
+				.select({ count: count() })
+				.from(schema.userRoles)
+				.innerJoin(schema.roles, eq(schema.userRoles.roleId, schema.roles.id))
+				.where(eq(schema.roles.key, "user")),
+		).resolves.toEqual([{ count: 1 }]);
 	});
 
 	it("setUserRole rejects role outside seed catalog", async () => {
@@ -141,5 +152,43 @@ describe("admin users", () => {
 				new Headers(),
 			),
 		).rejects.toMatchObject({ status: 400 });
+	});
+
+	it("setUserRole blocks removing admin role from own account even if another admin exists", async () => {
+		const adminId = createId();
+		const otherAdminId = createId();
+		await insertUser(testDb, adminId);
+		await insertUser(testDb, otherAdminId);
+		await assignRoleToUser(testDb, adminId, "admin");
+		await assignRoleToUser(testDb, otherAdminId, "admin");
+
+		mockRequireAdminSession.mockResolvedValue({ user: { id: adminId } });
+
+		await expect(
+			setUserRoleHandler(
+				{ userId: adminId, roleKey: "admin", action: "remove" },
+				new Headers(),
+			),
+		).rejects.toMatchObject({ status: 400 });
+	});
+
+	it("setUserRole adds user role when removing admin from a user with only admin", async () => {
+		const adminId = createId();
+		const target = await insertUser(testDb);
+
+		await insertUser(testDb, adminId);
+		await assignRoleToUser(testDb, adminId, "admin");
+		await assignRoleToUser(testDb, target.id, "admin");
+
+		mockRequireAdminSession.mockResolvedValue({ user: { id: adminId } });
+		await setUserRoleHandler(
+			{ userId: target.id, roleKey: "admin", action: "remove" },
+			new Headers(),
+		);
+
+		expect(await userHasPermission(testDb, target.id, "admin:access")).toBe(
+			false,
+		);
+		expect(await userHasPermission(testDb, target.id, "app:use")).toBe(true);
 	});
 });

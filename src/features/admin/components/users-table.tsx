@@ -22,10 +22,15 @@ import type { SetUserRoleInput } from "@/features/admin/schemas/set-user-role";
 
 type UsersTableProps = {
 	users: AdminUser[];
+	currentUserId?: string;
 	onSetRole: (input: SetUserRoleInput) => Promise<void>;
 };
 
-export function UsersTable({ users, onSetRole }: UsersTableProps) {
+export function UsersTable({
+	users,
+	currentUserId,
+	onSetRole,
+}: UsersTableProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
@@ -85,6 +90,7 @@ export function UsersTable({ users, onSetRole }: UsersTableProps) {
 										<RoleToggle
 											user={user}
 											roleKey="admin"
+											currentUserId={currentUserId}
 											disabled={pendingUserId === user.id}
 											onToggle={(checked) => toggleAdmin(user, checked)}
 										/>
