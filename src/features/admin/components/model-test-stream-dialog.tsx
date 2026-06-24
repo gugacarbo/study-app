@@ -1,6 +1,16 @@
 "use client";
 
 import {
+	AssistantRuntimeProvider,
+	AuiIf,
+	groupPartByType,
+	MessagePrimitive,
+	type ThreadMessageLike,
+	ThreadPrimitive,
+	useAuiState,
+	useExternalStoreRuntime,
+} from "@assistant-ui/react";
+import {
 	ArrowDownIcon,
 	ArrowUpIcon,
 	CheckCheckIcon,
@@ -12,7 +22,7 @@ import {
 	TimerIcon,
 	XIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type FC } from "react";
+import { type FC, useEffect, useMemo, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
 	Reasoning,
@@ -45,16 +55,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { buildProbeAssistantContent } from "@/features/admin/components/model-test-stream-content";
 import type { ModelProbeStreamState } from "@/features/admin/hooks/use-model-probe-stream";
 import type { ModelProbeRequest } from "@/features/admin/types/model-probe";
-import {
-	AssistantRuntimeProvider,
-	AuiIf,
-	groupPartByType,
-	MessagePrimitive,
-	ThreadPrimitive,
-	useAuiState,
-	useExternalStoreRuntime,
-	type ThreadMessageLike,
-} from "@assistant-ui/react";
 
 function formatProbeJson(result: NonNullable<ModelProbeStreamState["result"]>) {
 	return JSON.stringify(
@@ -143,7 +143,13 @@ function useProbeThreadRuntime(
 			});
 		}
 		return list;
-	}, [stream.status, stream.assistantText, stream.result, isStreaming, requestPrompt]);
+	}, [
+		stream.status,
+		stream.assistantText,
+		stream.result,
+		isStreaming,
+		requestPrompt,
+	]);
 
 	return useExternalStoreRuntime<ProbeThreadMessage>({
 		messages,
@@ -158,12 +164,12 @@ function useProbeThreadRuntime(
 	});
 }
 
-function extractTextFromContent(
-	content: ThreadMessageLike["content"],
-): string {
+function extractTextFromContent(content: ThreadMessageLike["content"]): string {
 	if (typeof content === "string") return content;
 	return content
-		.filter((part): part is { type: "text"; text: string } => part.type === "text")
+		.filter(
+			(part): part is { type: "text"; text: string } => part.type === "text",
+		)
 		.map((part) => part.text)
 		.join("");
 }
@@ -375,8 +381,12 @@ export function ModelTestStreamDialog({
 }) {
 	const [copied, setCopied] = useState(false);
 	const [view, setView] = useState<"chat" | "raw">("chat");
-	const [activeRequest, setActiveRequest] = useState<ModelProbeRequest | null>(null);
-	const [formState, setFormState] = useState(() => buildInitialConfig(defaultConfig));
+	const [activeRequest, setActiveRequest] = useState<ModelProbeRequest | null>(
+		null,
+	);
+	const [formState, setFormState] = useState(() =>
+		buildInitialConfig(defaultConfig),
+	);
 
 	useEffect(() => {
 		setCopied(false);
@@ -474,7 +484,7 @@ export function ModelTestStreamDialog({
 					data-testid="probe-form-layout"
 					className="grid gap-4 border-b px-6 py-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-stretch"
 				>
-					<div className="flex h-full min-h-0 flex-col gap-2">
+					<div className="flex h-full flex-col gap-2">
 						<div className="flex items-center gap-2">
 							<Label htmlFor="probe-prompt">Prompt do teste</Label>
 							<Button
@@ -508,7 +518,7 @@ export function ModelTestStreamDialog({
 					</div>
 					<div
 						data-testid="probe-controls-layout"
-						className="grid h-full min-h-0 grid-cols-2 content-between gap-3"
+						className="grid h-full grid-cols-2 content-between gap-3"
 					>
 						<div className="space-y-2 col-span-1">
 							<Label htmlFor="probe-timeout">Timeout (s)</Label>
@@ -554,10 +564,10 @@ export function ModelTestStreamDialog({
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="col-span-2 flex">
+						<div className="col-span-2">
 							<Button
 								type="button"
-								className="h-full min-h-9 w-full"
+								className="w-full h-9"
 								disabled={isStreaming}
 								onClick={handleStart}
 							>

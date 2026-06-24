@@ -52,12 +52,14 @@ describe("ModelTestStreamDialog", () => {
 		expect(onStart).not.toHaveBeenCalled();
 		expect(screen.getByLabelText("Prompt do teste")).toHaveValue("ping");
 		expect(screen.queryByLabelText("ID do modelo")).not.toBeInTheDocument();
-		expect(screen.getByRole("combobox", { name: "Thinking" })).toHaveTextContent(
-			"medium",
-		);
+		expect(
+			screen.getByRole("combobox", { name: "Thinking" }),
+		).toHaveTextContent("medium");
 		const prompt = screen.getByLabelText("Prompt do teste");
 		expect(prompt).toHaveAttribute("rows", "2");
-		expect(prompt.className).toContain("h-28");
+		expect(prompt.className).toContain("flex-1");
+		expect(prompt.className).toContain("min-h-0");
+		expect(prompt.className).toContain("resize-none");
 		expect(
 			screen.getByRole("button", { name: "Iniciar teste" }),
 		).toBeInTheDocument();
@@ -183,9 +185,9 @@ describe("ModelTestStreamDialog", () => {
 			/>,
 		);
 
-		expect(screen.getByRole("combobox", { name: "Thinking" })).toHaveTextContent(
-			"on",
-		);
+		expect(
+			screen.getByRole("combobox", { name: "Thinking" }),
+		).toHaveTextContent("on");
 		fireEvent.click(screen.getByRole("combobox", { name: "Thinking" }));
 		expect(screen.getByRole("option", { name: "off" })).toBeInTheDocument();
 		expect(screen.getByRole("option", { name: "on" })).toBeInTheDocument();
