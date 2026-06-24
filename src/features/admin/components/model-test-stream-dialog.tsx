@@ -495,7 +495,7 @@ export function ModelTestStreamDialog({
 						<Textarea
 							id="probe-prompt"
 							rows={2}
-							className="h-22 resize-none"
+							className="h-28 resize-none"
 							value={formState.prompt}
 							disabled={isStreaming}
 							onChange={(event) =>
@@ -508,7 +508,7 @@ export function ModelTestStreamDialog({
 					</div>
 					<div
 						data-testid="probe-controls-layout"
-						className="grid h-full grid-cols-2 content-between gap-3"
+						className="grid grid-cols-2 items-end gap-3"
 					>
 						<div className="space-y-2 col-span-1">
 							<Label htmlFor="probe-timeout">Timeout (s)</Label>
@@ -554,10 +554,10 @@ export function ModelTestStreamDialog({
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="col-span-2 flex">
+						<div className="col-span-2">
 							<Button
 								type="button"
-								className="w-full h-full min-h-9"
+								className="w-full h-9"
 								disabled={isStreaming}
 								onClick={handleStart}
 							>
