@@ -14,10 +14,10 @@ import { useJobMonitor } from "@/features/background-processes/hooks/use-job-mon
 import { cancelJob } from "@/features/background-processes/lib/jobs-api";
 import type { JobUploadLocationState } from "@/features/exams/hooks/use-ingest-job";
 import {
+	type IngestJobMetadata,
 	isCancellableJobStatus,
 	JOB_STATUS,
 	parseImproveQuestionsJobMetadata,
-	type IngestJobMetadata,
 } from "@/lib/job-kinds";
 
 type JobMonitorPageProps = {

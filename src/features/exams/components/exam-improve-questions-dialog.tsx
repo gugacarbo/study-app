@@ -56,7 +56,7 @@ export function ExamImproveQuestionsDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-w-2xl h-128 flex flex-col">
 				<DialogHeader>
 					<DialogTitle>Melhorar questões</DialogTitle>
 					<DialogDescription>
@@ -68,12 +68,25 @@ export function ExamImproveQuestionsDialog({
 					<p className="text-sm text-muted-foreground">
 						{effectiveSelectedIds.length} de {questions.length} selecionada(s)
 					</p>
-					<Button type="button" variant="ghost" size="sm" onClick={selectAll}>
-						Selecionar todas
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={() => {
+							if (effectiveSelectedIds.length === questions.length) {
+								setSelectedIds([]);
+							} else {
+								selectAll();
+							}
+						}}
+					>
+						{effectiveSelectedIds.length === questions.length
+							? "Desmarcar todas"
+							: "Selecionar todas"}
 					</Button>
 				</div>
 
-				<div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+				<div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1">
 					{questions.map((question, index) => {
 						const checked = effectiveSelectedIds.includes(question.id);
 						return (

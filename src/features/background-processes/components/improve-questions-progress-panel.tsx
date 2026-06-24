@@ -1,5 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import { CheckIcon, CircleIcon, LoaderCircleIcon, XCircleIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import {
 	IMPROVE_BATCH_PHASE,
@@ -151,6 +153,16 @@ export function ImproveQuestionsProgressPanel({
 					))}
 				</ul>
 			</div>
+
+			{status === JOB_STATUS.COMPLETED && metadata.pendingReviewCount > 0 ? (
+				<div className="border-t px-4 py-3">
+					<Button asChild size="sm" className="w-full">
+						<Link to="/exams/$examId" params={{ examId: metadata.examId }}>
+							Revisar melhorias ({metadata.pendingReviewCount})
+						</Link>
+					</Button>
+				</div>
+			) : null}
 
 			{error ? (
 				<p className="text-sm text-destructive" role="alert">
