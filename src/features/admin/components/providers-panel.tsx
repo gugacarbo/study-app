@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/card";
 import { ProviderDialog } from "@/features/admin/components/provider-dialog";
 import {
+	ProviderTestDialog,
+	type ProviderTestResult,
+} from "@/features/admin/components/provider-test-dialog";
+import {
 	type ProviderRow,
 	ProvidersTable,
 } from "@/features/admin/components/providers-table";
@@ -24,7 +28,7 @@ type ProvidersPanelProps = {
 	onCreate: (values: CreateProviderFormValues) => Promise<void>;
 	onUpdate: (id: string, values: EditProviderFormValues) => Promise<void>;
 	onDelete: (id: string) => Promise<void>;
-	onTest: (input: { id: string }) => Promise<{ ok: boolean; error?: string }>;
+	onTest: (input: { id: string }) => Promise<ProviderTestResult>;
 };
 
 export function ProvidersPanel({
@@ -35,8 +39,16 @@ export function ProvidersPanel({
 	onTest,
 }: ProvidersPanelProps) {
 	const [dialog, setDialog] = useState<"create" | ProviderRow | null>(null);
-	const [testResult, setTestResult] = useState<string | null>(null);
+	const [testDialog, setTestDialog] = useState<{
+		provider: ProviderRow;
+		result: ProviderTestResult;
+	} | null>(null);
 	const { error, busy, run } = usePanelAction();
+
+	const handleTest = async (provider: ProviderRow) => {
+		const result = await onTest({ id: provider.id });
+		setTestDialog({ provider, result });
+	};
 
 	return (
 		<Card>
@@ -57,25 +69,11 @@ export function ProvidersPanel({
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				) : null}
-				{testResult ? (
-					<Alert>
-						<AlertDescription>{testResult}</AlertDescription>
-					</Alert>
-				) : null}
 				<ProvidersTable
 					providers={providers}
 					busy={busy}
 					onEdit={setDialog}
-					onTest={(provider) =>
-						run(async () => {
-							const result = await onTest({ id: provider.id });
-							setTestResult(
-								result.ok
-									? "Conexão OK"
-									: `Falha: ${result.error ?? "desconhecida"}`,
-							);
-						})
-					}
+					onTest={(provider) => run(() => handleTest(provider))}
 					onDelete={(provider) =>
 						run(async () => {
 							if (!window.confirm(`Excluir provider "${provider.name}"?`)) {
@@ -102,6 +100,17 @@ export function ProvidersPanel({
 						setDialog(null);
 					})
 				}
+			/>
+			<ProviderTestDialog
+				provider={testDialog?.provider ?? null}
+				result={testDialog?.result ?? null}
+				busy={busy}
+				onRetry={
+					testDialog?.provider
+						? () => run(() => handleTest(testDialog.provider))
+						: undefined
+				}
+				onClose={() => setTestDialog(null)}
 			/>
 		</Card>
 	);

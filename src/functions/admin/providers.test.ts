@@ -85,13 +85,26 @@ describe("admin providers handlers", () => {
 			true,
 			"enc:secret-key",
 		);
-		vi.mocked(probeProvider).mockResolvedValueOnce({ ok: true });
+		vi.mocked(probeProvider).mockResolvedValueOnce({
+			ok: true,
+			statusCode: 200,
+			latencyMs: 120,
+			models: ["gpt-4o", "gpt-4o-mini"],
+		});
 		const result = await testProviderHandler({ id: providerId }, new Headers());
 		expect(probeProvider).toHaveBeenCalledWith(
 			"https://api.openai.com/v1",
 			"secret-key",
 		);
-		expect(result).toEqual({ ok: true });
+		expect(result).toEqual({
+			ok: true,
+			providerId,
+			providerName: "OpenAI",
+			baseUrl: "https://api.openai.com/v1",
+			statusCode: 200,
+			latencyMs: 120,
+			models: ["gpt-4o", "gpt-4o-mini"],
+		});
 	});
 
 	it("discoverModels returns OpenAI-compat model suggestions", async () => {

@@ -93,7 +93,22 @@ export async function testProviderHandler(
 		input,
 	);
 	if (!credentials) throw new Response("Not Found", { status: 404 });
-	return probeProvider(credentials.baseUrl, credentials.apiKey);
+	const probe = await probeProvider(credentials.baseUrl, credentials.apiKey);
+	if ("id" in input) {
+		const provider = await aiProviders.getByIdForUser(
+			db,
+			input.id,
+			session.user.id,
+		);
+		if (!provider) throw new Response("Not Found", { status: 404 });
+		return {
+			...probe,
+			providerId: provider.id,
+			providerName: provider.name,
+			baseUrl: provider.baseUrl,
+		};
+	}
+	return probe;
 }
 
 export async function discoverModelsHandler(
