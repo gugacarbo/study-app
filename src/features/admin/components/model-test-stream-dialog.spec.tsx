@@ -469,6 +469,5 @@ describe("ModelTestStreamDialog", () => {
 		expect(durationCard).toHaveClass("px-2", "py-1");
 		expect(screen.getByTestId("probe-stat-icon-input")).toBeInTheDocument();
 		expect(screen.getByTestId("probe-stat-icon-ttft")).toBeInTheDocument();
-		expect(screen.getByTestId("probe-stat-icon-finish")).toBeInTheDocument();
 	});
 });

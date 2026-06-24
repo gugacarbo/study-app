@@ -13,7 +13,6 @@ import {
 import {
 	ArrowDownIcon,
 	ArrowUpIcon,
-	CheckCheckIcon,
 	Clock3Icon,
 	CopyIcon,
 	GaugeIcon,
@@ -319,18 +318,12 @@ function ProbeStats({ stream }: { stream: ModelProbeStreamState }) {
 			value: formatRate(stream.metrics.outputTokensPerSecond),
 			icon: GaugeIcon,
 		},
-		{
-			id: "finish",
-			label: "Finish",
-			value: stream.result?.response.finishReason ?? "—",
-			icon: CheckCheckIcon,
-		},
 	];
 
 	return (
 		<div
 			data-testid="probe-stats"
-			className="grid gap-2 border-b px-6 py-2 sm:grid-cols-3 xl:grid-cols-7"
+			className="grid gap-2 border-b px-6 py-2 sm:grid-cols-3 xl:grid-cols-6"
 		>
 			{stats.map((stat) => {
 				const Icon = stat.icon;
