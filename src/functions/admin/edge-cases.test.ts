@@ -206,7 +206,14 @@ describe("admin handler edge cases (SPEC-0003)", () => {
 
 		const result = await testProviderHandler({ id: providerId }, headers);
 
-		expect(result).toEqual({ ok: false, error: expect.any(String) });
+		expect(result).toEqual({
+			ok: false,
+			error: expect.any(String),
+			providerId,
+			providerName: "Broken",
+			baseUrl: "http://foo bar/v1",
+			latencyMs: expect.any(Number),
+		});
 	});
 
 	it("#8 setUserRole rejects role outside seed catalog", async () => {

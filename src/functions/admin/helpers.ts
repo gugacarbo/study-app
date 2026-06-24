@@ -35,24 +35,50 @@ export async function clearDefaultIfModelId(
 	}
 }
 
+export type ProviderProbeSuccess = {
+	ok: true;
+	statusCode: number;
+	latencyMs: number;
+	models: string[];
+};
+
+export type ProviderProbeFailure = {
+	ok: false;
+	statusCode?: number;
+	latencyMs: number;
+	error: string;
+};
+
 export async function probeProvider(
 	baseUrl: string,
 	apiKey: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<ProviderProbeSuccess | ProviderProbeFailure> {
+	const start = Date.now();
 	try {
 		const root = normalizeBaseUrl(baseUrl);
 		const url = new URL("models", `${root}/`);
 		const response = await fetch(url.toString(), {
 			headers: { Authorization: `Bearer ${apiKey}` },
 		});
+		const latencyMs = Date.now() - start;
 		if (!response.ok) {
-			return { ok: false, error: `HTTP ${response.status}` };
+			return {
+				ok: false,
+				statusCode: response.status,
+				latencyMs,
+				error: `HTTP ${response.status}`,
+			};
 		}
-		return { ok: true };
+		const body = (await response.json()) as OpenAiModelsResponse;
+		const models = (body.data ?? [])
+			.map((item) => item.id)
+			.filter((id): id is string => typeof id === "string" && id.length > 0);
+		return { ok: true, statusCode: response.status, latencyMs, models };
 	} catch (error) {
+		const latencyMs = Date.now() - start;
 		const message =
 			error instanceof Error ? error.message : "Connection failed";
-		return { ok: false, error: message };
+		return { ok: false, latencyMs, error: message };
 	}
 }
 
