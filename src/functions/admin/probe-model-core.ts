@@ -17,6 +17,14 @@ export const PROBE_PROMPT = "ping";
 export const PROBE_MAX_OUTPUT_TOKENS = 256;
 export const PROBE_DEFAULT_TIMEOUT_MS = 30_000;
 const RESPONSE_BODY_MAX_LENGTH = 2000;
+const OPENAI_REASONING_EFFORT_VALUES = new Set([
+	"none",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+]);
 
 function truncateText(value: string, maxLength: number) {
 	return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
@@ -80,8 +88,13 @@ export function buildProbeRequest(
 export function buildProbeProviderOptions(
 	reasoningEffort?: string | null,
 ): { openai: { reasoningEffort: string } } | undefined {
-	const normalized = reasoningEffort?.trim();
-	if (!normalized) return undefined;
+	const raw = reasoningEffort?.trim().toLowerCase();
+	if (!raw) return undefined;
+
+	const normalized =
+		raw === "on" ? "minimal" : raw === "off" ? "none" : raw;
+	if (!OPENAI_REASONING_EFFORT_VALUES.has(normalized)) return undefined;
+
 	return {
 		openai: {
 			reasoningEffort: normalized,

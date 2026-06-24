@@ -1,6 +1,17 @@
 "use client";
 
-import { CopyIcon, XIcon } from "lucide-react";
+import {
+	ArrowDownIcon,
+	ArrowUpIcon,
+	CheckCheckIcon,
+	Clock3Icon,
+	CopyIcon,
+	GaugeIcon,
+	HashIcon,
+	RotateCcw,
+	TimerIcon,
+	XIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState, type FC } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -22,6 +33,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { buildProbeAssistantContent } from "@/features/admin/components/model-test-stream-content";
 import type { ModelProbeStreamState } from "@/features/admin/hooks/use-model-probe-stream";
@@ -77,9 +96,11 @@ type ProbeThreadMessage = {
 };
 
 type ModelTestDialogConfig = {
-	modelId: string;
+	testedModelId: string;
 	prompt: string;
 	timeoutMs: number;
+	thinkingMode: "none" | "toggle" | "levels";
+	thinkingOptions: string[];
 	reasoningEffort?: string | null;
 };
 
@@ -256,38 +277,81 @@ const ModelProbeThread: FC<{
 function ProbeStats({ stream }: { stream: ModelProbeStreamState }) {
 	const usage = stream.result?.response.usage;
 	const stats = [
-		{ label: "Input", value: formatInteger(usage?.inputTokens) },
-		{ label: "Output", value: formatInteger(usage?.outputTokens) },
-		{ label: "Total", value: formatInteger(usage?.totalTokens) },
-		{ label: "TTFT", value: formatMs(stream.metrics.timeToFirstTokenMs) },
-		{ label: "Duração", value: formatSeconds(stream.metrics.totalDurationMs) },
-		{ label: "Tokens/s", value: formatRate(stream.metrics.outputTokensPerSecond) },
 		{
+			id: "input",
+			label: "Input",
+			value: formatInteger(usage?.inputTokens),
+			icon: ArrowDownIcon,
+		},
+		{
+			id: "output",
+			label: "Output",
+			value: formatInteger(usage?.outputTokens),
+			icon: ArrowUpIcon,
+		},
+		{
+			id: "total",
+			label: "Total",
+			value: formatInteger(usage?.totalTokens),
+			icon: HashIcon,
+		},
+		{
+			id: "ttft",
+			label: "TTFT",
+			value: formatMs(stream.metrics.timeToFirstTokenMs),
+			icon: TimerIcon,
+		},
+		{
+			id: "duration",
+			label: "Duração",
+			value: formatSeconds(stream.metrics.totalDurationMs),
+			icon: Clock3Icon,
+		},
+		{
+			id: "tokens-per-second",
+			label: "Tokens/s",
+			value: formatRate(stream.metrics.outputTokensPerSecond),
+			icon: GaugeIcon,
+		},
+		{
+			id: "finish",
 			label: "Finish",
 			value: stream.result?.response.finishReason ?? "—",
+			icon: CheckCheckIcon,
 		},
 	];
 
 	return (
-		<div className="grid gap-3 border-b px-6 py-4 sm:grid-cols-3 xl:grid-cols-7">
-			{stats.map((stat) => (
-				<div
-					key={stat.label}
-					className="rounded-lg border bg-muted/20 px-3 py-2"
-				>
-					<p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-						{stat.label}
-					</p>
-					<p className="mt-1 text-sm font-medium">{stat.value}</p>
-				</div>
-			))}
+		<div
+			data-testid="probe-stats"
+			className="grid gap-2 border-b px-6 py-2 sm:grid-cols-3 xl:grid-cols-7"
+		>
+			{stats.map((stat) => {
+				const Icon = stat.icon;
+				return (
+					<div
+						key={stat.id}
+						data-testid={`probe-stat-${stat.id}`}
+						className="rounded-md border bg-muted/15 px-2 py-1.5"
+					>
+						<div className="flex items-center gap-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+							<Icon
+								data-testid={`probe-stat-icon-${stat.id}`}
+								className="size-3 shrink-0"
+							/>
+							<span>{stat.label}</span>
+						</div>
+						<p className="mt-0.5 text-xs font-medium leading-none">{stat.value}</p>
+					</div>
+				);
+			})}
 		</div>
 	);
 }
 
 function buildInitialConfig(defaultConfig: ModelTestDialogConfig) {
 	return {
-		modelId: defaultConfig.modelId,
+		testedModelId: defaultConfig.testedModelId,
 		prompt: defaultConfig.prompt,
 		timeoutSeconds: Math.max(1, Math.round(defaultConfig.timeoutMs / 1000)),
 		reasoningEffort: defaultConfig.reasoningEffort ?? "",
@@ -325,13 +389,7 @@ export function ModelTestStreamDialog({
 	useEffect(() => {
 		if (!open) return;
 		setFormState(buildInitialConfig(defaultConfig));
-	}, [
-		defaultConfig.modelId,
-		defaultConfig.prompt,
-		defaultConfig.reasoningEffort,
-		defaultConfig.timeoutMs,
-		open,
-	]);
+	}, [defaultConfig, open]);
 
 	useEffect(() => {
 		if (stream.result?.request) {
@@ -349,15 +407,17 @@ export function ModelTestStreamDialog({
 	function handleStart() {
 		const timeoutSeconds = Math.max(1, Number(formState.timeoutSeconds) || 1);
 		const config = {
-			modelId: formState.modelId.trim() || defaultConfig.modelId,
+			testedModelId: defaultConfig.testedModelId,
 			prompt: formState.prompt.trim() || defaultConfig.prompt,
 			timeoutMs: timeoutSeconds * 1000,
+			thinkingMode: defaultConfig.thinkingMode,
+			thinkingOptions: defaultConfig.thinkingOptions,
 			reasoningEffort: formState.reasoningEffort.trim() || null,
 		};
 		setActiveRequest({
 			modelRowId: stream.result?.request.modelRowId ?? "",
-			savedModelId: stream.result?.request.savedModelId ?? config.modelId,
-			testedModelId: config.modelId,
+			savedModelId: stream.result?.request.savedModelId ?? config.testedModelId,
+			testedModelId: config.testedModelId,
 			displayName: stream.result?.request.displayName ?? title,
 			providerName: stream.result?.request.providerName ?? "",
 			providerBaseUrl: stream.result?.request.providerBaseUrl ?? "",
@@ -410,11 +470,32 @@ export function ModelTestStreamDialog({
 					</div>
 				</DialogHeader>
 
-				<div className="grid gap-4 border-b px-6 py-4 lg:grid-cols-[1.5fr_0.5fr_0.5fr]">
-					<div className="space-y-2">
-						<Label htmlFor="probe-prompt">Prompt do teste</Label>
+				<div
+					data-testid="probe-form-layout"
+					className="grid gap-4 border-b px-6 py-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start"
+				>
+					<div className="flex flex-col gap-2">
+						<div className="flex items-center gap-2">
+							<Label htmlFor="probe-prompt">Prompt do teste</Label>
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								title="Restaurar prompt padrão"
+								disabled={isStreaming}
+								onClick={() =>
+									setFormState((current) => ({
+										...current,
+										prompt: defaultConfig.prompt,
+									}))
+								}
+							>
+								<RotateCcw />
+							</Button>
+						</div>
 						<Textarea
 							id="probe-prompt"
+							rows={2}
+							className="h-22 resize-none"
 							value={formState.prompt}
 							disabled={isStreaming}
 							onChange={(event) =>
@@ -425,61 +506,64 @@ export function ModelTestStreamDialog({
 							}
 						/>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="probe-timeout">Timeout (s)</Label>
-						<Input
-							id="probe-timeout"
-							type="number"
-							min={1}
-							step={1}
-							value={formState.timeoutSeconds}
-							disabled={isStreaming}
-							onChange={(event) =>
-								setFormState((current) => ({
-									...current,
-									timeoutSeconds: Number(event.target.value),
-								}))
-							}
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="probe-reasoning">Thinking</Label>
-						<Input
-							id="probe-reasoning"
-							value={formState.reasoningEffort}
-							placeholder="medium"
-							disabled={isStreaming}
-							onChange={(event) =>
-								setFormState((current) => ({
-									...current,
-									reasoningEffort: event.target.value,
-								}))
-							}
-						/>
-					</div>
-					<div className="space-y-2 lg:col-span-2">
-						<Label htmlFor="probe-model-id">ID do modelo</Label>
-						<Input
-							id="probe-model-id"
-							value={formState.modelId}
-							disabled={isStreaming}
-							onChange={(event) =>
-								setFormState((current) => ({
-									...current,
-									modelId: event.target.value,
-								}))
-							}
-						/>
-					</div>
-					<div className="flex items-end">
-						<Button
-							type="button"
-							className="w-full"
-							disabled={isStreaming}
-							onClick={handleStart}
-						>
-							{isStreaming ? "Testando…" : "Iniciar teste"}
-						</Button>
+					<div
+						data-testid="probe-controls-layout"
+						className="grid h-full grid-cols-2 content-between gap-3"
+					>
+						<div className="space-y-2 col-span-1">
+							<Label htmlFor="probe-timeout">Timeout (s)</Label>
+							<Input
+								id="probe-timeout"
+								type="number"
+								min={1}
+								step={1}
+								className="h-9"
+								value={formState.timeoutSeconds}
+								disabled={isStreaming}
+								onChange={(event) =>
+									setFormState((current) => ({
+										...current,
+										timeoutSeconds: Number(event.target.value),
+									}))
+								}
+							/>
+						</div>
+						<div className="space-y-2 col-span-1">
+							<Label htmlFor="probe-reasoning">Thinking</Label>
+							<Select
+								value={formState.reasoningEffort}
+								disabled={isStreaming || defaultConfig.thinkingMode === "none"}
+								onValueChange={(value) =>
+									setFormState((current) => ({
+										...current,
+										reasoningEffort: value,
+									}))
+								}
+							>
+								<SelectTrigger id="probe-reasoning" className="w-full h-9">
+									<SelectValue placeholder="Selecione" />
+								</SelectTrigger>
+								<SelectContent className="z-70">
+									<SelectGroup>
+										{defaultConfig.thinkingOptions.map((option) => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="col-span-2 flex">
+							<Button
+								type="button"
+								className="w-full h-full min-h-9"
+								disabled={isStreaming}
+								onClick={handleStart}
+							>
+								{isStreaming ? "Testando…" : "Iniciar teste"}
+							</Button>
+						</div>
 					</div>
 				</div>
 
