@@ -74,6 +74,7 @@ export function mapQuestionRowToQuestionInAttempt(
 		scoringMode: parsed.scoringMode,
 		topic: parsed.topic,
 		explanation: parsed.explanation ?? null,
+		deepExplanation: parsed.deepExplanation ?? null,
 	};
 }
 

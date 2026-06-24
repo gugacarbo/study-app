@@ -31,6 +31,7 @@ export type QuestionInAttempt = {
 	scoringMode: "exact" | "partial";
 	topic: string | null;
 	explanation: string | null;
+	deepExplanation?: string | null;
 };
 
 /** @deprecated Use QuestionInAttempt directly. */
@@ -59,6 +60,16 @@ export type AttemptResultQuestion = {
 	selectedOptionIds: string[];
 	credit: number;
 	explanation: string | null;
+};
+
+export type AttemptSummary = {
+	id: string;
+	status: AttemptStatus;
+	totalQuestions: number;
+	answeredQuestions: number;
+	correctAnswers: number;
+	scorePercent: number;
+	startedAt: string | null;
 };
 
 export type AttemptResult = Attempt & {

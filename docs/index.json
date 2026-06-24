@@ -719,5 +719,19 @@
     "implemented-by": [
       "2026-06-22"
     ]
+  },
+  {
+    "id": "SPEC-0023",
+    "path": "docs/specs/ui/0023-quiz-result-revisao-visual.md",
+    "layer": "specs",
+    "title": "Quiz: resultado final com revisão visual orientada a estudo",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0007",
+      "SPEC-0008",
+      "SPEC-0021"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]

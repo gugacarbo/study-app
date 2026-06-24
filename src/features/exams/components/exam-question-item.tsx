@@ -12,6 +12,7 @@ import { useQuestionImprovementDraftActions } from "@/features/exams/hooks/use-q
 import { useUpdateQuestion } from "@/features/exams/hooks/use-update-question";
 import type { QuestionFormInput } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
+import { MarkdownRenderer } from "@/components/ui/markdown";
 
 type ExamQuestionItemProps = {
 	index: number;
@@ -124,21 +125,25 @@ export function ExamQuestionItem({
 									{draft.summary ? (
 										<p className="text-muted-foreground">{draft.summary}</p>
 									) : null}
-									<div className="grid gap-3 md:grid-cols-2">
-										<div>
-											<p className="mb-1 font-medium">Original</p>
-											<p>{draft.originalSnapshot.question}</p>
-										</div>
-										<div>
-											<p className="mb-1 font-medium">Melhorada</p>
-											<p>{draft.improvedSnapshot.question}</p>
-										</div>
-									</div>
+											<div className="grid gap-3 md:grid-cols-2">
+												<div>
+													<p className="mb-1 font-medium">Original</p>
+													<div>
+														<MarkdownRenderer content={draft.originalSnapshot.question} />
+													</div>
+												</div>
+												<div>
+													<p className="mb-1 font-medium">Melhorada</p>
+													<div>
+														<MarkdownRenderer content={draft.improvedSnapshot.question} />
+													</div>
+												</div>
+											</div>
 								</div>
 							) : null}
-							<p className="text-sm leading-relaxed">
-								{displayQuestion.question}
-							</p>
+							<div className="text-sm leading-relaxed">
+								<MarkdownRenderer content={displayQuestion.question} />
+							</div>
 						</div>
 						<div className="flex flex-col gap-2 pb-(--card-spacing) pt-(--card-spacing)">
 							<ul className="flex flex-col gap-1.5" data-testid="question-options">
@@ -152,9 +157,9 @@ export function ExamQuestionItem({
 													? "border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20"
 													: "text-muted-foreground"
 											}`}
-										>
+											>
 											<span className="font-medium tabular-nums">
-												{formatOptionKey(option.key)})
+													{formatOptionKey(option.key)})
 											</span>
 											<span>{option.text}</span>
 										</li>

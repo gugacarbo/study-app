@@ -62,6 +62,7 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0020 | `docs/specs/ui/0020-ingest-agent-thread.md`       | ADR-0007, ADR-0008, ADR-0009, SPEC-0004, SPEC-0018, SPEC-0019 | accepted    |
 | SPEC-0021 | `docs/specs/exams/0021-edicao-visualizacao-questoes.md` | ADR-0008, SPEC-0019, SPEC-0020                   | implemented |
 | SPEC-0022 | `docs/specs/ui/0022-ingest-system-message-groups.md` | ADR-0008, SPEC-0019, SPEC-0020                   | draft       |
+| SPEC-0023 | `docs/specs/ui/0023-quiz-result-revisao-visual.md` | SPEC-0007, SPEC-0008, SPEC-0021                   | draft       |
 
 ## Pendências
 

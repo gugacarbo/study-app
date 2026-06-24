@@ -26,3 +26,4 @@
 | [SPEC-0019](ui/0019-ingest-realtime-ux.md)              | Ingest em tempo real: upload unificado, eventos granulares e indicador global | implemented |
 | [SPEC-0020](ui/0020-ingest-agent-thread.md)             | Ingest agente: thread rica com reasoning, tools e stream parts                | implemented |
 | [SPEC-0021](exams/0021-edicao-visualizacao-questoes.md) | Edição inline e visualização aprimorada de questões no detalhe da prova       | implemented |
+| [SPEC-0023](ui/0023-quiz-result-revisao-visual.md)      | Quiz: resultado final com revisão visual orientada a estudo                   | draft       |

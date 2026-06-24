@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type WheelEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -6,34 +6,62 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio";
 import { Separator } from "@/components/ui/separator";
-import type { QuizQuestion } from "@/features/quiz/types/quiz";
+import { MarkdownRenderer } from "@/components/ui/markdown";
+import { cn } from "@/lib/utils";
+import type { QuestionInAttempt } from "@/features/quiz/types/quiz";
 
 type QuizQuestionCardProps = {
-	question: QuizQuestion;
+	question: QuestionInAttempt;
+	currentIndex: number;
+	total: number;
+	score: number;
 	selectedOptionIds: string[];
+	activeOptionId: string | null;
 	revealMode: "during" | "after";
 	isRevealed: boolean;
+	credit?: number;
+	canGoNext?: boolean;
 	onToggleOption: (optionId: string, checked: boolean) => void;
+	onCycleOptions: (direction: "up" | "down") => void;
 	onSubmitAnswer: () => void;
+	onNext?: () => void;
 	isSubmitting?: boolean;
 };
 
 function formatOptionKey(key: string): string {
-	return key.toLowerCase();
+	return key.toUpperCase();
+}
+
+function formatScore(score: number): string {
+	return Number.isInteger(score) ? String(score) : score.toFixed(1);
+}
+
+function formatCredit(credit: number): string {
+	return Number.isInteger(credit) ? String(credit) : credit.toFixed(1);
 }
 
 export function QuizQuestionCard({
 	question,
+	currentIndex,
+	total,
+	score,
 	selectedOptionIds,
+	activeOptionId,
 	revealMode,
 	isRevealed,
+	credit,
 	onToggleOption,
+	onCycleOptions,
 	onSubmitAnswer,
 	isSubmitting = false,
 }: QuizQuestionCardProps) {
 	const [localSelection, setLocalSelection] = useState<string[]>(
 		selectedOptionIds,
 	);
+
+	useEffect(() => {
+		setLocalSelection(selectedOptionIds);
+	}, [question.id, selectedOptionIds]);
 
 	const selectedSet = new Set(
 		isRevealed && revealMode === "during" ? selectedOptionIds : localSelection,
@@ -69,36 +97,74 @@ export function QuizQuestionCard({
 		question.correctOptionIds.every((id) => answeredSelectedSet.has(id)) &&
 		selectedOptionIds.every((id) => correctSet.has(id));
 	const isCorrect = showFeedback && selectedOptionIds.length > 0 ? isFullyCorrect : null;
+	const partialCredit =
+		showFeedback && credit !== undefined && credit > 0 && credit < 1 && !isFullyCorrect;
+
+	function handleWheel(event: WheelEvent) {
+		if (showFeedback) return;
+		if (event.deltaY === 0) return;
+
+		event.preventDefault();
+		onCycleOptions(event.deltaY > 0 ? "down" : "up");
+	}
 
 	return (
-		<Card className="flex flex-col gap-4">
+		<Card className="border border-border/70 bg-card/95 shadow-sm shadow-black/5">
 			<CardContent className="flex flex-col gap-4 pt-6">
+				<div className="flex justify-between">
+					<span className="text-sm text-muted-foreground">
+						Questão{" "}
+						<span className="font-medium text-foreground">{currentIndex + 1}</span>{" "}
+						de <span className="font-medium text-foreground">{total}</span>
+					</span>
+					<span className="text-sm text-emerald-500">
+						Score: {formatScore(score)}
+					</span>
+				</div>
+
 				<div className="flex items-start justify-between gap-3">
-					<p className="text-base leading-relaxed">{question.question}</p>
+					<div className="text-lg font-semibold leading-snug">
+						<MarkdownRenderer content={question.question} />
+					</div>
 					{question.topic ? (
 						<Badge variant="secondary">{question.topic}</Badge>
 					) : null}
 				</div>
 
 				{isMultiple ? (
-					<div className="flex flex-col gap-3" role="group" aria-label="Alternativas">
+					<p className="text-xs text-muted-foreground">
+						Selecione todas as alternativas corretas.
+					</p>
+				) : null}
+
+				{isMultiple ? (
+					<div
+						className="flex flex-col gap-2"
+						role="group"
+						aria-label="Alternativas"
+						onWheel={handleWheel}
+					>
 						{question.options.map((option) => {
 							const isSelected = selectedSet.has(option.id);
 							const isCorrectOption = correctSet.has(option.id);
+							const isActiveOption = activeOptionId === option.id;
 							const showCorrectness = showFeedback && isCorrectOption;
 							const showIncorrectness =
 								showFeedback && isSelected && !isCorrectOption;
 
 							return (
-								<div
+								<label
 									key={option.id}
-									className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
+									className={cn(
+										"flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-left transition-colors",
 										showCorrectness
-											? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20"
+											? "border-emerald-500 bg-emerald-500/10"
 											: showIncorrectness
-												? "border-red-300 bg-red-50/50 dark:bg-red-950/20"
-												: "border-input hover:bg-muted/30"
-									}`}
+												? "border-red-400 bg-red-50 dark:bg-red-950/20"
+												: isActiveOption || isSelected
+													? "border-primary bg-primary/10"
+													: "border-border hover:bg-muted/40",
+									)}
 								>
 									<Checkbox
 										id={`option-${option.id}`}
@@ -107,20 +173,19 @@ export function QuizQuestionCard({
 											handleToggle(option.id, checked === true)
 										}
 										disabled={showFeedback}
+										className="mt-0.5 shrink-0"
 										aria-label={`Alternativa ${formatOptionKey(
 											option.id,
 										)}`}
 									/>
-									<Label
-										htmlFor={`option-${option.id}`}
-										className="flex-1 cursor-pointer text-sm leading-snug"
-									>
-										<span className="font-medium tabular-nums">
-											{formatOptionKey(option.id)})
-										</span>{" "}
-										{option.text}
-									</Label>
-								</div>
+									<span className="mr-1 shrink-0 text-sm font-bold tabular-nums">
+										{formatOptionKey(option.id)})
+									</span>
+									<MarkdownRenderer
+										content={option.text}
+										className="flex-1 text-sm leading-snug"
+									/>
+								</label>
 							);
 						})}
 					</div>
@@ -133,13 +198,15 @@ export function QuizQuestionCard({
 							onToggleOption(value, true);
 						}}
 						disabled={showFeedback}
-						className="flex flex-col gap-3"
+						className="flex flex-col gap-2"
 						role="radiogroup"
 						aria-label="Alternativas"
+						onWheel={handleWheel}
 					>
 						{question.options.map((option) => {
 							const isSelected = selectedSet.has(option.id);
 							const isCorrectOption = correctSet.has(option.id);
+							const isActiveOption = activeOptionId === option.id;
 							const showCorrectness = showFeedback && isCorrectOption;
 							const showIncorrectness =
 								showFeedback && isSelected && !isCorrectOption;
@@ -147,13 +214,16 @@ export function QuizQuestionCard({
 							return (
 								<div
 									key={option.id}
-									className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
+									className={cn(
+										"flex items-start gap-3 rounded-md border px-3 py-2 transition-colors",
 										showCorrectness
-											? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20"
+											? "border-emerald-500 bg-emerald-500/10"
 											: showIncorrectness
-												? "border-red-300 bg-red-50/50 dark:bg-red-950/20"
-												: "border-input hover:bg-muted/30"
-										}`}
+												? "border-red-400 bg-red-50 dark:bg-red-950/20"
+												: isActiveOption || isSelected
+													? "border-primary bg-primary/10"
+													: "border-border hover:bg-muted/40",
+									)}
 								>
 									<RadioGroupItem
 										value={option.id}
@@ -162,15 +232,19 @@ export function QuizQuestionCard({
 										aria-label={`Alternativa ${formatOptionKey(
 											option.id,
 										)}`}
+										className="mt-0.5 shrink-0"
 									/>
 									<Label
 										htmlFor={`option-${option.id}`}
 										className="flex-1 cursor-pointer text-sm leading-snug"
 									>
-										<span className="font-medium tabular-nums">
+										<span className="mr-1 font-bold tabular-nums">
 											{formatOptionKey(option.id)})
 										</span>{" "}
-										{option.text}
+										<MarkdownRenderer
+											content={option.text}
+											className="text-left"
+										/>
 									</Label>
 								</div>
 							);
@@ -179,28 +253,50 @@ export function QuizQuestionCard({
 				)}
 
 				{showFeedback ? (
-					<div className="rounded-lg border bg-muted/30 p-3">
-						{isCorrect === true ? (
-							<Badge
-								variant="default"
-								className="mb-2 bg-emerald-500 text-white"
-							>
-								Resposta correta
-							</Badge>
-							) : isCorrect === false ? (
-							<Badge
-								variant="destructive"
-								className="mb-2"
-							>
-								Resposta incorreta
-							</Badge>
-							) : null}
+					<div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+						<Badge
+							variant={
+								isCorrect
+									? "default"
+									: partialCredit
+										? "secondary"
+										: "destructive"
+							}
+							className={cn(
+								"mb-2",
+								isCorrect && "bg-emerald-500 text-white hover:bg-emerald-500",
+							)}
+						>
+							{isCorrect
+								? "✓ Resposta correta"
+								: partialCredit
+									? `Crédito parcial (${formatCredit(credit ?? 0)})`
+									: "✗ Resposta incorreta"}
+						</Badge>
 						{question.explanation ? (
-							<p className="text-sm text-muted-foreground">
-								{question.explanation}
-							</p>
-							) : null}
+							<MarkdownRenderer
+								content={question.explanation}
+								className="text-sm text-muted-foreground"
+							/>
+						) : null}
+						{question.deepExplanation ? (
+							<details className="mt-2 rounded-lg border border-border p-3">
+								<summary className="cursor-pointer text-sm font-medium text-muted-foreground">
+									Ver explicação completa
+								</summary>
+								<div className="mt-2 text-sm text-muted-foreground">
+									<MarkdownRenderer content={question.deepExplanation} />
+								</div>
+							</details>
+						) : null}
 					</div>
+				) : null}
+
+				{!showFeedback ? (
+					<p className="text-xs text-muted-foreground">
+						Hotkeys: 1-{Math.min(question.options.length, 9)} para{" "}
+						{isMultiple ? "marcar/desmarcar" : "selecionar"}, Enter para confirmar
+					</p>
 				) : null}
 			</CardContent>
 
@@ -212,7 +308,7 @@ export function QuizQuestionCard({
 							onClick={onSubmitAnswer}
 							disabled={!hasSelection || isSubmitting}
 						>
-							{isSubmitting ? "Enviando…" : "Confirmar resposta"}
+							{isSubmitting ? "Enviando…" : "Confirmar resposta (Enter)"}
 						</Button>
 					</CardFooter>
 				</>

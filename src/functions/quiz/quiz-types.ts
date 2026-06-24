@@ -31,6 +31,7 @@ export type QuestionInAttempt = {
 	scoringMode: "exact" | "partial";
 	topic: string | null;
 	explanation: string | null;
+	deepExplanation?: string | null;
 };
 
 export type ActiveAttempt = {
