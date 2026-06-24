@@ -17,7 +17,7 @@ import {
 import { AdminDashboardShell } from "@/features/admin/components/admin-dashboard-shell";
 
 const navigate = vi.fn();
-let mockPathname = "/admin/config";
+let mockPathname = "/admin/models";
 const user = { name: "Gustavo Silva", email: "aluno@ifsc.edu.br" };
 const { readSidebarCookie, writeSidebarCookie } = vi.hoisted(() => ({
 	readSidebarCookie: vi.fn((): "expanded" | "collapsed" => "expanded"),
@@ -96,22 +96,22 @@ describe("AdminDashboardShell", () => {
 		navigate.mockClear();
 		readSidebarCookie.mockClear();
 		writeSidebarCookie.mockClear();
-		mockPathname = "/admin/config";
+		mockPathname = "/admin/models";
 	});
 
-	it("renders admin nav items Config, Usuários and Jobs on desktop", () => {
+	it("renders admin nav items Modelos, Usuários and Jobs on desktop", () => {
 		shell(<p>Conteúdo admin</p>);
 		expect(screen.getByText("Conteúdo admin")).toBeInTheDocument();
 		expect(
 			screen.getByRole("navigation", { name: /administração/i }),
 		).toBeInTheDocument();
-		for (const n of [/config/i, /usuários/i, /jobs/i]) {
+		for (const n of [/modelos/i, /usuários/i, /jobs/i]) {
 			expect(screen.getByRole("button", { name: n })).toBeInTheDocument();
 		}
 	});
 
 	it.each([
-		["Config", "/admin/config"],
+		["Modelos", "/admin/models"],
 		["Usuários", "/admin/users"],
 		["Jobs", "/admin/jobs"],
 	] as const)("shows title %s for %s", (title, pathname) => {
@@ -141,7 +141,7 @@ describe("AdminDashboardShell", () => {
 		shell();
 		await waitFor(() => {
 			expect(
-				screen.queryByRole("button", { name: /config/i }),
+				screen.queryByRole("button", { name: /modelos/i }),
 			).not.toBeInTheDocument();
 		});
 		fireEvent.click(screen.getByRole("button", { name: /toggle sidebar/i }));

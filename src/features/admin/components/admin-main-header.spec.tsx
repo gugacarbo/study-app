@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminMainHeader } from "@/features/admin/components/admin-main-header";
 
-let mockPathname = "/admin/config";
+let mockPathname = "/admin/models";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual =
@@ -48,7 +48,7 @@ describe("AdminMainHeader", () => {
 
 	afterEach(() => {
 		cleanup();
-		mockPathname = "/admin/config";
+		mockPathname = "/admin/models";
 	});
 
 	it("renders sidebar trigger and page title", () => {
@@ -58,12 +58,12 @@ describe("AdminMainHeader", () => {
 			screen.getByRole("button", { name: "Toggle Sidebar" }),
 		).toBeInTheDocument();
 		expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-			"Config",
+			"Modelos",
 		);
 	});
 
 	it.each([
-		{ pathname: "/admin/config", title: "Config" },
+		{ pathname: "/admin/models", title: "Modelos" },
 		{ pathname: "/admin/users", title: "Usuários" },
 		{ pathname: "/admin/jobs", title: "Jobs" },
 	])("shows title $title for $pathname", ({ pathname, title }) => {
