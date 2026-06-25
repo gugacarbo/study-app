@@ -9,14 +9,20 @@ import {
 
 const ROLE_USER = "user";
 const ROLE_ADMIN = "admin";
+const ROLE_SUPER_ADMIN = "super_admin";
 const PERM_APP_USE = "app:use";
 const PERM_ADMIN_ACCESS = "admin:access";
+const PERM_SUPER_ADMIN_ACCESS = "super_admin:access";
 
-const SEED_ROLE_KEYS = [ROLE_USER, ROLE_ADMIN] as const;
+const SEED_ROLE_KEYS = [ROLE_USER, ROLE_ADMIN, ROLE_SUPER_ADMIN] as const;
 export type SeedRoleKey = (typeof SEED_ROLE_KEYS)[number];
 
 export function isSeedRole(roleKey: string): roleKey is SeedRoleKey {
-	return roleKey === ROLE_USER || roleKey === ROLE_ADMIN;
+	return (
+		roleKey === ROLE_USER ||
+		roleKey === ROLE_ADMIN ||
+		roleKey === ROLE_SUPER_ADMIN
+	);
 }
 
 export async function seedRbacIfEmpty(db: AppDatabase) {
@@ -141,7 +147,9 @@ export async function countUsersWithRole(
 export {
 	PERM_ADMIN_ACCESS,
 	PERM_APP_USE,
+	PERM_SUPER_ADMIN_ACCESS,
 	ROLE_ADMIN,
+	ROLE_SUPER_ADMIN,
 	ROLE_USER,
 	SEED_ROLE_KEYS,
 };

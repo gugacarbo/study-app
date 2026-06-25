@@ -5,16 +5,19 @@
 export const RBAC_V1_ROLE_IDS = {
 	user: "f47ac10b-58cc-4372-a567-0e02b2c3d401",
 	admin: "f47ac10b-58cc-4372-a567-0e02b2c3d402",
+	superAdmin: "f47ac10b-58cc-4372-a567-0e02b2c3d403",
 } as const;
 
 export const RBAC_V1_PERMISSION_IDS = {
 	appUse: "f47ac10b-58cc-4372-a567-0e02b2c3d411",
 	adminAccess: "f47ac10b-58cc-4372-a567-0e02b2c3d412",
+	superAdminAccess: "f47ac10b-58cc-4372-a567-0e02b2c3d413",
 } as const;
 
 export const RBAC_V1_ROLE_ROWS = [
 	{ id: RBAC_V1_ROLE_IDS.user, key: "user", name: "User" },
 	{ id: RBAC_V1_ROLE_IDS.admin, key: "admin", name: "Admin" },
+	{ id: RBAC_V1_ROLE_IDS.superAdmin, key: "super_admin", name: "Super Admin" },
 ] as const;
 
 export const RBAC_V1_PERMISSION_ROWS = [
@@ -27,6 +30,11 @@ export const RBAC_V1_PERMISSION_ROWS = [
 		id: RBAC_V1_PERMISSION_IDS.adminAccess,
 		key: "admin:access",
 		description: "Access admin routes",
+	},
+	{
+		id: RBAC_V1_PERMISSION_IDS.superAdminAccess,
+		key: "super_admin:access",
+		description: "Access super admin features",
 	},
 ] as const;
 
@@ -42,5 +50,17 @@ export const RBAC_V1_ROLE_PERMISSION_ROWS = [
 	{
 		roleId: RBAC_V1_ROLE_IDS.admin,
 		permissionId: RBAC_V1_PERMISSION_IDS.adminAccess,
+	},
+	{
+		roleId: RBAC_V1_ROLE_IDS.superAdmin,
+		permissionId: RBAC_V1_PERMISSION_IDS.appUse,
+	},
+	{
+		roleId: RBAC_V1_ROLE_IDS.superAdmin,
+		permissionId: RBAC_V1_PERMISSION_IDS.adminAccess,
+	},
+	{
+		roleId: RBAC_V1_ROLE_IDS.superAdmin,
+		permissionId: RBAC_V1_PERMISSION_IDS.superAdminAccess,
 	},
 ] as const;

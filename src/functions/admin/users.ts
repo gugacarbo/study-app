@@ -9,6 +9,7 @@ import {
 	getUserRoleKeys,
 	isSeedRole,
 	ROLE_ADMIN,
+	ROLE_SUPER_ADMIN,
 	ROLE_USER,
 	removeRoleFromUser,
 } from "@/db/queries/rbac";
@@ -49,12 +50,13 @@ export async function setUserRoleHandler(
 
 	if (
 		input.action === "remove" &&
-		input.roleKey === ROLE_ADMIN &&
+		(input.roleKey === ROLE_ADMIN || input.roleKey === ROLE_SUPER_ADMIN) &&
 		input.userId === session.user.id
 	) {
-		throw new Response("Cannot remove admin role from your own account", {
-			status: 400,
-		});
+		throw new Response(
+			"Cannot remove a privileged role from your own account",
+			{ status: 400 },
+		);
 	}
 
 	if (
@@ -65,6 +67,14 @@ export async function setUserRoleHandler(
 		throw new Response("Cannot remove the last admin", { status: 400 });
 	}
 
+	if (
+		input.action === "remove" &&
+		input.roleKey === ROLE_SUPER_ADMIN &&
+		(await countUsersWithRole(db, ROLE_SUPER_ADMIN)) <= 1
+	) {
+		throw new Response("Cannot remove the last super admin", { status: 400 });
+	}
+
 	if (input.action === "add") {
 		await assignRoleToUser(db, input.userId, input.roleKey);
 		return;
@@ -73,7 +83,7 @@ export async function setUserRoleHandler(
 	const rolesBefore = await getUserRoleKeys(db, input.userId);
 	await removeRoleFromUser(db, input.userId, input.roleKey);
 	if (
-		input.roleKey === ROLE_ADMIN &&
+		(input.roleKey === ROLE_ADMIN || input.roleKey === ROLE_SUPER_ADMIN) &&
 		!rolesBefore.includes(ROLE_USER)
 	) {
 		await assignRoleToUser(db, input.userId, ROLE_USER);

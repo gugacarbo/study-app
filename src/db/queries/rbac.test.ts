@@ -20,12 +20,14 @@ describe("rbac", () => {
 		);
 		expect(roleKeys).toContain("user");
 		expect(roleKeys).toContain("admin");
+		expect(roleKeys).toContain("super_admin");
 
 		const permissionKeys = (await db.select().from(schema.permissions)).map(
 			(row) => row.key,
 		);
 		expect(permissionKeys).toContain("app:use");
 		expect(permissionKeys).toContain("admin:access");
+		expect(permissionKeys).toContain("super_admin:access");
 	});
 
 	it("assigns user role permissions from seeded catalog", async () => {
@@ -60,9 +62,29 @@ describe("rbac", () => {
 		expect(await userHasPermission(db, userId, "admin:access")).toBe(true);
 	});
 
-	it("isSeedRole accepts user and admin only", () => {
+	it("super_admin role includes super_admin:access", async () => {
+		const db = createTestDb();
+
+		const userId = createId();
+		await db.insert(schema.user).values({
+			id: userId,
+			name: "Super",
+			email: "super@aluno.ifsc.edu.br",
+			emailVerified: true,
+		});
+
+		await assignRoleToUser(db, userId, "super_admin");
+		expect(
+			await userHasPermission(db, userId, "super_admin:access"),
+		).toBe(true);
+		expect(await userHasPermission(db, userId, "admin:access")).toBe(true);
+		expect(await userHasPermission(db, userId, "app:use")).toBe(true);
+	});
+
+	it("isSeedRole accepts user, admin and super_admin", () => {
 		expect(isSeedRole("user")).toBe(true);
 		expect(isSeedRole("admin")).toBe(true);
+		expect(isSeedRole("super_admin")).toBe(true);
 		expect(isSeedRole("superadmin")).toBe(false);
 	});
 
