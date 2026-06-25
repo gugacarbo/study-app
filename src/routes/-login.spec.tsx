@@ -63,10 +63,15 @@ describe("login page", () => {
 		});
 	});
 
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it("shows configured domain hint", () => {
 		render(
 			<LoginPageContent
 				allowedSignupEmailDomains={allowedSignupEmailDomains}
+				googleAuthEnabled={false}
 			/>,
 		);
 		expect(
@@ -79,11 +84,50 @@ describe("login page", () => {
 
 	it("shows multiple domains when configured", () => {
 		render(
-			<LoginPageContent allowedSignupEmailDomains="ifsc.edu.br,example.com" />,
+			<LoginPageContent
+				allowedSignupEmailDomains="ifsc.edu.br,example.com"
+				googleAuthEnabled={false}
+			/>,
 		);
 		expect(
 			screen.getByText(/@ifsc\.edu\.br, @example\.com/i),
 		).toBeInTheDocument();
+	});
+
+	it("shows a google sign-in action when google auth is enabled", () => {
+		render(
+			<LoginPageContent
+				allowedSignupEmailDomains={allowedSignupEmailDomains}
+				googleAuthEnabled
+			/>,
+		);
+
+		expect(
+			screen.getByRole("button", { name: /entrar com google/i }),
+		).toBeInTheDocument();
+	});
+
+	it("reveals google sign-in when the api runtime reports it as enabled", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({ enabled: true }),
+			}),
+		);
+
+		render(
+			<LoginPageContent
+				allowedSignupEmailDomains={allowedSignupEmailDomains}
+				googleAuthEnabled={false}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: /entrar com google/i }),
+			).toBeInTheDocument();
+		});
 	});
 
 	it("shows a single dev auto-login action instead of the token field", async () => {
@@ -99,6 +143,7 @@ describe("login page", () => {
 		render(
 			<LoginPageContent
 				allowedSignupEmailDomains={allowedSignupEmailDomains}
+				googleAuthEnabled={false}
 			/>,
 		);
 
@@ -128,7 +173,12 @@ describe("login page", () => {
 			userId: "user-2",
 		});
 
-		render(<LoginPageContent allowedSignupEmailDomains="hotmail.com" />);
+		render(
+			<LoginPageContent
+				allowedSignupEmailDomains="hotmail.com"
+				googleAuthEnabled={false}
+			/>,
+		);
 
 		const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement;
 		emailInput.value = "dev@hotmail.com";

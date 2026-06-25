@@ -24,7 +24,7 @@ describe("dev-login-helpers", () => {
 				ALLOWED_SIGNUP_EMAIL_DOMAINS: "hotmail.com",
 				EMAIL_FROM_ADDRESS: "noreply@gugacarbo.space",
 				EMAIL_FROM_NAME: "Study App",
-				ADMIN_EMAILS: "",
+				ADMIN_EMAIL: "admin@aluno.ifsc.edu.br",
 				DEV_LOG_EMAILS: true,
 				NODE_ENV: "development",
 			},

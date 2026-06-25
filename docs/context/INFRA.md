@@ -16,7 +16,8 @@ Vite: `@cloudflare/vite-plugin` + `tanstackStart()` em `vite.config.ts`.
 | `JOB_QUEUE`     | Queue `study-app-jobs` | Jobs longos server-side (ADR-0009)           |
 
 Vars: `ALLOWED_SIGNUP_EMAIL_DOMAINS=aluno.ifsc.edu.br`, `EMAIL_FROM_ADDRESS=noreply@gugacarbo.space`, `EMAIL_FROM_NAME`, `BETTER_AUTH_URL`, `ADMIN_EMAILS` (bootstrap admin no signup — ADR-0004).
-Secrets: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `CONFIG_ENCRYPTION_KEY` (base64 32 bytes — `openssl rand -base64 32`).
+Secrets obrigatórias: `BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `CONFIG_ENCRYPTION_KEY` (base64 32 bytes — `openssl rand -base64 32`).
+Secrets opcionais: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (habilitam login com Google; sem elas o botão fica oculto e o provider não é configurado).
 
 ## Email (Resend)
 

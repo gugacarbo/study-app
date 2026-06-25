@@ -48,24 +48,24 @@ export function AppAccountMenu({ user, isAdmin }: AppAccountMenuProps) {
 					<span className="text-xs font-medium">{initials}</span>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-56">
-				<DropdownMenuGroup>
-					<DropdownMenuLabel className="font-normal">
-						<div className="flex flex-col gap-1">
-							<span className="truncate font-medium">{user.name}</span>
-							<span className="truncate text-xs text-muted-foreground">
-								{user.email}
-							</span>
-						</div>
-					</DropdownMenuLabel>
-				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuItem disabled>
-						<UserIcon />
-						Perfil em breve
-					</DropdownMenuItem>
-					{isAdmin ? (
+				<DropdownMenuContent align="end" className="w-56">
+					<DropdownMenuGroup>
+						<DropdownMenuLabel className="font-normal">
+							<div className="flex flex-col gap-1">
+								<span className="truncate font-medium">{user.name}</span>
+								<span className="truncate text-xs text-muted-foreground">
+									{user.email}
+								</span>
+							</div>
+						</DropdownMenuLabel>
+					</DropdownMenuGroup>
+					<DropdownMenuSeparator />
+					<DropdownMenuGroup>
+						<DropdownMenuItem onSelect={() => navigate({ to: "/profile" })}>
+							<UserIcon />
+							Perfil
+						</DropdownMenuItem>
+						{isAdmin ? (
 						<DropdownMenuItem
 							onSelect={() => navigate({ to: "/admin" })}
 						>

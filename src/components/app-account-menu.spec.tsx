@@ -95,6 +95,20 @@ describe("AppAccountMenu", () => {
 		expect(screen.queryByText("Administração")).not.toBeInTheDocument();
 	});
 
+	it("navigates to profile when clicking Perfil", async () => {
+		render(
+			<AppAccountMenu
+				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
+				isAdmin={false}
+			/>,
+		);
+
+		await openAccountMenu();
+		fireEvent.click(screen.getByText("Perfil"));
+
+		expect(navigate).toHaveBeenCalledWith({ to: "/profile" });
+	});
+
 	it("calls signOut on Sair", async () => {
 		const { authClient } = await import("@/lib/auth-client");
 

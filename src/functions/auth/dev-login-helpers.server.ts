@@ -122,7 +122,7 @@ export async function ensureDevSessionForEmail(
 		db,
 		normalizedEmail,
 		userId,
-		authBindings.ADMIN_EMAILS,
+		authBindings.ADMIN_EMAIL,
 	);
 
 	const validSession = await db

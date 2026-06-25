@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { PERM_ADMIN_ACCESS } from "@/db/queries/rbac";
-import { getAllowedSignupEmailDomains } from "@/lib/auth";
+import { getAllowedSignupEmailDomains, isGoogleAuthEnabled } from "@/lib/auth";
 import {
 	getSessionFromHeaders,
 	hasPermission,
@@ -66,3 +66,7 @@ export const getAppRouteContext = createServerFn({ method: "GET" }).handler(
 export const getAllowedSignupEmailDomainsFn = createServerFn({
 	method: "GET",
 }).handler(async () => getAllowedSignupEmailDomains());
+
+export const getGoogleAuthEnabledFn = createServerFn({ method: "GET" }).handler(
+	async () => isGoogleAuthEnabled(),
+);

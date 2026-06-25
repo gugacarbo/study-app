@@ -15,15 +15,15 @@ implemented-by:
   - src/routes/__root.tsx
 ---
 
-# Login por magic link e sessão protegida
+# Login por magic link, Google e sessão protegida
 
 > Convenções compartilhadas: `docs/context/CONVENTIONS.md`. Autorização em `src/functions/` segue esta spec.
 
 ## Objetivo
 
-Usuário autenticado acessa o app com email + magic link. Sem sessão válida, não há acesso a rotas de app nem a functions de domínio. Cada usuário vê apenas os próprios dados (`user_id` da sessão).
+Usuário autenticado acessa o app com magic link ou Google. Sem sessão válida, não há acesso a rotas de app nem a functions de domínio. Cada usuário vê apenas os próprios dados (`user_id` da sessão).
 
-**Signup:** aberto apenas para `*@aluno.ifsc.edu.br`.
+**Signup:** aberto apenas para `*@aluno.ifsc.edu.br`, tanto no magic link quanto no Google.
 
 ## Fluxo
 
@@ -41,6 +41,15 @@ Usuário autenticado acessa o app com email + magic link. Sem sessão válida, n
 1. Mesmo fluxo do login; Better Auth cria `user` se email não existir e domínio permitido.
 2. Hook pós-criação (`databaseHooks.user.create.after`): atribuir role `user` em `user_roles`; se email ∈ `ADMIN_EMAILS` → atribuir também role `admin` (ADR-0004).
 3. Novo usuário entra com conta vazia.
+
+### Login (Google)
+
+1. Usuário abre `/login` e escolhe “Entrar com Google”.
+2. Client chama `authClient.signIn.social({ provider: "google", callbackURL })`.
+3. Better Auth redireciona para o OAuth do Google.
+4. No callback, o servidor valida novamente o email retornado pelo Google contra `ALLOWED_SIGNUP_EMAIL_DOMAINS`.
+5. Se o email for permitido, Better Auth cria ou reutiliza o usuário, abre sessão e redireciona para `callbackURL`.
+6. Se o email estiver fora da allowlist, o login é rejeitado antes de persistir a conta.
 
 ### Navegação autenticada
 
@@ -88,7 +97,7 @@ Demais rotas de página e `/api/*` (exceto auth) exigem sessão.
 
 - v1: `ALLOWED_SIGNUP_EMAIL_DOMAINS=aluno.ifsc.edu.br`
 - Comparação: parte após `@`, trim + lowercase
-- Email fora da lista: não enviar magic link; UI “Este email não está autorizado”
+- Email fora da lista: não enviar magic link nem concluir login Google; UI “Este email não está autorizado”
 - Validação servidor (obrigatória) + client (UX)
 
 ### Plugin magic link
@@ -116,6 +125,8 @@ Config v1:
 | `EMAIL_FROM_ADDRESS`           | `noreply@gugacarbo.space`      |
 | `EMAIL_FROM_NAME`              | `Study App` (ou env)           |
 | `ALLOWED_SIGNUP_EMAIL_DOMAINS` | `aluno.ifsc.edu.br`            |
+| `GOOGLE_CLIENT_ID`             | secret opcional (`wrangler secret put`) |
+| `GOOGLE_CLIENT_SECRET`         | secret opcional (`wrangler secret put`) |
 | `RESEND_API_KEY`               | secret (`wrangler secret put`) |
 
 Prod — `sendMagicLink`:
@@ -155,9 +166,9 @@ Secrets/vars: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `RESEND_API_KEY`, vars ac
 
 ### UI `/login`
 
-- Campo email, botão “Enviar link”, estados loading/sucesso/erro
+- Campo email, botão “Enviar link” e CTA “Entrar com Google” quando configurado
 - Sem senha na v1
-- Copy: informar que só emails `@aluno.ifsc.edu.br` são aceitos
+- Copy: informar que só emails `@aluno.ifsc.edu.br` são aceitos em ambos os fluxos
 
 ## Casos de borda
 
@@ -173,6 +184,8 @@ Secrets/vars: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `RESEND_API_KEY`, vars ac
 | 8   | email `user@gmail.com`                            | rejeitar; sem magic link                        |
 | 9   | email `user@aluno.ifsc.edu.br`                    | permitir signup/login                           |
 | 10  | email `User@aluno.ifsc.edu.br`                    | aceitar (domínio case-insensitive)              |
+| 10a | login Google com `user@gmail.com`                 | rejeitar callback; sem criar usuário            |
+| 10b | login Google com `user@aluno.ifsc.edu.br`         | permitir signup/login                           |
 | 11  | logout                                            | invalidar sessão; requests seguintes sem cookie |
 | 12  | dev sem `RESEND_API_KEY`                          | login via link no console                       |
 | 13  | novo link antes do anterior expirar               | comportamento default Better Auth               |

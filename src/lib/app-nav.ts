@@ -41,6 +41,9 @@ export function getAppPageTitle(pathname: string): string {
 	if (pathname.startsWith("/jobs/")) {
 		return "Importação";
 	}
+	if (pathname === "/profile") {
+		return "Perfil";
+	}
 	if (pathname === "/exams" || pathname.startsWith("/exams/")) {
 		return "Provas";
 	}
