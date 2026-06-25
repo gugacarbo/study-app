@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createId } from "@/db/queries/helpers";
 import { createJob } from "@/db/queries/jobs";
+import { upsertPendingQuestionImprovementDraft } from "@/db/queries/question-improvement-drafts";
 import * as schema from "@/db/schema";
 import {
 	resetJobTestDb,
@@ -10,7 +11,6 @@ import {
 	testDb,
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
-import { createImproveQuestionsJobHandler } from "@/functions/jobs/create-improve-questions-job";
 import {
 	IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY,
 	JOB_KIND,
@@ -21,6 +21,14 @@ import {
 vi.mock("@/functions/queue", () => ({
 	enqueueJob: vi.fn(async () => undefined),
 }));
+
+async function createImproveQuestionsJobHandler(
+	body: unknown,
+	headers: Headers,
+) {
+	const module = await import("@/functions/jobs/create-improve-questions-job");
+	return module.createImproveQuestionsJobHandler(body, headers);
+}
 
 describe("createImproveQuestionsJobHandler", () => {
 	beforeEach(() => {
@@ -62,8 +70,11 @@ describe("createImproveQuestionsJobHandler", () => {
 			status: JOB_STATUS.QUEUED,
 		});
 		expect(enqueueJob).toHaveBeenCalledWith(body.jobId);
-		expect(parseImproveQuestionsJobMetadata(job?.metadata ?? null)).toMatchObject({
+		expect(
+			parseImproveQuestionsJobMetadata(job?.metadata ?? null),
+		).toMatchObject({
 			examId,
+			writeExplanations: false,
 			questionIds: [questionId],
 			concurrencyLimit: IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY,
 			queuedCount: 1,
@@ -72,6 +83,49 @@ describe("createImproveQuestionsJobHandler", () => {
 			failedCount: 0,
 			cancelledCount: 0,
 			pendingReviewCount: 0,
+		});
+	});
+
+	it("persists writeExplanations when requested", async () => {
+		await seedDefaultModel(testDb, testUserId);
+		const examId = await seedExam(testDb, testUserId);
+		const questionId = createId();
+
+		await testDb.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Capital do Brasil?",
+			options: JSON.stringify([
+				{ key: "A", text: "Brasília" },
+				{ key: "B", text: "São Paulo" },
+			]),
+			answers: JSON.stringify(["A"]),
+			scoringMode: "exact",
+		});
+
+		const response = await createImproveQuestionsJobHandler(
+			{
+				kind: "improve-questions",
+				examId,
+				questionIds: [questionId],
+				writeExplanations: true,
+			},
+			new Headers(),
+		);
+		expect(response.status).toBe(200);
+
+		const body = (await response.json()) as { jobId: string };
+		const [job] = await testDb
+			.select()
+			.from(schema.backgroundJobs)
+			.where(eq(schema.backgroundJobs.id, body.jobId));
+
+		expect(
+			parseImproveQuestionsJobMetadata(job?.metadata ?? null),
+		).toMatchObject({
+			examId,
+			questionIds: [questionId],
+			writeExplanations: true,
 		});
 	});
 
@@ -95,7 +149,11 @@ describe("createImproveQuestionsJobHandler", () => {
 		});
 
 		const response = await createImproveQuestionsJobHandler(
-			{ kind: "improve-questions", examId: otherExamId, questionIds: [questionId] },
+			{
+				kind: "improve-questions",
+				examId: otherExamId,
+				questionIds: [questionId],
+			},
 			new Headers(),
 		);
 		expect(response.status).toBe(404);
@@ -128,6 +186,7 @@ describe("createImproveQuestionsJobHandler", () => {
 				questionIds: [questionId],
 				concurrencyLimit: 2,
 				modelId,
+				writeExplanations: false,
 				queuedCount: 0,
 				runningCount: 1,
 				completedCount: 0,
@@ -151,5 +210,109 @@ describe("createImproveQuestionsJobHandler", () => {
 			new Headers(),
 		);
 		expect(response.status).toBe(409);
+		const body = (await response.json()) as {
+			error: string;
+			jobId?: string;
+			examId?: string;
+		};
+		expect(body).toMatchObject({
+			error: "active_job_conflict",
+			jobId: expect.any(String),
+			examId,
+		});
+	});
+
+	it("returns 409 with the existing job when the exam still has pending improvement approvals", async () => {
+		const modelId = await seedDefaultModel(testDb, testUserId);
+		const examId = await seedExam(testDb, testUserId);
+		const jobId = createId();
+		const questionId = createId();
+
+		await testDb.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Questão aguardando aprovação",
+			options: JSON.stringify([
+				{ key: "A", text: "1" },
+				{ key: "B", text: "2" },
+			]),
+			answers: JSON.stringify(["A"]),
+			scoringMode: "exact",
+		});
+
+		await createJob(testDb, {
+			id: jobId,
+			userId: testUserId,
+			kind: JOB_KIND.IMPROVE_QUESTIONS,
+			status: JOB_STATUS.COMPLETED,
+			metadata: {
+				examId,
+				questionIds: [questionId],
+				concurrencyLimit: 2,
+				modelId,
+				writeExplanations: false,
+				queuedCount: 0,
+				runningCount: 0,
+				completedCount: 1,
+				failedCount: 0,
+				cancelledCount: 0,
+				pendingReviewCount: 1,
+				totalCount: 1,
+				items: [
+					{
+						questionId,
+						questionNumber: 1,
+						status: "completed",
+						stage: "saving_draft",
+					},
+				],
+			},
+		});
+
+		await upsertPendingQuestionImprovementDraft(testDb, {
+			id: createId(),
+			userId: testUserId,
+			examId,
+			questionId,
+			jobId,
+			originalSnapshot: {
+				question: "Questão aguardando aprovação",
+				options: [
+					{ key: "A", text: "1" },
+					{ key: "B", text: "2" },
+				],
+				answers: ["A"],
+				topic: null,
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			improvedSnapshot: {
+				question: "Questão melhorada aguardando aprovação",
+				options: [
+					{ key: "A", text: "1" },
+					{ key: "B", text: "2" },
+				],
+				answers: ["A"],
+				topic: null,
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			summary: "Resumo",
+			metadata: null,
+		});
+
+		const response = await createImproveQuestionsJobHandler(
+			{ kind: "improve-questions", examId, questionIds: [questionId] },
+			new Headers(),
+		);
+
+		expect(response.status).toBe(409);
+		await expect(response.json()).resolves.toMatchObject({
+			error: "active_job_conflict",
+			jobId,
+			examId,
+		});
 	});
 });

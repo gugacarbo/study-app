@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createDb } from "@/db/client";
-import { updateQuestionById } from "@/db/queries/questions";
+import { getQuestionById, updateQuestionById } from "@/db/queries/questions";
 import { parseQuestionRow } from "@/features/exams/lib/parse-question-fields";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 import { requireDB } from "@/functions/db";
@@ -18,7 +18,7 @@ export const updateQuestionSchema = z
 		examId: z.string().uuid(),
 		questionId: z.string().uuid(),
 		question: z.string().trim().min(1).max(5000),
-		topic: z.string().trim().max(200).optional().nullable(),
+		topicId: z.string().uuid().optional().nullable(),
 		scoringMode: z.enum(["exact", "partial"]),
 		options: z.array(optionSchema).min(2).max(10),
 		answers: z.array(z.string().trim().min(1)).min(1),
@@ -62,7 +62,7 @@ export async function updateQuestionHandler(
 		options: JSON.stringify(input.options),
 		answers: JSON.stringify(input.answers),
 		scoringMode: input.scoringMode,
-		topic: input.topic ?? null,
+		topicId: input.topicId ?? null,
 		explanation: input.explanation ?? null,
 		deepExplanation: input.deepExplanation ?? null,
 	});
@@ -71,9 +71,7 @@ export async function updateQuestionHandler(
 		throw new Response("Not Found", { status: 404 });
 	}
 
-	const row = await db.query.questions.findFirst({
-		where: (questions, { eq }) => eq(questions.id, input.questionId),
-	});
+	const row = await getQuestionById(db, input.questionId);
 
 	if (!row) {
 		throw new Response("Not Found", { status: 404 });

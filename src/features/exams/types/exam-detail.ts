@@ -5,6 +5,7 @@ export type QuestionDetail = {
 	question: string;
 	options: QuestionOption[];
 	answers: string[];
+	topicId?: string | null;
 	topic: string | null;
 	scoringMode: "exact" | "partial";
 	explanation: string | null;

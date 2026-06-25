@@ -3,6 +3,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuestionEditForm } from "@/features/exams/components/question-edit-form";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
+const searchQuestionTopicsMock = vi.fn();
+const createQuestionTopicMock = vi.fn();
+
+vi.mock("@/functions/exams/search-question-topics", () => ({
+	searchQuestionTopics: ({ data }: { data: unknown }) =>
+		searchQuestionTopicsMock(data),
+}));
+
+vi.mock("@/functions/exams/create-question-topic", () => ({
+	createQuestionTopicServerFn: ({ data }: { data: unknown }) =>
+		createQuestionTopicMock(data),
+}));
+
 const baseQuestion: QuestionDetail = {
 	id: "q1",
 	question: "Qual a capital do Brasil?",
@@ -12,6 +25,7 @@ const baseQuestion: QuestionDetail = {
 		{ key: "C", text: "Rio de Janeiro" },
 	],
 	answers: ["B"],
+	topicId: "00000000-0000-4000-8000-000000000201",
 	topic: "Geografia",
 	scoringMode: "exact",
 	explanation: "Explicação curta",
@@ -77,6 +91,15 @@ describe("QuestionEditForm", () => {
 
 	it("submits updated data", async () => {
 		const onSubmit = vi.fn();
+		createQuestionTopicMock.mockResolvedValue({
+			ok: true,
+			created: true,
+			topic: {
+				topicId: "00000000-0000-4000-8000-000000000202",
+				name: "História",
+				normalizedName: "história",
+			},
+		});
 		render(
 			<QuestionEditForm
 				question={baseQuestion}
@@ -91,6 +114,10 @@ describe("QuestionEditForm", () => {
 		fireEvent.change(screen.getByDisplayValue("Geografia"), {
 			target: { value: "História" },
 		});
+		fireEvent.click(screen.getByRole("button", { name: /criar tópico/i }));
+		await waitFor(() => {
+			expect(createQuestionTopicMock).toHaveBeenCalledOnce();
+		});
 
 		fireEvent.click(screen.getAllByRole("button", { name: /salvar/i })[0]);
 
@@ -100,8 +127,46 @@ describe("QuestionEditForm", () => {
 
 		const submitted = onSubmit.mock.calls[0][0];
 		expect(submitted.question).toBe("Nova pergunta?");
-		expect(submitted.topic).toBe("História");
+		expect(submitted.topicId).toBe("00000000-0000-4000-8000-000000000202");
 		expect(submitted.answers).toEqual(["B"]);
+	});
+
+	it("searches and selects an existing topic", async () => {
+		const onSubmit = vi.fn();
+		searchQuestionTopicsMock.mockResolvedValue([
+			{
+				topicId: "00000000-0000-4000-8000-000000000202",
+				name: "História",
+				normalizedName: "história",
+				similarityLabel: "normalized_exact",
+			},
+		]);
+
+		render(
+			<QuestionEditForm
+				question={baseQuestion}
+				onSubmit={onSubmit}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByDisplayValue("Geografia"), {
+			target: { value: "História" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: /buscar/i }));
+		await waitFor(() => {
+			expect(screen.getByRole("button", { name: /usar história/i })).toBeInTheDocument();
+		});
+		fireEvent.click(screen.getByRole("button", { name: /usar história/i }));
+		fireEvent.click(screen.getAllByRole("button", { name: /salvar/i })[0]);
+
+		await waitFor(() => {
+			expect(onSubmit).toHaveBeenCalledOnce();
+		});
+
+		expect(onSubmit.mock.calls[0][0].topicId).toBe(
+			"00000000-0000-4000-8000-000000000202",
+		);
 	});
 
 	it("calls onCancel when cancel button is clicked", () => {

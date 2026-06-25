@@ -129,8 +129,14 @@ describe("ExamQuestionPageContent", () => {
 
 		render(<ExamQuestionPageContent examId="exam-1" questionId="q1" />);
 
+		expect(screen.getByTestId("question-page-toolbar")).toBeInTheDocument();
+		expect(screen.getByTestId("question-page-main")).toBeInTheDocument();
+		expect(screen.getByTestId("question-page-sidebar")).toBeInTheDocument();
 		expect(screen.getByText(/Q1 de 2/i)).toBeInTheDocument();
 		expect(screen.getByText(/quanto é 2 \+ 2\?/i)).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /editar pergunta/i }),
+		).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /questão anterior/i }),
 		).toBeDisabled();
@@ -146,9 +152,15 @@ describe("ExamQuestionPageContent", () => {
 		render(<ExamQuestionPageContent examId="exam-1" questionId="q2" />);
 
 		expect(screen.getByText(/Q2 de 2/i)).toBeInTheDocument();
-		expect(screen.getAllByText(/Q2 · Geral/i)).toHaveLength(2);
-		expect(screen.getByText(/melhoria pendente/i)).toBeInTheDocument();
+		expect(screen.getAllByText(/Q2 · Geral/i)).toHaveLength(3);
+		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(2);
 		expect(screen.getByText(/marque todos os números primos/i)).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /aprovar melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /descartar melhoria/i }),
+		).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /questão anterior/i }),
 		).toBeEnabled();

@@ -72,6 +72,7 @@ export function parseQuestionRow(row: QuestionRow): QuestionDetail | null {
 		question: row.question,
 		options: parsed.data.options,
 		answers: parsed.data.answers.map((answer) => answer.trim()),
+		topicId: row.topicId,
 		topic: row.topic,
 		scoringMode: scoringMode.data,
 		explanation: row.explanation,

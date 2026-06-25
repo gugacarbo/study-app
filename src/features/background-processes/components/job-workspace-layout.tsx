@@ -19,7 +19,7 @@ export function JobWorkspaceLayout({
 	return (
 		<div
 			className={cn(
-				"flex min-h-0 flex-1 flex-col gap-4 md:flex-row md:gap-6",
+				"flex h-full min-h-0 flex-1 flex-col gap-4 md:flex-row md:gap-6",
 				className,
 			)}
 		>

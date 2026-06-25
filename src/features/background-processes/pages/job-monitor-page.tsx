@@ -69,7 +69,10 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 
 	if (monitor.isAwaitingUpload) {
 		return (
-			<div className="flex min-h-0 flex-1 flex-col gap-4">
+			<div
+				data-fullwidth
+				className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-5 md:px-6"
+			>
 				<p className="text-sm text-muted-foreground">
 					Envie o arquivo da prova para iniciar a extração de questões.
 				</p>
@@ -95,7 +98,10 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	const isImproveJob = improveMetadata != null;
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-4">
+		<div
+			data-fullwidth
+			className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-5 md:px-6"
+		>
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				{canCancel ? (
 					<Button

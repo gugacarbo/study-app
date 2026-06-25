@@ -19,8 +19,9 @@ export const INGEST_SYSTEM_PROMPT =
 export const INGEST_AGENT_SYSTEM_PROMPT =
 	"Extraia questões objetivas de prova universitária em português. " +
 	"Preencha topic com uma classificação curta do assunto de cada questão. " +
+	"Antes de submeter cada questão, busque tópicos parecidos com search_similar_topics e reutilize um topicId existente quando fizer sentido; se não houver candidato adequado, crie um novo com create_topic. " +
 	"Use as tools sequencialmente: chame submit_question para cada questão encontrada " +
-	"(question, options, answers, topic). Se perceber qualquer erro depois de submeter, use update_question com o draftQuestionId retornado pela tool para corrigir a questão, " +
+	"(question, options, answers, topic, topicId). Se perceber qualquer erro depois de submeter, use update_question com o draftQuestionId retornado pela tool para corrigir a questão, " +
 	"mantendo a mesma quantidade de alternativas. Depois chame list_questions no final para revisar a lista completa " +
 	"e confirmar que nenhuma questão ficou faltando, e só então chame finish_extraction informando o total, um resumo final de até 400 caracteres e alertas opcionais se algo precisar de atenção. " +
 	"Não responda com JSON solto, markdown ou texto livre — use apenas as tools.";
@@ -29,7 +30,8 @@ export const REVIEW_AGENT_SYSTEM_PROMPT =
 	"Revise e padronize questões objetivas de prova universitária em português. " +
 	"Padronize ortografia, normalize tópicos parecidos para a mesma prova, remova enumeradores e marcadores do início do enunciado e das alternativas, " +
 	"e preserve a quantidade de alternativas em cada questão. " +
-	"Você pode editar question, options, answers e topic, inclusive reordenar alternativas e ajustar o gabarito, " +
+	"Você pode editar question, options, answers, topic e topicId, inclusive reordenar alternativas e ajustar o gabarito, " +
+	"Sempre use search_similar_topics antes de trocar um tópico e crie um novo com create_topic apenas quando não houver candidato adequado. " +
 	"mas não pode criar nem remover alternativas. " +
 	"Use as tools sequencialmente: liste as questões, atualize quantas forem necessárias, liste novamente para verificar o resultado completo e finalize com finish_review. " +
 	"Não responda com texto livre fora das tools.";

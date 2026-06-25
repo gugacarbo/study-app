@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { IngestJobThread } from "@/features/background-processes/components/ingest-job-thread";
+import { formatImproveQuestionStageLabel } from "@/features/background-processes/lib/improve-event-labels";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import type { JobStatus } from "@/lib/job-kinds";
 import { LoaderCircleIcon } from "lucide-react";
@@ -75,7 +76,7 @@ export function ImproveQuestionsActivityPanel({
 											) : null}
 										</div>
 										<p className="text-xs text-muted-foreground">
-											{question.stage}
+											{formatImproveQuestionStageLabel(question.stage)}
 										</p>
 									</div>
 									<Badge variant="outline">{question.status}</Badge>
@@ -100,6 +101,18 @@ export function ImproveQuestionsActivityPanel({
 									<p className="border-t px-4 py-3 text-sm text-destructive">
 										{question.error}
 									</p>
+								) : null}
+								{question.warnings.length > 0 ? (
+									<div className="border-t px-4 py-3">
+										<p className="text-xs font-medium text-amber-700">Alertas</p>
+										<ul className="mt-2 flex flex-col gap-1 text-sm text-amber-700">
+											{question.warnings.map((warning, index) => (
+												<li key={`${question.questionId}-warning-${index}`}>
+													- {warning}
+												</li>
+											))}
+										</ul>
+									</div>
 								) : null}
 							</AccordionContent>
 						</AccordionItem>

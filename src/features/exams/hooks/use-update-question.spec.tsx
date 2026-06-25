@@ -29,7 +29,7 @@ describe("useUpdateQuestion", () => {
 			examId: "exam-1",
 			questionId: "q-1",
 			question: "Updated?",
-			topic: null,
+			topicId: null,
 			scoringMode: "exact" as const,
 			options: [{ key: "A", text: "Option A" }],
 			answers: ["A"],
@@ -40,6 +40,7 @@ describe("useUpdateQuestion", () => {
 		updateQuestionMock.mockResolvedValue({
 			id: "q-1",
 			question: "Updated?",
+			topicId: null,
 			topic: null,
 			scoringMode: "exact",
 			options: [{ key: "A", text: "Option A" }],

@@ -66,6 +66,19 @@ describe("updateQuestionHandler", () => {
 			userId: testUserId,
 			name: "Minha prova",
 		});
+		const oldTopicId = createId();
+		const newTopicId = createId();
+		const sqlite = (
+			testDb as unknown as {
+				session: { client: { exec: (sql: string) => void } };
+			}
+		).session.client;
+		sqlite.exec(
+			`INSERT INTO question_topics (id, name, normalized_name) VALUES ('${oldTopicId}', 'Old', 'old');`,
+		);
+		sqlite.exec(
+			`INSERT INTO question_topics (id, name, normalized_name) VALUES ('${newTopicId}', 'New', 'new');`,
+		);
 
 		const questionId = createId();
 		await insertQuestion(testDb, {
@@ -78,10 +91,10 @@ describe("updateQuestionHandler", () => {
 			]),
 			answers: JSON.stringify(["A"]),
 			scoringMode: "exact",
-			topic: "Old",
+			topicId: oldTopicId,
 			explanation: "Old explanation",
 			deepExplanation: "Old deep",
-		});
+		} as never);
 
 		const result = await updateQuestionHandler(
 			{
@@ -95,10 +108,10 @@ describe("updateQuestionHandler", () => {
 				],
 				answers: ["B", "C"],
 				scoringMode: "partial",
-				topic: "New",
+				topicId: newTopicId,
 				explanation: "New explanation",
 				deepExplanation: "New deep",
-			},
+			} as never,
 			new Headers(),
 		);
 
@@ -111,6 +124,7 @@ describe("updateQuestionHandler", () => {
 				{ key: "C", text: "New C" },
 			],
 			answers: ["B", "C"],
+			topicId: newTopicId,
 			scoringMode: "partial",
 			topic: "New",
 			explanation: "New explanation",

@@ -12,7 +12,7 @@ export const questionFormSchema = z
 			.trim()
 			.min(1, "O enunciado é obrigatório.")
 			.max(5000),
-		topic: z.string().trim().max(200).optional().nullable(),
+		topicId: z.string().uuid().optional().nullable(),
 		scoringMode: z.enum(["exact", "partial"]),
 		options: z
 			.array(questionOptionSchema)

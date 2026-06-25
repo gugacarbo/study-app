@@ -78,8 +78,10 @@ describe("ExamQuestionItem", () => {
 			/>,
 		);
 
+		expect(screen.getByTestId("question-main-panel")).toBeInTheDocument();
+		expect(screen.getByTestId("question-side-panel")).toBeInTheDocument();
 		expect(screen.getByText("Qual a capital do Brasil?")).toBeInTheDocument();
-		expect(screen.getByText(/Q1 · Geografia/i)).toBeInTheDocument();
+		expect(screen.getAllByText(/Q1 · Geografia/i)).toHaveLength(2);
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
@@ -98,9 +100,7 @@ describe("ExamQuestionItem", () => {
 			/>,
 		);
 
-		expect(
-			screen.getByText(/Q2 · Geral/i),
-		).toBeInTheDocument();
+		expect(screen.getAllByText(/Q2 · Geral/i)).toHaveLength(2);
 	});
 
 	it("highlights correct answer inline for single-answer question", () => {
@@ -114,8 +114,8 @@ describe("ExamQuestionItem", () => {
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
-		expect(items[1]?.className).toContain("bg-emerald-50/50");
-		expect(items[0]?.className).not.toContain("bg-emerald-50/50");
+		expect(items[1]?.className).toContain("bg-emerald-50");
+		expect(items[0]?.className).not.toContain("bg-emerald-50");
 	});
 
 	it("highlights correct answers inline for partial-answer question", () => {
@@ -129,12 +129,12 @@ describe("ExamQuestionItem", () => {
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
-		expect(items[0]?.className).toContain("bg-emerald-50/50");
-		expect(items[2]?.className).toContain("bg-emerald-50/50");
-		expect(items[1]?.className).not.toContain("bg-emerald-50/50");
+		expect(items[0]?.className).toContain("bg-emerald-50");
+		expect(items[2]?.className).toContain("bg-emerald-50");
+		expect(items[1]?.className).not.toContain("bg-emerald-50");
 	});
 
-	it("switches to edit form when Edit button is clicked", () => {
+	it("switches to edit form in the side panel while keeping question content visible", () => {
 		render(
 			<ExamQuestionItem
 				index={1}
@@ -147,6 +147,7 @@ describe("ExamQuestionItem", () => {
 			screen.getByRole("button", { name: /editar pergunta/i }),
 		);
 
+		expect(screen.getByText("Qual a capital do Brasil?")).toBeInTheDocument();
 		expect(screen.getByLabelText(/enunciado/i)).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: /salvar/i })).toBeInTheDocument();
 		expect(
@@ -199,8 +200,9 @@ describe("ExamQuestionItem", () => {
 			/>,
 		);
 
-		expect(screen.getByText(/melhoria pendente/i)).toBeInTheDocument();
+		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(2);
 		expect(screen.getByText(/qual é a capital federal do brasil/i)).toBeInTheDocument();
+		expect(screen.getByText(/refinei os distratores/i)).toBeInTheDocument();
 
 		fireEvent.click(screen.getByRole("button", { name: /aprovar melhoria/i }));
 		expect(approveDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });

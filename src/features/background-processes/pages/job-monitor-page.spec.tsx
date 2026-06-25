@@ -102,6 +102,43 @@ describe("JobMonitorPage", () => {
 		expect(screen.getByText(/atividade/i)).toBeInTheDocument();
 	});
 
+	it("marks the monitor as fullwidth and keeps the panels constrained to viewport height", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.RUNNING,
+					phase: "reviewing",
+					error: null,
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					events: [],
+				}),
+			}),
+		);
+
+		const { container } = renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("region", { name: /chat do agente/i }),
+			).toBeInTheDocument();
+		});
+
+		const workspaceRoot = container.querySelector("[data-fullwidth]");
+		expect(workspaceRoot).toHaveClass("h-full", "min-h-0", "overflow-hidden");
+
+		const activityRegion = screen.getByRole("region", {
+			name: /chat do agente/i,
+		});
+		const progressRegion = screen.getByRole("region", {
+			name: /progresso da importação/i,
+		});
+
+		expect(activityRegion).toHaveClass("overflow-hidden", "md:min-h-0");
+		expect(progressRegion).toHaveClass("overflow-hidden", "md:min-h-0");
+	});
+
 	it("shows extracted question previews in the progress panel", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -429,7 +466,7 @@ describe("JobMonitorPage", () => {
 								questionId: "q-1",
 								questionNumber: 1,
 								status: "running",
-								stage: "drafting",
+								stage: "writing_explanations",
 							},
 						],
 					},
@@ -438,7 +475,7 @@ describe("JobMonitorPage", () => {
 							seq: 1,
 							payload: {
 								type: "data-improve-question-stage",
-								data: { questionId: "q-1", stage: "drafting" },
+								data: { questionId: "q-1", stage: "writing_explanations" },
 							},
 							createdAt: null,
 						},
@@ -449,6 +486,17 @@ describe("JobMonitorPage", () => {
 								questionId: "q-1",
 								messageId: "improve:q-1:step:1",
 								text: "Refinando a questão...",
+							},
+							createdAt: null,
+						},
+						{
+							seq: 3,
+							payload: {
+								type: "data-improve-question-warning",
+								data: {
+									questionId: "q-1",
+									message: "A resposta marcada parece inconsistente.",
+								},
 							},
 							createdAt: null,
 						},
@@ -468,8 +516,12 @@ describe("JobMonitorPage", () => {
 			).toBeInTheDocument();
 			expect(screen.getAllByText(/questão 1/i).length).toBeGreaterThan(0);
 			expect(screen.getByText(/refinando a questão/i)).toBeInTheDocument();
+			expect(screen.getAllByText(/escrevendo explicações/i).length).toBeGreaterThan(0);
 			expect(
-				screen.getByRole("tab", { name: /eventos \(2\)/i }),
+				screen.getAllByText(/a resposta marcada parece inconsistente/i).length,
+			).toBeGreaterThan(0);
+			expect(
+				screen.getByRole("tab", { name: /eventos \(3\)/i }),
 			).toBeInTheDocument();
 		});
 	});

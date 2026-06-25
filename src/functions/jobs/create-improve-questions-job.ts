@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createDb } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
 import { createJob } from "@/db/queries/jobs";
+import { getPendingQuestionImprovementDraftsByExam } from "@/db/queries/question-improvement-drafts";
 import * as schema from "@/db/schema";
 import { requireDB } from "@/functions/db";
 import { enqueueJob } from "@/functions/queue";
@@ -21,6 +22,7 @@ export const createImproveQuestionsJobSchema = z.object({
 	examId: z.string().uuid(),
 	questionIds: z.array(z.string().uuid()).min(1),
 	concurrencyLimit: z.coerce.number().int().min(1).max(5).optional(),
+	writeExplanations: z.boolean().optional(),
 });
 
 export async function createImproveQuestionsJobHandler(
@@ -91,8 +93,28 @@ export async function createImproveQuestionsJobHandler(
 	for (const job of activeJobs) {
 		const metadata = job.metadata ? JSON.parse(job.metadata) : null;
 		if (metadata?.examId === input.examId) {
-			return jobErrorResponse(JOB_ERROR_CODE.ACTIVE_JOB_CONFLICT, 409);
+			return jobErrorResponse(JOB_ERROR_CODE.ACTIVE_JOB_CONFLICT, 409, {
+				jobId: job.id,
+				examId: input.examId,
+				reason: "active_job",
+			});
 		}
+	}
+
+	const pendingDrafts = await getPendingQuestionImprovementDraftsByExam(
+		db,
+		input.examId,
+		session.user.id,
+	);
+	const blockingDraft = pendingDrafts[0];
+	if (blockingDraft) {
+		return jobErrorResponse(JOB_ERROR_CODE.ACTIVE_JOB_CONFLICT, 409, {
+			jobId: blockingDraft.jobId,
+			examId: input.examId,
+			reason: "pending_review",
+			message:
+				"Já existe um processo de melhoria pendente de aprovação para esta prova.",
+		});
 	}
 
 	const jobId = createId();
@@ -104,6 +126,7 @@ export async function createImproveQuestionsJobHandler(
 		metadata: serializeImproveQuestionsJobMetadata({
 			examId: input.examId,
 			modelId,
+			writeExplanations: input.writeExplanations ?? false,
 			questionIds: input.questionIds,
 			concurrencyLimit:
 				input.concurrencyLimit ?? IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY,

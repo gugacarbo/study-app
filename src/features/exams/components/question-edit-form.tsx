@@ -1,7 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { createQuestionTopicServerFn } from "@/functions/exams/create-question-topic";
+import { searchQuestionTopics } from "@/functions/exams/search-question-topics";
 import {
 	RadioGroup,
 	RadioGroupItem,
@@ -50,7 +53,7 @@ export function QuestionEditForm({
 		resolver: zodResolver(questionFormSchema),
 		defaultValues: {
 			question: question.question,
-			topic: question.topic ?? "",
+			topicId: question.topicId ?? null,
 			scoringMode: question.scoringMode,
 			options: question.options,
 			answers: question.answers,
@@ -58,6 +61,21 @@ export function QuestionEditForm({
 			deepExplanation: question.deepExplanation ?? "",
 		},
 	});
+	const [topicQuery, setTopicQuery] = useState(question.topic ?? "");
+	const [topicResults, setTopicResults] = useState<
+		Array<{
+			topicId: string;
+			name: string;
+			normalizedName: string;
+			similarityLabel:
+				| "exact"
+				| "normalized_exact"
+				| "prefix"
+				| "partial";
+		}>
+	>([]);
+	const [isSearchingTopics, setIsSearchingTopics] = useState(false);
+	const [isCreatingTopic, setIsCreatingTopic] = useState(false);
 
 	const { fields, append, remove } = useFieldArray({
 		control: form.control,
@@ -129,6 +147,44 @@ export function QuestionEditForm({
 		}
 	}
 
+	async function handleSearchTopics() {
+		if (!topicQuery.trim()) {
+			setTopicResults([]);
+			return;
+		}
+
+		setIsSearchingTopics(true);
+		try {
+			const results = await searchQuestionTopics({
+				data: { query: topicQuery, limit: 5 },
+			});
+			setTopicResults(results);
+		} finally {
+			setIsSearchingTopics(false);
+		}
+	}
+
+	async function handleCreateTopic() {
+		if (!topicQuery.trim()) return;
+
+		setIsCreatingTopic(true);
+		try {
+			const result = await createQuestionTopicServerFn({
+				data: { name: topicQuery },
+			});
+			form.setValue("topicId", result.topic.topicId);
+			setTopicQuery(result.topic.name);
+			setTopicResults([
+				{
+					...result.topic,
+					similarityLabel: "normalized_exact",
+				},
+			]);
+		} finally {
+			setIsCreatingTopic(false);
+		}
+	}
+
 	return (
 		<form
 			onSubmit={form.handleSubmit(onSubmit)}
@@ -149,9 +205,71 @@ export function QuestionEditForm({
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field orientation="vertical">
 					<FieldLabel htmlFor="topic">Tópico</FieldLabel>
-					<FieldContent>
-						<Input id="topic" {...form.register("topic")} />
-						<FieldError errors={[form.formState.errors.topic]} />
+					<FieldContent className="gap-2">
+						<Input
+							id="topic"
+							value={topicQuery}
+							onChange={(event) => {
+								setTopicQuery(event.target.value);
+								form.setValue("topicId", null);
+							}}
+						/>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void handleSearchTopics()}
+								disabled={isSearchingTopics || isPending}
+							>
+								{isSearchingTopics ? "Buscando…" : "Buscar"}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void handleCreateTopic()}
+								disabled={isCreatingTopic || isPending}
+							>
+								{isCreatingTopic ? "Criando…" : "Criar tópico"}
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									form.setValue("topicId", null);
+									setTopicQuery("");
+									setTopicResults([]);
+								}}
+								disabled={isPending}
+							>
+								Sem tópico
+							</Button>
+						</div>
+						{topicResults.length > 0 ? (
+							<div className="flex flex-wrap gap-2">
+								{topicResults.map((topic) => (
+									<Button
+										key={topic.topicId}
+										type="button"
+										variant={
+											form.getValues("topicId") === topic.topicId
+												? "default"
+												: "secondary"
+										}
+										size="sm"
+										onClick={() => {
+											form.setValue("topicId", topic.topicId);
+											setTopicQuery(topic.name);
+										}}
+									>
+										Usar {topic.name}
+									</Button>
+								))}
+							</div>
+						) : null}
+						<FieldError errors={[form.formState.errors.topicId]} />
 					</FieldContent>
 				</Field>
 

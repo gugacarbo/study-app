@@ -3,6 +3,7 @@ import { CheckIcon, CircleIcon, LoaderCircleIcon, XCircleIcon } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
+import { formatImproveQuestionStageLabel } from "@/features/background-processes/lib/improve-event-labels";
 import {
 	IMPROVE_BATCH_PHASE,
 	type ImproveQuestionsJobMetadata,
@@ -147,8 +148,13 @@ export function ImproveQuestionsProgressPanel({
 								<Badge variant="outline">{question.status}</Badge>
 							</div>
 							<p className="mt-1 text-xs text-muted-foreground">
-								Etapa atual: {question.stage}
+								Etapa atual: {formatImproveQuestionStageLabel(question.stage)}
 							</p>
+							{question.warnings[0] ? (
+								<p className="mt-2 text-xs text-amber-700">
+									Alerta: {question.warnings[0]}
+								</p>
+							) : null}
 						</li>
 					))}
 				</ul>

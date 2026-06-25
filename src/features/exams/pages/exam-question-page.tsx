@@ -61,55 +61,67 @@ export function ExamQuestionPageContent({
 
 	return (
 		<div className="flex flex-col gap-6">
-			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-				<Button
-					type="button"
-					variant="ghost"
-					className="self-start px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-					onClick={() => void navigate({ to: "/exams/$examId", params: { examId } })}
-				>
-					<ChevronLeftIcon data-icon="inline-start" />
-					Voltar para a prova
-				</Button>
-				<div className="space-y-1">
-					<p className="text-sm font-medium">
-						Q{questionIndex + 1} de {exam.questions.length}
-					</p>
-					<p className="text-sm text-muted-foreground">
-						Q{questionIndex + 1} · {formatTopic(question.topic)}
-					</p>
-				</div>
-				<div className="flex flex-wrap gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						disabled={!previousQuestion}
-						onClick={() => {
-							if (!previousQuestion) return;
-							void navigate({
-								to: "/exams/$examId/questions/$questionId",
-								params: { examId, questionId: previousQuestion.id },
-							});
-						}}
-					>
-						<ArrowLeftIcon data-icon="inline-start" />
-						Questão anterior
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={!nextQuestion}
-						onClick={() => {
-							if (!nextQuestion) return;
-							void navigate({
-								to: "/exams/$examId/questions/$questionId",
-								params: { examId, questionId: nextQuestion.id },
-							});
-						}}
-					>
-						Próxima questão
-						<ArrowRightIcon data-icon="inline-end" />
-					</Button>
+			<div
+				className="rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
+				data-testid="question-page-toolbar"
+			>
+				<div className="flex flex-col gap-4">
+					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+						<Button
+							type="button"
+							variant="ghost"
+							className="self-start px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+							onClick={() => void navigate({ to: "/exams/$examId", params: { examId } })}
+						>
+							<ChevronLeftIcon data-icon="inline-start" />
+							Voltar para a prova
+						</Button>
+						<div className="space-y-1">
+							<p className="text-base font-semibold">
+								Q{questionIndex + 1} de {exam.questions.length}
+							</p>
+							<p className="text-sm text-muted-foreground">
+								Q{questionIndex + 1} · {formatTopic(question.topic)}
+							</p>
+						</div>
+					</div>
+					<div className="flex flex-col gap-2 sm:flex-row">
+						<Button
+							type="button"
+							variant="secondary"
+							size="lg"
+							className="flex-1 justify-between sm:flex-none"
+							disabled={!previousQuestion}
+							onClick={() => {
+								if (!previousQuestion) return;
+								void navigate({
+									to: "/exams/$examId/questions/$questionId",
+									params: { examId, questionId: previousQuestion.id },
+								});
+							}}
+						>
+							<span className="inline-flex items-center gap-2">
+								<ArrowLeftIcon data-icon="inline-start" />
+								Questão anterior
+							</span>
+						</Button>
+						<Button
+							type="button"
+							size="lg"
+							className="flex-1 justify-between sm:flex-none"
+							disabled={!nextQuestion}
+							onClick={() => {
+								if (!nextQuestion) return;
+								void navigate({
+									to: "/exams/$examId/questions/$questionId",
+									params: { examId, questionId: nextQuestion.id },
+								});
+							}}
+						>
+							<span>Próxima questão</span>
+							<ArrowRightIcon data-icon="inline-end" />
+						</Button>
+					</div>
 				</div>
 			</div>
 

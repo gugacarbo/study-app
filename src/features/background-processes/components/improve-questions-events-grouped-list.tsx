@@ -11,6 +11,10 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import {
+	formatImproveBatchPhaseLabel,
+	formatImproveQuestionStageLabel,
+} from "@/features/background-processes/lib/improve-event-labels";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
 import { JOB_STATUS, type JobStatus } from "@/lib/job-kinds";
@@ -30,9 +34,13 @@ function labelForEvent(event: JobEventRecord): string {
 	const payload = event.payload as { type?: string; data?: Record<string, unknown> };
 	switch (payload.type) {
 		case "data-improve-batch-phase":
-			return `Fase do lote: ${String(payload.data?.phase ?? "desconhecida")}`;
+			return `Fase do lote: ${formatImproveBatchPhaseLabel(
+				String(payload.data?.phase ?? "desconhecida") as never,
+			)}`;
 		case "data-improve-question-stage":
-			return `Etapa: ${String(payload.data?.stage ?? "desconhecida")}`;
+			return `Etapa: ${formatImproveQuestionStageLabel(
+				String(payload.data?.stage ?? "desconhecida") as never,
+			)}`;
 		case "data-improve-question-status":
 			return `Status: ${String(payload.data?.status ?? "desconhecido")}`;
 		case "data-improve-question-warning":

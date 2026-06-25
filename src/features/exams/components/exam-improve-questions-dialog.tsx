@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,6 +10,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { useImproveQuestionsJob } from "@/features/exams/hooks/use-improve-questions-job";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
@@ -27,8 +29,12 @@ export function ExamImproveQuestionsDialog({
 }: ExamImproveQuestionsDialogProps) {
 	const improveJob = useImproveQuestionsJob();
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+	const [writeExplanations, setWriteExplanations] = useState(false);
 
-	const allIds = useMemo(() => questions.map((question) => question.id), [questions]);
+	const allIds = useMemo(
+		() => questions.map((question) => question.id),
+		[questions],
+	);
 	const effectiveSelectedIds = selectedIds.length > 0 ? selectedIds : allIds;
 
 	function toggleQuestion(questionId: string, checked: boolean) {
@@ -47,11 +53,14 @@ export function ExamImproveQuestionsDialog({
 
 	async function handleSubmit() {
 		if (effectiveSelectedIds.length === 0) return;
-		await improveJob.submit({
+		const ok = await improveJob.submit({
 			examId,
 			questionIds: effectiveSelectedIds,
+			writeExplanations,
 		});
-		onOpenChange(false);
+		if (ok) {
+			onOpenChange(false);
+		}
 	}
 
 	return (
@@ -114,8 +123,48 @@ export function ExamImproveQuestionsDialog({
 					})}
 				</div>
 
+				<div className="flex items-center justify-between rounded-lg border px-3 py-3">
+					<div className="space-y-1">
+						<p className="text-sm font-medium">
+							Reescrever explicações com agente especialista
+						</p>
+						<p className="text-sm text-muted-foreground">
+							Roda um segundo agente para sobrescrever explicações e emitir
+							alertas.
+						</p>
+					</div>
+					<Switch
+						checked={writeExplanations}
+						onCheckedChange={setWriteExplanations}
+						aria-label="Reescrever explicações com agente especialista"
+					/>
+				</div>
+
 				{improveJob.error ? (
 					<p className="text-sm text-destructive">{improveJob.error}</p>
+				) : null}
+				{improveJob.conflict ? (
+					<div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm">
+						<p className="text-amber-950">{improveJob.conflict.message}</p>
+						<div className="flex flex-wrap gap-2">
+							<Button asChild type="button" variant="outline" size="sm">
+								<Link
+									to="/jobs/$jobId"
+									params={{ jobId: improveJob.conflict.jobId }}
+								>
+									Ir para o job
+								</Link>
+							</Button>
+							<Button asChild type="button" variant="outline" size="sm">
+								<Link
+									to="/exams/$examId"
+									params={{ examId: improveJob.conflict.examId }}
+								>
+									Ir para as questões
+								</Link>
+							</Button>
+						</div>
+					</div>
 				) : null}
 
 				<DialogFooter>
