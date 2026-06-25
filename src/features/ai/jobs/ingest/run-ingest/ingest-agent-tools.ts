@@ -2,7 +2,8 @@ import { tool } from "ai";
 import { z } from "zod";
 import {
 	extractedQuestionSchema,
-	type ExtractedQuestion,
+	resolvedExtractedQuestionSchema,
+	type ResolvedExtractedQuestion,
 } from "@/features/ai/jobs/ingest/extracted-question";
 import {
 	buildIngestStreamProgressPart,
@@ -40,14 +41,14 @@ export type SubmitQuestionResult =
 	| { ok: true; index: number; draftQuestionId: string }
 	| { ok: false; reason: string };
 
-type UpdateQuestionInput = ExtractedQuestion & {
+type UpdateQuestionInput = ResolvedExtractedQuestion & {
 	draftQuestionId: string;
 };
 
 type UpdateQuestionResult =
 	| {
 			ok: true;
-			question: ExtractedQuestion & {
+			question: ResolvedExtractedQuestion & {
 				draftQuestionId: string;
 				sourceIndex: number;
 			};
@@ -69,7 +70,7 @@ export const listQuestionsResultSchema = z.object({
 export type ListQuestionsResult = {
 	ok: true;
 	total: number;
-	questions: ExtractedQuestion[];
+	questions: ResolvedExtractedQuestion[];
 };
 
 export type FinishExtractionResult =
@@ -85,8 +86,29 @@ export type FinishExtractionResult =
 export type IngestAgentToolsContext = {
 	append: (payload: string) => Promise<void>;
 	getCurrentMessageId: () => string;
-	questions: ExtractedQuestion[];
+	questions: ResolvedExtractedQuestion[];
 	onFinishExtraction: () => void;
+	searchSimilarTopics?: (input: {
+		query: string;
+		limit?: number;
+	}) => Promise<
+		Array<{
+			topicId: string;
+			name: string;
+			normalizedName: string;
+			similarityLabel:
+				| "exact"
+				| "normalized_exact"
+				| "prefix"
+				| "partial";
+		}>
+	>;
+	createTopic?: (name: string) => Promise<{
+		topicId: string;
+		name: string;
+		normalizedName: string;
+		created?: boolean;
+	}>;
 };
 
 function formatValidationReason(error: z.ZodError): string {
@@ -108,6 +130,7 @@ function buildListQuestionsModelOutput(
 			options: question.options,
 			answers: question.answers,
 			topic: question.topic,
+			topicId: question.topicId,
 		})),
 	});
 }
@@ -149,9 +172,9 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 		submit_question: tool({
 			description:
 				"Submit one extracted multiple-choice question from the exam text.",
-			inputSchema: extractedQuestionSchema,
+			inputSchema: resolvedExtractedQuestionSchema,
 			execute: async (input, { toolCallId }) => {
-				const parsed = extractedQuestionSchema.safeParse(input);
+				const parsed = resolvedExtractedQuestionSchema.safeParse(input);
 				if (!parsed.success) {
 					const result: SubmitQuestionResult = {
 						ok: false,
@@ -203,7 +226,7 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 		update_question: tool({
 			description:
 				"Replace one submitted question by id. You may edit all fields, but keep the same number of options.",
-			inputSchema: extractedQuestionSchema.extend({
+			inputSchema: resolvedExtractedQuestionSchema.extend({
 				draftQuestionId: z.string().trim().min(1),
 			}),
 			execute: async (input, { toolCallId }) => {
@@ -254,6 +277,52 @@ export function createIngestAgentTools(ctx: IngestAgentToolsContext) {
 					await persistToolResult(toolCallId, result, true);
 					return result;
 				}
+			},
+		}),
+		search_similar_topics: tool({
+			description:
+				"Search similar existing global question topics by textual similarity.",
+			inputSchema: z.object({
+				query: z.string().trim().min(1).max(200),
+				limit: z.number().int().min(1).max(10).optional(),
+			}),
+			execute: async (input, { toolCallId }) => {
+				const topics = await ctx.searchSimilarTopics?.(input);
+				const result = {
+					ok: true as const,
+					topics: topics ?? [],
+				};
+				await persistToolResult(toolCallId, result);
+				return result;
+			},
+		}),
+		create_topic: tool({
+			description:
+				"Create a new global question topic when no similar candidate is suitable.",
+			inputSchema: z.object({
+				name: z.string().trim().min(1).max(200),
+			}),
+			execute: async (input, { toolCallId }) => {
+				const topic = await ctx.createTopic?.(input.name);
+				if (!topic) {
+					const result = {
+						ok: false as const,
+						reason: "topic_creation_unavailable",
+					};
+					await persistToolResult(toolCallId, result, true);
+					return result;
+				}
+				const result = {
+					ok: true as const,
+					topic: {
+						topicId: topic.topicId,
+						name: topic.name,
+						normalizedName: topic.normalizedName,
+					},
+					created: topic.created ?? true,
+				};
+				await persistToolResult(toolCallId, result);
+				return result;
 			},
 		}),
 		finish_extraction: tool({

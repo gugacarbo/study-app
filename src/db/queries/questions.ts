@@ -1,8 +1,20 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
 
-export type QuestionRow = typeof schema.questions.$inferSelect;
+export type QuestionRow = {
+	id: string;
+	examId: string;
+	question: string;
+	options: string;
+	answers: string;
+	scoringMode: string;
+	explanation: string | null;
+	deepExplanation: string | null;
+	topicId?: string | null;
+	topic: string | null;
+	createdAt: string | null;
+};
 
 export type QuestionInsertInput = {
 	id: string;
@@ -12,6 +24,7 @@ export type QuestionInsertInput = {
 	answers: string;
 	scoringMode: "exact" | "partial";
 	topic?: string | null;
+	topicId?: string | null;
 	explanation?: string | null;
 	deepExplanation?: string | null;
 };
@@ -37,7 +50,8 @@ export async function insertQuestion(
 		options: input.options,
 		answers: input.answers,
 		scoringMode: input.scoringMode,
-		topic: input.topic ?? null,
+		topic: input.topicId ? null : (input.topic ?? null),
+		topicId: input.topicId ?? null,
 		explanation: input.explanation ?? null,
 		deepExplanation: input.deepExplanation ?? null,
 	});
@@ -48,8 +62,24 @@ export async function listQuestionsByExam(
 	examId: string,
 ): Promise<QuestionRow[]> {
 	return db
-		.select()
+		.select({
+			id: schema.questions.id,
+			examId: schema.questions.examId,
+			question: schema.questions.question,
+			options: schema.questions.options,
+			answers: schema.questions.answers,
+			scoringMode: schema.questions.scoringMode,
+			explanation: schema.questions.explanation,
+			deepExplanation: schema.questions.deepExplanation,
+			topicId: schema.questions.topicId,
+			topic: sql<string | null>`coalesce(${schema.questionTopics.name}, ${schema.questions.topic})`,
+			createdAt: schema.questions.createdAt,
+		})
 		.from(schema.questions)
+		.leftJoin(
+			schema.questionTopics,
+			eq(schema.questionTopics.id, schema.questions.topicId),
+		)
 		.where(eq(schema.questions.examId, examId))
 		.orderBy(schema.questions.createdAt);
 }
@@ -59,8 +89,24 @@ export async function getQuestionById(
 	questionId: string,
 ): Promise<QuestionRow | null> {
 	const rows = await db
-		.select()
+		.select({
+			id: schema.questions.id,
+			examId: schema.questions.examId,
+			question: schema.questions.question,
+			options: schema.questions.options,
+			answers: schema.questions.answers,
+			scoringMode: schema.questions.scoringMode,
+			explanation: schema.questions.explanation,
+			deepExplanation: schema.questions.deepExplanation,
+			topicId: schema.questions.topicId,
+			topic: sql<string | null>`coalesce(${schema.questionTopics.name}, ${schema.questions.topic})`,
+			createdAt: schema.questions.createdAt,
+		})
 		.from(schema.questions)
+		.leftJoin(
+			schema.questionTopics,
+			eq(schema.questionTopics.id, schema.questions.topicId),
+		)
 		.where(eq(schema.questions.id, questionId))
 		.limit(1);
 	return rows[0] ?? null;
@@ -91,6 +137,7 @@ export async function updateQuestionById(
 		answers: string;
 		scoringMode: "exact" | "partial";
 		topic?: string | null;
+		topicId?: string | null;
 		explanation?: string | null;
 		deepExplanation?: string | null;
 	},
@@ -118,7 +165,8 @@ export async function updateQuestionById(
 			options: input.options,
 			answers: input.answers,
 			scoringMode: input.scoringMode,
-			topic: input.topic ?? null,
+			topic: input.topicId ? null : (input.topic ?? null),
+			topicId: input.topicId ?? null,
 			explanation: input.explanation ?? null,
 			deepExplanation: input.deepExplanation ?? null,
 		})

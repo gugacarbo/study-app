@@ -14,6 +14,11 @@ export type ImproveQuestionExecutionResult = {
 	summary?: string | null;
 };
 
+export type ImproveQuestionExplanationsResult = {
+	summary: string;
+	alerts: string[];
+};
+
 export async function runImproveQuestionsBatch(input: {
 	jobId: string;
 	metadata: ImproveQuestionsJobMetadata;
@@ -33,6 +38,10 @@ export async function runImproveQuestionsBatch(input: {
 			jobId: string;
 			questionId: string;
 		}) => Promise<ImproveQuestionExecutionResult>;
+		executeExplanations?: (input: {
+			jobId: string;
+			questionId: string;
+		}) => Promise<ImproveQuestionExplanationsResult>;
 	};
 }): Promise<void> {
 	const metadata: ImproveQuestionsJobMetadata = {
@@ -98,10 +107,27 @@ export async function runImproveQuestionsBatch(input: {
 					jobId: input.jobId,
 					questionId: item.questionId,
 				});
+				let finalSummary = result.summary ?? null;
+				if (metadata.writeExplanations) {
+					item.stage = IMPROVE_QUESTION_STAGE.WRITING_EXPLANATIONS;
+					await input.deps.appendJobEvent(
+						input.jobId,
+						buildImproveQuestionStageEvent(
+							item.questionId,
+							IMPROVE_QUESTION_STAGE.WRITING_EXPLANATIONS,
+						),
+					);
+					await markMetadata();
+					const explanationResult = await input.deps.executeExplanations?.({
+						jobId: input.jobId,
+						questionId: item.questionId,
+					});
+					finalSummary = explanationResult?.summary ?? finalSummary;
+				}
 				metadata.runningCount = Math.max(0, metadata.runningCount - 1);
 				item.status = "completed";
 				item.stage = IMPROVE_QUESTION_STAGE.SAVING_DRAFT;
-				item.summary = result.summary ?? undefined;
+				item.summary = finalSummary ?? undefined;
 				metadata.completedCount += 1;
 				metadata.pendingReviewCount += 1;
 				await input.deps.appendJobEvent(
@@ -109,7 +135,7 @@ export async function runImproveQuestionsBatch(input: {
 					buildImproveQuestionStatusEvent({
 						questionId: item.questionId,
 						status: "completed",
-						summary: result.summary ?? null,
+						summary: finalSummary,
 					}),
 				);
 			} catch (error) {

@@ -21,6 +21,9 @@ export type JobErrorBody = {
 	message?: string;
 	maxBytes?: number;
 	maxChars?: number;
+	jobId?: string;
+	examId?: string;
+	reason?: "active_job" | "pending_review";
 };
 
 export function jobError(

@@ -43,6 +43,7 @@ export function resetQuizTestDb(db: AppDatabase) {
 		"attempt_answers",
 		"attempts",
 		"questions",
+		"question_topics",
 		"exams",
 		"user_roles",
 		"user",
@@ -79,6 +80,7 @@ export async function seedQuestion(
 		options: Array<{ key: string; text: string }>;
 		answers: string[];
 		topic?: string | null;
+		topicId?: string | null;
 		scoringMode?: "exact" | "partial";
 	},
 ) {
@@ -89,7 +91,8 @@ export async function seedQuestion(
 		options: JSON.stringify(input.options),
 		answers: JSON.stringify(input.answers),
 		scoringMode: input.scoringMode ?? "exact",
-		topic: input.topic ?? null,
+		topic: input.topicId ? null : (input.topic ?? null),
+		topicId: input.topicId ?? null,
 	});
 }
 

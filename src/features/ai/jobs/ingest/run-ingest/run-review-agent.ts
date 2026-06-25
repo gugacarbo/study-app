@@ -5,6 +5,10 @@ import {
 	type LanguageModel,
 	type streamText as streamTextFn,
 } from "ai";
+import {
+	createQuestionTopic,
+	searchSimilarQuestionTopics,
+} from "@/db/queries/question-topics";
 import { listQuestionsByExam } from "@/db/queries/questions";
 import { buildIngestStepMessageId, buildReasoningDeltaPart, buildReasoningPart, buildStreamTextPart, buildStreamToolCallPart, REASONING_THROTTLE_MS, serializeIngestStreamPart } from "@/features/ai/jobs/ingest/run-ingest/ingest-stream-parts";
 import { MAX_AGENT_STEPS, REVIEW_AGENT_SYSTEM_PROMPT } from "@/features/ai/jobs/ingest/run-ingest/constants";
@@ -259,6 +263,24 @@ export async function runReviewAgent(
 		drafts,
 		onFinishReview: () => {
 			reviewFinished = true;
+		},
+		searchSimilarTopics: (input) =>
+			searchSimilarQuestionTopics(options.ctx.db, input).then((topics) =>
+				topics.map((topic) => ({
+					topicId: topic.id,
+					name: topic.name,
+					normalizedName: topic.normalizedName,
+					similarityLabel: topic.similarityLabel,
+				})),
+			),
+		createTopic: async (name) => {
+			const result = await createQuestionTopic(options.ctx.db, name);
+			return {
+				topicId: result.topic.id,
+				name: result.topic.name,
+				normalizedName: result.topic.normalizedName,
+				created: result.created,
+			};
 		},
 	});
 

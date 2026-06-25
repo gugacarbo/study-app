@@ -26,6 +26,21 @@ export const exams = sqliteTable(
 	],
 );
 
+export const questionTopics = sqliteTable(
+	"question_topics",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		normalizedName: text("normalized_name").notNull(),
+		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+	},
+	(table) => [
+		uniqueIndex("uq_question_topics_normalized_name").on(
+			table.normalizedName,
+		),
+	],
+);
+
 export const questions = sqliteTable(
 	"questions",
 	{
@@ -40,9 +55,15 @@ export const questions = sqliteTable(
 		explanation: text("explanation"),
 		deepExplanation: text("deep_explanation"),
 		topic: text("topic"),
+		topicId: text("topic_id").references(() => questionTopics.id, {
+			onDelete: "set null",
+		}),
 		createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 	},
-	(table) => [index("idx_questions_exam_id").on(table.examId)],
+	(table) => [
+		index("idx_questions_exam_id").on(table.examId),
+		index("idx_questions_topic_id").on(table.topicId),
+	],
 );
 
 export const questionImprovementDrafts = sqliteTable(

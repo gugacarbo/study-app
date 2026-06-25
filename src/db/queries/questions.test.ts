@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createExam } from "@/db/queries/exams";
 import { createId } from "@/db/queries/helpers";
+import { createQuestionTopic } from "@/db/queries/question-topics";
 import { updateQuestionById } from "@/db/queries/questions";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
@@ -23,6 +24,8 @@ describe("updateQuestionById", () => {
 
 		const examId = createId();
 		await createExam(db, { id: examId, userId, name: "Prova" });
+		const oldTopic = await createQuestionTopic(db, "Old topic");
+		const newTopic = await createQuestionTopic(db, "New topic");
 
 		const questionId = createId();
 		await db.insert(schema.questions).values({
@@ -32,7 +35,7 @@ describe("updateQuestionById", () => {
 			options: JSON.stringify([{ key: "A", text: "Old" }]),
 			answers: JSON.stringify(["A"]),
 			scoringMode: "exact",
-			topic: "Old topic",
+			topicId: oldTopic.topic.id,
 			explanation: "Old explanation",
 			deepExplanation: "Old deep",
 		});
@@ -47,7 +50,7 @@ describe("updateQuestionById", () => {
 			]),
 			answers: JSON.stringify(["B"]),
 			scoringMode: "partial",
-			topic: "New topic",
+			topicId: newTopic.topic.id,
 			explanation: "New explanation",
 			deepExplanation: "New deep",
 		});
@@ -67,7 +70,7 @@ describe("updateQuestionById", () => {
 			]),
 			answers: JSON.stringify(["B"]),
 			scoringMode: "partial",
-			topic: "New topic",
+			topicId: newTopic.topic.id,
 			explanation: "New explanation",
 			deepExplanation: "New deep",
 		});

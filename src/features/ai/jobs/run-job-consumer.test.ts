@@ -56,11 +56,12 @@ describe("runJobConsumer", () => {
 			userId,
 			kind: JOB_KIND.IMPROVE_QUESTIONS,
 			status: JOB_STATUS.QUEUED,
-			metadata: serializeImproveQuestionsJobMetadata({
-				examId,
-				modelId: createId(),
-				questionIds: [questionId],
-				concurrencyLimit: 2,
+				metadata: serializeImproveQuestionsJobMetadata({
+					examId,
+					modelId: createId(),
+					writeExplanations: false,
+					questionIds: [questionId],
+					concurrencyLimit: 2,
 				totalCount: 1,
 				queuedCount: 1,
 				runningCount: 0,

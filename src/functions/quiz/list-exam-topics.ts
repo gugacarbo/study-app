@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createDb } from "@/db/client";
-import { listDistinctTopicsByExamId } from "@/db/queries/attempts";
+import {
+	listDistinctTopicsByExamId,
+	type ExamTopicOption,
+} from "@/db/queries/attempts";
 import { getExamById } from "@/db/queries/exams";
 import { requireDB } from "@/functions/db";
 import { requireSession } from "@/lib/rbac";
@@ -14,7 +17,7 @@ const listExamTopicsSchema = z.object({
 export async function listExamTopicsHandler(
 	input: z.infer<typeof listExamTopicsSchema>,
 	headers: Headers,
-): Promise<string[]> {
+): Promise<ExamTopicOption[]> {
 	const session = await requireSession(headers);
 	const db = createDb(await requireDB());
 

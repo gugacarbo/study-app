@@ -5,7 +5,12 @@ import {
 	type LanguageModel,
 	type streamText as streamTextFn,
 } from "ai";
-import type { ExtractedQuestion } from "@/features/ai/jobs/ingest/extracted-question";
+import {
+	createQuestionTopic,
+	searchSimilarQuestionTopics,
+} from "@/db/queries/question-topics";
+import type { AppDatabase } from "@/db/client";
+import type { ResolvedExtractedQuestion } from "@/features/ai/jobs/ingest/extracted-question";
 import type { TokenUsage } from "@/lib/job-kinds";
 import { createIngestAgentTools } from "./ingest-agent-tools";
 import {
@@ -20,12 +25,13 @@ import {
 import { INGEST_AGENT_SYSTEM_PROMPT, MAX_AGENT_STEPS } from "./constants";
 
 export type RunIngestAgentResult = {
-	questions: ExtractedQuestion[];
+	questions: ResolvedExtractedQuestion[];
 	extractionMode: "agent";
 	usage?: TokenUsage;
 };
 
 export type RunIngestAgentOptions = {
+	db: AppDatabase;
 	model: LanguageModel;
 	fileText: string;
 	jobId: string;
@@ -218,7 +224,7 @@ export async function runIngestAgent(
 ): Promise<RunIngestAgentResult> {
 	const invokeStreamText = options.streamText ?? streamText;
 	const abortController = new AbortController();
-	const questions: ExtractedQuestion[] = [];
+	const questions: ResolvedExtractedQuestion[] = [];
 	let stepNumber = 0;
 	let currentMessageId = buildIngestStepMessageId(1);
 	let extractionFinished = false;
@@ -237,6 +243,24 @@ export async function runIngestAgent(
 		questions,
 		onFinishExtraction: () => {
 			extractionFinished = true;
+		},
+		searchSimilarTopics: (input) =>
+			searchSimilarQuestionTopics(options.db, input).then((topics) =>
+				topics.map((topic) => ({
+					topicId: topic.id,
+					name: topic.name,
+					normalizedName: topic.normalizedName,
+					similarityLabel: topic.similarityLabel,
+				})),
+			),
+		createTopic: async (name) => {
+			const result = await createQuestionTopic(options.db, name);
+			return {
+				topicId: result.topic.id,
+				name: result.topic.name,
+				normalizedName: result.topic.normalizedName,
+				created: result.created,
+			};
 		},
 	});
 

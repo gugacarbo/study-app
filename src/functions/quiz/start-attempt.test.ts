@@ -119,17 +119,26 @@ describe("startAttemptHandler", () => {
 	it("rejects start when no questions match topic filter", async () => {
 		await seedUser(testDb, testUserId);
 		const examId = await seedExam(testDb, testUserId);
+		const topicId = createId();
+		const sqlite = (
+			testDb as unknown as {
+				session: { client: { exec: (sql: string) => void } };
+			}
+		).session.client;
+		sqlite.exec(
+			`INSERT INTO question_topics (id, name, normalized_name) VALUES ('${topicId}', 'T1', 't1');`,
+		);
 		await seedQuestion(testDb, examId, {
 			id: createId(),
 			question: "Q1",
 			options: [{ key: "A", text: "A" }],
 			answers: ["A"],
-			topic: "T1",
-		});
+			topicId,
+		} as never);
 
 		await expect(
 			startAttemptHandler(
-				{ examId, topicFilter: "T2" },
+				{ examId, topicFilter: createId() },
 				new Headers(),
 			),
 		).rejects.toMatchObject({ status: 422 });

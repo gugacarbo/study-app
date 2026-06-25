@@ -14,6 +14,7 @@ import {
 	runIngest,
 } from "@/features/ai/jobs/ingest/run-ingest";
 import { runImproveQuestionAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-agent";
+import { runImproveQuestionExplanationsAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-explanations-agent";
 import { runImproveQuestionsBatch } from "@/features/ai/jobs/improve-questions/run-improve-questions-batch";
 import { JobEventAppender } from "@/features/ai/jobs/shared/job-event-appender";
 import { JOB_KIND } from "@/lib/job-kinds";
@@ -99,6 +100,30 @@ export async function runJobConsumer(
 								if (jobId !== ctx.job.id) {
 									throw new Error(
 										"Unexpected job id for improve question appender",
+									);
+								}
+								await eventAppender.append(payload);
+							},
+							webSearchApiKey: ctx.env.TAVILY_API_KEY,
+						});
+					},
+					executeExplanations: async ({ questionId }) => {
+						const model = await getAiModel({
+							db: ctx.db,
+							userId: ctx.job.userId,
+							modelId: metadata.modelId,
+						});
+						return runImproveQuestionExplanationsAgent({
+							db: ctx.db,
+							jobId: ctx.job.id,
+							userId: ctx.job.userId,
+							examId: metadata.examId,
+							questionId,
+							model: model as never,
+							appendJobEvent: async (jobId, payload) => {
+								if (jobId !== ctx.job.id) {
+									throw new Error(
+										"Unexpected job id for improve explanations appender",
 									);
 								}
 								await eventAppender.append(payload);

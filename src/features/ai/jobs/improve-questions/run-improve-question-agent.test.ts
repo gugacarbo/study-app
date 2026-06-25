@@ -117,8 +117,13 @@ describe("runImproveQuestionAgent", () => {
 		expect(result.summary).toBe("Refinei enunciado, tópico e distratores.");
 		expect(streamTextMock).toHaveBeenCalledWith(
 			expect.objectContaining({
+				prompt: expect.stringContaining(
+					"Set topic as a summary of the question text with at most 30 characters.",
+				),
 				tools: expect.objectContaining({
 					get_question: expect.any(Object),
+					search_similar_topics: expect.any(Object),
+					create_topic: expect.any(Object),
 					update_question_draft: expect.any(Object),
 				}),
 			}),
@@ -173,15 +178,77 @@ describe("runImproveQuestionAgent", () => {
 					messageId: expect.stringContaining(questionId),
 					toolCallId: "tool-2",
 				}),
+			]),
+		);
+		expect(events).not.toEqual(
+			expect.arrayContaining([
 				expect.objectContaining({
 					type: "data-improve-question-status",
 					data: expect.objectContaining({
 						questionId,
 						status: "completed",
-						summary: "Refinei enunciado, tópico e distratores.",
 					}),
 				}),
 			]),
 		);
+	});
+
+	it("rejects improved question drafts with topics longer than 30 characters", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		await seedUser(db, userId);
+		const examId = createId();
+		await createExam(db, { id: examId, userId, name: "Prova" });
+		const questionId = createId();
+		const jobId = createId();
+
+		await db.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Qual a capital do Brasil?",
+			options: JSON.stringify([
+				{ key: "A", text: "São Paulo" },
+				{ key: "B", text: "Brasília" },
+			]),
+			answers: JSON.stringify(["B"]),
+			scoringMode: "exact",
+			topic: "Geografia",
+		});
+
+		const streamTextMock = vi.fn((input: { tools?: ToolSet }) => {
+			const updateDraft = getTool(input.tools, "update_question_draft");
+
+			return {
+				fullStream: (async function* () {
+					await updateDraft.execute(
+						{
+							questionId,
+							question: "Qual é a capital federal do Brasil?",
+							options: [
+								{ key: "A", text: "São Paulo" },
+								{ key: "B", text: "Brasília" },
+							],
+							answers: ["B"],
+							topic: "Capital federal brasileira atual",
+							scoringMode: "exact",
+						},
+						{ toolCallId: "tool-1" },
+					);
+				})(),
+			};
+		});
+
+		await expect(
+			runImproveQuestionAgent({
+				db,
+				jobId,
+				userId,
+				examId,
+				questionId,
+				model: {} as never,
+				streamText: streamTextMock as never,
+				appendJobEvent: async () => {},
+			}),
+		).rejects.toThrow("Too big");
 	});
 });

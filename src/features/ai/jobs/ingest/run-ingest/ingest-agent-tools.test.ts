@@ -10,10 +10,74 @@ function makeQuestion(index: number) {
 		],
 		answers: ["A"],
 		topic: "Tópico",
+		topicId: `topic-${index}`,
 	};
 }
 
 describe("createIngestAgentTools", () => {
+	it("exposes topic search and creation tools", async () => {
+		const append = vi.fn(async () => undefined);
+		const onFinishExtraction = vi.fn();
+		const questions: ReturnType<typeof makeQuestion>[] = [];
+		const tools = createIngestAgentTools({
+			append,
+			getCurrentMessageId: () => "ingest-step-1",
+			questions,
+			onFinishExtraction,
+			searchSimilarTopics: vi.fn(async () => [
+				{
+					topicId: "topic-geo",
+					name: "Geografia",
+					normalizedName: "geografia",
+					similarityLabel: "normalized_exact",
+				},
+			]),
+			createTopic: vi.fn(async (name: string) => ({
+				topicId: "topic-new",
+				name,
+				normalizedName: name.toLowerCase(),
+			})),
+		} as never);
+
+		const searchResult = await tools.search_similar_topics.execute?.(
+			{ query: "Geografia" },
+			{
+				toolCallId: "search-1",
+				messages: [],
+				abortSignal: new AbortController().signal,
+			},
+		);
+		const createResult = await tools.create_topic.execute?.(
+			{ name: "História" },
+			{
+				toolCallId: "create-1",
+				messages: [],
+				abortSignal: new AbortController().signal,
+			},
+		);
+
+		expect(searchResult).toEqual({
+			ok: true,
+			topics: [
+				{
+					topicId: "topic-geo",
+					name: "Geografia",
+					normalizedName: "geografia",
+					similarityLabel: "normalized_exact",
+				},
+			],
+		});
+		expect(createResult).toEqual({
+			ok: true,
+			topic: {
+				topicId: "topic-new",
+				name: "História",
+				normalizedName: "história",
+			},
+			created: true,
+		});
+	});
+
 	it("updates a submitted question by draft id before final verification", async () => {
 		const append = vi.fn(async () => undefined);
 		const onFinishExtraction = vi.fn();
@@ -23,7 +87,7 @@ describe("createIngestAgentTools", () => {
 			getCurrentMessageId: () => "ingest-step-1",
 			questions,
 			onFinishExtraction,
-		});
+		} as never);
 
 		const submitted = await tools.submit_question.execute?.(makeQuestion(1), {
 			toolCallId: "submit-1",
@@ -44,6 +108,7 @@ describe("createIngestAgentTools", () => {
 				],
 				answers: ["B"],
 				topic: "Tópico revisado",
+				topicId: "topic-reviewed",
 			},
 			{
 				toolCallId: "update-1",
@@ -64,6 +129,7 @@ describe("createIngestAgentTools", () => {
 				],
 				answers: ["A"],
 				topic: "Tópico revisado",
+				topicId: "topic-reviewed",
 			},
 		});
 
@@ -88,6 +154,7 @@ describe("createIngestAgentTools", () => {
 					],
 					answers: ["A"],
 					topic: "Tópico revisado",
+					topicId: "topic-reviewed",
 				},
 			],
 		});
@@ -102,7 +169,7 @@ describe("createIngestAgentTools", () => {
 			getCurrentMessageId: () => "ingest-step-1",
 			questions,
 			onFinishExtraction,
-		});
+		} as never);
 
 		await tools.submit_question.execute?.(makeQuestion(1), {
 			toolCallId: "submit-1",
@@ -138,7 +205,7 @@ describe("createIngestAgentTools", () => {
 			getCurrentMessageId: () => "ingest-step-1",
 			questions,
 			onFinishExtraction,
-		});
+		} as never);
 
 		await tools.submit_question.execute?.(makeQuestion(1), {
 			toolCallId: "submit-1",
@@ -190,7 +257,7 @@ describe("createIngestAgentTools", () => {
 			getCurrentMessageId: () => "ingest-step-1",
 			questions,
 			onFinishExtraction,
-		});
+		} as never);
 
 		await tools.submit_question.execute?.(makeQuestion(1), {
 			toolCallId: "submit-1",

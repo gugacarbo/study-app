@@ -48,9 +48,16 @@ export const extractedQuestionsRootSchema = z.object({
 	questions: z.array(extractedQuestionSchema),
 });
 
+export const resolvedExtractedQuestionSchema = extractedQuestionSchema.extend({
+	topicId: z.string().trim().min(1).nullable().optional(),
+});
+
 export type ExtractedQuestion = z.infer<typeof extractedQuestionSchema>;
 export type ExtractedQuestionsRoot = z.infer<
 	typeof extractedQuestionsRootSchema
+>;
+export type ResolvedExtractedQuestion = z.infer<
+	typeof resolvedExtractedQuestionSchema
 >;
 
 export type ScoringMode = "exact" | "partial";
@@ -63,6 +70,16 @@ export function parseExtractedQuestion(
 	value: unknown,
 ): { ok: true; data: ExtractedQuestion } | { ok: false } {
 	const result = extractedQuestionSchema.safeParse(value);
+	if (!result.success) {
+		return { ok: false };
+	}
+	return { ok: true, data: result.data };
+}
+
+export function parseResolvedExtractedQuestion(
+	value: unknown,
+): { ok: true; data: ResolvedExtractedQuestion } | { ok: false } {
+	const result = resolvedExtractedQuestionSchema.safeParse(value);
 	if (!result.success) {
 		return { ok: false };
 	}

@@ -191,6 +191,7 @@ export async function extractQuestions(
 
 		try {
 			const agentResult = await runIngestAgent({
+				db: ctx.db,
 				model,
 				fileText,
 				jobId: ctx.jobId,

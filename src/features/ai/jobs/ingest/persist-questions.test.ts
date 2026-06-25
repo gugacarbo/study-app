@@ -19,6 +19,7 @@ function makeQuestion(index: number) {
 		],
 		answers: ["A"],
 		topic: "Tópico",
+		topicId: `topic-${index}`,
 	};
 }
 
@@ -66,6 +67,7 @@ describe("persistQuestions", () => {
 		expect(batchInsertQuestions).toHaveBeenCalledOnce();
 		const inserted = batchInsertQuestions.mock.calls.at(0)?.[0];
 		expect(inserted).toHaveLength(2);
+		expect(inserted?.[0]).toMatchObject({ topicId: "topic-1" });
 		expect(onSkippedDuplicate).toHaveBeenCalledOnce();
 	});
 

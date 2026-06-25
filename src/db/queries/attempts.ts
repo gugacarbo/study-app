@@ -1,9 +1,10 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, isNotNull, sql } from "drizzle-orm";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
 
 export type AttemptRow = typeof schema.attempts.$inferSelect;
 export type AttemptAnswerRow = typeof schema.attemptAnswers.$inferSelect;
+export type ExamTopicOption = { id: string; name: string };
 
 export type QuizConfig = {
 	order: "original" | "random";
@@ -242,16 +243,30 @@ export async function completeAttempt(
 export async function listDistinctTopicsByExamId(
 	db: AppDatabase,
 	examId: string,
-): Promise<string[]> {
+): Promise<ExamTopicOption[]> {
 	const rows = await db
-		.selectDistinct({ topic: schema.questions.topic })
+		.selectDistinct({
+			id: schema.questionTopics.id,
+			name: schema.questionTopics.name,
+		})
 		.from(schema.questions)
-		.where(eq(schema.questions.examId, examId));
+		.innerJoin(
+			schema.questionTopics,
+			eq(schema.questionTopics.id, schema.questions.topicId),
+		)
+		.where(
+			and(
+				eq(schema.questions.examId, examId),
+				isNotNull(schema.questions.topicId),
+			),
+		);
 
 	return rows
-		.map((row) => row.topic)
-		.filter((topic): topic is string => topic != null && topic !== "")
-		.sort((a, b) => a.localeCompare(b));
+		.filter(
+			(row): row is ExamTopicOption =>
+				row.id != null && row.name != null && row.name !== "",
+		)
+		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getQuestionsForAttempt(
@@ -265,7 +280,7 @@ export async function getQuestionsForAttempt(
 ): Promise<(typeof schema.questions.$inferSelect)[]> {
 	const filters = [eq(schema.questions.examId, examId)];
 	if (input.topicFilter) {
-		filters.push(eq(schema.questions.topic, input.topicFilter));
+		filters.push(eq(schema.questions.topicId, input.topicFilter));
 	}
 
 	const rows = await db

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createExam } from "@/db/queries/exams";
 import { createId } from "@/db/queries/helpers";
+import { createQuestionTopic } from "@/db/queries/question-topics";
 import { insertQuestion } from "@/db/queries/questions";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
@@ -41,7 +42,7 @@ describe("createAttempt", () => {
 			config: {
 				order: "random",
 				quantity: 5,
-				topicFilter: "T1",
+				topicFilter: "topic-1",
 				revealMode: "during",
 			},
 			totalQuestions: 5,
@@ -52,7 +53,7 @@ describe("createAttempt", () => {
 		expect(parseConfig(attempt.config)).toEqual({
 			order: "random",
 			quantity: 5,
-			topicFilter: "T1",
+			topicFilter: "topic-1",
 			revealMode: "during",
 		});
 	});
@@ -212,6 +213,8 @@ describe("listDistinctTopicsByExamId", () => {
 		await seedUser(db, userId);
 		const examId = createId();
 		await createExam(db, { id: examId, userId, name: "Prova" });
+		const topicB = await createQuestionTopic(db, "B");
+		const topicA = await createQuestionTopic(db, "A");
 		await insertQuestion(db, {
 			id: createId(),
 			examId,
@@ -219,7 +222,7 @@ describe("listDistinctTopicsByExamId", () => {
 			options: JSON.stringify([{ key: "A", text: "A" }]),
 			answers: JSON.stringify(["A"]),
 			scoringMode: "exact",
-			topic: "B",
+			topicId: topicB.topic.id,
 		});
 		await insertQuestion(db, {
 			id: createId(),
@@ -228,7 +231,7 @@ describe("listDistinctTopicsByExamId", () => {
 			options: JSON.stringify([{ key: "A", text: "A" }]),
 			answers: JSON.stringify(["A"]),
 			scoringMode: "exact",
-			topic: "A",
+			topicId: topicA.topic.id,
 		});
 		await insertQuestion(db, {
 			id: createId(),
@@ -241,7 +244,10 @@ describe("listDistinctTopicsByExamId", () => {
 		});
 
 		const topics = await listDistinctTopicsByExamId(db, examId);
-		expect(topics).toEqual(["A", "B"]);
+		expect(topics).toEqual([
+			{ id: topicA.topic.id, name: "A" },
+			{ id: topicB.topic.id, name: "B" },
+		]);
 	});
 });
 
@@ -252,6 +258,8 @@ describe("getQuestionsForAttempt", () => {
 		await seedUser(db, userId);
 		const examId = createId();
 		await createExam(db, { id: examId, userId, name: "Prova" });
+		const topic1 = await createQuestionTopic(db, "T1");
+		const topic2 = await createQuestionTopic(db, "T2");
 
 		for (let i = 0; i < 3; i++) {
 			await insertQuestion(db, {
@@ -261,7 +269,7 @@ describe("getQuestionsForAttempt", () => {
 				options: JSON.stringify([{ key: "A", text: "A" }]),
 				answers: JSON.stringify(["A"]),
 				scoringMode: "exact",
-				topic: "T1",
+				topicId: topic1.topic.id,
 			});
 		}
 		await insertQuestion(db, {
@@ -271,15 +279,15 @@ describe("getQuestionsForAttempt", () => {
 			options: JSON.stringify([{ key: "A", text: "A" }]),
 			answers: JSON.stringify(["A"]),
 			scoringMode: "exact",
-			topic: "T2",
+			topicId: topic2.topic.id,
 		});
 
 		const rows = await getQuestionsForAttempt(db, examId, {
 			quantity: 2,
-			topicFilter: "T1",
+			topicFilter: topic1.topic.id,
 			order: "original",
 		});
 		expect(rows).toHaveLength(2);
-		expect(rows.every((r) => r.topic === "T1")).toBe(true);
+		expect(rows.every((r) => r.topicId === topic1.topic.id)).toBe(true);
 	});
 });

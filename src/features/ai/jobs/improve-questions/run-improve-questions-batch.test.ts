@@ -8,6 +8,7 @@ function createMetadata(questionIds: string[]): ImproveQuestionsJobMetadata {
 	return {
 		examId: createId(),
 		modelId: createId(),
+		writeExplanations: false,
 		questionIds,
 		concurrencyLimit: 2,
 		totalCount: questionIds.length,
@@ -135,5 +136,83 @@ describe("runImproveQuestionsBatch", () => {
 		});
 
 		expect(executeQuestion).toHaveBeenCalledTimes(1);
+	});
+
+	it("runs the explanation agent after the improvement agent when enabled and emits completed only once", async () => {
+		const questionId = createId();
+		const appendJobEvent = vi.fn(async () => undefined);
+		const updateJobStatus = vi.fn(async () => undefined);
+		const executeQuestion = vi.fn(async () => ({ summary: "draft ok" }));
+		const executeExplanations = vi.fn(async () => ({
+			summary: "explanations ok",
+			alerts: ["answer_mismatch"],
+		}));
+
+		await runImproveQuestionsBatch({
+			jobId: createId(),
+			metadata: {
+				...createMetadata([questionId]),
+				writeExplanations: true,
+			},
+			deps: {
+				appendJobEvent,
+				updateJobStatus,
+				isCancelRequested: async () => false,
+				executeQuestion,
+				executeExplanations,
+			},
+		});
+
+		expect(executeQuestion).toHaveBeenCalledWith({
+			jobId: expect.any(String),
+			questionId,
+		});
+		expect(executeExplanations).toHaveBeenCalledWith({
+			jobId: expect.any(String),
+			questionId,
+		});
+		expect(appendJobEvent).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				type: "data-improve-question-status",
+				data: expect.objectContaining({
+					questionId,
+					status: "completed",
+					summary: "explanations ok",
+				}),
+			}),
+		);
+		const eventCalls = appendJobEvent.mock.calls as unknown as Array<
+			[string, unknown]
+		>;
+		expect(
+			eventCalls.filter((call) => {
+				const payload = call[1] as {
+					type?: string;
+					data?: { questionId?: string; status?: string };
+				};
+				return (
+					payload.type === "data-improve-question-status" &&
+					payload.data?.questionId === questionId &&
+					payload.data?.status === "completed"
+				);
+			}),
+		).toHaveLength(1);
+		expect(updateJobStatus).toHaveBeenLastCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				status: JOB_STATUS.COMPLETED,
+				metadata: expect.objectContaining({
+					items: [
+						expect.objectContaining({
+							questionId,
+							status: "completed",
+							stage: "saving_draft",
+							summary: "explanations ok",
+						}),
+					],
+				}),
+			}),
+		);
 	});
 });

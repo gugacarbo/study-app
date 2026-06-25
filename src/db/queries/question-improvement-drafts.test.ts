@@ -155,7 +155,8 @@ describe("question improvement drafts queries", () => {
 		expect(questionRow).toMatchObject({
 			question: "Quanto é 2 + 2? (versão melhorada)",
 			scoringMode: "exact",
-			topic: "Matemática básica",
+			topic: null,
+			topicId: expect.any(String),
 			explanation: "2 + 2 resulta em 4.",
 			deepExplanation:
 				"A soma de dois inteiros positivos iguais a 2 resulta em 4.",

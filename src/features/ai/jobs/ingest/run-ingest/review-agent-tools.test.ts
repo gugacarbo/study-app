@@ -15,10 +15,57 @@ function makeDraft(index: number): ReviewDraftQuestion {
 		],
 		answers: ["B"],
 		topic: "Geo",
+		topicId: `topic-${index}`,
 	};
 }
 
 describe("createReviewAgentTools", () => {
+	it("exposes topic search and creation tools", async () => {
+		const append = vi.fn(async () => undefined);
+		const onFinishReview = vi.fn();
+		const drafts = [makeDraft(1)];
+		const tools = createReviewAgentTools({
+			append,
+			getCurrentMessageId: () => "review-step-1",
+			drafts,
+			onFinishReview,
+			searchSimilarTopics: vi.fn(async () => [
+				{
+					topicId: "topic-geo",
+					name: "Geografia",
+					normalizedName: "geografia",
+					similarityLabel: "normalized_exact",
+				},
+			]),
+			createTopic: vi.fn(async (name: string) => ({
+				topicId: "topic-new",
+				name,
+				normalizedName: name.toLowerCase(),
+			})),
+		} as never);
+
+		const searchResult = await tools.search_similar_topics.execute?.(
+			{ query: "Geografia" },
+			{
+				toolCallId: "search-1",
+				messages: [],
+				abortSignal: new AbortController().signal,
+			},
+		);
+
+		expect(searchResult).toEqual({
+			ok: true,
+			topics: [
+				{
+					topicId: "topic-geo",
+					name: "Geografia",
+					normalizedName: "geografia",
+					similarityLabel: "normalized_exact",
+				},
+			],
+		});
+	});
+
 	it("lists buffered draft questions with stable ids", async () => {
 		const append = vi.fn(async () => undefined);
 		const onFinishReview = vi.fn();
@@ -28,7 +75,7 @@ describe("createReviewAgentTools", () => {
 			getCurrentMessageId: () => "review-step-1",
 			drafts,
 			onFinishReview,
-		});
+		} as never);
 
 		const result = await tools.list_questions.execute?.(
 			{},
@@ -56,7 +103,7 @@ describe("createReviewAgentTools", () => {
 			getCurrentMessageId: () => "review-step-1",
 			drafts,
 			onFinishReview,
-		});
+		} as never);
 
 		const result = await tools.update_question.execute?.(
 			{
@@ -68,6 +115,7 @@ describe("createReviewAgentTools", () => {
 				],
 				answers: ["B"],
 				topic: "Geografia",
+				topicId: "topic-geo",
 			},
 			{
 				toolCallId: "update-1",
@@ -88,6 +136,7 @@ describe("createReviewAgentTools", () => {
 				],
 				answers: ["A"],
 				topic: "Geografia",
+				topicId: "topic-geo",
 			},
 		});
 	});
@@ -101,7 +150,7 @@ describe("createReviewAgentTools", () => {
 			getCurrentMessageId: () => "review-step-1",
 			drafts,
 			onFinishReview,
-		});
+		} as never);
 
 		const result = await tools.update_question.execute?.(
 			{
@@ -114,6 +163,7 @@ describe("createReviewAgentTools", () => {
 				],
 				answers: ["A"],
 				topic: "Geografia",
+				topicId: "topic-geo",
 			},
 			{
 				toolCallId: "update-1",
@@ -138,7 +188,7 @@ describe("createReviewAgentTools", () => {
 			getCurrentMessageId: () => "review-step-1",
 			drafts,
 			onFinishReview,
-		});
+		} as never);
 
 		const firstFinish = await tools.finish_review.execute?.(
 			{ total: 1, summary: "Revisão concluída." },

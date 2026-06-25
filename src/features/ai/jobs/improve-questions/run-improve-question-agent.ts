@@ -5,6 +5,10 @@ import type { LanguageModel } from "ai";
 import type { AppDatabase } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
 import {
+	createQuestionTopic,
+	searchSimilarQuestionTopics,
+} from "@/db/queries/question-topics";
+import {
 	type QuestionImprovementSnapshot,
 	upsertPendingQuestionImprovementDraft,
 } from "@/db/queries/question-improvement-drafts";
@@ -42,7 +46,8 @@ const questionSnapshotSchema = z.object({
 		.min(2)
 		.max(10),
 	answers: z.array(z.string().trim().min(1)).min(1),
-	topic: z.string().trim().max(200).nullable().optional(),
+	topic: z.string().trim().max(30).nullable().optional(),
+	topicId: z.string().uuid().nullable().optional(),
 	scoringMode: z.enum(["exact", "partial"]),
 	explanation: z.string().trim().max(10000).nullable().optional(),
 	deepExplanation: z.string().trim().max(10000).nullable().optional(),
@@ -54,6 +59,8 @@ function buildPrompt(questionId: string): string {
 		`Improve question ${questionId}.`,
 		"Always call get_question first.",
 		"Then produce a complete improved version of the same question.",
+		"Set topic as a summary of the question text with at most 30 characters.",
+		"Search similar topics first and create a new topic only when no candidate fits.",
 		"Persist the final improved question by calling update_question_draft exactly once.",
 		"You may use web_search and web_fetch when external context helps.",
 	].join("\n");
@@ -105,6 +112,7 @@ export async function runImproveQuestionAgent(input: {
 		question: question.question,
 		options: question.options,
 		answers: question.answers,
+		topicId: question.topicId ?? null,
 		topic: question.topic,
 		scoringMode: question.scoringMode,
 		explanation: question.explanation,
@@ -182,6 +190,7 @@ export async function runImproveQuestionAgent(input: {
 						question: parsed.question,
 						options: parsed.options,
 						answers: parsed.answers,
+						topicId: parsed.topicId ?? null,
 						topic: parsed.topic ?? null,
 						scoringMode: parsed.scoringMode,
 						explanation: parsed.explanation ?? null,
@@ -203,14 +212,69 @@ export async function runImproveQuestionAgent(input: {
 						}),
 					);
 				}
-				await input.appendJobEvent(
-					input.jobId,
-					buildImproveQuestionStatusEvent({
-						questionId: input.questionId,
-						status: "completed",
-						summary: latestSummary,
-					}),
-				);
+				return result;
+			},
+		}),
+		search_similar_topics: tool({
+			description:
+				"Search similar existing global question topics by textual similarity.",
+			inputSchema: z.object({
+				query: z.string().trim().min(1).max(200),
+				limit: z.number().int().min(1).max(10).optional(),
+			}),
+			execute: async (payload, context) => {
+				const topics = await searchSimilarQuestionTopics(input.db, payload);
+				const result = {
+					ok: true as const,
+					topics: topics.map((topic) => ({
+						topicId: topic.id,
+						name: topic.name,
+						normalizedName: topic.normalizedName,
+						similarityLabel: topic.similarityLabel,
+					})),
+				};
+				if (context?.toolCallId) {
+					await input.appendJobEvent(
+						input.jobId,
+						buildImproveToolResultEvent({
+							questionId: input.questionId,
+							messageId: currentMessageId,
+							toolCallId: context.toolCallId,
+							result,
+						}),
+					);
+				}
+				return result;
+			},
+		}),
+		create_topic: tool({
+			description:
+				"Create a new global question topic when no similar candidate is suitable.",
+			inputSchema: z.object({
+				name: z.string().trim().min(1).max(200),
+			}),
+			execute: async ({ name }, context) => {
+				const created = await createQuestionTopic(input.db, name);
+				const result = {
+					ok: true as const,
+					topic: {
+						topicId: created.topic.id,
+						name: created.topic.name,
+						normalizedName: created.topic.normalizedName,
+					},
+					created: created.created,
+				};
+				if (context?.toolCallId) {
+					await input.appendJobEvent(
+						input.jobId,
+						buildImproveToolResultEvent({
+							questionId: input.questionId,
+							messageId: currentMessageId,
+							toolCallId: context.toolCallId,
+							result,
+						}),
+					);
+				}
 				return result;
 			},
 		}),

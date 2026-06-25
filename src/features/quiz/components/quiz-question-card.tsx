@@ -1,4 +1,10 @@
 import { useEffect, useState, type WheelEvent } from "react";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -253,7 +259,7 @@ export function QuizQuestionCard({
 				)}
 
 				{showFeedback ? (
-					<div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+					<div className="rounded-md border border-border/70 bg-muted/20 p-3">
 						<Badge
 							variant={
 								isCorrect
@@ -270,26 +276,46 @@ export function QuizQuestionCard({
 							{isCorrect
 								? "✓ Resposta correta"
 								: partialCredit
-									? `Crédito parcial (${formatCredit(credit ?? 0)})`
-									: "✗ Resposta incorreta"}
+								? `Crédito parcial (${formatCredit(credit ?? 0)})`
+								: "✗ Resposta incorreta"}
 						</Badge>
+					</div>
+				) : null}
+
+				{showFeedback &&
+				(question.explanation || question.deepExplanation) ? (
+					<section
+						aria-labelledby={`question-${question.id}-explanation-title`}
+						className="rounded-md border border-border/70 bg-card p-4"
+					>
+						<h2
+							id={`question-${question.id}-explanation-title`}
+							className="mb-2 text-sm font-semibold text-foreground"
+						>
+							Explicação da questão
+						</h2>
 						{question.explanation ? (
 							<MarkdownRenderer
 								content={question.explanation}
-								className="text-sm text-muted-foreground"
+								className="text-sm leading-relaxed text-muted-foreground"
 							/>
 						) : null}
 						{question.deepExplanation ? (
-							<details className="mt-2 rounded-lg border border-border p-3">
-								<summary className="cursor-pointer text-sm font-medium text-muted-foreground">
-									Ver explicação completa
-								</summary>
-								<div className="mt-2 text-sm text-muted-foreground">
-									<MarkdownRenderer content={question.deepExplanation} />
-								</div>
-							</details>
+							<Accordion type="single" collapsible className="mt-3">
+								<AccordionItem
+									value="deep-explanation"
+									className="rounded-md border border-border px-3"
+								>
+									<AccordionTrigger className="py-2 text-sm text-muted-foreground hover:no-underline">
+										Ver explicação completa
+									</AccordionTrigger>
+									<AccordionContent className="border-t pt-3 text-sm text-muted-foreground">
+										<MarkdownRenderer content={question.deepExplanation} />
+									</AccordionContent>
+								</AccordionItem>
+							</Accordion>
 						) : null}
-					</div>
+					</section>
 				) : null}
 
 				{!showFeedback ? (

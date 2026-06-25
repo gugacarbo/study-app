@@ -1,11 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
+import { getOrCreateQuestionTopicFromName } from "@/db/queries/question-topics";
 import * as schema from "@/db/schema";
 
 export type QuestionImprovementSnapshot = {
 	question: string;
 	options: Array<{ key: string; text: string }>;
 	answers: string[];
+	topicId?: string | null;
 	topic: string | null;
 	scoringMode: "exact" | "partial";
 	explanation: string | null;
@@ -115,6 +117,77 @@ export async function getPendingQuestionImprovementDraftsByExam(
 	return rows.map(mapDraftRow);
 }
 
+export async function getPendingQuestionImprovementDraftByQuestion(
+	db: AppDatabase,
+	input: {
+		userId: string;
+		examId: string;
+		questionId: string;
+		jobId?: string;
+	},
+): Promise<QuestionImprovementDraftRecord | null> {
+	const row = await db.query.questionImprovementDrafts.findFirst({
+		where: (drafts, { and: all, eq: equal }) =>
+			all(
+				equal(drafts.userId, input.userId),
+				equal(drafts.examId, input.examId),
+				equal(drafts.questionId, input.questionId),
+				equal(drafts.status, "pending_review"),
+				...(input.jobId ? [equal(drafts.jobId, input.jobId)] : []),
+			),
+	});
+
+	return row ? mapDraftRow(row) : null;
+}
+
+export async function updatePendingQuestionImprovementDraftExplanations(
+	db: AppDatabase,
+	input: {
+		userId: string;
+		examId: string;
+		questionId: string;
+		jobId?: string;
+		explanation: string | null;
+		deepExplanation: string | null;
+		summary: string | null;
+		metadata: string | null;
+	},
+): Promise<QuestionImprovementDraftRecord> {
+	const draft = await getPendingQuestionImprovementDraftByQuestion(db, {
+		userId: input.userId,
+		examId: input.examId,
+		questionId: input.questionId,
+		jobId: input.jobId,
+	});
+	if (!draft) {
+		throw new Error("Pending question improvement draft was not found");
+	}
+
+	const nextSnapshot = {
+		...draft.improvedSnapshot,
+		explanation: input.explanation,
+		deepExplanation: input.deepExplanation,
+	};
+
+	await db
+		.update(schema.questionImprovementDrafts)
+		.set({
+			improvedSnapshot: JSON.stringify(nextSnapshot),
+			summary: input.summary,
+			metadata: input.metadata,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
+		})
+		.where(eq(schema.questionImprovementDrafts.id, draft.id));
+
+	const updated = await db.query.questionImprovementDrafts.findFirst({
+		where: (drafts, { eq: equal }) => equal(drafts.id, draft.id),
+	});
+	if (!updated) {
+		throw new Error("Failed to load updated question improvement draft");
+	}
+	return mapDraftRow(updated);
+}
+
 async function getOwnedDraft(
 	db: AppDatabase,
 	draftId: string,
@@ -133,6 +206,13 @@ export async function applyQuestionImprovementDraft(
 ): Promise<boolean> {
 	const draft = await getOwnedDraft(db, input.draftId, input.userId);
 	if (!draft || draft.status !== "pending_review") return false;
+	const resolvedTopic =
+		draft.improvedSnapshot.topicId != null
+			? { id: draft.improvedSnapshot.topicId }
+			: await getOrCreateQuestionTopicFromName(
+					db,
+					draft.improvedSnapshot.topic,
+				);
 
 	await db
 		.update(schema.questions)
@@ -141,7 +221,8 @@ export async function applyQuestionImprovementDraft(
 			options: JSON.stringify(draft.improvedSnapshot.options),
 			answers: JSON.stringify(draft.improvedSnapshot.answers),
 			scoringMode: draft.improvedSnapshot.scoringMode,
-			topic: draft.improvedSnapshot.topic,
+			topic: null,
+			topicId: resolvedTopic?.id ?? null,
 			explanation: draft.improvedSnapshot.explanation,
 			deepExplanation: draft.improvedSnapshot.deepExplanation,
 		})

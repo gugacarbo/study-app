@@ -51,20 +51,33 @@ describe("listExamTopicsHandler", () => {
 	it("returns sorted non-empty topics for the user's exam", async () => {
 		await seedUser(testDb, testUserId);
 		const examId = await seedExam(testDb, testUserId);
+		const topicB = createId();
+		const topicA = createId();
+		const sqlite = (
+			testDb as unknown as {
+				session: { client: { exec: (sql: string) => void } };
+			}
+		).session.client;
+		sqlite.exec(
+			`INSERT INTO question_topics (id, name, normalized_name) VALUES ('${topicB}', 'B', 'b');`,
+		);
+		sqlite.exec(
+			`INSERT INTO question_topics (id, name, normalized_name) VALUES ('${topicA}', 'A', 'a');`,
+		);
 		await seedQuestion(testDb, examId, {
 			id: createId(),
 			question: "Q1",
 			options: [{ key: "A", text: "A" }],
 			answers: ["A"],
-			topic: "B",
-		});
+			topicId: topicB,
+		} as never);
 		await seedQuestion(testDb, examId, {
 			id: createId(),
 			question: "Q2",
 			options: [{ key: "A", text: "A" }],
 			answers: ["A"],
-			topic: "A",
-		});
+			topicId: topicA,
+		} as never);
 		await seedQuestion(testDb, examId, {
 			id: createId(),
 			question: "Q3",
@@ -75,6 +88,9 @@ describe("listExamTopicsHandler", () => {
 
 		const topics = await listExamTopicsHandler({ examId }, new Headers());
 
-		expect(topics).toEqual(["A", "B"]);
+		expect(topics).toEqual([
+			{ id: topicA, name: "A" },
+			{ id: topicB, name: "B" },
+		]);
 	});
 });

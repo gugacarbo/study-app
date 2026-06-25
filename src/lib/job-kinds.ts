@@ -102,6 +102,7 @@ export const IMPROVE_QUESTION_STAGE = {
 	LOADING_QUESTION: "loading_question",
 	RESEARCHING: "researching",
 	DRAFTING: "drafting",
+	WRITING_EXPLANATIONS: "writing_explanations",
 	SAVING_DRAFT: "saving_draft",
 } as const;
 
@@ -127,6 +128,7 @@ export type ImproveQuestionItem = {
 export type ImproveQuestionsJobMetadata = {
 	examId: string;
 	modelId: string;
+	writeExplanations: boolean;
 	questionIds: string[];
 	concurrencyLimit: number;
 	totalCount: number;
@@ -167,6 +169,8 @@ export function parseImproveQuestionsJobMetadata(
 			parsed == null ||
 			typeof parsed.examId !== "string" ||
 			typeof parsed.modelId !== "string" ||
+			(typeof parsed.writeExplanations !== "boolean" &&
+				typeof parsed.writeExplanations !== "undefined") ||
 			!Array.isArray(parsed.questionIds) ||
 			typeof parsed.concurrencyLimit !== "number" ||
 			typeof parsed.totalCount !== "number" ||
@@ -180,7 +184,10 @@ export function parseImproveQuestionsJobMetadata(
 		) {
 			return null;
 		}
-		return parsed as ImproveQuestionsJobMetadata;
+		return {
+			...parsed,
+			writeExplanations: parsed.writeExplanations ?? false,
+		} as ImproveQuestionsJobMetadata;
 	} catch {
 		return null;
 	}

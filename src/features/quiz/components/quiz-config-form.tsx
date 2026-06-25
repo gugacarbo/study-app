@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import type { ExamTopicOption } from "@/db/queries/attempts";
 import {
 	Field,
 	FieldContent,
@@ -20,7 +21,7 @@ import type { QuizConfig } from "@/features/quiz/types/quiz";
 export type QuizConfigFormData = QuizConfig;
 
 type QuizConfigFormProps = {
-	availableTopics: string[];
+	availableTopics: ExamTopicOption[];
 	maxQuestions: number;
 	defaultValues?: Partial<QuizConfigFormData>;
 	onSubmit: (data: QuizConfigFormData) => void;
@@ -58,6 +59,8 @@ export function QuizConfigForm({
 		() => [ALL_TOPICS_VALUE, ...availableTopics],
 		[availableTopics],
 	);
+	const selectedTopicName =
+		availableTopics.find((topic) => topic.id === topicFilter)?.name ?? null;
 
 	function handleTopicChange(value: string) {
 		setTopicFilter(value === ALL_TOPICS_VALUE ? null : value);
@@ -110,7 +113,7 @@ export function QuizConfigForm({
 						<FieldDescription>
 							Máximo de {maxQuestions} questão
 							{maxQuestions === 1 ? "" : "s"}
-							{topicFilter ? ` em “${topicFilter}”` : ""}.
+							{selectedTopicName ? ` em “${selectedTopicName}”` : ""}.
 						</FieldDescription>
 					</FieldContent>
 				</Field>
@@ -154,8 +157,15 @@ export function QuizConfigForm({
 							</SelectTrigger>
 							<SelectContent>
 								{allTopics.map((topic) => (
-									<SelectItem key={topic} value={topic}>
-										{topic === ALL_TOPICS_VALUE ? "Todos" : topic}
+									<SelectItem
+										key={
+											typeof topic === "string" ? topic : topic.id
+										}
+										value={
+											typeof topic === "string" ? topic : topic.id
+										}
+									>
+										{typeof topic === "string" ? "Todos" : topic.name}
 									</SelectItem>
 								))}
 							</SelectContent>

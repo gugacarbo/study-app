@@ -1,4 +1,5 @@
 import { getAiModel } from "@/lib/ai-config";
+import { getOrCreateQuestionTopicFromName } from "@/db/queries/question-topics";
 import type { BackgroundJobRow, RunIngestContext } from "@/features/ai/jobs/ingest/run-ingest/types";
 import {
 	runReviewAgent,
@@ -18,6 +19,7 @@ export function buildReviewDrafts(
 		options: { key: string; text: string }[];
 		answers: string[];
 		topic: string;
+		topicId: string | null;
 	}>,
 ): ReviewDraftQuestion[] {
 	return questions.map((question, index) => ({
@@ -27,7 +29,41 @@ export function buildReviewDrafts(
 		options: question.options,
 		answers: question.answers,
 		topic: question.topic,
+		topicId: question.topicId,
 	}));
+}
+
+export async function resolveDraftTopicIds(
+	ctx: RunIngestContext,
+	questions: Array<{
+		question: string;
+		options: { key: string; text: string }[];
+		answers: string[];
+		topic: string;
+		topicId?: string | null;
+	}>,
+): Promise<ReviewDraftQuestion[]> {
+	const resolved: ReviewDraftQuestion[] = [];
+
+	for (let index = 0; index < questions.length; index += 1) {
+		const question = questions[index]!;
+		const topicRecord = await getOrCreateQuestionTopicFromName(
+			ctx.db,
+			question.topicId == null ? question.topic : null,
+		);
+
+		resolved.push({
+			draftQuestionId: `draft-${index + 1}`,
+			sourceIndex: index + 1,
+			question: question.question,
+			options: question.options,
+			answers: question.answers,
+			topic: question.topic,
+			topicId: question.topicId ?? topicRecord?.id ?? null,
+		});
+	}
+
+	return resolved;
 }
 
 export async function reviewQuestions(

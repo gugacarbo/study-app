@@ -2,8 +2,8 @@ import type { AppDatabase } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
 import {
 	deriveScoringMode,
-	type ExtractedQuestion,
-	parseExtractedQuestion,
+	type ResolvedExtractedQuestion,
+	parseResolvedExtractedQuestion,
 } from "@/features/ai/jobs/ingest/extracted-question";
 import { buildIngestSkippedDuplicatePart } from "@/features/ai/jobs/ingest/ingest-events";
 import { normalizeQuestionText } from "@/features/ai/jobs/ingest/normalize-question";
@@ -17,7 +17,7 @@ export type QuestionInsert = {
 	options: string;
 	answers: string;
 	scoringMode: "exact" | "partial";
-	topic: string;
+	topicId: string | null;
 };
 
 export type PersistQuestionsDeps = {
@@ -57,7 +57,7 @@ export async function persistQuestions(
 	let invalidCount = 0;
 
 	for (const raw of input.questions) {
-		const parsed = parseExtractedQuestion(raw);
+		const parsed = parseResolvedExtractedQuestion(raw);
 		if (!parsed.ok) {
 			invalidCount += 1;
 			continue;
@@ -116,15 +116,15 @@ export async function persistQuestions(
 
 function toQuestionInsert(
 	examId: string,
-	question: ExtractedQuestion,
+	question: ResolvedExtractedQuestion,
 ): QuestionInsert {
 	return {
 		id: createId(),
 		examId,
-		question: question.question,
-		options: JSON.stringify(question.options),
-		answers: JSON.stringify(question.answers.map((answer) => answer.trim())),
-		scoringMode: deriveScoringMode(question.answers),
-		topic: question.topic,
+	question: question.question,
+	options: JSON.stringify(question.options),
+	answers: JSON.stringify(question.answers.map((answer) => answer.trim())),
+	scoringMode: deriveScoringMode(question.answers),
+		topicId: question.topicId ?? null,
 	};
 }

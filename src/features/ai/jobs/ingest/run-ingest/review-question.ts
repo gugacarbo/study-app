@@ -1,6 +1,6 @@
 import {
-	extractedQuestionSchema,
-	type ExtractedQuestion,
+	resolvedExtractedQuestionSchema,
+	type ResolvedExtractedQuestion,
 } from "@/features/ai/jobs/ingest/extracted-question";
 
 const LEADING_MARKER_PATTERN =
@@ -11,8 +11,8 @@ export function sanitizeReviewText(text: string): string {
 }
 
 export function canonicalizeReviewQuestion(
-	question: ExtractedQuestion,
-): ExtractedQuestion {
+	question: ResolvedExtractedQuestion,
+): ResolvedExtractedQuestion {
 	const sanitizedQuestion = sanitizeReviewText(question.question);
 	const keyMap = new Map<string, string>();
 
@@ -27,10 +27,11 @@ export function canonicalizeReviewQuestion(
 
 	const answers = question.answers.map((answer) => keyMap.get(answer.trim()) ?? answer.trim());
 
-	return extractedQuestionSchema.parse({
+	return resolvedExtractedQuestionSchema.parse({
 		question: sanitizedQuestion,
 		options,
 		answers,
 		topic: sanitizeReviewText(question.topic),
+		topicId: question.topicId,
 	});
 }

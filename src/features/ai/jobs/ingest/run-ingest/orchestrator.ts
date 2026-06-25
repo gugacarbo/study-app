@@ -21,7 +21,7 @@ import {
 import { extractQuestions } from "./extract-questions";
 import { cancelJob, emitPhase, failJob } from "./job-lifecycle";
 import { readIngestFileText } from "./read-file";
-import { buildReviewDrafts, reviewQuestions } from "./review-questions";
+import { resolveDraftTopicIds, reviewQuestions } from "./review-questions";
 import type { RunIngestContext } from "./types";
 
 export async function runIngest(ctx: RunIngestContext): Promise<void> {
@@ -98,12 +98,14 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 	});
 	await emitPhase(ctx, INGEST_PHASE.REVIEWING);
 
-	const reviewDrafts = buildReviewDrafts(
+	const reviewDrafts = await resolveDraftTopicIds(
+		ctx,
 		extractedQuestions as Array<{
 			question: string;
 			options: { key: string; text: string }[];
 			answers: string[];
 			topic: string;
+			topicId?: string | null;
 		}>,
 	);
 	const reviewResult = await reviewQuestions(

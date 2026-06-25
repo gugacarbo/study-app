@@ -19,7 +19,10 @@ describe("QuizConfigForm", () => {
 		const onSubmit = vi.fn();
 		render(
 			<QuizConfigForm
-				availableTopics={["Tópico A", "Tópico B"]}
+				availableTopics={[
+					{ id: "topic-a", name: "Tópico A" },
+					{ id: "topic-b", name: "Tópico B" },
+				]}
 				maxQuestions={10}
 				defaultValues={defaultConfig}
 				isPending={false}

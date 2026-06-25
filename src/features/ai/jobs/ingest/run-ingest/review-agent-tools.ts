@@ -1,8 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
-	extractedQuestionSchema,
-	type ExtractedQuestion,
+	resolvedExtractedQuestionSchema,
+	type ResolvedExtractedQuestion,
 } from "@/features/ai/jobs/ingest/extracted-question";
 import { buildIngestTextPart, serializeIngestJobEventPart } from "@/features/ai/jobs/ingest/ingest-events";
 import {
@@ -16,17 +16,17 @@ import {
 } from "@/features/ai/jobs/ingest/run-ingest/ingest-agent-tools";
 import { canonicalizeReviewQuestion } from "@/features/ai/jobs/ingest/run-ingest/review-question";
 
-export type ReviewDraftQuestion = ExtractedQuestion & {
+export type ReviewDraftQuestion = ResolvedExtractedQuestion & {
 	draftQuestionId: string;
 	sourceIndex: number;
 };
 
-const reviewDraftQuestionSchema = extractedQuestionSchema.extend({
+const reviewDraftQuestionSchema = resolvedExtractedQuestionSchema.extend({
 	draftQuestionId: z.string().trim().min(1),
 	sourceIndex: z.number().int().positive(),
 });
 
-const updateQuestionInputSchema = extractedQuestionSchema.extend({
+const updateQuestionInputSchema = resolvedExtractedQuestionSchema.extend({
 	draftQuestionId: z.string().trim().min(1),
 });
 
@@ -67,6 +67,27 @@ export type ReviewAgentToolsContext = {
 	getCurrentMessageId: () => string;
 	drafts: ReviewDraftQuestion[];
 	onFinishReview: () => void;
+	searchSimilarTopics?: (input: {
+		query: string;
+		limit?: number;
+	}) => Promise<
+		Array<{
+			topicId: string;
+			name: string;
+			normalizedName: string;
+			similarityLabel:
+				| "exact"
+				| "normalized_exact"
+				| "prefix"
+				| "partial";
+		}>
+	>;
+	createTopic?: (name: string) => Promise<{
+		topicId: string;
+		name: string;
+		normalizedName: string;
+		created?: boolean;
+	}>;
 };
 
 export function createReviewAgentTools(ctx: ReviewAgentToolsContext) {
@@ -157,6 +178,52 @@ export function createReviewAgentTools(ctx: ReviewAgentToolsContext) {
 					await persistToolResult(toolCallId, result, true);
 					return result;
 				}
+			},
+		}),
+		search_similar_topics: tool({
+			description:
+				"Search similar existing global question topics by textual similarity.",
+			inputSchema: z.object({
+				query: z.string().trim().min(1).max(200),
+				limit: z.number().int().min(1).max(10).optional(),
+			}),
+			execute: async (input, { toolCallId }) => {
+				const topics = await ctx.searchSimilarTopics?.(input);
+				const result = {
+					ok: true as const,
+					topics: topics ?? [],
+				};
+				await persistToolResult(toolCallId, result);
+				return result;
+			},
+		}),
+		create_topic: tool({
+			description:
+				"Create a new global question topic when no similar candidate is suitable.",
+			inputSchema: z.object({
+				name: z.string().trim().min(1).max(200),
+			}),
+			execute: async (input, { toolCallId }) => {
+				const topic = await ctx.createTopic?.(input.name);
+				if (!topic) {
+					const result = {
+						ok: false as const,
+						reason: "topic_creation_unavailable",
+					};
+					await persistToolResult(toolCallId, result, true);
+					return result;
+				}
+				const result = {
+					ok: true as const,
+					topic: {
+						topicId: topic.topicId,
+						name: topic.name,
+						normalizedName: topic.normalizedName,
+					},
+					created: topic.created ?? true,
+				};
+				await persistToolResult(toolCallId, result);
+				return result;
 			},
 		}),
 		finish_review: tool({
