@@ -63,6 +63,10 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0021 | `docs/specs/exams/0021-edicao-visualizacao-questoes.md` | ADR-0008, SPEC-0019, SPEC-0020                   | implemented |
 | SPEC-0022 | `docs/specs/ui/0022-ingest-system-message-groups.md` | ADR-0008, SPEC-0019, SPEC-0020                   | draft       |
 | SPEC-0023 | `docs/specs/ui/0023-quiz-result-revisao-visual.md` | SPEC-0007, SPEC-0008, SPEC-0021                   | draft       |
+| SPEC-0024 | `docs/specs/exams/0024-agente-explicacoes-na-melhoria.md` | ADR-0007, ADR-0008, ADR-0009, SPEC-0011, SPEC-0021 | draft       |
+| SPEC-0025 | `docs/specs/exams/0025-pagina-dedicada-questao.md` | SPEC-0008, SPEC-0021, SPEC-0024                   | draft       |
+| SPEC-0026 | `docs/specs/exams/0026-catalogo-global-topicos-questoes.md` | SPEC-0001, SPEC-0004, SPEC-0007, SPEC-0021       | draft       |
+| SPEC-0027 | `docs/specs/exams/0027-ui-painel-questao-dedicada.md` | SPEC-0021, SPEC-0025                              | draft       |
 
 ## Pendências
 

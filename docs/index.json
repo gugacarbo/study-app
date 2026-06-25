@@ -122,7 +122,7 @@
     "id": "SPEC-0000",
     "path": "docs/specs/auth/0000-autenticacao-magic-link.md",
     "layer": "specs",
-    "title": "Login por magic link e sessão protegida",
+    "title": "Login por magic link, Google e sessão protegida",
     "status": "implemented",
     "builds-on": [
       "ADR-0003",
@@ -730,6 +730,64 @@
       "SPEC-0007",
       "SPEC-0008",
       "SPEC-0021"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0024",
+    "path": "docs/specs/exams/0024-agente-explicacoes-na-melhoria.md",
+    "layer": "specs",
+    "title": "Agente opcional de explicações no job de melhoria de questões",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0007",
+      "ADR-0008",
+      "ADR-0009",
+      "SPEC-0011",
+      "SPEC-0021"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0025",
+    "path": "docs/specs/exams/0025-pagina-dedicada-questao.md",
+    "layer": "specs",
+    "title": "Lista enxuta de questões no exame e página dedicada por questão",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0008",
+      "SPEC-0021",
+      "SPEC-0024"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0026",
+    "path": "docs/specs/exams/0026-catalogo-global-topicos-questoes.md",
+    "layer": "specs",
+    "title": "Catálogo global de tópicos para questões e resolução via tools de agente",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0001",
+      "SPEC-0004",
+      "SPEC-0007",
+      "SPEC-0021"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
+  },
+  {
+    "id": "SPEC-0027",
+    "path": "docs/specs/exams/0027-ui-painel-questao-dedicada.md",
+    "layer": "specs",
+    "title": "UI em painel para a página dedicada da questão",
+    "status": "draft",
+    "builds-on": [
+      "SPEC-0021",
+      "SPEC-0025"
     ],
     "superseded-by": null,
     "implemented-by": []

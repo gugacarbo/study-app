@@ -87,6 +87,7 @@ describe("getExamHandler", () => {
 					answers: ["A", "B"],
 					scoringMode: "partial",
 					topic: "Geografia",
+					topicId: null,
 					explanation: null,
 					deepExplanation: null,
 				},
