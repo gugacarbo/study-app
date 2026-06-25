@@ -13,3 +13,6 @@ TAVILY_API_KEY=
 # Opcional — necessário para o fallback `process.env` (ex.: testes sem Worker).
 # No dev padrão (`pnpm dev` / Localflare), vem de `wrangler.jsonc` → `BETTER_AUTH_URL`.
 # BETTER_AUTH_URL=http://localhost:8787
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=

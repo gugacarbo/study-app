@@ -16,15 +16,16 @@ const server = {
 	NODE_ENV: z
 		.enum(["development", "production", "test"])
 		.default("development"),
-	ALLOWED_SIGNUP_EMAIL_DOMAINS: z.string().default("aluno.ifsc.edu.br"),
-	ADMIN_EMAILS: z.string().default(""),
+	ALLOWED_SIGNUP_EMAIL_DOMAINS: z.string(),
+	ADMIN_EMAIL: z.string().email(),
 	// ? Email
-	EMAIL_FROM_ADDRESS: z.email().default("noreply@gugacarbo.space"),
-	EMAIL_FROM_NAME: z.string().default("Study App"),
+	EMAIL_FROM_ADDRESS: z.email(),
+	EMAIL_FROM_NAME: z.string(),
 	DEV_LOG_EMAILS: z
 		.string()
-		.default("true")
 		.transform((value) => value === "true"),
+	GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+	GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
 } as const;
 
 const serverEnvKeys = Object.keys(server) as (keyof typeof server)[];
@@ -87,15 +88,6 @@ export function shouldLogEmailsToConsole(
 	return nodeEnv === "development" && devLogEmails;
 }
 
-export function parseAdminEmails(raw: string): Set<string> {
-	return new Set(
-		raw
-			.split(",")
-			.map((email) => email.trim().toLowerCase())
-			.filter(Boolean),
-	);
-}
-
 export function getAllowedSignupDomains(raw: string | undefined): string[] {
 	return (raw ?? "aluno.ifsc.edu.br")
 		.split(",")
@@ -119,4 +111,11 @@ export function formatUnauthorizedEmailMessage(raw: string | undefined): string 
 	return hint
 		? `Este email não está autorizado. Use ${hint}.`
 		: "Este email não está autorizado.";
+}
+
+export function hasGoogleAuthConfig(source: {
+	GOOGLE_CLIENT_ID?: string;
+	GOOGLE_CLIENT_SECRET?: string;
+}): boolean {
+	return Boolean(source.GOOGLE_CLIENT_ID && source.GOOGLE_CLIENT_SECRET);
 }

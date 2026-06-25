@@ -19,5 +19,5 @@ export const env = {
 	ALLOWED_SIGNUP_EMAIL_DOMAINS: "aluno.ifsc.edu.br",
 	EMAIL_FROM_ADDRESS: "noreply@gugacarbo.space",
 	EMAIL_FROM_NAME: "Study App",
-	ADMIN_EMAILS: "",
+	ADMIN_EMAIL: "admin@aluno.ifsc.edu.br",
 };

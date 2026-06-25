@@ -30,6 +30,10 @@
 	},
 	"linter": {
 		"enabled": true,
+		"includes": [
+			"!**/*.test.*",
+			"!**/*.spec.*"
+		],
 		"rules": {
 			"recommended": true,
 			"nursery": {

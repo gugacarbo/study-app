@@ -10,7 +10,7 @@ interface __BaseEnv_Env {
 	EMAIL_FROM_ADDRESS: "noreply@gugacarbo.space";
 	EMAIL_FROM_NAME: "Study App";
 	BETTER_AUTH_URL: "http://localhost:8787";
-	ADMIN_EMAILS: "";
+	ADMIN_EMAIL: "admin@aluno.ifsc.edu.br";
 	DEV_LOG_EMAILS: "true";
 	BETTER_AUTH_SECRET: string;
 	RESEND_API_KEY: string;
@@ -28,7 +28,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ALLOWED_SIGNUP_EMAIL_DOMAINS" | "EMAIL_FROM_ADDRESS" | "EMAIL_FROM_NAME" | "BETTER_AUTH_URL" | "ADMIN_EMAILS" | "DEV_LOG_EMAILS" | "BETTER_AUTH_SECRET" | "RESEND_API_KEY" | "CONFIG_ENCRYPTION_KEY" | "TAVILY_API_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ALLOWED_SIGNUP_EMAIL_DOMAINS" | "EMAIL_FROM_ADDRESS" | "EMAIL_FROM_NAME" | "BETTER_AUTH_URL" | "ADMIN_EMAIL" | "DEV_LOG_EMAILS" | "BETTER_AUTH_SECRET" | "RESEND_API_KEY" | "CONFIG_ENCRYPTION_KEY" | "TAVILY_API_KEY">> {}
 }
 
 // Begin runtime types

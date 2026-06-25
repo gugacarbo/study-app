@@ -39,7 +39,7 @@
 		"EMAIL_FROM_ADDRESS": "noreply@gugacarbo.space",
 		"EMAIL_FROM_NAME": "Study App",
 		"BETTER_AUTH_URL": "http://localhost:8787",
-		"ADMIN_EMAILS": "",
+		"ADMIN_EMAIL": "admin@aluno.ifsc.edu.br",
 		"DEV_LOG_EMAILS": "true"
 	},
 	"secrets": {
@@ -47,7 +47,9 @@
 			"BETTER_AUTH_SECRET",
 			"RESEND_API_KEY",
 			"CONFIG_ENCRYPTION_KEY",
-			"TAVILY_API_KEY"
+			"TAVILY_API_KEY",
+			"GOOGLE_CLIENT_ID",
+			"GOOGLE_CLIENT_SECRET"
 		]
 	},
 	"queues": {
