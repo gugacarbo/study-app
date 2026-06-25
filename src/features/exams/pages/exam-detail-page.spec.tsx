@@ -113,9 +113,8 @@ describe("ExamDetailPageContent", () => {
 		expect(screen.getByText(/1 questão/i)).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: /fazer quiz/i })).toBeEnabled();
 		expect(screen.getByRole("button", { name: /melhorar/i })).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: /Q1 · Aritmética/i }),
-		).toBeInTheDocument();
+		expect(screen.getByText(/Q1 · Aritmética/i)).toBeInTheDocument();
+		expect(screen.getByText(/quanto é 2 \+ 2\?/i)).toBeInTheDocument();
 	});
 
 	it("shows empty state when exam has no questions", () => {

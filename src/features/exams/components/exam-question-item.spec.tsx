@@ -1,7 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Accordion } from "@/components/ui/accordion";
 import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
 import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
@@ -43,8 +41,9 @@ const discardDraftMock = vi.fn();
 
 vi.mock("@/features/exams/hooks/use-update-question", () => ({
 	useUpdateQuestion: () => ({
-		mutate: updateQuestionMock,
+		mutateAsync: updateQuestionMock,
 		isPending: false,
+		isError: false,
 	}),
 }));
 
@@ -70,12 +69,8 @@ describe("ExamQuestionItem", () => {
 		discardDraftMock.mockClear();
 	});
 
-	function renderWithAccordion(ui: ReactElement) {
-		return render(<Accordion type="multiple">{ui}</Accordion>);
-	}
-
-	it("expands to show question text and options in lowercase", () => {
-		renderWithAccordion(
+	it("shows question text and options in lowercase", () => {
+		render(
 			<ExamQuestionItem
 				index={1}
 				examId="exam-1"
@@ -83,13 +78,8 @@ describe("ExamQuestionItem", () => {
 			/>,
 		);
 
-		expect(
-			screen.queryByText("Qual a capital do Brasil?"),
-		).not.toBeInTheDocument();
-
-		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
-
 		expect(screen.getByText("Qual a capital do Brasil?")).toBeInTheDocument();
+		expect(screen.getByText(/Q1 · Geografia/i)).toBeInTheDocument();
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
@@ -100,7 +90,7 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("shows null topic as Geral in trigger", () => {
-		renderWithAccordion(
+		render(
 			<ExamQuestionItem
 				index={2}
 				examId="exam-1"
@@ -109,20 +99,18 @@ describe("ExamQuestionItem", () => {
 		);
 
 		expect(
-			screen.getByRole("button", { name: /Q2 · Geral/i }),
+			screen.getByText(/Q2 · Geral/i),
 		).toBeInTheDocument();
 	});
 
 	it("highlights correct answer inline for single-answer question", () => {
-		renderWithAccordion(
+		render(
 			<ExamQuestionItem
 				index={1}
 				examId="exam-1"
 				question={singleAnswerQuestion}
 			/>,
 		);
-
-		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
@@ -131,15 +119,13 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("highlights correct answers inline for partial-answer question", () => {
-		renderWithAccordion(
+		render(
 			<ExamQuestionItem
 				index={2}
 				examId="exam-1"
 				question={partialAnswerQuestion}
 			/>,
 		);
-
-		fireEvent.click(screen.getByRole("button", { name: /Q2 · Geral/i }));
 
 		const optionList = screen.getByTestId("question-options");
 		const items = optionList.querySelectorAll("li");
@@ -149,7 +135,7 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("switches to edit form when Edit button is clicked", () => {
-		renderWithAccordion(
+		render(
 			<ExamQuestionItem
 				index={1}
 				examId="exam-1"
@@ -157,7 +143,6 @@ describe("ExamQuestionItem", () => {
 			/>,
 		);
 
-		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 		fireEvent.click(
 			screen.getByRole("button", { name: /editar pergunta/i }),
 		);
@@ -205,7 +190,7 @@ describe("ExamQuestionItem", () => {
 			updatedAt: null,
 		};
 
-		renderWithAccordion(
+		render(
 			<ExamQuestionItem
 				index={1}
 				examId="exam-1"
@@ -213,8 +198,6 @@ describe("ExamQuestionItem", () => {
 				draft={draft}
 			/>,
 		);
-
-		fireEvent.click(screen.getByRole("button", { name: /Q1 · Geografia/i }));
 
 		expect(screen.getByText(/melhoria pendente/i)).toBeInTheDocument();
 		expect(screen.getByText(/qual é a capital federal do brasil/i)).toBeInTheDocument();

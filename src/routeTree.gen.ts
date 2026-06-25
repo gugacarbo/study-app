@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
+import { Route as AuthErrorIndexRouteImport } from './routes/auth-error/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
@@ -20,8 +21,10 @@ import { Route as AdminR2LogsIndexRouteImport } from './routes/admin/r2-logs/ind
 import { Route as AdminModelsIndexRouteImport } from './routes/admin/models/index'
 import { Route as AdminLlmLogsIndexRouteImport } from './routes/admin/llm-logs/index'
 import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
+import { Route as AppProfileIndexRouteImport } from './routes/_app/profile/index'
 import { Route as AppExamsIndexRouteImport } from './routes/_app/exams/index'
 import { Route as ApiJobsActiveRouteImport } from './routes/api/jobs/active'
+import { Route as ApiAuthGoogleStatusRouteImport } from './routes/api/auth/google-status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AppJobsJobIdIndexRouteImport } from './routes/_app/jobs/$jobId/index'
 import { Route as AppExamsNewIndexRouteImport } from './routes/_app/exams/new/index'
@@ -33,6 +36,7 @@ import { Route as ApiJobsIdCancelRouteImport } from './routes/api/jobs/$id/cance
 import { Route as AppExamsExamIdQuizIndexRouteImport } from './routes/_app/exams/$examId/quiz/index'
 import { Route as ApiAdminModelsIdTestStreamRouteImport } from './routes/api/admin/models/$id/test-stream'
 import { Route as AppExamsExamIdQuizAttemptIdIndexRouteImport } from './routes/_app/exams/$examId/quiz/$attemptId/index'
+import { Route as AppExamsExamIdQuestionsQuestionIdIndexRouteImport } from './routes/_app/exams/$examId/questions/$questionId/index'
 import { Route as AppExamsExamIdQuizAttemptIdResultRouteImport } from './routes/_app/exams/$examId/quiz/$attemptId/result'
 
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -47,6 +51,11 @@ const AppRouteRoute = AppRouteRouteImport.update({
 const LoginIndexRoute = LoginIndexRouteImport.update({
   id: '/login/',
   path: '/login/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthErrorIndexRoute = AuthErrorIndexRouteImport.update({
+  id: '/auth-error/',
+  path: '/auth-error/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -89,6 +98,11 @@ const AdminJobsIndexRoute = AdminJobsIndexRouteImport.update({
   path: '/jobs/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
+  id: '/profile/',
+  path: '/profile/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppExamsIndexRoute = AppExamsIndexRouteImport.update({
   id: '/exams/',
   path: '/exams/',
@@ -97,6 +111,11 @@ const AppExamsIndexRoute = AppExamsIndexRouteImport.update({
 const ApiJobsActiveRoute = ApiJobsActiveRouteImport.update({
   id: '/api/jobs/active',
   path: '/api/jobs/active',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthGoogleStatusRoute = ApiAuthGoogleStatusRouteImport.update({
+  id: '/api/auth/google-status',
+  path: '/api/auth/google-status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -156,6 +175,12 @@ const AppExamsExamIdQuizAttemptIdIndexRoute =
     path: '/exams/$examId/quiz/$attemptId/',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppExamsExamIdQuestionsQuestionIdIndexRoute =
+  AppExamsExamIdQuestionsQuestionIdIndexRouteImport.update({
+    id: '/exams/$examId/questions/$questionId/',
+    path: '/exams/$examId/questions/$questionId/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 const AppExamsExamIdQuizAttemptIdResultRoute =
   AppExamsExamIdQuizAttemptIdResultRouteImport.update({
     id: '/exams/$examId/quiz/$attemptId/result',
@@ -167,10 +192,13 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/auth-error/': typeof AuthErrorIndexRoute
   '/login/': typeof LoginIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/google-status': typeof ApiAuthGoogleStatusRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/exams/': typeof AppExamsIndexRoute
+  '/profile/': typeof AppProfileIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
   '/admin/models/': typeof AdminModelsIndexRoute
@@ -187,15 +215,19 @@ export interface FileRoutesByFullPath {
   '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
   '/exams/$examId/quiz/': typeof AppExamsExamIdQuizIndexRoute
   '/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
+  '/exams/$examId/questions/$questionId/': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/exams/$examId/quiz/$attemptId/': typeof AppExamsExamIdQuizAttemptIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/auth-error': typeof AuthErrorIndexRoute
   '/login': typeof LoginIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/google-status': typeof ApiAuthGoogleStatusRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/exams': typeof AppExamsIndexRoute
+  '/profile': typeof AppProfileIndexRoute
   '/admin/jobs': typeof AdminJobsIndexRoute
   '/admin/llm-logs': typeof AdminLlmLogsIndexRoute
   '/admin/models': typeof AdminModelsIndexRoute
@@ -212,6 +244,7 @@ export interface FileRoutesByTo {
   '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
   '/exams/$examId/quiz': typeof AppExamsExamIdQuizIndexRoute
   '/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
+  '/exams/$examId/questions/$questionId': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/exams/$examId/quiz/$attemptId': typeof AppExamsExamIdQuizAttemptIdIndexRoute
 }
 export interface FileRoutesById {
@@ -220,10 +253,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/_app/': typeof AppIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/auth-error/': typeof AuthErrorIndexRoute
   '/login/': typeof LoginIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/auth/google-status': typeof ApiAuthGoogleStatusRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/_app/exams/': typeof AppExamsIndexRoute
+  '/_app/profile/': typeof AppProfileIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
   '/admin/models/': typeof AdminModelsIndexRoute
@@ -240,6 +276,7 @@ export interface FileRoutesById {
   '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
   '/_app/exams/$examId/quiz/': typeof AppExamsExamIdQuizIndexRoute
   '/_app/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
+  '/_app/exams/$examId/questions/$questionId/': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/_app/exams/$examId/quiz/$attemptId/': typeof AppExamsExamIdQuizAttemptIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -248,10 +285,13 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin/'
+    | '/auth-error/'
     | '/login/'
     | '/api/auth/$'
+    | '/api/auth/google-status'
     | '/api/jobs/active'
     | '/exams/'
+    | '/profile/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
     | '/admin/models/'
@@ -268,15 +308,19 @@ export interface FileRouteTypes {
     | '/api/admin/models/$id/test-stream'
     | '/exams/$examId/quiz/'
     | '/exams/$examId/quiz/$attemptId/result'
+    | '/exams/$examId/questions/$questionId/'
     | '/exams/$examId/quiz/$attemptId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/auth-error'
     | '/login'
     | '/api/auth/$'
+    | '/api/auth/google-status'
     | '/api/jobs/active'
     | '/exams'
+    | '/profile'
     | '/admin/jobs'
     | '/admin/llm-logs'
     | '/admin/models'
@@ -293,6 +337,7 @@ export interface FileRouteTypes {
     | '/api/admin/models/$id/test-stream'
     | '/exams/$examId/quiz'
     | '/exams/$examId/quiz/$attemptId/result'
+    | '/exams/$examId/questions/$questionId'
     | '/exams/$examId/quiz/$attemptId'
   id:
     | '__root__'
@@ -300,10 +345,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/_app/'
     | '/admin/'
+    | '/auth-error/'
     | '/login/'
     | '/api/auth/$'
+    | '/api/auth/google-status'
     | '/api/jobs/active'
     | '/_app/exams/'
+    | '/_app/profile/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
     | '/admin/models/'
@@ -320,14 +368,17 @@ export interface FileRouteTypes {
     | '/api/admin/models/$id/test-stream'
     | '/_app/exams/$examId/quiz/'
     | '/_app/exams/$examId/quiz/$attemptId/result'
+    | '/_app/exams/$examId/questions/$questionId/'
     | '/_app/exams/$examId/quiz/$attemptId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRouteRoute: typeof AppRouteRouteWithChildren
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  AuthErrorIndexRoute: typeof AuthErrorIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiAuthGoogleStatusRoute: typeof ApiAuthGoogleStatusRoute
   ApiJobsActiveRoute: typeof ApiJobsActiveRoute
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiJobsIdCancelRoute: typeof ApiJobsIdCancelRoute
@@ -358,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login/'
       preLoaderRoute: typeof LoginIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth-error/': {
+      id: '/auth-error/'
+      path: '/auth-error'
+      fullPath: '/auth-error/'
+      preLoaderRoute: typeof AuthErrorIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -416,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminJobsIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/_app/profile/': {
+      id: '/_app/profile/'
+      path: '/profile'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof AppProfileIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/exams/': {
       id: '/_app/exams/'
       path: '/exams'
@@ -428,6 +493,13 @@ declare module '@tanstack/react-router' {
       path: '/api/jobs/active'
       fullPath: '/api/jobs/active'
       preLoaderRoute: typeof ApiJobsActiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/google-status': {
+      id: '/api/auth/google-status'
+      path: '/api/auth/google-status'
+      fullPath: '/api/auth/google-status'
+      preLoaderRoute: typeof ApiAuthGoogleStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -507,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExamsExamIdQuizAttemptIdIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/exams/$examId/questions/$questionId/': {
+      id: '/_app/exams/$examId/questions/$questionId/'
+      path: '/exams/$examId/questions/$questionId'
+      fullPath: '/exams/$examId/questions/$questionId/'
+      preLoaderRoute: typeof AppExamsExamIdQuestionsQuestionIdIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/exams/$examId/quiz/$attemptId/result': {
       id: '/_app/exams/$examId/quiz/$attemptId/result'
       path: '/exams/$examId/quiz/$attemptId/result'
@@ -520,23 +599,28 @@ declare module '@tanstack/react-router' {
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppExamsIndexRoute: typeof AppExamsIndexRoute
+  AppProfileIndexRoute: typeof AppProfileIndexRoute
   AppExamsExamIdIndexRoute: typeof AppExamsExamIdIndexRoute
   AppExamsNewIndexRoute: typeof AppExamsNewIndexRoute
   AppJobsJobIdIndexRoute: typeof AppJobsJobIdIndexRoute
   AppExamsExamIdQuizIndexRoute: typeof AppExamsExamIdQuizIndexRoute
   AppExamsExamIdQuizAttemptIdResultRoute: typeof AppExamsExamIdQuizAttemptIdResultRoute
+  AppExamsExamIdQuestionsQuestionIdIndexRoute: typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   AppExamsExamIdQuizAttemptIdIndexRoute: typeof AppExamsExamIdQuizAttemptIdIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppExamsIndexRoute: AppExamsIndexRoute,
+  AppProfileIndexRoute: AppProfileIndexRoute,
   AppExamsExamIdIndexRoute: AppExamsExamIdIndexRoute,
   AppExamsNewIndexRoute: AppExamsNewIndexRoute,
   AppJobsJobIdIndexRoute: AppJobsJobIdIndexRoute,
   AppExamsExamIdQuizIndexRoute: AppExamsExamIdQuizIndexRoute,
   AppExamsExamIdQuizAttemptIdResultRoute:
     AppExamsExamIdQuizAttemptIdResultRoute,
+  AppExamsExamIdQuestionsQuestionIdIndexRoute:
+    AppExamsExamIdQuestionsQuestionIdIndexRoute,
   AppExamsExamIdQuizAttemptIdIndexRoute: AppExamsExamIdQuizAttemptIdIndexRoute,
 }
 
@@ -569,8 +653,10 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AppRouteRoute: AppRouteRouteWithChildren,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  AuthErrorIndexRoute: AuthErrorIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiAuthGoogleStatusRoute: ApiAuthGoogleStatusRoute,
   ApiJobsActiveRoute: ApiJobsActiveRoute,
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiJobsIdCancelRoute: ApiJobsIdCancelRoute,

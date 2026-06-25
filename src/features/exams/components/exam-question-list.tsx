@@ -1,6 +1,5 @@
 import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
-import { Accordion } from "@/components/ui/accordion";
-import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
+import { ExamQuestionListItem } from "@/features/exams/components/exam-question-list-item";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
 type ExamQuestionListProps = {
@@ -23,9 +22,9 @@ export function ExamQuestionList({
 	}
 
 	return (
-		<Accordion type="multiple" className="flex flex-col gap-3">
+		<div className="flex flex-col gap-3">
 			{questions.map((question, index) => (
-				<ExamQuestionItem
+				<ExamQuestionListItem
 					key={question.id}
 					index={index + 1}
 					examId={examId}
@@ -33,6 +32,6 @@ export function ExamQuestionList({
 					draft={draftsByQuestionId?.get(question.id)}
 				/>
 			))}
-		</Accordion>
+		</div>
 	);
 }
