@@ -38,6 +38,7 @@ import { Route as ApiAdminModelsIdTestStreamRouteImport } from './routes/api/adm
 import { Route as AppExamsExamIdQuizAttemptIdIndexRouteImport } from './routes/_app/exams/$examId/quiz/$attemptId/index'
 import { Route as AppExamsExamIdQuestionsQuestionIdIndexRouteImport } from './routes/_app/exams/$examId/questions/$questionId/index'
 import { Route as AppExamsExamIdQuizAttemptIdResultRouteImport } from './routes/_app/exams/$examId/quiz/$attemptId/result'
+import { Route as AppExamsExamIdQuestionsQuestionIdEditIndexRouteImport } from './routes/_app/exams/$examId/questions/$questionId/edit/index'
 
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
@@ -187,6 +188,12 @@ const AppExamsExamIdQuizAttemptIdResultRoute =
     path: '/exams/$examId/quiz/$attemptId/result',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const AppExamsExamIdQuestionsQuestionIdEditIndexRoute =
+  AppExamsExamIdQuestionsQuestionIdEditIndexRouteImport.update({
+    id: '/exams/$examId/questions/$questionId/edit/',
+    path: '/exams/$examId/questions/$questionId/edit/',
+    getParentRoute: () => AppRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
   '/exams/$examId/questions/$questionId/': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/exams/$examId/quiz/$attemptId/': typeof AppExamsExamIdQuizAttemptIdIndexRoute
+  '/exams/$examId/questions/$questionId/edit/': typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
@@ -246,6 +254,7 @@ export interface FileRoutesByTo {
   '/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
   '/exams/$examId/questions/$questionId': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/exams/$examId/quiz/$attemptId': typeof AppExamsExamIdQuizAttemptIdIndexRoute
+  '/exams/$examId/questions/$questionId/edit': typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -278,6 +287,7 @@ export interface FileRoutesById {
   '/_app/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
   '/_app/exams/$examId/questions/$questionId/': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/_app/exams/$examId/quiz/$attemptId/': typeof AppExamsExamIdQuizAttemptIdIndexRoute
+  '/_app/exams/$examId/questions/$questionId/edit/': typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -310,6 +320,7 @@ export interface FileRouteTypes {
     | '/exams/$examId/quiz/$attemptId/result'
     | '/exams/$examId/questions/$questionId/'
     | '/exams/$examId/quiz/$attemptId/'
+    | '/exams/$examId/questions/$questionId/edit/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -339,6 +350,7 @@ export interface FileRouteTypes {
     | '/exams/$examId/quiz/$attemptId/result'
     | '/exams/$examId/questions/$questionId'
     | '/exams/$examId/quiz/$attemptId'
+    | '/exams/$examId/questions/$questionId/edit'
   id:
     | '__root__'
     | '/_app'
@@ -370,6 +382,7 @@ export interface FileRouteTypes {
     | '/_app/exams/$examId/quiz/$attemptId/result'
     | '/_app/exams/$examId/questions/$questionId/'
     | '/_app/exams/$examId/quiz/$attemptId/'
+    | '/_app/exams/$examId/questions/$questionId/edit/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -593,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExamsExamIdQuizAttemptIdResultRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/exams/$examId/questions/$questionId/edit/': {
+      id: '/_app/exams/$examId/questions/$questionId/edit/'
+      path: '/exams/$examId/questions/$questionId/edit'
+      fullPath: '/exams/$examId/questions/$questionId/edit/'
+      preLoaderRoute: typeof AppExamsExamIdQuestionsQuestionIdEditIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
   }
 }
 
@@ -607,6 +627,7 @@ interface AppRouteRouteChildren {
   AppExamsExamIdQuizAttemptIdResultRoute: typeof AppExamsExamIdQuizAttemptIdResultRoute
   AppExamsExamIdQuestionsQuestionIdIndexRoute: typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   AppExamsExamIdQuizAttemptIdIndexRoute: typeof AppExamsExamIdQuizAttemptIdIndexRoute
+  AppExamsExamIdQuestionsQuestionIdEditIndexRoute: typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
@@ -622,6 +643,8 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppExamsExamIdQuestionsQuestionIdIndexRoute:
     AppExamsExamIdQuestionsQuestionIdIndexRoute,
   AppExamsExamIdQuizAttemptIdIndexRoute: AppExamsExamIdQuizAttemptIdIndexRoute,
+  AppExamsExamIdQuestionsQuestionIdEditIndexRoute:
+    AppExamsExamIdQuestionsQuestionIdEditIndexRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
