@@ -130,7 +130,7 @@ describe("ExamDetailActions", () => {
 
 		await waitFor(() => {
 			expect(navigate).toHaveBeenCalledWith({
-				to: "/exams/$examId/questions/$questionId",
+				to: "/exams/$examId/questions/$questionId/edit",
 				params: {
 					examId: "exam-1",
 					questionId: "q1",

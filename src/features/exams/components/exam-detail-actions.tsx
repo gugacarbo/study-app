@@ -92,7 +92,7 @@ export function ExamDetailActions({
 		if (!reviewImprovementQuestionId) return;
 
 		await navigate({
-			to: "/exams/$examId/questions/$questionId",
+			to: "/exams/$examId/questions/$questionId/edit",
 			params: {
 				examId,
 				questionId: reviewImprovementQuestionId,

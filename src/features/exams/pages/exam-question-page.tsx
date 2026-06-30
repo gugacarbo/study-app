@@ -1,5 +1,5 @@
 import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
-import { ArrowLeftIcon, ArrowRightIcon, ChevronLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, ChevronLeftIcon, PencilLineIcon } from "lucide-react";
 import { Suspense } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ export function ExamQuestionPageContent({
 			draft,
 		]),
 	);
+	const currentDraft = draftsByQuestionId.get(question.id);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -65,32 +66,34 @@ export function ExamQuestionPageContent({
 				className="rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
 				data-testid="question-page-toolbar"
 			>
-				<div className="flex flex-col gap-4">
-					<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-						<Button
-							type="button"
-							variant="ghost"
-							className="self-start px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-							onClick={() => void navigate({ to: "/exams/$examId", params: { examId } })}
-						>
-							<ChevronLeftIcon data-icon="inline-start" />
-							Voltar para a prova
-						</Button>
-						<div className="space-y-1">
-							<p className="text-base font-semibold">
-								Q{questionIndex + 1} de {exam.questions.length}
-							</p>
-							<p className="text-sm text-muted-foreground">
-								Q{questionIndex + 1} · {formatTopic(question.topic)}
-							</p>
-						</div>
+				<div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						className="size-8 text-muted-foreground"
+						aria-label="Voltar para a prova"
+						title="Voltar para a prova"
+						onClick={() => void navigate({ to: "/exams/$examId", params: { examId } })}
+					>
+						<ChevronLeftIcon />
+					</Button>
+					<div className="flex min-w-0 items-center gap-2 text-sm sm:ml-auto">
+						<p className="shrink-0 font-semibold">
+							Q{questionIndex + 1} de {exam.questions.length}
+						</p>
+						<p className="truncate text-muted-foreground">
+							Q{questionIndex + 1} · {formatTopic(question.topic)}
+						</p>
 					</div>
-					<div className="flex flex-col gap-2 sm:flex-row">
+					<div className="flex items-center gap-2 sm:ml-auto">
 						<Button
 							type="button"
 							variant="secondary"
-							size="lg"
-							className="flex-1 justify-between sm:flex-none"
+							size="icon"
+							className="size-8"
+							aria-label="Questão anterior"
+							title="Questão anterior"
 							disabled={!previousQuestion}
 							onClick={() => {
 								if (!previousQuestion) return;
@@ -100,15 +103,14 @@ export function ExamQuestionPageContent({
 								});
 							}}
 						>
-							<span className="inline-flex items-center gap-2">
-								<ArrowLeftIcon data-icon="inline-start" />
-								Questão anterior
-							</span>
+							<ArrowLeftIcon />
 						</Button>
 						<Button
 							type="button"
-							size="lg"
-							className="flex-1 justify-between sm:flex-none"
+							size="icon"
+							className="size-8"
+							aria-label="Próxima questão"
+							title="Próxima questão"
 							disabled={!nextQuestion}
 							onClick={() => {
 								if (!nextQuestion) return;
@@ -118,9 +120,26 @@ export function ExamQuestionPageContent({
 								});
 							}}
 						>
-							<span>Próxima questão</span>
-							<ArrowRightIcon data-icon="inline-end" />
+							<ArrowRightIcon />
 						</Button>
+						{currentDraft ? (
+							<Button
+								type="button"
+								variant="outline"
+								size="icon"
+								className="size-8"
+								aria-label="Editar pergunta"
+								title="Editar pergunta"
+								onClick={() =>
+									void navigate({
+										to: "/exams/$examId/questions/$questionId/edit",
+										params: { examId, questionId: question.id },
+									})
+								}
+							>
+								<PencilLineIcon />
+							</Button>
+						) : null}
 					</div>
 				</div>
 			</div>
@@ -129,7 +148,8 @@ export function ExamQuestionPageContent({
 				index={questionIndex + 1}
 				examId={examId}
 				question={question}
-				draft={draftsByQuestionId.get(question.id)}
+				draft={currentDraft}
+				showEditButton={!currentDraft}
 			/>
 		</div>
 	);

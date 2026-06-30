@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import { ExamQuestionPageContent } from "@/features/exams/pages/exam-question-page";
@@ -37,11 +37,7 @@ vi.mock("@/features/exams/hooks/use-update-question", () => ({
 
 vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => ({
 	useQuestionImprovementDraftActions: () => ({
-		approveDraft: {
-			mutateAsync: vi.fn(),
-			isPending: false,
-		},
-		discardDraft: {
+		resolveDraft: {
 			mutateAsync: vi.fn(),
 			isPending: false,
 		},
@@ -145,40 +141,86 @@ describe("ExamQuestionPageContent", () => {
 		).toBeEnabled();
 	});
 
-	it("falls back to Geral and shows draft state for the selected question", () => {
+	it("renders the navigation card as a compact inline toolbar with icon-only actions", () => {
+		mockUseExam.mockReturnValue({ data: examWithQuestions });
+		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
+
+		render(<ExamQuestionPageContent examId="exam-1" questionId="q2" />);
+
+		const toolbar = screen.getByTestId("question-page-toolbar");
+
+		expect(within(toolbar).getByText(/Q2 de 2/i)).toBeInTheDocument();
+		expect(within(toolbar).getByText(/Q2 · Geral/i)).toBeInTheDocument();
+		expect(
+			within(toolbar).getByRole("button", { name: /voltar para a prova/i }),
+		).toBeInTheDocument();
+		expect(
+			within(toolbar).getByRole("button", { name: /questão anterior/i }),
+		).toBeInTheDocument();
+		expect(
+			within(toolbar).getByRole("button", { name: /próxima questão/i }),
+		).toBeInTheDocument();
+		expect(
+			within(toolbar).getByRole("button", { name: /editar pergunta/i }),
+		).toBeInTheDocument();
+
+		expect(
+			within(toolbar).queryByText(/^Voltar para a prova$/),
+		).not.toBeInTheDocument();
+		expect(
+			within(toolbar).queryByText(/^Questão anterior$/),
+		).not.toBeInTheDocument();
+		expect(
+			within(toolbar).queryByText(/^Próxima questão$/),
+		).not.toBeInTheDocument();
+		expect(
+			within(toolbar).queryByText(/^Editar pergunta$/),
+		).not.toBeInTheDocument();
+	});
+
+	it("falls back to Geral and keeps a single edit CTA for the selected question", () => {
 		mockUseExam.mockReturnValue({ data: examWithQuestions });
 		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
 
 		render(<ExamQuestionPageContent examId="exam-1" questionId="q2" />);
 
 		expect(screen.getByText(/Q2 de 2/i)).toBeInTheDocument();
-		expect(screen.getAllByText(/Q2 · Geral/i)).toHaveLength(3);
-		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(2);
+		expect(screen.getAllByText(/Q2 · Geral/i)).toHaveLength(2);
+		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(1);
+		expect(screen.queryByText(/tela separada para revisão/i)).not.toBeInTheDocument();
+		expect(screen.getAllByRole("button", { name: /editar pergunta/i })).toHaveLength(1);
+		expect(screen.queryByTestId("question-page-sidebar")).not.toBeInTheDocument();
 		expect(
-			screen.getByRole("heading", { name: /decisão sobre a melhoria/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /enunciado/i }),
-		).toBeInTheDocument();
-		expect(screen.getByText(/marque todos os números primos/i)).toBeInTheDocument();
-		expect(screen.getAllByText(/Selecione os números primos./i).length).toBeGreaterThanOrEqual(1);
-		expect(
-			screen.getByTestId("question-improvement-section-metadata"),
-		).toHaveTextContent(/números/i);
-		expect(screen.queryByText(/^Original$/i)).not.toBeInTheDocument();
-		expect(screen.queryByText(/^Melhorada$/i)).not.toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: /aprovar melhoria/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: /descartar melhoria/i }),
-		).toBeInTheDocument();
+			screen.queryByRole("heading", { name: /decisão sobre a melhoria/i }),
+		).not.toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /questão anterior/i }),
 		).toBeEnabled();
 		expect(
 			screen.getByRole("button", { name: /próxima questão/i }),
 		).toBeDisabled();
+	});
+
+	it("places the pending-improvement edit button in the navigation card instead of the sidebar", () => {
+		mockUseExam.mockReturnValue({ data: examWithQuestions });
+		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
+
+		render(<ExamQuestionPageContent examId="exam-1" questionId="q2" />);
+
+		const toolbar = screen.getByTestId("question-page-toolbar");
+		const editButton = within(toolbar).getByRole("button", {
+			name: /editar pergunta/i,
+		});
+
+		expect(editButton).toBeInTheDocument();
+		expect(screen.queryByTestId("question-page-sidebar")).not.toBeInTheDocument();
+
+		fireEvent.click(editButton);
+
+		expect(mockNavigate).toHaveBeenCalledWith({
+			to: "/exams/$examId/questions/$questionId/edit",
+			params: { examId: "exam-1", questionId: "q2" },
+		});
 	});
 
 	it("throws not found when the question does not belong to the exam", () => {

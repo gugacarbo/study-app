@@ -35,9 +35,16 @@ const partialAnswerQuestion: QuestionDetail = {
 };
 
 const updateQuestionMock = vi.fn();
-const invalidateExamMock = vi.fn();
-const approveDraftMock = vi.fn();
-const discardDraftMock = vi.fn();
+const mockNavigate = vi.fn();
+
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("@tanstack/react-router")>();
+	return {
+		...actual,
+		useNavigate: () => mockNavigate,
+	};
+});
 
 vi.mock("@/features/exams/hooks/use-update-question", () => ({
 	useUpdateQuestion: () => ({
@@ -49,12 +56,8 @@ vi.mock("@/features/exams/hooks/use-update-question", () => ({
 
 vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => ({
 	useQuestionImprovementDraftActions: () => ({
-		approveDraft: {
-			mutateAsync: approveDraftMock,
-			isPending: false,
-		},
-		discardDraft: {
-			mutateAsync: discardDraftMock,
+		resolveDraft: {
+			mutateAsync: vi.fn(),
 			isPending: false,
 		},
 	}),
@@ -64,9 +67,7 @@ describe("ExamQuestionItem", () => {
 	afterEach(() => {
 		cleanup();
 		updateQuestionMock.mockClear();
-		invalidateExamMock.mockClear();
-		approveDraftMock.mockClear();
-		discardDraftMock.mockClear();
+		mockNavigate.mockClear();
 	});
 
 	it("shows question text and options in lowercase", () => {
@@ -155,7 +156,7 @@ describe("ExamQuestionItem", () => {
 		).toBeInTheDocument();
 	});
 
-	it("shows pending improvement actions when a draft exists", async () => {
+	it("uses a single edit button that opens the dedicated pending-improvement screen", async () => {
 		const draft: QuestionImprovementDraftRecord = {
 			id: "draft-1",
 			userId: "user-1",
@@ -204,56 +205,21 @@ describe("ExamQuestionItem", () => {
 
 		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(2);
 		expect(
-			screen.getByTestId("question-improvement-summary"),
-		).toHaveTextContent(/refinei os distratores/i);
-		expect(
-			screen.getByRole("heading", { name: /decisão sobre a melhoria/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /edição manual/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /enunciado/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /alternativas/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /^explicação$/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /explicação detalhada/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: /metadados/i }),
-		).toBeInTheDocument();
-		expect(screen.getAllByText("Antes").length).toBeGreaterThanOrEqual(1);
-		expect(screen.getAllByText("Depois").length).toBeGreaterThanOrEqual(1);
-		expect(screen.queryByText(/^Original$/i)).not.toBeInTheDocument();
-		expect(screen.queryByText(/^Melhorada$/i)).not.toBeInTheDocument();
+			screen.queryByRole("heading", { name: /revisão em tela separada/i }),
+		).not.toBeInTheDocument();
+		expect(screen.queryByText(/refinei os distratores/i)).not.toBeInTheDocument();
+		expect(screen.queryByTestId("question-improvement-callout")).not.toBeInTheDocument();
+		const editButtons = screen.getAllByRole("button", { name: /editar pergunta/i });
+		expect(editButtons).toHaveLength(1);
 
-		fireEvent.click(screen.getByRole("button", { name: /ver snapshot completo/i }));
-
-		expect(screen.getByText(/^Original$/i)).toBeInTheDocument();
-		expect(screen.getByText(/^Melhorada$/i)).toBeInTheDocument();
-		expect(
-			screen.getAllByText(/a capital atual fica no planalto central/i).length,
-		).toBeGreaterThanOrEqual(2);
-		expect(
-			screen.getAllByText(/brasilia foi inaugurada em 21 de abril de 1960/i).length,
-		).toBeGreaterThanOrEqual(2);
-		expect(
-			screen.getAllByText(/planejada para centralizar a administração do país/i).length,
-		).toBeGreaterThanOrEqual(2);
-
-		fireEvent.click(screen.getByRole("button", { name: /aprovar melhoria/i }));
-		expect(approveDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });
-
-		fireEvent.click(screen.getByRole("button", { name: /descartar melhoria/i }));
-		expect(discardDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });
+		fireEvent.click(editButtons[0]!);
+		expect(mockNavigate).toHaveBeenCalledWith({
+			to: "/exams/$examId/questions/$questionId/edit",
+			params: { examId: "exam-1", questionId: "q1" },
+		});
 	});
 
-	it("keeps the decision block visible while editing with a pending draft", () => {
+	it("does not open the inline edit form when a pending draft exists", () => {
 		const draft: QuestionImprovementDraftRecord = {
 			id: "draft-2",
 			userId: "user-1",
@@ -296,15 +262,26 @@ describe("ExamQuestionItem", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /editar pergunta/i }));
 
+		expect(mockNavigate).toHaveBeenCalledWith({
+			to: "/exams/$examId/questions/$questionId/edit",
+			params: { examId: "exam-1", questionId: "q1" },
+		});
+		expect(screen.queryByLabelText(/enunciado/i)).not.toBeInTheDocument();
+	});
+
+	it("can hide the side edit button when the page toolbar owns the action", () => {
+		render(
+			<ExamQuestionItem
+				index={1}
+				examId="exam-1"
+				question={singleAnswerQuestion}
+				showEditButton={false}
+			/>,
+		);
+
+		expect(screen.queryByTestId("question-side-panel")).not.toBeInTheDocument();
 		expect(
-			screen.getByRole("heading", { name: /decisão sobre a melhoria/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: /aprovar melhoria/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: /descartar melhoria/i }),
-		).toBeInTheDocument();
-		expect(screen.getByLabelText(/enunciado/i)).toBeInTheDocument();
+			screen.queryByRole("button", { name: /editar pergunta/i }),
+		).not.toBeInTheDocument();
 	});
 });

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-	approveQuestionImprovementDraft,
-	discardQuestionImprovementDraft,
+	type ResolveQuestionImprovementDraftInput,
+	resolveQuestionImprovementDraft,
 } from "@/functions/exams/question-improvement-drafts";
 import { examQueryKey } from "@/features/exams/hooks/use-exam";
 import { questionImprovementDraftsQueryKey } from "@/features/exams/hooks/use-question-improvement-drafts";
@@ -19,14 +19,9 @@ export function useQuestionImprovementDraftActions(examId: string) {
 	};
 
 	return {
-		approveDraft: useMutation({
-			mutationFn: (input: { draftId: string }) =>
-				approveQuestionImprovementDraft({ data: input }),
-			onSuccess,
-		}),
-		discardDraft: useMutation({
-			mutationFn: (input: { draftId: string }) =>
-				discardQuestionImprovementDraft({ data: input }),
+		resolveDraft: useMutation({
+			mutationFn: (input: ResolveQuestionImprovementDraftInput) =>
+				resolveQuestionImprovementDraft({ data: input }),
 			onSuccess,
 		}),
 	};
