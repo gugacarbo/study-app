@@ -80,4 +80,31 @@ describe("cancelJobHandler", () => {
 		expect(rows[0]?.status).toBe(JOB_STATUS.CANCELLED);
 		expect(rows[0]?.cancelRequestedAt).toBeTruthy();
 	});
+
+	it("cancels a failed job immediately", async () => {
+		const modelId = await seedDefaultModel(testDb, testUserId);
+		const examId = await seedExam(testDb, testUserId);
+		const jobId = createId();
+		await createJob(testDb, {
+			id: jobId,
+			userId: testUserId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.FAILED,
+			metadata: serializeIngestJobMetadata({
+				examId,
+				modelId,
+				mode: INGEST_MODE.CREATE,
+			}),
+		});
+
+		const response = await cancelJobHandler(jobId, new Headers());
+		expect(response.status).toBe(200);
+
+		const rows = await testDb
+			.select()
+			.from(schema.backgroundJobs)
+			.where(eq(schema.backgroundJobs.id, jobId));
+		expect(rows[0]?.status).toBe(JOB_STATUS.CANCELLED);
+		expect(rows[0]?.cancelRequestedAt).toBeTruthy();
+	});
 });

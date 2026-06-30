@@ -1,14 +1,18 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
 	ACTIVE_INGEST_STATUSES,
+	canManuallyCancelJobStatus,
 	type IngestJobMetadata,
 	type ImproveQuestionsJobMetadata,
-	isCancellableJobStatus,
 	JOB_KIND,
 	JOB_STATUS,
 	type JobStatus,
 	parseIngestJobMetadata,
 } from "@/lib/job-kinds";
+import {
+	deriveJobProcessing as deriveProcessingState,
+	JOB_LEASE_TTL_MS,
+} from "@/lib/job-processing";
 import { type JsonObject, parseJsonObject } from "@/lib/json-value";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
@@ -24,8 +28,27 @@ type JobUpdateValues = {
 	phase?: string | null;
 	error?: string | null;
 	metadata?: string | null;
+	workerId?: string | null | ReturnType<typeof sql>;
+	processingStartedAt?: string | null | ReturnType<typeof sql>;
+	heartbeatAt?: string | null | ReturnType<typeof sql>;
+	leaseExpiresAt?: string | null | ReturnType<typeof sql>;
+	lastRecoveredAt?: string | null | ReturnType<typeof sql>;
 	updatedAt: ReturnType<typeof sql>;
 };
+
+function jobLeaseExpiresSql() {
+	return sql`datetime(CURRENT_TIMESTAMP, '+' || ${Math.ceil(JOB_LEASE_TTL_MS / 1000)} || ' seconds')`;
+}
+
+function withLeaseCleared(values: JobUpdateValues): JobUpdateValues {
+	return {
+		...values,
+		workerId: null,
+		processingStartedAt: null,
+		heartbeatAt: null,
+		leaseExpiresAt: null,
+	};
+}
 
 function serializeMetadata(
 	metadata:
@@ -101,7 +124,7 @@ export async function updateJobStatus(
 		metadata?: IngestJobMetadata | ImproveQuestionsJobMetadata | string | null;
 	},
 ) {
-	const values: JobUpdateValues = {
+	let values: JobUpdateValues = {
 		updatedAt: sql`CURRENT_TIMESTAMP`,
 	};
 	if (patch.status !== undefined) values.status = patch.status;
@@ -109,6 +132,15 @@ export async function updateJobStatus(
 	if (patch.error !== undefined) values.error = patch.error;
 	if (patch.metadata !== undefined) {
 		values.metadata = serializeMetadata(patch.metadata);
+	}
+	if (
+		patch.status === JOB_STATUS.AWAITING_UPLOAD ||
+		patch.status === JOB_STATUS.QUEUED ||
+		patch.status === JOB_STATUS.COMPLETED ||
+		patch.status === JOB_STATUS.FAILED ||
+		patch.status === JOB_STATUS.CANCELLED
+	) {
+		values = withLeaseCleared(values);
 	}
 	await db
 		.update(schema.backgroundJobs)
@@ -126,6 +158,13 @@ export type AdminJobListItem = {
 	error: string | null;
 	metadata: JsonObject | null;
 	cancelRequestedAt: string | null;
+	workerId: string | null;
+	processingStartedAt: string | null;
+	heartbeatAt: string | null;
+	leaseExpiresAt: string | null;
+	runAttempts: number;
+	recoveryAttempts: number;
+	lastRecoveredAt: string | null;
 	createdAt: string | null;
 	updatedAt: string | null;
 };
@@ -150,6 +189,13 @@ export async function listJobsForAdmin(
 			error: schema.backgroundJobs.error,
 			metadata: schema.backgroundJobs.metadata,
 			cancelRequestedAt: schema.backgroundJobs.cancelRequestedAt,
+			workerId: schema.backgroundJobs.workerId,
+			processingStartedAt: schema.backgroundJobs.processingStartedAt,
+			heartbeatAt: schema.backgroundJobs.heartbeatAt,
+			leaseExpiresAt: schema.backgroundJobs.leaseExpiresAt,
+			runAttempts: schema.backgroundJobs.runAttempts,
+			recoveryAttempts: schema.backgroundJobs.recoveryAttempts,
+			lastRecoveredAt: schema.backgroundJobs.lastRecoveredAt,
 			createdAt: schema.backgroundJobs.createdAt,
 			updatedAt: schema.backgroundJobs.updatedAt,
 		})
@@ -164,23 +210,107 @@ export async function listJobsForAdmin(
 	}));
 }
 
+export function deriveJobProcessing(job: JobRow, now = new Date()) {
+	return deriveProcessingState(job, now);
+}
+
+export async function claimQueuedJobForProcessing(
+	db: AppDatabase,
+	jobId: string,
+	workerId: string,
+): Promise<JobRow | null> {
+	await db
+		.update(schema.backgroundJobs)
+		.set({
+			status: JOB_STATUS.RUNNING,
+			workerId,
+			processingStartedAt: sql`CURRENT_TIMESTAMP`,
+			heartbeatAt: sql`CURRENT_TIMESTAMP`,
+			leaseExpiresAt: jobLeaseExpiresSql(),
+			runAttempts: sql`${schema.backgroundJobs.runAttempts} + 1`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
+		})
+		.where(
+			and(
+				eq(schema.backgroundJobs.id, jobId),
+				eq(schema.backgroundJobs.status, JOB_STATUS.QUEUED),
+			),
+		);
+
+	const claimed = await getJobByIdInternal(db, jobId);
+	return claimed?.status === JOB_STATUS.RUNNING && claimed.workerId === workerId
+		? claimed
+		: null;
+}
+
+export async function renewJobLease(
+	db: AppDatabase,
+	jobId: string,
+	workerId: string,
+): Promise<boolean> {
+	await db
+		.update(schema.backgroundJobs)
+		.set({
+			heartbeatAt: sql`CURRENT_TIMESTAMP`,
+			leaseExpiresAt: jobLeaseExpiresSql(),
+			updatedAt: sql`CURRENT_TIMESTAMP`,
+		})
+		.where(
+			and(
+				eq(schema.backgroundJobs.id, jobId),
+				eq(schema.backgroundJobs.status, JOB_STATUS.RUNNING),
+				eq(schema.backgroundJobs.workerId, workerId),
+			),
+		);
+
+	const job = await getJobByIdInternal(db, jobId);
+	return job?.status === JOB_STATUS.RUNNING && job.workerId === workerId;
+}
+
+export async function markJobRecoveredAsQueued(
+	db: AppDatabase,
+	jobId: string,
+	patch: {
+		phase?: string | null;
+		metadata?: IngestJobMetadata | ImproveQuestionsJobMetadata | string | null;
+		error?: string | null;
+	},
+) {
+	await db
+		.update(schema.backgroundJobs)
+		.set({
+			status: JOB_STATUS.QUEUED,
+			phase: patch.phase ?? null,
+			metadata:
+				patch.metadata === undefined
+					? undefined
+					: serializeMetadata(patch.metadata),
+			error: patch.error ?? null,
+			workerId: null,
+			processingStartedAt: null,
+			heartbeatAt: null,
+			leaseExpiresAt: null,
+			recoveryAttempts: sql`${schema.backgroundJobs.recoveryAttempts} + 1`,
+			lastRecoveredAt: sql`CURRENT_TIMESTAMP`,
+			updatedAt: sql`CURRENT_TIMESTAMP`,
+		})
+		.where(eq(schema.backgroundJobs.id, jobId));
+}
+
 export async function requestJobCancelIfActive(
 	db: AppDatabase,
 	job: JobRow,
 ): Promise<{ cancelled: boolean; alreadyTerminal: boolean }> {
-	if (!isCancellableJobStatus(job.status)) {
+	if (!canManuallyCancelJobStatus(job.status)) {
 		return { cancelled: false, alreadyTerminal: true };
 	}
 	await setCancelRequested(db, job.id);
 
-	// No consumer work yet — finalize immediately instead of waiting for dequeue.
-	if (
-		job.status === JOB_STATUS.QUEUED ||
-		job.status === JOB_STATUS.AWAITING_UPLOAD
-	) {
+	// No consumer work can continue — finalize immediately instead of waiting.
+	if (job.status !== JOB_STATUS.RUNNING) {
 		await updateJobStatus(db, job.id, {
 			status: JOB_STATUS.CANCELLED,
-			error: null,
+			...(job.status === JOB_STATUS.FAILED ? {} : { error: null }),
 		});
 	}
 

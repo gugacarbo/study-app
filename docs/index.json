@@ -869,5 +869,42 @@
       "src/features/admin/components/admin-dashboard-shell.tsx",
       "package.json"
     ]
+  },
+  {
+    "id": "SPEC-0031",
+    "path": "docs/specs/0031-recuperacao-jobs-orfos-worker-lease.md",
+    "layer": "specs",
+    "title": "Recuperar jobs órfãos com lease e heartbeat de worker",
+    "status": "implemented",
+    "builds-on": [
+      "ADR-0004",
+      "ADR-0008",
+      "ADR-0009",
+      "SPEC-0001",
+      "SPEC-0004",
+      "SPEC-0016"
+    ],
+    "superseded-by": null,
+    "implemented-by": [
+      "migrations/0010_orphan_worker_leases.sql",
+      "src/db/schema/jobs.ts",
+      "src/db/queries/jobs.ts",
+      "src/lib/job-processing.ts",
+      "src/functions/jobs/reconcile-stale-jobs.ts",
+      "src/functions/jobs/get-job-events.ts",
+      "src/functions/admin/jobs.ts",
+      "src/workers/job-consumer.ts",
+      "src/workers/cron.ts",
+      "src/features/ai/jobs/run-job-consumer.ts",
+      "src/features/ai/jobs/ingest/run-ingest/orchestrator.ts",
+      "src/features/background-processes/hooks/use-job-sync.ts",
+      "src/features/background-processes/lib/jobs-api.ts",
+      "src/features/background-processes/pages/job-monitor-page.tsx",
+      "src/features/admin/hooks/use-admin-jobs.ts",
+      "src/features/admin/components/job-detail-content.tsx",
+      "src/features/admin/components/job-detail-sheet.tsx",
+      "src/features/admin/pages/admin-jobs-page.tsx",
+      "wrangler.jsonc"
+    ]
   }
 ]

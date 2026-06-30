@@ -13,6 +13,7 @@ export type BackgroundJobRow = {
 	error: string | null;
 	metadata: string | null;
 	cancelRequestedAt: string | null;
+	workerId?: string | null;
 };
 
 export type RunIngestDeps = {
@@ -28,6 +29,7 @@ export type RunIngestDeps = {
 	) => Promise<void>;
 	appendJobEvent: (jobId: string, payload: string) => Promise<void>;
 	isCancelRequested: (jobId: string) => Promise<boolean>;
+	heartbeat?: () => Promise<void>;
 	persistQuestionsDeps: PersistQuestionsDeps;
 	getAiModel?: typeof getAiModel;
 	generateObject?: typeof generateObject;

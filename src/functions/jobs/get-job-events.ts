@@ -2,6 +2,7 @@ import { createDb } from "@/db/client";
 import { getJobById, listJobEvents } from "@/db/queries/jobs";
 import { requireDB } from "@/functions/db";
 import { JOB_ERROR_CODE, jobErrorResponse } from "@/lib/job-errors";
+import { deriveJobProcessing } from "@/lib/job-processing";
 import { requireSession } from "@/lib/rbac";
 
 function parseAfterParam(value: string | null): number {
@@ -32,6 +33,8 @@ export async function getJobEventsHandler(
 		status: job.status,
 		phase: job.phase,
 		error: job.error,
+		cancelRequestedAt: job.cancelRequestedAt,
+		processing: deriveJobProcessing(job),
 		metadata: job.metadata ? JSON.parse(job.metadata) : null,
 		events: events.map((event) => ({
 			seq: event.seq,

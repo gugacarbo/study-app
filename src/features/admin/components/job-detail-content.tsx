@@ -12,15 +12,18 @@ import {
 } from "@/features/admin/lib/job-labels";
 import { formatMutationError } from "@/features/admin/lib/mutation-error";
 import {
+	canManuallyCancelJobStatus,
 	type IngestJobMetadata,
 	isCancellableJobStatus,
 	JOB_KIND,
 } from "@/lib/job-kinds";
+import { JOB_PROCESSING_STATE } from "@/lib/job-processing";
 import type { JsonObject } from "@/lib/json-value";
 
 type JobDetailContentProps = {
 	detail: AdminJobDetail;
 	onCancel: () => Promise<void>;
+	onRecover: () => Promise<void>;
 };
 
 function IngestMetadataSection({ metadata }: { metadata: IngestJobMetadata }) {
@@ -59,20 +62,32 @@ function IngestMetadataSection({ metadata }: { metadata: IngestJobMetadata }) {
 	);
 }
 
-export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
+export function JobDetailContent({
+	detail,
+	onCancel,
+	onRecover,
+}: JobDetailContentProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState(false);
 	const phaseLabel = formatJobPhase(detail.phase);
 	const canCancel =
-		isCancellableJobStatus(detail.status) && detail.cancelRequestedAt == null;
+		canManuallyCancelJobStatus(detail.status) &&
+		detail.cancelRequestedAt == null;
+	const canRecover =
+		detail.processingState === JOB_PROCESSING_STATE.STALE_QUEUED ||
+		detail.processingState === JOB_PROCESSING_STATE.STALE_RUNNING;
 	const ingestMetadata =
 		detail.kind === JOB_KIND.INGEST && detail.metadata
 			? (detail.metadata as JsonObject as unknown as IngestJobMetadata)
 			: null;
 
 	async function handleCancel() {
+		const isActiveJob = isCancellableJobStatus(detail.status);
+		const confirmMessage = isActiveJob
+			? "Cancelar este job? O consumer irá parar entre etapas."
+			: "Cancelar este job falho? Ele será marcado como cancelado.";
 		if (
-			!window.confirm("Cancelar este job? O consumer irá parar entre etapas.")
+			!window.confirm(confirmMessage)
 		) {
 			return;
 		}
@@ -80,6 +95,21 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 		setError(null);
 		try {
 			await onCancel();
+		} catch (cause) {
+			setError(await formatMutationError(cause));
+		} finally {
+			setPending(false);
+		}
+	}
+
+	async function handleRecover() {
+		if (!window.confirm("Recuperar este job órfão agora?")) {
+			return;
+		}
+		setPending(true);
+		setError(null);
+		try {
+			await onRecover();
 		} catch (cause) {
 			setError(await formatMutationError(cause));
 		} finally {
@@ -119,6 +149,36 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 						<dd>{formatJobTimestamp(detail.cancelRequestedAt)}</dd>
 					</>
 				) : null}
+				<dt className="text-muted-foreground">Processamento</dt>
+				<dd>{detail.processingState}</dd>
+				{detail.workerId ? (
+					<>
+						<dt className="text-muted-foreground">Worker</dt>
+						<dd className="break-all font-mono text-xs">{detail.workerId}</dd>
+					</>
+				) : null}
+				{detail.processingStartedAt ? (
+					<>
+						<dt className="text-muted-foreground">Iniciado</dt>
+						<dd>{formatJobTimestamp(detail.processingStartedAt)}</dd>
+					</>
+				) : null}
+				{detail.heartbeatAt ? (
+					<>
+						<dt className="text-muted-foreground">Heartbeat</dt>
+						<dd>{formatJobTimestamp(detail.heartbeatAt)}</dd>
+					</>
+				) : null}
+				{detail.leaseExpiresAt ? (
+					<>
+						<dt className="text-muted-foreground">Lease expira</dt>
+						<dd>{formatJobTimestamp(detail.leaseExpiresAt)}</dd>
+					</>
+				) : null}
+				<dt className="text-muted-foreground">Tentativas</dt>
+				<dd>
+					run {detail.runAttempts} · recovery {detail.recoveryAttempts}
+				</dd>
 				{detail.error ? (
 					<>
 						<dt className="text-muted-foreground">Erro</dt>
@@ -163,19 +223,32 @@ export function JobDetailContent({ detail, onCancel }: JobDetailContentProps) {
 
 			{detail.cancelRequestedAt && isCancellableJobStatus(detail.status) ? (
 				<p className="text-sm text-muted-foreground">
-					Cancelamento solicitado — o consumer irá parar entre etapas.
+					{detail.processingState === JOB_PROCESSING_STATE.STALE_RUNNING
+						? "Cancelamento solicitado — aguardando recuperação para finalizar o job."
+						: "Cancelamento solicitado — o consumer irá parar entre etapas."}
 				</p>
 			) : null}
 
-			{canCancel ? (
+			{(canCancel || canRecover) ? (
 				<SheetFooter className="px-0">
-					<Button
-						variant="destructive"
-						disabled={pending}
-						onClick={() => void handleCancel()}
-					>
-						{pending ? "Cancelando…" : "Cancelar job"}
-					</Button>
+					{canRecover ? (
+						<Button
+							variant="outline"
+							disabled={pending}
+							onClick={() => void handleRecover()}
+						>
+							{pending ? "Recuperando…" : "Recuperar job"}
+						</Button>
+					) : null}
+					{canCancel ? (
+						<Button
+							variant="destructive"
+							disabled={pending}
+							onClick={() => void handleCancel()}
+						>
+							{pending ? "Cancelando…" : "Cancelar job"}
+						</Button>
+					) : null}
 				</SheetFooter>
 			) : null}
 		</div>

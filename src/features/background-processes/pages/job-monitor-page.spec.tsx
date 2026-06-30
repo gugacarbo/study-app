@@ -440,6 +440,59 @@ describe("JobMonitorPage", () => {
 		expect(navigate).not.toHaveBeenCalled();
 	});
 
+	it("keeps the cancel action visible for failed jobs", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.FAILED,
+					phase: INGEST_PHASE.EXTRACTING,
+					error: "model_timeout",
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					cancelRequestedAt: null,
+					events: [],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: /^cancelar$/i }),
+			).toBeInTheDocument();
+		});
+	});
+
+	it("shows when cancellation was already requested for an active job", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.RUNNING,
+					phase: INGEST_PHASE.EXTRACTING,
+					error: null,
+					metadata: { examId: "exam-1", modelId: "model-1", mode: "create" },
+					cancelRequestedAt: "2026-06-30T12:00:00.000Z",
+					events: [],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByText(/cancelamento solicitado/i),
+			).toBeInTheDocument();
+		});
+		expect(
+			screen.queryByRole("button", { name: /^cancelar$/i }),
+		).not.toBeInTheDocument();
+	});
+
 	it("reuses activity and progress layout for improve-questions jobs", async () => {
 		vi.stubGlobal(
 			"fetch",

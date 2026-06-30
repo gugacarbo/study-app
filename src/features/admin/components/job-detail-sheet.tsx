@@ -13,6 +13,7 @@ type JobDetailSheetProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onCancel: (jobId: string) => Promise<void>;
+	onRecover: (jobId: string) => Promise<void>;
 };
 
 export function JobDetailSheet({
@@ -20,6 +21,7 @@ export function JobDetailSheet({
 	open,
 	onOpenChange,
 	onCancel,
+	onRecover,
 }: JobDetailSheetProps) {
 	const {
 		data: detail,
@@ -51,6 +53,7 @@ export function JobDetailSheet({
 					<JobDetailContent
 						detail={detail}
 						onCancel={() => onCancel(detail.id)}
+						onRecover={() => onRecover(detail.id)}
 					/>
 				)}
 			</SheetContent>

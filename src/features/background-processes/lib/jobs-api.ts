@@ -1,4 +1,5 @@
 import { isJobErrorCode, type JobErrorBody } from "@/lib/job-errors";
+import type { JobProcessingState } from "@/lib/job-processing";
 import type {
 	ImproveQuestionsJobMetadata,
 	IngestJobMetadata,
@@ -17,6 +18,13 @@ export type JobEventsResponse = {
 	status: JobStatus;
 	phase: string | null;
 	error: string | null;
+	cancelRequestedAt: string | null;
+	processing: {
+		state: JobProcessingState;
+		heartbeatAt: string | null;
+		leaseExpiresAt: string | null;
+		recoveryAttempts: number;
+	};
 	metadata: IngestJobMetadata | ImproveQuestionsJobMetadata | null;
 	events: JobEventRecord[];
 };

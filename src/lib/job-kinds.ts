@@ -60,6 +60,18 @@ export function isCancellableJobStatus(status: string): boolean {
 	return (CANCELLABLE_JOB_STATUSES as readonly string[]).includes(status);
 }
 
+/** Statuses a user may still cancel manually from the UI. */
+export const MANUALLY_CANCELLABLE_JOB_STATUSES = [
+	...CANCELLABLE_JOB_STATUSES,
+	JOB_STATUS.FAILED,
+] as const satisfies readonly JobStatus[];
+
+export function canManuallyCancelJobStatus(status: string): boolean {
+	return (MANUALLY_CANCELLABLE_JOB_STATUSES as readonly string[]).includes(
+		status,
+	);
+}
+
 export type TokenUsage = {
 	inputTokens: number;
 	outputTokens: number;

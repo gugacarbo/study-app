@@ -4,10 +4,9 @@ import type {
 	R2Bucket,
 } from "@cloudflare/workers-types";
 import { createDb } from "@/db/client";
-import { getJobByIdInternal } from "@/db/queries/jobs";
+import { claimQueuedJobForProcessing } from "@/db/queries/jobs";
 import { runJobConsumer } from "@/features/ai/jobs/run-job-consumer";
 import type { JobQueueMessage } from "@/functions/queue";
-import { JOB_STATUS } from "@/lib/job-kinds";
 
 export type JobConsumerBindings = {
 	DB: D1Database;
@@ -35,8 +34,9 @@ export async function handleJobConsumer(
 				continue;
 			}
 
-			const job = await getJobByIdInternal(db, jobId);
-			if (!job || job.status !== JOB_STATUS.QUEUED) {
+			const workerId = `job-worker:${message.id}:${crypto.randomUUID()}`;
+			const job = await claimQueuedJobForProcessing(db, jobId, workerId);
+			if (!job) {
 				console.log("[job-consumer] skipping message", message.id);
 				message.ack();
 				continue;

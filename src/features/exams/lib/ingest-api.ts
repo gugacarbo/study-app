@@ -8,6 +8,7 @@ export type JobEventsResponse = {
 	status: JobStatus;
 	phase: string | null;
 	error: string | null;
+	cancelRequestedAt: string | null;
 	metadata: IngestJobMetadata | null;
 };
 

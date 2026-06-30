@@ -25,6 +25,7 @@ import {
 	JOB_STATUS,
 	type JobStatus,
 } from "@/lib/job-kinds";
+import type { JobProcessingState } from "@/lib/job-processing";
 
 const TERMINAL = new Set<JobStatus>([
 	JOB_STATUS.COMPLETED,
@@ -36,6 +37,13 @@ export type JobSyncState = {
 	status: JobStatus | null;
 	phase: string | null;
 	error: string | null;
+	cancelRequestedAt: string | null;
+	processing: {
+		state: JobProcessingState;
+		heartbeatAt: string | null;
+		leaseExpiresAt: string | null;
+		recoveryAttempts: number;
+	} | null;
 	metadata: IngestJobMetadata | ImproveQuestionsJobMetadata | null;
 	messages: MappedThreadMessage[];
 	progress: IngestProgressState;
@@ -52,6 +60,8 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	status: null,
 	phase: null,
 	error: null,
+	cancelRequestedAt: null,
+	processing: null,
 	metadata: null,
 	messages: [],
 	progress: INITIAL_INGEST_PROGRESS,
@@ -65,13 +75,23 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 };
 
 function createReplayBaseState(
-	data: Pick<JobEventsResponse, "status" | "phase" | "error" | "metadata">,
+	data: Pick<
+		JobEventsResponse,
+		| "status"
+		| "phase"
+		| "error"
+		| "cancelRequestedAt"
+		| "processing"
+		| "metadata"
+	>,
 ): JobSyncState {
 	return {
 		...INITIAL_SYNC_STATE,
 		status: data.status,
 		phase: data.phase,
 		error: data.error,
+		cancelRequestedAt: data.cancelRequestedAt,
+		processing: data.processing,
 		metadata: data.metadata,
 		improve: isImproveQuestionsJobMetadata(data.metadata)
 			? mergeImproveJobEvents({
@@ -108,6 +128,8 @@ function applyJobResponse(
 		status: data.status,
 		phase: data.phase,
 		error: data.error,
+		cancelRequestedAt: data.cancelRequestedAt,
+		processing: data.processing,
 		metadata: data.metadata,
 		messages: merged.messages,
 		progress: merged.progress,

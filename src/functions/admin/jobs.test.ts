@@ -11,6 +11,7 @@ import {
 	cancelAdminJobHandler,
 	getAdminJobDetailHandler,
 	listAdminJobsHandler,
+	recoverAdminJobHandler,
 } from "@/functions/admin/jobs";
 import { JOB_KIND, JOB_STATUS } from "@/lib/job-kinds";
 
@@ -26,6 +27,12 @@ mockCreateDb.mockReturnValue(testDb);
 
 vi.mock("@/functions/db", () => ({
 	requireDB: vi.fn(async () => ({}) as D1Database),
+}));
+
+vi.mock("@/functions/queue", () => ({
+	requireJobQueue: vi.fn(async () => ({
+		send: vi.fn(),
+	})),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {
@@ -144,5 +151,28 @@ describe("admin jobs", () => {
 
 		const result = await cancelAdminJobHandler(jobId, new Headers());
 		expect(result).toEqual({ ok: true, alreadyTerminal: true });
+	});
+
+	it("recoverAdminJob requeues a stale queued job", async () => {
+		const adminId = createId();
+		const owner = await insertUser(testDb);
+		const jobId = createId();
+
+		await insertUser(testDb, adminId);
+		await createJob(testDb, {
+			id: jobId,
+			userId: owner.id,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+		await testDb
+			.update(schema.backgroundJobs)
+			.set({ updatedAt: "2026-06-30T12:00:00.000Z" })
+			.where(eq(schema.backgroundJobs.id, jobId));
+
+		mockRequireAdminSession.mockResolvedValue({ user: { id: adminId } });
+
+		const result = await recoverAdminJobHandler(jobId, new Headers());
+		expect(result).toEqual({ ok: true, action: "requeued" });
 	});
 });

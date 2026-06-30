@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest";
 import { createId } from "@/db/queries/helpers";
 import {
 	appendJobEvent,
+	claimQueuedJobForProcessing,
 	createJob,
+	deriveJobProcessing,
 	getJobById,
 	hasActiveIngestJob,
 	listActiveJobsForUser,
 	listJobEvents,
 	listJobsForAdmin,
+	markJobRecoveredAsQueued,
+	renewJobLease,
 	requestJobCancelIfActive,
 	setCancelRequested,
 	updateJobStatus,
@@ -206,6 +210,118 @@ describe("jobs queries", () => {
 		const updated = await getJobById(db, jobId, userId);
 		expect(updated?.status).toBe(JOB_STATUS.RUNNING);
 		expect(updated?.cancelRequestedAt).not.toBeNull();
+	});
+
+	it("requestJobCancelIfActive finalizes failed jobs immediately", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const jobId = createId();
+
+		await seedUser(db, userId);
+		await createJob(db, {
+			id: jobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.FAILED,
+		});
+
+		const job = await getJobById(db, jobId, userId);
+		const result = await requestJobCancelIfActive(db, job!);
+		expect(result).toEqual({ cancelled: true, alreadyTerminal: false });
+
+		const updated = await getJobById(db, jobId, userId);
+		expect(updated?.status).toBe(JOB_STATUS.CANCELLED);
+		expect(updated?.cancelRequestedAt).not.toBeNull();
+	});
+
+	it("claimQueuedJobForProcessing atomically moves a queued job to running with lease fields", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const jobId = createId();
+
+		await seedUser(db, userId);
+		await createJob(db, {
+			id: jobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+
+		const claimed = await claimQueuedJobForProcessing(db, jobId, "worker-1");
+		expect(claimed?.status).toBe(JOB_STATUS.RUNNING);
+		expect(claimed?.workerId).toBe("worker-1");
+		expect(claimed?.processingStartedAt).not.toBeNull();
+		expect(claimed?.heartbeatAt).not.toBeNull();
+		expect(claimed?.leaseExpiresAt).not.toBeNull();
+		expect(claimed?.runAttempts).toBe(1);
+
+		const secondClaim = await claimQueuedJobForProcessing(db, jobId, "worker-2");
+		expect(secondClaim).toBeNull();
+	});
+
+	it("renewJobLease only refreshes the active worker lease", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const jobId = createId();
+
+		await seedUser(db, userId);
+		await createJob(db, {
+			id: jobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+
+		const claimed = await claimQueuedJobForProcessing(db, jobId, "worker-1");
+		expect(claimed).not.toBeNull();
+
+		const renewed = await renewJobLease(db, jobId, "worker-2");
+		expect(renewed).toBe(false);
+	});
+
+	it("deriveJobProcessing marks stale running jobs and recovering queued jobs", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const runningJobId = createId();
+		const recoveringJobId = createId();
+
+		await seedUser(db, userId);
+		await createJob(db, {
+			id: runningJobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+		await createJob(db, {
+			id: recoveringJobId,
+			userId,
+			kind: JOB_KIND.INGEST,
+			status: JOB_STATUS.QUEUED,
+		});
+
+		await claimQueuedJobForProcessing(db, runningJobId, "worker-1");
+		await db
+			.update(schema.backgroundJobs)
+			.set({
+				leaseExpiresAt: "2026-06-30T12:00:00.000Z",
+				heartbeatAt: "2026-06-30T11:59:00.000Z",
+				updatedAt: "2026-06-30T11:59:00.000Z",
+			})
+			.where(eq(schema.backgroundJobs.id, runningJobId));
+
+		await markJobRecoveredAsQueued(db, recoveringJobId, {
+			phase: null,
+			metadata: null,
+		});
+
+		const staleRunning = await getJobById(db, runningJobId, userId);
+		const recovering = await getJobById(db, recoveringJobId, userId);
+		expect(
+			deriveJobProcessing(staleRunning!, new Date("2026-06-30T12:02:00.000Z")),
+		).toMatchObject({ state: "stale-running" });
+		expect(
+			deriveJobProcessing(recovering!, new Date()),
+		).toMatchObject({ state: "recovering" });
 	});
 
 	it("hasActiveIngestJob detects active ingest on same exam", async () => {

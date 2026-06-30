@@ -9,7 +9,7 @@ function JobsSkeleton() {
 }
 
 export function AdminJobsPageContent() {
-	const { data: jobs, cancelJob } = useAdminJobs();
+	const { data: jobs, cancelJob, recoverJob } = useAdminJobs();
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -31,6 +31,9 @@ export function AdminJobsPageContent() {
 				onOpenChange={setSheetOpen}
 				onCancel={async (jobId) => {
 					await cancelJob.mutateAsync(jobId);
+				}}
+				onRecover={async (jobId) => {
+					await recoverJob.mutateAsync(jobId);
 				}}
 			/>
 		</>

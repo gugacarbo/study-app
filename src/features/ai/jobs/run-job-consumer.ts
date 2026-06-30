@@ -3,6 +3,7 @@ import {
 	appendJobEvent,
 	getJobByIdInternal,
 	type JobRow,
+	renewJobLease,
 	updateJobStatus,
 } from "@/db/queries/jobs";
 import {
@@ -31,6 +32,11 @@ export type RunJobConsumerContext = {
 export async function runJobConsumer(
 	ctx: RunJobConsumerContext,
 ): Promise<void> {
+	const heartbeat = async () => {
+		if (!ctx.job.workerId) return;
+		await renewJobLease(ctx.db, ctx.job.id, ctx.job.workerId);
+	};
+
 	console.log("[run-job-consumer] running job", {
 		jobId: ctx.job.id,
 		kind: ctx.job.kind,
@@ -71,19 +77,23 @@ export async function runJobConsumer(
 				metadata,
 				deps: {
 					appendJobEvent: async (jobId, payload) => {
+						await heartbeat();
 						if (jobId !== ctx.job.id) {
 							throw new Error("Unexpected job id for improve-questions appender");
 						}
 						await eventAppender.append(payload);
 					},
 					updateJobStatus: async (jobId, patch) => {
+						await heartbeat();
 						await updateJobStatus(ctx.db, jobId, patch);
 					},
 					isCancelRequested: async () => {
+						await heartbeat();
 						const job = await getJobByIdInternal(ctx.db, ctx.job.id);
 						return job?.cancelRequestedAt != null;
 					},
 					executeQuestion: async ({ questionId }) => {
+						await heartbeat();
 						const model = await getAiModel({
 							db: ctx.db,
 							userId: ctx.job.userId,
@@ -108,6 +118,7 @@ export async function runJobConsumer(
 						});
 					},
 					executeExplanations: async ({ questionId }) => {
+						await heartbeat();
 						const model = await getAiModel({
 							db: ctx.db,
 							userId: ctx.job.userId,
@@ -152,28 +163,39 @@ export async function runJobConsumer(
 }
 
 function buildRunIngestDeps(ctx: RunJobConsumerContext): RunIngestDeps {
+	const heartbeat = async () => {
+		if (!ctx.job.workerId) return;
+		await renewJobLease(ctx.db, ctx.job.id, ctx.job.workerId);
+	};
+
 	return {
 		getJobById: (jobId: string) => getJobByIdInternal(ctx.db, jobId),
-		updateJobStatus: (jobId, update) =>
-			updateJobStatus(ctx.db, jobId, {
+		updateJobStatus: async (jobId, update) => {
+			await heartbeat();
+			await updateJobStatus(ctx.db, jobId, {
 				...update,
 				status: update.status as Parameters<
 					typeof updateJobStatus
 				>[2]["status"],
-			}),
+			});
+		},
 		appendJobEvent: async (jobId: string, payload: string) => {
+			await heartbeat();
 			await appendJobEvent(ctx.db, jobId, payload);
 		},
 		isCancelRequested: async (jobId: string) => {
+			await heartbeat();
 			const job = await getJobByIdInternal(ctx.db, jobId);
 			return job?.cancelRequestedAt != null;
 		},
+		heartbeat,
 		persistQuestionsDeps: {
 			existsNormalizedQuestion: (examId: string, normalizedText: string) =>
 				existsNormalizedQuestion(ctx.db, examId, normalizedText),
 			batchInsertQuestions: async (
 				questions: Parameters<typeof batchInsertQuestions>[2],
 			) => {
+				await heartbeat();
 				const [first] = questions;
 				if (!first) return;
 				await batchInsertQuestions(ctx.db, first.examId, questions);

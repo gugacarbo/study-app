@@ -9,6 +9,7 @@ import {
 	cancelAdminJob,
 	getAdminJobDetail,
 	listAdminJobs,
+	recoverAdminJob,
 } from "@/functions/admin/jobs";
 import { isCancellableJobStatus } from "@/lib/job-kinds";
 
@@ -42,7 +43,17 @@ export function useAdminJobs() {
 		},
 	});
 
-	return { ...listQuery, cancelJob: cancelMutation };
+	const recoverMutation = useMutation({
+		mutationFn: (jobId: string) => recoverAdminJob({ data: { jobId } }),
+		onSuccess: (_data, jobId) => {
+			void queryClient.invalidateQueries({ queryKey: ADMIN_JOBS_KEY });
+			void queryClient.invalidateQueries({
+				queryKey: adminJobDetailKey(jobId),
+			});
+		},
+	});
+
+	return { ...listQuery, cancelJob: cancelMutation, recoverJob: recoverMutation };
 }
 
 export function useAdminJobDetail(jobId: string | null) {

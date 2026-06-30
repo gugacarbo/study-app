@@ -34,3 +34,4 @@
 | [SPEC-0028](exams/0028-cta-revisar-melhoria-na-prova.md)    | CTA de revisar melhoria na visualização da prova                              | draft       |
 | [SPEC-0029](exams/0029-ui-revisao-melhoria-questao.md)      | UI de revisão de melhoria na página da questão                                | draft       |
 | [SPEC-0030](ui/0030-identity-visual-redesign.md)            | Redesign visual: identidade acadêmica premium                                 | implemented |
+| [SPEC-0031](0031-recuperacao-jobs-orfos-worker-lease.md)    | Recuperar jobs órfãos com lease e heartbeat de worker                         | implemented |

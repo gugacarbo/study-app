@@ -29,7 +29,7 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 	if (!job || job.kind !== JOB_KIND.INGEST) {
 		return;
 	}
-	if (job.status !== JOB_STATUS.QUEUED) {
+	if (job.status !== JOB_STATUS.QUEUED && job.status !== JOB_STATUS.RUNNING) {
 		return;
 	}
 
@@ -44,8 +44,9 @@ export async function runIngest(ctx: RunIngestContext): Promise<void> {
 		return;
 	}
 
+	await ctx.deps.heartbeat?.();
 	await ctx.deps.updateJobStatus(ctx.jobId, {
-		status: JOB_STATUS.RUNNING,
+		...(job.status === JOB_STATUS.QUEUED ? { status: JOB_STATUS.RUNNING } : {}),
 		phase: INGEST_PHASE.READING_FILE,
 	});
 	await emitPhase(ctx, INGEST_PHASE.READING_FILE);

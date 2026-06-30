@@ -14,11 +14,13 @@ import { useJobMonitor } from "@/features/background-processes/hooks/use-job-mon
 import { cancelJob } from "@/features/background-processes/lib/jobs-api";
 import type { JobUploadLocationState } from "@/features/exams/hooks/use-ingest-job";
 import {
+	canManuallyCancelJobStatus,
 	type IngestJobMetadata,
-	isCancellableJobStatus,
 	JOB_STATUS,
+	isCancellableJobStatus,
 	parseImproveQuestionsJobMetadata,
 } from "@/lib/job-kinds";
+import { JOB_PROCESSING_STATE } from "@/lib/job-processing";
 
 type JobMonitorPageProps = {
 	jobId: string;
@@ -46,10 +48,13 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	});
 
 	async function handleCancel() {
+		const isActiveJob =
+			monitor.status != null && isCancellableJobStatus(monitor.status);
+		const confirmMessage = isActiveJob
+			? "Cancelar esta importação? O processamento irá parar entre etapas."
+			: "Cancelar este job falho? Ele será marcado como cancelado.";
 		if (
-			!window.confirm(
-				"Cancelar esta importação? O processamento irá parar entre etapas.",
-			)
+			!window.confirm(confirmMessage)
 		) {
 			return;
 		}
@@ -90,8 +95,14 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	const isRunning =
 		monitor.status === JOB_STATUS.QUEUED ||
 		monitor.status === JOB_STATUS.RUNNING;
+	const cancelRequested =
+		monitor.cancelRequestedAt != null &&
+		monitor.status != null &&
+		isCancellableJobStatus(monitor.status);
 	const canCancel =
-		monitor.status != null && isCancellableJobStatus(monitor.status);
+		monitor.status != null &&
+		canManuallyCancelJobStatus(monitor.status) &&
+		!cancelRequested;
 	const improveMetadata = parseImproveQuestionsJobMetadata(
 		monitor.metadata ? JSON.stringify(monitor.metadata) : null,
 	);
@@ -118,6 +129,27 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 			{cancelError ? (
 				<Alert variant="destructive">
 					<AlertDescription>{cancelError}</AlertDescription>
+				</Alert>
+			) : null}
+
+			{cancelRequested &&
+			monitor.processing?.state === JOB_PROCESSING_STATE.STALE_RUNNING ? (
+				<p className="text-sm text-muted-foreground">
+					Cancelamento aguardando recuperação do worker.
+				</p>
+			) : cancelRequested ? (
+				<p className="text-sm text-muted-foreground">
+					Cancelamento solicitado. O processamento irá parar entre etapas.
+				</p>
+			) : null}
+
+			{!cancelRequested &&
+			(monitor.processing?.state === JOB_PROCESSING_STATE.STALE_RUNNING ||
+				monitor.processing?.state === JOB_PROCESSING_STATE.STALE_QUEUED) ? (
+				<Alert>
+					<AlertDescription>
+						Processamento aguardando retomada automática.
+					</AlertDescription>
 				</Alert>
 			) : null}
 
