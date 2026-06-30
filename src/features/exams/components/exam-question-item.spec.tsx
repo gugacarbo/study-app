@@ -169,8 +169,9 @@ describe("ExamQuestionItem", () => {
 				answers: ["B"],
 				topic: "Geografia",
 				scoringMode: "exact",
-				explanation: null,
-				deepExplanation: null,
+				explanation: "A capital atual fica no Planalto Central.",
+				deepExplanation:
+					"Brasilia foi inaugurada em 21 de abril de 1960 para ser a capital federal.",
 			},
 			improvedSnapshot: {
 				question: "Qual é a capital federal do Brasil?",
@@ -183,7 +184,8 @@ describe("ExamQuestionItem", () => {
 				topic: "Geografia do Brasil",
 				scoringMode: "exact",
 				explanation: "Brasília é a capital.",
-				deepExplanation: null,
+				deepExplanation:
+					"A capital federal do Brasil é Brasília, planejada para centralizar a administração do país.",
 			},
 			summary: "Refinei os distratores.",
 			metadata: null,
@@ -201,13 +203,108 @@ describe("ExamQuestionItem", () => {
 		);
 
 		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(2);
-		expect(screen.getByText(/qual é a capital federal do brasil/i)).toBeInTheDocument();
-		expect(screen.getByText(/refinei os distratores/i)).toBeInTheDocument();
+		expect(
+			screen.getByTestId("question-improvement-summary"),
+		).toHaveTextContent(/refinei os distratores/i);
+		expect(
+			screen.getByRole("heading", { name: /decisão sobre a melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /edição manual/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /enunciado/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /alternativas/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /^explicação$/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /explicação detalhada/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /metadados/i }),
+		).toBeInTheDocument();
+		expect(screen.getAllByText("Antes").length).toBeGreaterThanOrEqual(1);
+		expect(screen.getAllByText("Depois").length).toBeGreaterThanOrEqual(1);
+		expect(screen.queryByText(/^Original$/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/^Melhorada$/i)).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: /ver snapshot completo/i }));
+
+		expect(screen.getByText(/^Original$/i)).toBeInTheDocument();
+		expect(screen.getByText(/^Melhorada$/i)).toBeInTheDocument();
+		expect(
+			screen.getAllByText(/a capital atual fica no planalto central/i).length,
+		).toBeGreaterThanOrEqual(2);
+		expect(
+			screen.getAllByText(/brasilia foi inaugurada em 21 de abril de 1960/i).length,
+		).toBeGreaterThanOrEqual(2);
+		expect(
+			screen.getAllByText(/planejada para centralizar a administração do país/i).length,
+		).toBeGreaterThanOrEqual(2);
 
 		fireEvent.click(screen.getByRole("button", { name: /aprovar melhoria/i }));
 		expect(approveDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });
 
 		fireEvent.click(screen.getByRole("button", { name: /descartar melhoria/i }));
 		expect(discardDraftMock).toHaveBeenCalledWith({ draftId: "draft-1" });
+	});
+
+	it("keeps the decision block visible while editing with a pending draft", () => {
+		const draft: QuestionImprovementDraftRecord = {
+			id: "draft-2",
+			userId: "user-1",
+			examId: "exam-1",
+			questionId: "q1",
+			jobId: "job-1",
+			status: "pending_review",
+			originalSnapshot: {
+				question: "Qual a capital do Brasil?",
+				options: singleAnswerQuestion.options,
+				answers: ["B"],
+				topic: "Geografia",
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			improvedSnapshot: {
+				question: "Qual é a capital federal do Brasil?",
+				options: singleAnswerQuestion.options,
+				answers: ["B"],
+				topic: "Geografia",
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			summary: "Refinei o enunciado.",
+			metadata: null,
+			createdAt: null,
+			updatedAt: null,
+		};
+
+		render(
+			<ExamQuestionItem
+				index={1}
+				examId="exam-1"
+				question={singleAnswerQuestion}
+				draft={draft}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /editar pergunta/i }));
+
+		expect(
+			screen.getByRole("heading", { name: /decisão sobre a melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /aprovar melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /descartar melhoria/i }),
+		).toBeInTheDocument();
+		expect(screen.getByLabelText(/enunciado/i)).toBeInTheDocument();
 	});
 });

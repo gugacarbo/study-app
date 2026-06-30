@@ -154,7 +154,19 @@ describe("ExamQuestionPageContent", () => {
 		expect(screen.getByText(/Q2 de 2/i)).toBeInTheDocument();
 		expect(screen.getAllByText(/Q2 · Geral/i)).toHaveLength(3);
 		expect(screen.getAllByText(/melhoria pendente/i).length).toBeGreaterThanOrEqual(2);
+		expect(
+			screen.getByRole("heading", { name: /decisão sobre a melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: /enunciado/i }),
+		).toBeInTheDocument();
 		expect(screen.getByText(/marque todos os números primos/i)).toBeInTheDocument();
+		expect(screen.getAllByText(/Selecione os números primos./i).length).toBeGreaterThanOrEqual(1);
+		expect(
+			screen.getByTestId("question-improvement-section-metadata"),
+		).toHaveTextContent(/números/i);
+		expect(screen.queryByText(/^Original$/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/^Melhorada$/i)).not.toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /aprovar melhoria/i }),
 		).toBeInTheDocument();
