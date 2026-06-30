@@ -30,10 +30,10 @@ export function AppShell({ user, isAdmin, children }: AppShellProps) {
 			<div className="flex min-h-0 flex-1 overflow-hidden">
 				<main
 					className={cn(
-						"mx-auto min-w-0 flex-1 overflow-y-auto px-4 py-5",
+						"mx-auto min-w-0 flex-1 overflow-y-auto px-5 py-6",
 						isWide
 							? "w-full max-w-full has-[[data-fullwidth]]:flex has-[[data-fullwidth]]:flex-col has-[[data-fullwidth]]:min-h-0 has-[[data-fullwidth]]:overflow-hidden has-[[data-fullwidth]]:px-0 has-[[data-fullwidth]]:py-0"
-							: "w-full max-w-5xl",
+							: "w-full max-w-[58rem]",
 					)}
 				>
 					{children}

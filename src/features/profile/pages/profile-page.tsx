@@ -81,7 +81,7 @@ export function ProfilePage() {
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
 			<div className="space-y-2">
-				<h2 className="text-2xl font-semibold tracking-tight">Perfil</h2>
+				<h2 className="font-serif text-2xl font-medium tracking-tight">Perfil</h2>
 				<p className="text-sm text-muted-foreground">
 					Gerencie os provedores de login conectados na sua conta.
 				</p>
@@ -90,7 +90,7 @@ export function ProfilePage() {
 			<Card>
 				<CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div className="space-y-1">
-						<CardTitle>Conta Google</CardTitle>
+						<CardTitle className="font-serif text-lg font-medium">Conta Google</CardTitle>
 						<CardDescription>
 							Vincule sua conta Google para poder entrar por esse provedor.
 						</CardDescription>

@@ -178,21 +178,21 @@ export function ExamDetailActions({
 					onOpenChange={setIsDeleteDialogOpen}
 				>
 					<AlertDialogTrigger asChild>
-						<Button variant="destructive" disabled={isPending}>
+						<Button variant="outline" disabled={isPending}>
 							<Trash2Icon data-icon="inline-start" />
 							Excluir prova
 						</Button>
 					</AlertDialogTrigger>
-					<AlertDialogContent>
+					<AlertDialogContent className="border-destructive/20">
 						<AlertDialogHeader>
-							<AlertDialogTitle>Excluir prova</AlertDialogTitle>
+							<AlertDialogTitle className="font-serif text-lg">Excluir prova</AlertDialogTitle>
 							<AlertDialogDescription>
-								Essa acao remove a prova "{examName}" e nao pode ser desfeita.
+								Essa ação remove a prova "{examName}" e não pode ser desfeita.
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>
 							<AlertDialogCancel asChild>
-								<Button variant="outline" disabled={isDeletePending}>
+								<Button variant="ghost" disabled={isDeletePending}>
 									Cancelar
 								</Button>
 							</AlertDialogCancel>
@@ -209,7 +209,7 @@ export function ExamDetailActions({
 						</AlertDialogFooter>
 					</AlertDialogContent>
 				</AlertDialog>
-				<Badge variant="secondary">Quiz</Badge>
+				<Badge variant="outline" className="font-body text-xs">Quiz</Badge>
 			</div>
 
 			<ExamImproveQuestionsDialog

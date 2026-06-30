@@ -171,10 +171,12 @@ export function LoginPageContent({
 	}
 
 	return (
-		<div className="space-y-4 rounded-lg border border-border bg-card p-6">
-			<div className="space-y-1">
-				<h1 className="text-xl font-semibold">Entrar</h1>
-				<p className="text-sm text-muted-foreground">
+		<div className="space-y-6 rounded-lg border border-border bg-card p-6">
+			<div className="space-y-2">
+				<h1 className="font-serif text-2xl font-normal tracking-tight text-foreground">
+					Entrar
+				</h1>
+				<p className="text-sm text-muted-foreground leading-relaxed">
 					Magic link apenas para emails{" "}
 					<strong>{allowedDomainsHint || "autorizados"}</strong>.
 				</p>
@@ -182,7 +184,9 @@ export function LoginPageContent({
 
 			<form className="space-y-4" onSubmit={handleSubmit}>
 				<div className="space-y-2">
-					<Label htmlFor="email">Email</Label>
+					<Label htmlFor="email" className="text-sm font-medium text-foreground">
+						Email
+					</Label>
 					<Input
 						id="email"
 						ref={emailInputRef}

@@ -30,8 +30,10 @@ export function ExamDetailHeader({ exam, ingestJobId }: ExamDetailHeaderProps) {
 
 	return (
 		<header className="flex flex-col gap-1">
-			<div className="flex items-center justify-between gap-2">
-				<h1 className="text-xl font-semibold">{exam.name}</h1>
+			<div className="flex items-start justify-between gap-3">
+				<h1 className="font-serif text-xl font-medium tracking-tight text-foreground">
+					{exam.name}
+				</h1>
 				{ingestJobId ? (
 					<Button asChild variant="outline" size="sm">
 						<Link to="/jobs/$jobId" params={{ jobId: ingestJobId }}>
@@ -41,7 +43,7 @@ export function ExamDetailHeader({ exam, ingestJobId }: ExamDetailHeaderProps) {
 					</Button>
 				) : null}
 			</div>
-			<p className="text-sm text-muted-foreground">
+			<p className="font-body text-sm text-muted-foreground">
 				{formatQuestionCount(exam.questionCount)}
 				{createdLabel ? ` · ${createdLabel}` : null}
 			</p>

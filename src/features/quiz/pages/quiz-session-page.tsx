@@ -284,7 +284,7 @@ function QuizSessionPageContent({ examId, attemptId }: QuizSessionPageProps) {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<h1 className="text-xl font-semibold">Quiz</h1>
+			<h1 className="font-serif text-xl font-medium tracking-tight text-foreground">Quiz</h1>
 			<QuizQuestionCard
 				question={currentQuestion}
 				currentIndex={currentIndex}

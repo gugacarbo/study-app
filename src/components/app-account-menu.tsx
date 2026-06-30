@@ -40,12 +40,15 @@ export function AppAccountMenu({ user, isAdmin }: AppAccountMenuProps) {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button
-					variant="outline"
-					size="icon"
-					className="rounded-full"
+					variant="ghost"
+					size="sm"
+					className="gap-2 text-xs font-medium text-muted-foreground"
 					aria-label="Conta"
 				>
-					<span className="text-xs font-medium">{initials}</span>
+					<span className="flex h-6 w-6 items-center justify-center border border-border bg-muted text-[10px] font-semibold text-foreground">
+						{initials}
+					</span>
+					<span className="hidden max-w-[120px] truncate md:inline">{user.name}</span>
 				</Button>
 			</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-56">

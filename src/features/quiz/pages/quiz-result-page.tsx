@@ -45,7 +45,7 @@ export function QuizResultPageContent({ examId, attemptId }: QuizResultPageProps
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-linear-to-b from-muted/60 via-background/30 to-transparent"
 			/>
-			<div className="relative mx-auto flex w-full max-w-5xl flex-col gap-8">
+			<div className="relative mx-auto flex w-full flex-col gap-8">
 				<QuizResultSummary
 					scorePercent={result.scorePercent}
 					totalQuestions={result.totalQuestions}
@@ -57,10 +57,10 @@ export function QuizResultPageContent({ examId, attemptId }: QuizResultPageProps
 
 				<section className="flex flex-col gap-4">
 					<div className="rounded-2xl border border-border/70 bg-card/95 px-5 py-4 shadow-sm sm:px-6">
-						<p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-							Revisao questao por questao
+						<p className="text-[0.72rem] font-medium uppercase uppercase tracking-[0.18em] text-muted-foreground">
+							Revisão questão por questão
 						</p>
-						<h2 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-foreground">
+						<h2 className="mt-2 font-serif text-xl font-medium tracking-tight text-foreground">
 							Entenda onde a tentativa ficou firme e onde ainda vale voltar.
 						</h2>
 						<p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">

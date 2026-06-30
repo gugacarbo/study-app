@@ -56,7 +56,7 @@ describe("ExamDetailActions", () => {
 			screen.getByRole("heading", { name: /excluir prova/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByText(/essa acao remove a prova "prova 1" e nao pode ser desfeita/i),
+			screen.getByText(/essa ação remove a prova "prova 1" e não pode ser desfeita/i),
 		).toBeInTheDocument();
 		expect(mutateAsync).not.toHaveBeenCalled();
 	});

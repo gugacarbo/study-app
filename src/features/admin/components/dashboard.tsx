@@ -24,10 +24,10 @@ export function Dashboard() {
 	});
 
 	return (
-		<div>
-			<h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+		<div className="space-y-8">
+			<h1 className="font-serif text-2xl font-semibold tracking-tight">Dashboard</h1>
 
-			<div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-3xl font-bold">

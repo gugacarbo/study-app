@@ -71,29 +71,29 @@ export function QuizResultSummary({
 	const performance = getPerformanceCopy(scorePercent);
 
 	return (
-		<Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
-			<CardHeader className="gap-5 border-b border-border/70 bg-muted/35 px-5 py-5 sm:px-6">
+		<Card className="overflow-hidden border bg-card">
+			<CardHeader className="gap-5 border-b border-border bg-muted/30 px-5 py-5 sm:px-6">
 				<div className="flex flex-col gap-3">
 					<Badge
 						variant="outline"
-						className={`w-fit px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] ${performance.badgeClass}`}
+						className={`w-fit rounded-md px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] ${performance.badgeClass}`}
 					>
-						Boletim da sessao
+						Boletim da sessão
 					</Badge>
 					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="space-y-2">
-							<CardTitle className="text-2xl font-semibold tracking-[-0.03em] text-foreground sm:text-3xl">
+							<CardTitle className="font-serif text-2xl font-medium tracking-[-0.02em] text-foreground sm:text-3xl">
 								Fechamento da tentativa
 							</CardTitle>
-							<p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-[0.95rem]">
+							<p className="max-w-2xl font-body text-sm leading-6 text-muted-foreground sm:text-[0.95rem]">
 								{performance.message}
 							</p>
 						</div>
 						<div className="flex items-end gap-3 lg:shrink-0">
-							<div className="text-6xl font-semibold leading-none tracking-[-0.08em] text-foreground sm:text-7xl">
+							<div className="font-serif text-6xl font-medium leading-none tracking-[-0.06em] text-foreground sm:text-7xl">
 								{formatPercent(scorePercent)}
 							</div>
-							<div className={`mb-1 h-14 w-2 rounded-full sm:h-16 ${performance.accentClass}`} />
+							<div className={`mb-1 h-14 w-1.5 rounded-full sm:h-16 ${performance.accentClass}`} />
 						</div>
 					</div>
 				</div>
@@ -104,55 +104,55 @@ export function QuizResultSummary({
 						<p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
 							Faixa de desempenho
 						</p>
-						<p className={`text-lg font-semibold tracking-[-0.02em] ${performance.bandClass}`}>
+						<p className={`font-body text-lg font-medium tracking-[-0.02em] ${performance.bandClass}`}>
 							{performance.band}
 						</p>
 					</div>
-					<p className="text-sm leading-6 text-muted-foreground">
-						Leitura rapida da sessao antes de revisar cada questao.
+					<p className="font-body text-sm leading-6 text-muted-foreground">
+						Leitura rápida da sessão antes de revisar cada questão.
 					</p>
 				</div>
 
-				<Separator className="bg-border/70" />
+				<Separator className="bg-border" />
 
 				<div className="grid gap-3 sm:grid-cols-2">
-					<div className="rounded-2xl border border-success/20 bg-success/10 p-4 sm:col-span-2">
+					<div className="rounded-lg border border-success/20 bg-success/10 p-4 sm:col-span-2">
 						<p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
 							Acertos
 						</p>
 						<div className="mt-3 flex items-end justify-between gap-3">
 							<div>
-								<p className="text-4xl font-semibold tracking-[-0.06em] text-foreground sm:text-5xl">
+								<p className="font-serif text-4xl font-medium tracking-[-0.05em] text-foreground sm:text-5xl">
 									{correctAnswers}
 								</p>
-								<p className="mt-2 text-sm leading-6 text-muted-foreground">
-									Questoes respondidas corretamente nesta sessao.
+								<p className="mt-2 font-body text-sm leading-6 text-muted-foreground">
+									Questões respondidas corretamente nesta sessão.
 								</p>
 							</div>
-							<div className="rounded-full border border-success/20 bg-background/80 px-3 py-1 text-sm font-medium text-success">
-								foco da sessao
+							<div className="rounded-md border border-success/20 bg-background/80 px-3 py-1 text-sm font-medium text-success">
+								foco da sessão
 							</div>
 						</div>
 					</div>
-					<div className="rounded-2xl border border-chart-4/20 bg-chart-4/10 p-4">
+					<div className="rounded-lg border border-chart-4/20 bg-chart-4/10 p-4">
 						<p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
 							Respondidas
 						</p>
-						<p className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-foreground">
+						<p className="mt-3 font-serif text-3xl font-medium tracking-[-0.04em] text-foreground">
 							{answeredQuestions}
 						</p>
-						<p className="mt-2 text-sm leading-6 text-muted-foreground">
-							Medida de consistencia da tentativa.
+						<p className="mt-2 font-body text-sm leading-6 text-muted-foreground">
+							Medida de consistência da tentativa.
 						</p>
 					</div>
-					<div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
+					<div className="rounded-lg border bg-muted/30 p-4">
 						<p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
 							Total
 						</p>
-						<p className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-foreground">
+						<p className="mt-3 font-serif text-3xl font-medium tracking-[-0.04em] text-foreground">
 							{totalQuestions}
 						</p>
-						<p className="mt-2 text-sm leading-6 text-muted-foreground">
+						<p className="mt-2 font-body text-sm leading-6 text-muted-foreground">
 							Escopo completo selecionado para o quiz.
 						</p>
 					</div>
@@ -161,8 +161,7 @@ export function QuizResultSummary({
 				<Button
 					onClick={onNewAttempt}
 					disabled={isStarting}
-					variant="outline"
-					className="w-full border-border bg-background/80 text-foreground hover:bg-accent hover:text-accent-foreground sm:ml-auto sm:w-auto"
+					className="w-full sm:ml-auto sm:w-auto"
 				>
 					{isStarting ? "Preparando…" : "Nova tentativa"}
 				</Button>

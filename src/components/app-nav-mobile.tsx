@@ -37,13 +37,15 @@ export function AppNavMobile({ pathname }: AppNavMobileProps) {
 					<MenuIcon />
 				</Button>
 			</SheetTrigger>
-			<SheetContent side="left" className="w-72">
+			<SheetContent side="left" className="w-72 border-r border-border bg-background">
 				<SheetHeader>
-					<SheetTitle className="sr-only">Navegação</SheetTitle>
+					<SheetTitle className="font-serif text-lg font-medium tracking-tight">
+						Study
+					</SheetTitle>
 				</SheetHeader>
 				<nav
 					aria-label="Navegação principal"
-					className="flex flex-col gap-1 px-4"
+					className="flex flex-col gap-1 px-4 pt-2"
 				>
 					{APP_NAV_ITEMS.map((item) => {
 						const active = item.match(pathname);
@@ -56,13 +58,13 @@ export function AppNavMobile({ pathname }: AppNavMobileProps) {
 								aria-current={active ? "page" : undefined}
 								onClick={() => handleNavigate(item.to)}
 								className={cn(
-									"flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+									"flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
 									active
-										? "text-foreground font-medium"
-										: "text-muted-foreground hover:text-foreground",
+										? "bg-surface text-foreground"
+										: "text-muted-foreground hover:bg-surface hover:text-foreground",
 								)}
 							>
-								<Icon />
+								<Icon className="size-4 text-muted-foreground" />
 								{item.label}
 							</button>
 						);

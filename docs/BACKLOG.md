@@ -69,6 +69,7 @@ Layout: specs globais em `docs/specs/`; demais em `docs/specs/{domínio}/`. Nume
 | SPEC-0027 | `docs/specs/exams/0027-ui-painel-questao-dedicada.md` | SPEC-0021, SPEC-0025                              | draft       |
 | SPEC-0028 | `docs/specs/exams/0028-cta-revisar-melhoria-na-prova.md` | SPEC-0024, SPEC-0025, SPEC-0027                   | draft       |
 | SPEC-0029 | `docs/specs/exams/0029-ui-revisao-melhoria-questao.md` | SPEC-0024, SPEC-0025, SPEC-0027, SPEC-0028       | draft       |
+| SPEC-0030 | `docs/specs/ui/0030-identity-visual-redesign.md`        | ADR-0001, SPEC-0005                              | accepted    |
 
 ## Pendências
 

@@ -31,15 +31,15 @@ export function QuizStart({
 	const inProgressAttempt = attempts.find((attempt) => attempt.status === "in_progress");
 
 	return (
-		<Card className="border border-border/70 bg-card/95 shadow-sm shadow-black/5">
-			<CardHeader className="gap-3 border-b border-border/60 pb-3">
+		<Card>
+			<CardHeader className="gap-3 border-b pb-3">
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 					<div className="space-y-1">
 						<div className="flex flex-wrap items-center gap-2">
 							<CardTitle className="text-base">
 								{hasUnfinishedAttempt ? "Pronto para continuar?" : "Pronto para começar?"}
 							</CardTitle>
-							<span className="inline-flex items-center rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground">
+							<span className="inline-flex items-center rounded-md border bg-muted px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground">
 								{hasUnfinishedAttempt ? "Progresso salvo" : "Novo quiz"}
 							</span>
 						</div>
@@ -75,17 +75,17 @@ export function QuizStart({
 							{attempts.map((attempt, index) => (
 								<div
 									key={attempt.id}
-									className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/15 px-3 py-2.5 text-sm"
+									className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2.5 text-sm"
 								>
 									<div className="min-w-0 space-y-1">
 										<div className="flex flex-wrap items-center gap-2">
 											<span className="font-medium">Tentativa #{index + 1}</span>
-											<span
-												className={cn(
-													"inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] font-medium",
-													classNameForStatus(attempt.status),
-												)}
-											>
+												<span
+													className={cn(
+														"inline-flex items-center rounded-md border px-2 py-0.5 text-[0.625rem] font-medium",
+														classNameForStatus(attempt.status),
+													)}
+												>
 												{labelForStatus(attempt.status)}
 											</span>
 										</div>
@@ -146,7 +146,7 @@ export function QuizStart({
 
 function SummaryTile({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2">
+		<div className="rounded-md border bg-muted/40 px-3 py-2">
 			<p className="text-[11px] text-muted-foreground">{label}</p>
 			<p className="mt-1 font-medium text-foreground">{value}</p>
 		</div>
@@ -166,11 +166,11 @@ function labelForStatus(status: AttemptSummary["status"]) {
 	}
 }
 
-function classNameForStatus(status: AttemptSummary["status"]) {
+	function classNameForStatus(status: AttemptSummary["status"]) {
 	switch (status) {
 		case "completed":
-			return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+			return "border-success/20 bg-success/10 text-success";
 		default:
-			return "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+			return "border-primary/20 bg-primary/10 text-primary";
 	}
 }
