@@ -31,3 +31,5 @@
 | [SPEC-0025](exams/0025-pagina-dedicada-questao.md)          | Lista enxuta de questões no exame e página dedicada por questão               | draft       |
 | [SPEC-0026](exams/0026-catalogo-global-topicos-questoes.md) | Catálogo global de tópicos para questões e resolução via tools de agente      | draft       |
 | [SPEC-0027](exams/0027-ui-painel-questao-dedicada.md)       | UI em painel para a página dedicada da questão                                | draft       |
+| [SPEC-0028](exams/0028-cta-revisar-melhoria-na-prova.md)    | CTA de revisar melhoria na visualização da prova                              | draft       |
+| [SPEC-0029](exams/0029-ui-revisao-melhoria-questao.md)      | UI de revisão de melhoria na página da questão                                | draft       |
