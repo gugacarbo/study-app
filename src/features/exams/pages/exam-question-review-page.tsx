@@ -9,10 +9,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QuestionEditForm } from "@/features/exams/components/question-edit-form";
 import { QuestionImprovementReviewForm } from "@/features/exams/components/question-improvement-review-form";
 import { useExam } from "@/features/exams/hooks/use-exam";
 import { useQuestionImprovementDraftActions } from "@/features/exams/hooks/use-question-improvement-draft-actions";
 import { useQuestionImprovementDrafts } from "@/features/exams/hooks/use-question-improvement-drafts";
+import { useUpdateQuestion } from "@/features/exams/hooks/use-update-question";
 import { getReviewImprovementQuestionId } from "@/features/exams/lib/get-review-improvement-question-id";
 import type { QuestionFormInput } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
@@ -85,6 +87,7 @@ export function ExamQuestionReviewPageContent({
 	const { data: exam } = useExam(examId);
 	const draftsQuery = useQuestionImprovementDrafts(examId);
 	const { resolveDraft } = useQuestionImprovementDraftActions(examId);
+	const updateQuestion = useUpdateQuestion(examId);
 
 	if (draftsQuery.isPending) {
 		return <ExamQuestionReviewPageSkeleton />;
@@ -102,12 +105,44 @@ export function ExamQuestionReviewPageContent({
 	}
 
 	const draft = drafts.find((item) => item.questionId === questionId);
-	if (!draft) {
-		throw new Response("Not Found", { status: 404 });
-	}
-	const activeDraft = draft;
 
-	const suggestedQuestion = toSuggestedQuestion(question, activeDraft);
+	async function goBackToQuestion() {
+		await navigate({
+			to: "/exams/$examId/questions/$questionId",
+			params: { examId, questionId },
+		});
+	}
+
+	if (!draft) {
+		async function handleManualSubmit(data: QuestionFormInput) {
+			await updateQuestion.mutateAsync({
+				examId,
+				questionId,
+				...data,
+			});
+			await goBackToQuestion();
+		}
+
+		return (
+			<div className="flex flex-col gap-6">
+				<div className="rounded-xl border bg-card p-5 text-card-foreground shadow-xs">
+					<QuestionEditForm
+						question={question}
+						onSubmit={(data) => void handleManualSubmit(data)}
+						onCancel={() => void goBackToQuestion()}
+						isPending={updateQuestion.isPending}
+					/>
+					{updateQuestion.isError ? (
+						<p className="mt-3 text-sm text-destructive">
+							Não foi possível salvar a edição manual. Tente novamente.
+						</p>
+					) : null}
+				</div>
+			</div>
+		);
+	}
+
+	const suggestedQuestion = toSuggestedQuestion(question, draft);
 	const nextQuestionId = getNextReviewQuestionId(
 		exam.questions,
 		drafts,
@@ -123,16 +158,13 @@ export function ExamQuestionReviewPageContent({
 			return;
 		}
 
-		await navigate({
-			to: "/exams/$examId/questions/$questionId",
-			params: { examId, questionId },
-		});
+		await goBackToQuestion();
 	}
 
 	async function handleApprove(data: QuestionFormInput & { topic: string | null }) {
 		await resolveDraft.mutateAsync({
 			action: "approve",
-			draftId: activeDraft.id,
+			draftId: draft.id,
 			finalSnapshot: buildFinalSnapshot(data),
 		});
 		await goAfterResolution();
@@ -141,7 +173,7 @@ export function ExamQuestionReviewPageContent({
 	async function handleDiscard() {
 		await resolveDraft.mutateAsync({
 			action: "discard",
-			draftId: activeDraft.id,
+			draftId: draft.id,
 		});
 		await goAfterResolution();
 	}
@@ -164,12 +196,7 @@ export function ExamQuestionReviewPageContent({
 							type="button"
 							variant="ghost"
 							className="h-auto self-start px-0 py-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-							onClick={() =>
-								void navigate({
-									to: "/exams/$examId/questions/$questionId",
-									params: { examId, questionId },
-								})
-							}
+							onClick={() => void goBackToQuestion()}
 						>
 							<ChevronLeftIcon data-icon="inline-start" />
 							Voltar para a questão

@@ -127,7 +127,10 @@ describe("ExamQuestionPageContent", () => {
 
 		expect(screen.getByTestId("question-page-toolbar")).toBeInTheDocument();
 		expect(screen.getByTestId("question-page-main")).toBeInTheDocument();
-		expect(screen.getByTestId("question-page-sidebar")).toBeInTheDocument();
+		expect(
+			screen.queryByTestId("question-page-sidebar"),
+		).not.toBeInTheDocument();
+		expect(screen.queryByTestId("question-side-panel")).not.toBeInTheDocument();
 		expect(screen.getByText(/Q1 de 2/i)).toBeInTheDocument();
 		expect(screen.getByText(/quanto é 2 \+ 2\?/i)).toBeInTheDocument();
 		expect(

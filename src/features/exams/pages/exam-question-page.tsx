@@ -122,34 +122,30 @@ export function ExamQuestionPageContent({
 						>
 							<ArrowRightIcon />
 						</Button>
-						{currentDraft ? (
-							<Button
-								type="button"
-								variant="outline"
-								size="icon"
-								className="size-8"
-								aria-label="Editar pergunta"
-								title="Editar pergunta"
-								onClick={() =>
-									void navigate({
-										to: "/exams/$examId/questions/$questionId/edit",
-										params: { examId, questionId: question.id },
-									})
-								}
-							>
-								<PencilLineIcon />
-							</Button>
-						) : null}
+						<Button
+							type="button"
+							variant="outline"
+							size="icon"
+							className="size-8"
+							aria-label="Editar pergunta"
+							title="Editar pergunta"
+							onClick={() =>
+								void navigate({
+									to: "/exams/$examId/questions/$questionId/edit",
+									params: { examId, questionId: question.id },
+								})
+							}
+						>
+							<PencilLineIcon />
+						</Button>
 					</div>
 				</div>
 			</div>
 
 			<ExamQuestionItem
 				index={questionIndex + 1}
-				examId={examId}
 				question={question}
 				draft={currentDraft}
-				showEditButton={!currentDraft}
 			/>
 		</div>
 	);

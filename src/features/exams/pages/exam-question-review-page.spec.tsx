@@ -48,6 +48,14 @@ vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => (
 	}),
 }));
 
+vi.mock("@/features/exams/hooks/use-update-question", () => ({
+	useUpdateQuestion: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+		isError: false,
+	}),
+}));
+
 const examWithQuestions: ExamDetail = {
 	id: "exam-1",
 	name: "Prova de Matemática",
@@ -276,5 +284,21 @@ describe("ExamQuestionReviewPageContent", () => {
 		expect(
 			screen.getByTestId("question-improvement-review-loading"),
 		).toBeInTheDocument();
+	});
+
+	it("renders the dedicated edit route without the manual edit header card when there is no draft", () => {
+		mockUseExam.mockReturnValue({ data: examWithQuestions });
+		mockUseQuestionImprovementDrafts.mockReturnValue({
+			data: [],
+			isPending: false,
+			isError: false,
+			error: null,
+		});
+
+		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q1" />);
+
+		expect(screen.getByLabelText(/^enunciado$/i)).toBeInTheDocument();
+		expect(screen.queryByText(/edição manual/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/voltar para a questão/i)).not.toBeInTheDocument();
 	});
 });

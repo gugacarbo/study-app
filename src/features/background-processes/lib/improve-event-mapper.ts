@@ -33,6 +33,12 @@ export type ImproveMonitorState = {
 	questions: ImproveQuestionActivityState[];
 };
 
+const TERMINAL_IMPROVE_QUESTION_STATUSES = new Set<ImproveQuestionItemStatus>([
+	"completed",
+	"failed",
+	"cancelled",
+]);
+
 export function isImproveQuestionsJobMetadata(
 	metadata: unknown,
 ): metadata is ImproveQuestionsJobMetadata {
@@ -150,10 +156,13 @@ export function mergeImproveJobEvents(input: {
 			if (!data?.questionId || !data.stage) continue;
 			const index = getQuestionStateIndex(questions, data.questionId);
 			if (index >= 0) {
+				const current = questions[index];
 				questions[index] = {
-					...questions[index],
-					stage: data.stage,
-					events: [...questions[index].events, event],
+					...current,
+					stage: TERMINAL_IMPROVE_QUESTION_STATUSES.has(current.status)
+						? current.stage
+						: data.stage,
+					events: [...current.events, event],
 				};
 			}
 			continue;

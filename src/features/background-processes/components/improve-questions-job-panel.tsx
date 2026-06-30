@@ -5,6 +5,7 @@ import { JobSidebarTabs } from "@/features/background-processes/components/job-s
 import { JobWorkspaceLayout } from "@/features/background-processes/components/job-workspace-layout";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ImproveQuestionsJobMetadata, JobStatus } from "@/lib/job-kinds";
 
 type ImproveQuestionsJobPanelProps = {
@@ -26,36 +27,75 @@ export function ImproveQuestionsJobPanel({
 	events,
 	isLoading,
 }: ImproveQuestionsJobPanelProps) {
+	const activityContent = (
+		<ImproveQuestionsActivityPanel monitor={monitor} status={status} />
+	);
+	const progressContent = (
+		<ImproveQuestionsProgressPanel
+			status={status}
+			error={error}
+			metadata={metadata}
+			monitor={monitor}
+			isLoading={isLoading}
+		/>
+	);
+	const eventsContent = (
+		<ImproveQuestionsEventsGroupedList
+			monitor={monitor}
+			events={events}
+			status={status}
+			isLoading={isLoading}
+			error={error}
+		/>
+	);
+
 	return (
-		<JobWorkspaceLayout
-			activityLabel="Atividade do job"
-			sidebarLabel="Progresso do job"
-			activity={
-				<ImproveQuestionsActivityPanel monitor={monitor} status={status} />
-			}
-			sidebar={
-				<JobSidebarTabs
-					eventsCount={events.length}
-					progressContent={
-						<ImproveQuestionsProgressPanel
-							status={status}
-							error={error}
-							metadata={metadata}
-							monitor={monitor}
-							isLoading={isLoading}
-						/>
-					}
-					eventsContent={
-						<ImproveQuestionsEventsGroupedList
-							monitor={monitor}
-							events={events}
-							status={status}
-							isLoading={isLoading}
-							error={error}
+		<>
+			<div className="flex min-h-0 flex-1 flex-col md:hidden">
+				<Tabs defaultValue="activity" className="flex h-full min-h-0 flex-col">
+					<TabsList
+						aria-label="Navegação mobile do job"
+						className="mx-0 mb-4 w-fit"
+					>
+						<TabsTrigger value="activity">Atividade</TabsTrigger>
+						<TabsTrigger value="progress">Progresso</TabsTrigger>
+						<TabsTrigger value="events">Eventos ({events.length})</TabsTrigger>
+					</TabsList>
+					<TabsContent
+						value="activity"
+						className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card"
+					>
+						{activityContent}
+					</TabsContent>
+					<TabsContent
+						value="progress"
+						className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card"
+					>
+						{progressContent}
+					</TabsContent>
+					<TabsContent
+						value="events"
+						className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card"
+					>
+						{eventsContent}
+					</TabsContent>
+				</Tabs>
+			</div>
+			<div className="hidden min-h-0 flex-1 md:flex">
+				<JobWorkspaceLayout
+					className="w-full"
+					activityLabel="Atividade do job"
+					sidebarLabel="Progresso do job"
+					activity={activityContent}
+					sidebar={
+						<JobSidebarTabs
+							eventsCount={events.length}
+							progressContent={progressContent}
+							eventsContent={eventsContent}
 						/>
 					}
 				/>
-			}
-		/>
+			</div>
+		</>
 	);
 }

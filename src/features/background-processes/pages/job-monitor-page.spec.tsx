@@ -515,14 +515,80 @@ describe("JobMonitorPage", () => {
 				screen.getByRole("region", { name: /progresso do job/i }),
 			).toBeInTheDocument();
 			expect(screen.getAllByText(/questão 1/i).length).toBeGreaterThan(0);
-			expect(screen.getByText(/refinando a questão/i)).toBeInTheDocument();
+			expect(screen.getAllByText(/refinando a questão/i).length).toBeGreaterThan(0);
 			expect(screen.getAllByText(/escrevendo explicações/i).length).toBeGreaterThan(0);
 			expect(
 				screen.getAllByText(/a resposta marcada parece inconsistente/i).length,
 			).toBeGreaterThan(0);
+			expect(screen.getAllByRole("tab", { name: /eventos \(3\)/i }).length).toBeGreaterThan(0);
+		});
+	});
+
+	it("shows activity before progress in mobile tabs for improve-questions jobs", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					status: JOB_STATUS.RUNNING,
+					phase: "processing_questions",
+					error: null,
+					metadata: {
+						examId: "exam-1",
+						modelId: "model-1",
+						questionIds: ["q-1"],
+						concurrencyLimit: 2,
+						totalCount: 1,
+						queuedCount: 0,
+						runningCount: 1,
+						completedCount: 0,
+						failedCount: 0,
+						cancelledCount: 0,
+						pendingReviewCount: 0,
+						items: [
+							{
+								questionId: "q-1",
+								questionNumber: 1,
+								status: "running",
+								stage: "writing_explanations",
+							},
+						],
+					},
+					events: [
+						{
+							seq: 1,
+							payload: {
+								type: "text",
+								questionId: "q-1",
+								messageId: "improve:q-1:step:1",
+								text: "Refinando a questão...",
+							},
+							createdAt: null,
+						},
+					],
+				}),
+			}),
+		);
+
+		renderWithQuery(<JobMonitorPage jobId="job-1" />);
+
+		await waitFor(() => {
 			expect(
-				screen.getByRole("tab", { name: /eventos \(3\)/i }),
+				screen.getByRole("tablist", { name: /navegação mobile do job/i }),
 			).toBeInTheDocument();
 		});
+
+		const mobileTabs = screen.getByRole("tablist", {
+			name: /navegação mobile do job/i,
+		});
+		const tabLabels = Array.from(
+			mobileTabs.querySelectorAll('[role="tab"]'),
+		).map((tab) => tab.textContent?.trim());
+
+		expect(tabLabels).toEqual(["Atividade", "Progresso", "Eventos (1)"]);
+		expect(screen.getByRole("tab", { name: /atividade/i })).toHaveAttribute(
+			"data-state",
+			"active",
+		);
 	});
 });

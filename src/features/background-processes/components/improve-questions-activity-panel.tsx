@@ -75,9 +75,11 @@ export function ImproveQuestionsActivityPanel({
 												/>
 											) : null}
 										</div>
-										<p className="text-xs text-muted-foreground">
-											{formatImproveQuestionStageLabel(question.stage)}
-										</p>
+										{question.status !== "completed" ? (
+											<p className="text-xs text-muted-foreground">
+												{formatImproveQuestionStageLabel(question.stage)}
+											</p>
+										) : null}
 									</div>
 									<Badge variant="outline">{question.status}</Badge>
 								</div>
