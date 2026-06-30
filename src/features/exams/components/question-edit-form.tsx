@@ -30,13 +30,26 @@ import {
 	type QuestionFormInput,
 } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
-import { MinusIcon, PlusIcon } from "lucide-react";
+import { ArrowLeftRightIcon, MinusIcon, PlusIcon } from "lucide-react";
+
+export type QuestionEditFormSubmission = QuestionFormInput & {
+	topic: string | null;
+};
 
 type QuestionEditFormProps = {
 	question: QuestionDetail;
-	onSubmit: (data: QuestionFormInput) => void;
+	onSubmit: (data: QuestionEditFormSubmission) => void;
 	onCancel: () => void;
+	onDiscard?: () => void;
+	submitLabel?: string;
+	discardLabel?: string;
 	isPending?: boolean;
+	/**
+	 * Versão original da questão. Quando fornecida junto de uma versão de
+	 * melhoria em `question`, o formulário exibe botões de toggle ao lado dos
+	 * campos alterados para alternar entre o estado atual e a sugestão.
+	 */
+	baseQuestion?: QuestionDetail;
 };
 
 function generateOptionKey(index: number): string {
@@ -45,8 +58,12 @@ function generateOptionKey(index: number): string {
 
 export function QuestionEditForm({
 	question,
+	baseQuestion,
 	onSubmit,
 	onCancel,
+	onDiscard,
+	submitLabel = "Salvar",
+	discardLabel = "Rejeitar melhoria",
 	isPending = false,
 }: QuestionEditFormProps) {
 	const form = useForm<QuestionFormInput>({
@@ -77,9 +94,21 @@ export function QuestionEditForm({
 	const [isSearchingTopics, setIsSearchingTopics] = useState(false);
 	const [isCreatingTopic, setIsCreatingTopic] = useState(false);
 
-	const { fields, append, remove } = useFieldArray({
+	const { fields, append, remove, replace } = useFieldArray({
 		control: form.control,
 		name: "options",
+	});
+
+	const watchedQuestion = useWatch({
+		control: form.control,
+		name: "question",
+		defaultValue: question.question,
+	});
+
+	const watchedTopicId = useWatch({
+		control: form.control,
+		name: "topicId",
+		defaultValue: question.topicId ?? null,
 	});
 
 	const watchedOptions = useWatch({
@@ -99,6 +128,175 @@ export function QuestionEditForm({
 		name: "scoringMode",
 		defaultValue: question.scoringMode,
 	});
+
+	const watchedExplanation = useWatch({
+		control: form.control,
+		name: "explanation",
+		defaultValue: question.explanation ?? "",
+	});
+
+	const watchedDeepExplanation = useWatch({
+		control: form.control,
+		name: "deepExplanation",
+		defaultValue: question.deepExplanation ?? "",
+	});
+
+	const hasPendingImprovement = baseQuestion != null;
+
+	function normalizeExplanation(
+		value: string | null | undefined,
+	): string | null {
+		const trimmed = value?.trim();
+		return trimmed || null;
+	}
+
+	function valuesEqual(a: unknown, b: unknown): boolean {
+		return JSON.stringify(a) === JSON.stringify(b);
+	}
+
+	const isQuestionBase = hasPendingImprovement
+		? watchedQuestion === baseQuestion.question
+		: false;
+	const hasQuestionChanges = hasPendingImprovement
+		? baseQuestion.question !== question.question
+		: false;
+
+	const isTopicBase = hasPendingImprovement
+		? watchedTopicId === baseQuestion.topicId &&
+		  topicQuery.trim() === (baseQuestion.topic ?? "")
+		: false;
+	const hasTopicChanges = hasPendingImprovement
+		? baseQuestion.topicId !== question.topicId ||
+		  baseQuestion.topic !== question.topic
+		: false;
+
+	const isScoringBase = hasPendingImprovement
+		? watchedScoringMode === baseQuestion.scoringMode
+		: false;
+	const hasScoringChanges = hasPendingImprovement
+		? baseQuestion.scoringMode !== question.scoringMode
+		: false;
+
+	const isOptionsBase = hasPendingImprovement
+		? valuesEqual(watchedOptions, baseQuestion.options) &&
+		  valuesEqual(watchedAnswers, baseQuestion.answers)
+		: false;
+	const hasOptionsChanges = hasPendingImprovement
+		? !valuesEqual(baseQuestion.options, question.options) ||
+		  !valuesEqual(baseQuestion.answers, question.answers)
+		: false;
+
+	const isExplanationBase = hasPendingImprovement
+		? normalizeExplanation(watchedExplanation) ===
+		  normalizeExplanation(baseQuestion.explanation)
+		: false;
+	const hasExplanationChanges = hasPendingImprovement
+		? normalizeExplanation(baseQuestion.explanation) !==
+		  normalizeExplanation(question.explanation)
+		: false;
+
+	const isDeepExplanationBase = hasPendingImprovement
+		? normalizeExplanation(watchedDeepExplanation) ===
+		  normalizeExplanation(baseQuestion.deepExplanation)
+		: false;
+	const hasDeepExplanationChanges = hasPendingImprovement
+		? normalizeExplanation(baseQuestion.deepExplanation) !==
+		  normalizeExplanation(question.deepExplanation)
+		: false;
+
+	function toggleQuestion() {
+		if (!baseQuestion) return;
+		form.setValue(
+			"question",
+			isQuestionBase ? question.question : baseQuestion.question,
+		);
+	}
+
+	function toggleTopic() {
+		if (!baseQuestion) return;
+		if (isTopicBase) {
+			form.setValue("topicId", question.topicId ?? null);
+			setTopicQuery(question.topic ?? "");
+		} else {
+			form.setValue("topicId", baseQuestion.topicId ?? null);
+			setTopicQuery(baseQuestion.topic ?? "");
+		}
+		setTopicResults([]);
+	}
+
+	function toggleScoring() {
+		if (!baseQuestion) return;
+		const target = isScoringBase ? question : baseQuestion;
+		form.setValue("scoringMode", target.scoringMode);
+		form.setValue(
+			"answers",
+			target.scoringMode === "exact"
+				? target.answers.slice(0, 1)
+				: target.answers,
+		);
+	}
+
+	function toggleOptions() {
+		if (!baseQuestion) return;
+		const target = isOptionsBase ? question : baseQuestion;
+		replace(target.options.map((option) => ({ ...option })));
+		form.setValue("answers", [...target.answers]);
+	}
+
+	function toggleExplanation() {
+		if (!baseQuestion) return;
+		form.setValue(
+			"explanation",
+			normalizeExplanation(
+				isExplanationBase ? question.explanation : baseQuestion.explanation,
+			) ?? "",
+		);
+	}
+
+	function toggleDeepExplanation() {
+		if (!baseQuestion) return;
+		form.setValue(
+			"deepExplanation",
+			normalizeExplanation(
+				isDeepExplanationBase
+					? question.deepExplanation
+					: baseQuestion.deepExplanation,
+			) ?? "",
+		);
+	}
+
+	function ImprovementToggle({
+		label,
+		hasChanges,
+		isUsingBase,
+		onClick,
+	}: {
+		label: string;
+		hasChanges: boolean;
+		isUsingBase: boolean;
+		onClick: () => void;
+	}) {
+		if (!baseQuestion || !hasChanges) return null;
+
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				className="h-auto px-2 py-0 text-xs font-normal text-muted-foreground hover:text-foreground"
+				onClick={onClick}
+				disabled={isPending}
+				aria-label={
+					isUsingBase
+						? `Usar melhoria ${label}`
+						: `Usar versão atual ${label}`
+				}
+			>
+				<ArrowLeftRightIcon className="size-3" />
+				{isUsingBase ? "Usar melhoria" : "Usar atual"}
+			</Button>
+		);
+	}
 
 	function handleAddOption() {
 		const currentOptions = form.getValues("options");
@@ -187,11 +385,24 @@ export function QuestionEditForm({
 
 	return (
 		<form
-			onSubmit={form.handleSubmit(onSubmit)}
+			onSubmit={form.handleSubmit((data) =>
+				onSubmit({
+					...data,
+					topic: topicQuery.trim() ? topicQuery.trim() : null,
+				}),
+			)}
 			className="flex flex-col gap-4"
 		>
 			<Field orientation="vertical">
-				<FieldLabel htmlFor="question">Enunciado</FieldLabel>
+				<div className="flex items-center gap-2">
+					<FieldLabel htmlFor="question">Enunciado</FieldLabel>
+				<ImprovementToggle
+					label="no enunciado"
+					hasChanges={hasQuestionChanges}
+					isUsingBase={isQuestionBase}
+					onClick={toggleQuestion}
+				/>
+				</div>
 				<FieldContent>
 					<Textarea
 						id="question"
@@ -204,7 +415,15 @@ export function QuestionEditForm({
 
 			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<Field orientation="vertical">
-					<FieldLabel htmlFor="topic">Tópico</FieldLabel>
+					<div className="flex items-center gap-2">
+						<FieldLabel htmlFor="topic">Tópico</FieldLabel>
+						<ImprovementToggle
+							label="tópico"
+							hasChanges={hasTopicChanges}
+							isUsingBase={isTopicBase}
+							onClick={toggleTopic}
+						/>
+					</div>
 					<FieldContent className="gap-2">
 						<Input
 							id="topic"
@@ -274,9 +493,17 @@ export function QuestionEditForm({
 				</Field>
 
 				<Field orientation="vertical">
-					<FieldLabel htmlFor="scoringMode">
-						Modo de pontuação
-					</FieldLabel>
+					<div className="flex items-center gap-2">
+						<FieldLabel htmlFor="scoringMode">
+							Modo de pontuação
+						</FieldLabel>
+						<ImprovementToggle
+							label="modo de pontuação"
+							hasChanges={hasScoringChanges}
+							isUsingBase={isScoringBase}
+							onClick={toggleScoring}
+						/>
+					</div>
 					<FieldContent>
 						<Select
 							onValueChange={(value) => {
@@ -316,7 +543,15 @@ export function QuestionEditForm({
 
 			<div className="flex flex-col gap-3">
 				<div className="flex items-center justify-between">
-					<FieldTitle>Alternativas</FieldTitle>
+					<div className="flex items-center gap-2">
+						<FieldTitle>Alternativas</FieldTitle>
+					<ImprovementToggle
+						label="nas alternativas"
+						hasChanges={hasOptionsChanges}
+						isUsingBase={isOptionsBase}
+						onClick={toggleOptions}
+					/>
+					</div>
 					<Button
 						type="button"
 						variant="outline"
@@ -399,7 +634,15 @@ export function QuestionEditForm({
 			</div>
 
 			<Field orientation="vertical">
-				<FieldLabel htmlFor="explanation">Explicação</FieldLabel>
+				<div className="flex items-center gap-2">
+					<FieldLabel htmlFor="explanation">Explicação</FieldLabel>
+					<ImprovementToggle
+						label="explicação"
+						hasChanges={hasExplanationChanges}
+						isUsingBase={isExplanationBase}
+						onClick={toggleExplanation}
+					/>
+				</div>
 				<FieldContent>
 					<Textarea
 						id="explanation"
@@ -413,9 +656,17 @@ export function QuestionEditForm({
 			</Field>
 
 			<Field orientation="vertical">
-				<FieldLabel htmlFor="deepExplanation">
-					Explicação detalhada
-				</FieldLabel>
+				<div className="flex items-center gap-2">
+					<FieldLabel htmlFor="deepExplanation">
+						Explicação detalhada
+					</FieldLabel>
+					<ImprovementToggle
+						label="explicação detalhada"
+						hasChanges={hasDeepExplanationChanges}
+						isUsingBase={isDeepExplanationBase}
+						onClick={toggleDeepExplanation}
+					/>
+				</div>
 				<FieldContent>
 					<Textarea
 						id="deepExplanation"
@@ -428,10 +679,21 @@ export function QuestionEditForm({
 				</FieldContent>
 			</Field>
 
-			<div className="flex gap-2">
+			<div className="flex flex-wrap gap-2">
 				<Button type="submit" disabled={isPending}>
-					{isPending ? "Salvando…" : "Salvar"}
+					{isPending ? "Salvando…" : submitLabel}
 				</Button>
+				{onDiscard ? (
+					<Button
+						type="button"
+						variant="outline"
+						className="text-destructive hover:text-destructive"
+						onClick={onDiscard}
+						disabled={isPending}
+					>
+						{discardLabel}
+					</Button>
+				) : null}
 				<Button
 					type="button"
 					variant="outline"

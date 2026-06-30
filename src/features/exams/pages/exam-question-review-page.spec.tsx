@@ -4,7 +4,6 @@ import {
 	render,
 	screen,
 	waitFor,
-	within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
@@ -44,6 +43,7 @@ vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => (
 		resolveDraft: {
 			mutateAsync: resolveDraftMock,
 			isPending: false,
+			isError: false,
 		},
 	}),
 }));
@@ -136,7 +136,7 @@ describe("ExamQuestionReviewPageContent", () => {
 		resolveDraftMock.mockReset();
 	});
 
-	it("starts the final version from the AI suggestion and lets the reviewer restore the current field", async () => {
+	it("renders the edit form pre-filled with the AI suggestion when a draft exists", () => {
 		mockUseExam.mockReturnValue({ data: examWithQuestions });
 		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
 
@@ -145,79 +145,57 @@ describe("ExamQuestionReviewPageContent", () => {
 		expect(
 			screen.getByText(/revisão de melhoria por questão/i),
 		).toBeInTheDocument();
-		const stemSection = screen.getByTestId(
-			"question-improvement-review-stem-section",
+		expect(screen.getByLabelText(/^enunciado$/i)).toHaveValue(
+			"Marque todos os números primos.",
 		);
-		const textarea = within(stemSection).getByLabelText(/^enunciado$/i);
-		expect(textarea).toHaveValue("Marque todos os números primos.");
+		expect(screen.getByDisplayValue("Números")).toBeInTheDocument();
+		expect(screen.getByDisplayValue("2, 3 e 5 são primos.")).toBeInTheDocument();
+		expect(
+			screen.getByDisplayValue("Um número primo tem exatamente dois divisores positivos."),
+		).toBeInTheDocument();
+	});
 
-		fireEvent.click(
-			within(stemSection).getByRole("button", { name: /atual/i }),
-		);
-		expect(textarea).toHaveValue("Selecione os números primos.");
+	it("approves the draft with the edited snapshot when saving", async () => {
+		mockUseExam.mockReturnValue({ data: examWithQuestions });
+		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
 
-		fireEvent.click(screen.getByRole("button", { name: /aprovar versão final/i }));
+		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q2" />);
+
+		fireEvent.change(screen.getByLabelText(/^enunciado$/i), {
+			target: { value: "Enunciado revisado manualmente." },
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: /aprovar/i }));
 
 		await waitFor(() => {
 			expect(resolveDraftMock).toHaveBeenCalledWith({
 				action: "approve",
 				draftId: "draft-1",
 				finalSnapshot: expect.objectContaining({
-					question: "Selecione os números primos.",
+					question: "Enunciado revisado manualmente.",
+					topic: "Números",
 				}),
 			});
 		});
 	});
 
-	it("renders a single merge context panel instead of repeating the review intro", () => {
+	it("discards the draft when the reject button is clicked", async () => {
 		mockUseExam.mockReturnValue({ data: examWithQuestions });
 		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
-
-		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q2" />);
-
-		expect(
-			screen.queryByRole("heading", { name: /bancada de merge/i }),
-		).not.toBeInTheDocument();
-		expect(
-			screen.queryByText(/use a sugestão da ia como ponto de partida/i),
-		).not.toBeInTheDocument();
-		expect(
-			screen.queryByText(/tornei o enunciado mais direto\./i),
-		).not.toBeInTheDocument();
-	});
-
-	it("keeps the header compact by folding the next-step hint into the main card", () => {
-		mockUseExam.mockReturnValue({ data: examWithQuestions });
-		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
-
-		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q2" />);
-
-		expect(
-			screen.queryByText(/depois desta decisão/i),
-		).not.toBeInTheDocument();
-		expect(screen.getByText(/próxima melhoria/i)).toBeInTheDocument();
-	});
-
-	it("discards the draft and sends the reviewer to the next pending improvement", async () => {
-		const nextDraft = {
-			...draft,
-			id: "draft-2",
-			questionId: "q1",
-		};
-		mockUseExam.mockReturnValue({ data: examWithQuestions });
-		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft, nextDraft] });
 
 		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q2" />);
 
 		fireEvent.click(screen.getByRole("button", { name: /rejeitar melhoria/i }));
 
-		expect(resolveDraftMock).toHaveBeenCalledWith({
-			action: "discard",
-			draftId: "draft-1",
+		await waitFor(() => {
+			expect(resolveDraftMock).toHaveBeenCalledWith({
+				action: "discard",
+				draftId: "draft-1",
+			});
 		});
 	});
 
-	it("navigates to the dedicated edit path for the next pending improvement", async () => {
+	it("navigates to the next pending improvement after resolving a draft", async () => {
 		const nextDraft = {
 			...draft,
 			id: "draft-2",
@@ -234,6 +212,22 @@ describe("ExamQuestionReviewPageContent", () => {
 			expect(mockNavigate).toHaveBeenCalledWith({
 				to: "/exams/$examId/questions/$questionId/edit",
 				params: { examId: "exam-1", questionId: "q1" },
+			});
+		});
+	});
+
+	it("navigates back to the question when there is no remaining draft after resolving", async () => {
+		mockUseExam.mockReturnValue({ data: examWithQuestions });
+		mockUseQuestionImprovementDrafts.mockReturnValue({ data: [draft] });
+
+		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q2" />);
+
+		fireEvent.click(screen.getByRole("button", { name: /aprovar/i }));
+
+		await waitFor(() => {
+			expect(mockNavigate).toHaveBeenCalledWith({
+				to: "/exams/$examId/questions/$questionId",
+				params: { examId: "exam-1", questionId: "q2" },
 			});
 		});
 	});
@@ -286,7 +280,7 @@ describe("ExamQuestionReviewPageContent", () => {
 		).toBeInTheDocument();
 	});
 
-	it("renders the dedicated edit route without the manual edit header card when there is no draft", () => {
+	it("renders the dedicated edit route without the review header when there is no draft", () => {
 		mockUseExam.mockReturnValue({ data: examWithQuestions });
 		mockUseQuestionImprovementDrafts.mockReturnValue({
 			data: [],
@@ -298,7 +292,10 @@ describe("ExamQuestionReviewPageContent", () => {
 		render(<ExamQuestionReviewPageContent examId="exam-1" questionId="q1" />);
 
 		expect(screen.getByLabelText(/^enunciado$/i)).toBeInTheDocument();
-		expect(screen.queryByText(/edição manual/i)).not.toBeInTheDocument();
+		expect(
+			screen.queryByText(/revisão de melhoria por questão/i),
+		).not.toBeInTheDocument();
 		expect(screen.queryByText(/voltar para a questão/i)).not.toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /rejeitar melhoria/i })).not.toBeInTheDocument();
 	});
 });

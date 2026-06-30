@@ -184,6 +184,24 @@ describe("QuestionEditForm", () => {
 		expect(onCancel).toHaveBeenCalledOnce();
 	});
 
+	it("renders discard button and calls onDiscard when provided", () => {
+		const onDiscard = vi.fn();
+		render(
+			<QuestionEditForm
+				question={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+				onDiscard={onDiscard}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /rejeitar melhoria/i }),
+		);
+
+		expect(onDiscard).toHaveBeenCalledOnce();
+	});
+
 	it("adds a new option when add button is clicked", () => {
 		render(
 			<QuestionEditForm
@@ -263,5 +281,118 @@ describe("QuestionEditForm", () => {
 		});
 
 		expect(onSubmit).not.toHaveBeenCalled();
+	});
+
+	it("renders discard action and calls onDiscard", () => {
+		const onDiscard = vi.fn();
+		render(
+			<QuestionEditForm
+				question={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+				onDiscard={onDiscard}
+			/>,
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /rejeitar melhoria/i }),
+		);
+
+		expect(onDiscard).toHaveBeenCalledOnce();
+	});
+
+	it("does not render improvement toggles when baseQuestion is not provided", () => {
+		render(
+			<QuestionEditForm
+				question={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByRole("button", { name: /usar melhoria/i }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /usar atual/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("toggles a changed field between the improved suggestion and the base version", async () => {
+		const improvedQuestion: QuestionDetail = {
+			...baseQuestion,
+			question: "Nova pergunta de geografia?",
+			explanation: "Nova explicação curta.",
+		};
+
+		render(
+			<QuestionEditForm
+				question={improvedQuestion}
+				baseQuestion={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const stemInput = screen.getByLabelText(/^enunciado$/i);
+		expect(stemInput).toHaveValue("Nova pergunta de geografia?");
+
+		const stemToggle = screen.getByRole("button", {
+			name: /usar versão atual no enunciado/i,
+		});
+		expect(stemToggle).toBeInTheDocument();
+
+		fireEvent.click(stemToggle);
+		expect(stemInput).toHaveValue("Qual a capital do Brasil?");
+		expect(
+			screen.getByRole("button", { name: /usar melhoria no enunciado/i }),
+		).toBeInTheDocument();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /usar melhoria no enunciado/i }),
+		);
+		expect(stemInput).toHaveValue("Nova pergunta de geografia?");
+	});
+
+	it("toggles options and answers together when they differ from the base", async () => {
+		const improvedQuestion: QuestionDetail = {
+			...baseQuestion,
+			options: [
+				{ key: "A", text: "São Paulo" },
+				{ key: "B", text: "Brasília" },
+				{ key: "C", text: "Salvador" },
+			],
+			answers: ["B"],
+		};
+
+		render(
+			<QuestionEditForm
+				question={improvedQuestion}
+				baseQuestion={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByDisplayValue("Salvador")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", {
+				name: /usar versão atual nas alternativas/i,
+			}),
+		).toBeInTheDocument();
+
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /usar versão atual nas alternativas/i,
+			}),
+		);
+
+		expect(screen.queryByDisplayValue("Salvador")).not.toBeInTheDocument();
+		expect(screen.getByDisplayValue("Rio de Janeiro")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", {
+				name: /usar melhoria nas alternativas/i,
+			}),
+		).toBeInTheDocument();
 	});
 });

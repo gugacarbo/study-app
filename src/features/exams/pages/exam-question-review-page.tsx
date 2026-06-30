@@ -10,12 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QuestionEditForm } from "@/features/exams/components/question-edit-form";
-import { QuestionImprovementReviewForm } from "@/features/exams/components/question-improvement-review-form";
 import { useExam } from "@/features/exams/hooks/use-exam";
 import { useQuestionImprovementDraftActions } from "@/features/exams/hooks/use-question-improvement-draft-actions";
 import { useQuestionImprovementDrafts } from "@/features/exams/hooks/use-question-improvement-drafts";
 import { useUpdateQuestion } from "@/features/exams/hooks/use-update-question";
 import { getReviewImprovementQuestionId } from "@/features/exams/lib/get-review-improvement-question-id";
+import type { QuestionEditFormSubmission } from "@/features/exams/components/question-edit-form";
 import type { QuestionFormInput } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
 
@@ -113,12 +113,42 @@ export function ExamQuestionReviewPageContent({
 		});
 	}
 
+	const nextQuestionId = getNextReviewQuestionId(
+		exam.questions,
+		drafts,
+		questionId,
+	);
+
+	async function goAfterResolution() {
+		if (nextQuestionId) {
+			await navigate({
+				to: "/exams/$examId/questions/$questionId/edit",
+				params: { examId, questionId: nextQuestionId },
+			});
+			return;
+		}
+
+		await goBackToQuestion();
+	}
+
+	async function handleGoToNextImprovement() {
+		if (!nextQuestionId) return;
+
+		await navigate({
+			to: "/exams/$examId/questions/$questionId/edit",
+			params: { examId, questionId: nextQuestionId },
+		});
+	}
+
 	if (!draft) {
-		async function handleManualSubmit(data: QuestionFormInput) {
+		async function handleManualSubmit(
+			data: QuestionEditFormSubmission,
+		) {
+			const { topic: _topic, ...questionData } = data;
 			await updateQuestion.mutateAsync({
 				examId,
 				questionId,
-				...data,
+				...questionData,
 			});
 			await goBackToQuestion();
 		}
@@ -142,29 +172,13 @@ export function ExamQuestionReviewPageContent({
 		);
 	}
 
-	const suggestedQuestion = toSuggestedQuestion(question, draft);
-	const nextQuestionId = getNextReviewQuestionId(
-		exam.questions,
-		drafts,
-		questionId,
-	);
-
-	async function goAfterResolution() {
-		if (nextQuestionId) {
-			await navigate({
-				to: "/exams/$examId/questions/$questionId/edit",
-				params: { examId, questionId: nextQuestionId },
-			});
-			return;
-		}
-
-		await goBackToQuestion();
-	}
+	const activeDraft = draft;
+	const suggestedQuestion = toSuggestedQuestion(question, activeDraft);
 
 	async function handleApprove(data: QuestionFormInput & { topic: string | null }) {
 		await resolveDraft.mutateAsync({
 			action: "approve",
-			draftId: draft.id,
+			draftId: activeDraft.id,
 			finalSnapshot: buildFinalSnapshot(data),
 		});
 		await goAfterResolution();
@@ -173,18 +187,9 @@ export function ExamQuestionReviewPageContent({
 	async function handleDiscard() {
 		await resolveDraft.mutateAsync({
 			action: "discard",
-			draftId: draft.id,
+			draftId: activeDraft.id,
 		});
 		await goAfterResolution();
-	}
-
-	async function handleGoToNextImprovement() {
-		if (!nextQuestionId) return;
-
-		await navigate({
-			to: "/exams/$examId/questions/$questionId/edit",
-			params: { examId, questionId: nextQuestionId },
-		});
 	}
 
 	return (
@@ -222,13 +227,22 @@ export function ExamQuestionReviewPageContent({
 				</div>
 			</section>
 
-			<QuestionImprovementReviewForm
-				currentQuestion={question}
-				suggestedQuestion={suggestedQuestion}
-				isPending={resolveDraft.isPending}
-				onApprove={(data) => void handleApprove(data)}
-				onDiscard={() => void handleDiscard()}
-			/>
+			<div className="rounded-xl border bg-card p-5 text-card-foreground shadow-xs">
+				<QuestionEditForm
+					question={suggestedQuestion}
+					baseQuestion={question}
+					submitLabel="Aprovar"
+					onSubmit={(data) => void handleApprove(data)}
+					onDiscard={() => void handleDiscard()}
+					onCancel={() => void goBackToQuestion()}
+					isPending={resolveDraft.isPending}
+				/>
+				{resolveDraft.isError ? (
+					<p className="mt-3 text-sm text-destructive">
+						Não foi possível salvar a revisão. Tente novamente.
+					</p>
+				) : null}
+			</div>
 		</div>
 	);
 }
