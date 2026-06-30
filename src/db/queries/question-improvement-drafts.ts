@@ -200,38 +200,71 @@ async function getOwnedDraft(
 	return row ? mapDraftRow(row) : null;
 }
 
-export async function applyQuestionImprovementDraft(
+async function applySnapshotToQuestion(
 	db: AppDatabase,
-	input: { draftId: string; userId: string },
-): Promise<boolean> {
-	const draft = await getOwnedDraft(db, input.draftId, input.userId);
-	if (!draft || draft.status !== "pending_review") return false;
+	input: {
+		questionId: string;
+		snapshot: QuestionImprovementSnapshot;
+	},
+) {
 	const resolvedTopic =
-		draft.improvedSnapshot.topicId != null
-			? { id: draft.improvedSnapshot.topicId }
+		input.snapshot.topicId != null
+			? { id: input.snapshot.topicId }
 			: await getOrCreateQuestionTopicFromName(
 					db,
-					draft.improvedSnapshot.topic,
+					input.snapshot.topic,
 				);
 
 	await db
 		.update(schema.questions)
 		.set({
-			question: draft.improvedSnapshot.question,
-			options: JSON.stringify(draft.improvedSnapshot.options),
-			answers: JSON.stringify(draft.improvedSnapshot.answers),
-			scoringMode: draft.improvedSnapshot.scoringMode,
+			question: input.snapshot.question,
+			options: JSON.stringify(input.snapshot.options),
+			answers: JSON.stringify(input.snapshot.answers),
+			scoringMode: input.snapshot.scoringMode,
 			topic: null,
 			topicId: resolvedTopic?.id ?? null,
-			explanation: draft.improvedSnapshot.explanation,
-			deepExplanation: draft.improvedSnapshot.deepExplanation,
+			explanation: input.snapshot.explanation,
+			deepExplanation: input.snapshot.deepExplanation,
 		})
-		.where(eq(schema.questions.id, draft.questionId));
+		.where(eq(schema.questions.id, input.questionId));
+}
 
+export async function resolveQuestionImprovementDraft(
+	db: AppDatabase,
+	input:
+		| {
+				draftId: string;
+				userId: string;
+				action: "approve";
+				finalSnapshot?: QuestionImprovementSnapshot;
+		  }
+		| {
+				draftId: string;
+				userId: string;
+				action: "discard";
+				finalSnapshot?: never;
+		  },
+): Promise<boolean> {
+	const draft = await getOwnedDraft(db, input.draftId, input.userId);
+	if (!draft || draft.status !== "pending_review") return false;
+
+	if (input.action === "approve") {
+		if (!input.finalSnapshot) {
+			throw new Error("Final snapshot is required to approve a question improvement");
+		}
+
+		await applySnapshotToQuestion(db, {
+			questionId: draft.questionId,
+			snapshot: input.finalSnapshot,
+		});
+	}
+
+	const status = input.action === "approve" ? "approved" : "discarded";
 	await db
 		.update(schema.questionImprovementDrafts)
 		.set({
-			status: "approved",
+			status,
 			updatedAt: sql`CURRENT_TIMESTAMP`,
 		})
 		.where(eq(schema.questionImprovementDrafts.id, draft.id));
@@ -239,20 +272,28 @@ export async function applyQuestionImprovementDraft(
 	return true;
 }
 
-export async function discardQuestionImprovementDraft(
+export async function applyQuestionImprovementDraft(
 	db: AppDatabase,
 	input: { draftId: string; userId: string },
 ): Promise<boolean> {
 	const draft = await getOwnedDraft(db, input.draftId, input.userId);
 	if (!draft || draft.status !== "pending_review") return false;
 
-	await db
-		.update(schema.questionImprovementDrafts)
-		.set({
-			status: "discarded",
-			updatedAt: sql`CURRENT_TIMESTAMP`,
-		})
-		.where(eq(schema.questionImprovementDrafts.id, draft.id));
+	return resolveQuestionImprovementDraft(db, {
+		draftId: input.draftId,
+		userId: input.userId,
+		action: "approve",
+		finalSnapshot: draft.improvedSnapshot,
+	});
+}
 
-	return true;
+export async function discardQuestionImprovementDraft(
+	db: AppDatabase,
+	input: { draftId: string; userId: string },
+): Promise<boolean> {
+	return resolveQuestionImprovementDraft(db, {
+		draftId: input.draftId,
+		userId: input.userId,
+		action: "discard",
+	});
 }

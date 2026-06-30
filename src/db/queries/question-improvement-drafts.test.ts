@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { createExam } from "@/db/queries/exams";
 import { createId } from "@/db/queries/helpers";
 import {
-	applyQuestionImprovementDraft,
 	discardQuestionImprovementDraft,
 	getPendingQuestionImprovementDraftsByExam,
+	resolveQuestionImprovementDraft,
 	upsertPendingQuestionImprovementDraft,
 } from "@/db/queries/question-improvement-drafts";
 import * as schema from "@/db/schema";
@@ -112,7 +112,7 @@ describe("question improvement drafts queries", () => {
 		});
 	});
 
-	it("applies the improved snapshot to the original question and marks draft approved", async () => {
+	it("applies a reviewed final snapshot to the original question and marks draft approved", async () => {
 		const db = createTestDb();
 		const userId = createId();
 		await seedUser(db, userId);
@@ -142,9 +142,23 @@ describe("question improvement drafts queries", () => {
 			metadata: null,
 		});
 
-		const applied = await applyQuestionImprovementDraft(db, {
+		const applied = await resolveQuestionImprovementDraft(db, {
 			draftId: draft.id,
 			userId,
+			action: "approve",
+			finalSnapshot: {
+				question: "Quanto e 2 + 2? (revisada manualmente)",
+				options: [
+					{ key: "A", text: "1" },
+					{ key: "B", text: "4" },
+					{ key: "C", text: "5" },
+				],
+				answers: ["B"],
+				topic: "Aritmetica revisada",
+				scoringMode: "exact",
+				explanation: "A soma correta e 4.",
+				deepExplanation: "Somando 2 com 2, chegamos ao resultado 4.",
+			},
 		});
 		expect(applied).toBe(true);
 
@@ -153,13 +167,12 @@ describe("question improvement drafts queries", () => {
 			.from(schema.questions)
 			.where(eq(schema.questions.id, questionId));
 		expect(questionRow).toMatchObject({
-			question: "Quanto é 2 + 2? (versão melhorada)",
+			question: "Quanto e 2 + 2? (revisada manualmente)",
 			scoringMode: "exact",
 			topic: null,
 			topicId: expect.any(String),
-			explanation: "2 + 2 resulta em 4.",
-			deepExplanation:
-				"A soma de dois inteiros positivos iguais a 2 resulta em 4.",
+			explanation: "A soma correta e 4.",
+			deepExplanation: "Somando 2 com 2, chegamos ao resultado 4.",
 		});
 
 		const [draftRow] = await db
@@ -167,6 +180,36 @@ describe("question improvement drafts queries", () => {
 			.from(schema.questionImprovementDrafts)
 			.where(eq(schema.questionImprovementDrafts.id, draft.id));
 		expect(draftRow?.status).toBe("approved");
+	});
+
+	it("rejects approval when final snapshot is missing", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		await seedUser(db, userId);
+		const { examId, questionId, original } = await seedQuestion({ db, userId });
+
+		const draft = await upsertPendingQuestionImprovementDraft(db, {
+			id: createId(),
+			userId,
+			examId,
+			questionId,
+			jobId: createId(),
+			originalSnapshot: original,
+			improvedSnapshot: {
+				...original,
+				question: "Pergunta sem snapshot final",
+			},
+			summary: null,
+			metadata: null,
+		});
+
+		await expect(
+			resolveQuestionImprovementDraft(db, {
+				draftId: draft.id,
+				userId,
+				action: "approve",
+			}),
+		).rejects.toThrow(/final snapshot/i);
 	});
 
 	it("marks a pending draft as discarded without changing the original question", async () => {

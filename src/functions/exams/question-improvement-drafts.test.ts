@@ -13,9 +13,8 @@ import {
 	testUserId,
 } from "@/functions/jobs/job-test-setup";
 import {
-	approveQuestionImprovementDraftHandler,
-	discardQuestionImprovementDraftHandler,
 	getQuestionImprovementDraftsHandler,
+	resolveQuestionImprovementDraftHandler,
 } from "@/functions/exams/question-improvement-drafts";
 
 describe("question improvement drafts server functions", () => {
@@ -86,7 +85,7 @@ describe("question improvement drafts server functions", () => {
 		});
 	});
 
-	it("approves a draft and removes it from the pending list", async () => {
+	it("approves a draft with a reviewed final snapshot and removes it from the pending list", async () => {
 		const examId = await seedExam(testDb, testUserId);
 		const questionId = createId();
 		await testDb.insert(schema.questions).values({
@@ -135,8 +134,23 @@ describe("question improvement drafts server functions", () => {
 			metadata: null,
 		});
 
-		const approved = await approveQuestionImprovementDraftHandler(
-			{ draftId: draft.id },
+		const approved = await resolveQuestionImprovementDraftHandler(
+			{
+				draftId: draft.id,
+				action: "approve",
+				finalSnapshot: {
+					question: "Versão final revisada",
+					options: [
+						{ key: "A", text: "1" },
+						{ key: "B", text: "2" },
+					],
+					answers: ["A"],
+					topic: "Tema revisado",
+					scoringMode: "exact",
+					explanation: "Explicação final",
+					deepExplanation: null,
+				},
+			},
 			new Headers(),
 		);
 		expect(approved).toEqual({ ok: true });
@@ -198,8 +212,8 @@ describe("question improvement drafts server functions", () => {
 			metadata: null,
 		});
 
-		const discarded = await discardQuestionImprovementDraftHandler(
-			{ draftId: draft.id },
+		const discarded = await resolveQuestionImprovementDraftHandler(
+			{ draftId: draft.id, action: "discard" },
 			new Headers(),
 		);
 		expect(discarded).toEqual({ ok: true });
