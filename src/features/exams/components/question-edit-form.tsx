@@ -30,7 +30,15 @@ import {
 	type QuestionFormInput,
 } from "@/features/exams/lib/question-form-schema";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
-import { ArrowLeftRightIcon, MinusIcon, PlusIcon } from "lucide-react";
+import { QuestionFieldDiff } from "@/features/exams/components/question-field-diff";
+import { cn } from "@/lib/utils";
+import {
+	ArrowLeftRightIcon,
+	EyeIcon,
+	EyeOffIcon,
+	MinusIcon,
+	PlusIcon,
+} from "lucide-react";
 
 export type QuestionEditFormSubmission = QuestionFormInput & {
 	topic: string | null;
@@ -93,6 +101,12 @@ export function QuestionEditForm({
 	>([]);
 	const [isSearchingTopics, setIsSearchingTopics] = useState(false);
 	const [isCreatingTopic, setIsCreatingTopic] = useState(false);
+	const [visibleDiffs, setVisibleDiffs] = useState({
+		question: false,
+		explanation: false,
+		deepExplanation: false,
+		options: false,
+	});
 
 	const { fields, append, remove, replace } = useFieldArray({
 		control: form.control,
@@ -142,6 +156,123 @@ export function QuestionEditForm({
 	});
 
 	const hasPendingImprovement = baseQuestion != null;
+
+	function toggleDiff(field: keyof typeof visibleDiffs) {
+		setVisibleDiffs((prev) => ({ ...prev, [field]: !prev[field] }));
+	}
+
+	function DiffToggle({
+		field,
+		hasChanges,
+		label,
+	}: {
+		field: keyof typeof visibleDiffs;
+		hasChanges: boolean;
+		label: string;
+	}) {
+		if (!baseQuestion || !hasChanges) return null;
+
+		const isVisible = visibleDiffs[field];
+		const Icon = isVisible ? EyeOffIcon : EyeIcon;
+		const actionLabel = isVisible ? "Ocultar diff" : "Ver diff";
+
+		return (
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				className="h-auto px-2 py-0 text-xs font-normal text-muted-foreground hover:text-foreground"
+				onClick={() => toggleDiff(field)}
+				disabled={isPending}
+				aria-label={`${actionLabel} ${label}`}
+			>
+				<Icon className="size-3" />
+				{actionLabel}
+			</Button>
+		);
+	}
+
+	function renderOptionsDiff() {
+		if (!baseQuestion || !visibleDiffs.options) return null;
+
+		return (
+			<div className="mt-1 rounded-md border bg-muted/40 p-2 text-sm">
+				<ul className="flex flex-col gap-1">
+					{watchedOptions.map((option) => {
+						const baseOption = baseQuestion.options.find(
+							(o) => o.key === option.key,
+						);
+						const isNew = !baseOption;
+						const isChanged =
+							baseOption && baseOption.text !== option.text;
+						const isCorrect = watchedAnswers.includes(option.key);
+						const wasCorrect = baseQuestion.answers.includes(option.key);
+						const correctChanged = isCorrect !== wasCorrect;
+
+						if (!isNew && !isChanged && !correctChanged) return null;
+
+						return (
+							<li key={option.key} className="flex items-start gap-2">
+								<span className="shrink-0 font-medium text-muted-foreground">
+									{option.key.toLowerCase()})
+								</span>
+								<span className="flex-1">
+									{isNew ? (
+										<span className="text-green-600 dark:text-green-400">
+											{option.text}{" "}
+											<span className="text-xs">(nova)</span>
+										</span>
+									) : isChanged ? (
+										<QuestionFieldDiff
+											base={baseOption.text}
+											improved={option.text}
+											inline
+										/>
+									) : (
+										<span>{option.text}</span>
+									)}
+									{correctChanged ? (
+										<span
+											className={cn(
+												"ml-2 text-xs font-medium",
+												isCorrect
+													? "text-green-600 dark:text-green-400"
+													: "text-red-600 dark:text-red-400",
+											)}
+										>
+											{isCorrect
+												? "+ correta"
+												: "- removida do gabarito"}
+										</span>
+									) : null}
+								</span>
+							</li>
+						);
+					})}
+					{baseQuestion.options.map((option) => {
+						const stillExists = watchedOptions.some(
+							(o) => o.key === option.key,
+						);
+						if (stillExists) return null;
+						return (
+							<li
+								key={`removed-${option.key}`}
+								className="flex items-start gap-2 text-red-600 dark:text-red-400"
+							>
+								<span className="shrink-0 font-medium">
+									{option.key.toLowerCase()})
+								</span>
+								<span className="line-through">
+									{option.text}{" "}
+									<span className="text-xs">(removida)</span>
+								</span>
+							</li>
+						);
+					})}
+				</ul>
+			</div>
+		);
+	}
 
 	function normalizeExplanation(
 		value: string | null | undefined,
@@ -396,12 +527,16 @@ export function QuestionEditForm({
 			<Field orientation="vertical">
 				<div className="flex items-center gap-2">
 					<FieldLabel htmlFor="question">Enunciado</FieldLabel>
-				<ImprovementToggle
-					label="no enunciado"
-					hasChanges={hasQuestionChanges}
-					isUsingBase={isQuestionBase}
-					onClick={toggleQuestion}
-				/>
+					<ImprovementToggle
+						label="no enunciado"
+						hasChanges={hasQuestionChanges}
+						isUsingBase={isQuestionBase}
+						onClick={toggleQuestion}
+					/>
+					<DiffToggle
+						field="question"
+						hasChanges={hasQuestionChanges}
+					/>
 				</div>
 				<FieldContent>
 					<Textarea
@@ -409,6 +544,12 @@ export function QuestionEditForm({
 						rows={3}
 						{...form.register("question")}
 					/>
+					{visibleDiffs.question && baseQuestion ? (
+						<QuestionFieldDiff
+							base={baseQuestion.question}
+							improved={question.question}
+						/>
+					) : null}
 					<FieldError errors={[form.formState.errors.question]} />
 				</FieldContent>
 			</Field>
@@ -545,12 +686,16 @@ export function QuestionEditForm({
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
 						<FieldTitle>Alternativas</FieldTitle>
-					<ImprovementToggle
-						label="nas alternativas"
-						hasChanges={hasOptionsChanges}
-						isUsingBase={isOptionsBase}
-						onClick={toggleOptions}
-					/>
+						<ImprovementToggle
+							label="nas alternativas"
+							hasChanges={hasOptionsChanges}
+							isUsingBase={isOptionsBase}
+							onClick={toggleOptions}
+						/>
+						<DiffToggle
+							field="options"
+							hasChanges={hasOptionsChanges}
+						/>
 					</div>
 					<Button
 						type="button"
@@ -563,6 +708,7 @@ export function QuestionEditForm({
 						Adicionar
 					</Button>
 				</div>
+				{renderOptionsDiff()}
 				{fields.map((field, index) => {
 					const option = watchedOptions[index] ?? field;
 					const textError = form.formState.errors.options?.[index]?.text;
@@ -642,6 +788,10 @@ export function QuestionEditForm({
 						isUsingBase={isExplanationBase}
 						onClick={toggleExplanation}
 					/>
+					<DiffToggle
+						field="explanation"
+						hasChanges={hasExplanationChanges}
+					/>
 				</div>
 				<FieldContent>
 					<Textarea
@@ -649,6 +799,12 @@ export function QuestionEditForm({
 						rows={3}
 						{...form.register("explanation")}
 					/>
+					{visibleDiffs.explanation && baseQuestion ? (
+						<QuestionFieldDiff
+							base={baseQuestion.explanation ?? ""}
+							improved={question.explanation ?? ""}
+						/>
+					) : null}
 					<FieldError
 						errors={[form.formState.errors.explanation]}
 					/>
@@ -666,6 +822,10 @@ export function QuestionEditForm({
 						isUsingBase={isDeepExplanationBase}
 						onClick={toggleDeepExplanation}
 					/>
+					<DiffToggle
+						field="deepExplanation"
+						hasChanges={hasDeepExplanationChanges}
+					/>
 				</div>
 				<FieldContent>
 					<Textarea
@@ -673,6 +833,12 @@ export function QuestionEditForm({
 						rows={3}
 						{...form.register("deepExplanation")}
 					/>
+					{visibleDiffs.deepExplanation && baseQuestion ? (
+						<QuestionFieldDiff
+							base={baseQuestion.deepExplanation ?? ""}
+							improved={question.deepExplanation ?? ""}
+						/>
+					) : null}
 					<FieldError
 						errors={[form.formState.errors.deepExplanation]}
 					/>

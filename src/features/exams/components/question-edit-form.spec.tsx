@@ -395,4 +395,123 @@ describe("QuestionEditForm", () => {
 			}),
 		).toBeInTheDocument();
 	});
+
+	it("does not render diff toggles when baseQuestion is not provided", () => {
+		render(
+			<QuestionEditForm
+				question={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByRole("button", { name: /ver diff/i }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /ocultar diff/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows and hides a per-field text diff", () => {
+		const improvedQuestion: QuestionDetail = {
+			...baseQuestion,
+			question: "Nova pergunta de geografia?",
+		};
+
+		render(
+			<QuestionEditForm
+				question={improvedQuestion}
+				baseQuestion={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByTestId("question-field-diff"),
+		).not.toBeInTheDocument();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /ver diff do enunciado/i }),
+		);
+
+		expect(
+			screen.getByTestId("question-field-diff"),
+		).toBeInTheDocument();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /ocultar diff do enunciado/i }),
+		);
+
+		expect(
+			screen.queryByTestId("question-field-diff"),
+		).not.toBeInTheDocument();
+	});
+
+	it("keeps diff visibility independent between fields", () => {
+		const improvedQuestion: QuestionDetail = {
+			...baseQuestion,
+			question: "Nova pergunta?",
+			explanation: "Nova explicação curta.",
+		};
+
+		render(
+			<QuestionEditForm
+				question={improvedQuestion}
+				baseQuestion={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const diffToggles = screen.getAllByRole("button", { name: /ver diff/i });
+		expect(diffToggles).toHaveLength(2);
+
+		fireEvent.click(diffToggles[0]);
+
+		let diffs = screen.getAllByTestId("question-field-diff");
+		expect(diffs).toHaveLength(1);
+		expect(diffs[0]).toHaveTextContent(/nova pergunta/i);
+
+		fireEvent.click(diffToggles[1]);
+
+		expect(
+			screen.getByRole("button", { name: /ocultar diff/i }),
+		).toBeInTheDocument();
+		diffs = screen.getAllByTestId("question-field-diff");
+		expect(diffs).toHaveLength(2);
+		expect(diffs[1]).toHaveTextContent(/nova explicação curta/i);
+	});
+
+	it("shows option diff with removed, added and changed alternatives", () => {
+		const improvedQuestion: QuestionDetail = {
+			...baseQuestion,
+			options: [
+				{ key: "A", text: "São Paulo" },
+				{ key: "B", text: "Brasília (capital federal)" },
+				{ key: "D", text: "Curitiba" },
+			],
+			answers: ["B", "D"],
+			scoringMode: "partial",
+		};
+
+		render(
+			<QuestionEditForm
+				question={improvedQuestion}
+				baseQuestion={baseQuestion}
+				onSubmit={vi.fn()}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const diffToggle = screen.getByRole("button", { name: /ver diff/i });
+		fireEvent.click(diffToggle);
+
+		expect(screen.getByText(/rio de janeiro/i)).toBeInTheDocument();
+		expect(screen.getByText(/removida/i)).toBeInTheDocument();
+		expect(screen.getByText(/curitiba/i)).toBeInTheDocument();
+		expect(screen.getByText(/nova/i)).toBeInTheDocument();
+		expect(screen.getByText(/capital federal/i)).toBeInTheDocument();
+	});
 });
