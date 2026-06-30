@@ -20,6 +20,11 @@ import { IMPROVE_QUESTION_STAGE } from "@/lib/job-kinds";
 
 const MAX_AGENT_STEPS = 6;
 const MAX_FINISH_RETRIES = 3;
+const updateExplanationsSchema = z.object({
+	questionId: z.string().uuid(),
+	explanation: z.string().trim().min(1).max(10000),
+	deepExplanation: z.string().trim().min(1).max(10000),
+});
 const finishSchema = z.object({
 	summary: z.string().trim().min(1).max(400),
 	alerts: z.array(z.string().trim().min(1).max(400)).max(10).optional(),
@@ -30,6 +35,7 @@ function buildPrompt(questionId: string, missingFinishAttempt = 0): string {
 		`Rewrite explanations for question ${questionId}.`,
 		"Always call list_question first.",
 		"Only edit explanation and deepExplanation.",
+		"Both explanation fields are required and must never be null or empty.",
 		"Call update_explanations before finish_explanations.",
 		"Never end a run without calling finish_explanations.",
 		"If you find a correctness issue, include it in alerts.",
@@ -123,16 +129,13 @@ export async function runImproveQuestionExplanationsAgent(input: {
 		update_explanations: tool({
 			description:
 				"Overwrite only explanation and deepExplanation for the assigned question draft.",
-			inputSchema: z.object({
-				questionId: z.string().uuid(),
-				explanation: z.string().trim().max(10000).nullable(),
-				deepExplanation: z.string().trim().max(10000).nullable(),
-			}),
+			inputSchema: updateExplanationsSchema,
 			execute: async (payload, context) => {
 				if (!listed) {
 					throw new Error("list_question must be called before update_explanations");
 				}
-				if (payload.questionId !== input.questionId) {
+				const parsed = updateExplanationsSchema.parse(payload);
+				if (parsed.questionId !== input.questionId) {
 					throw new Error("This agent may only update its assigned question");
 				}
 
@@ -143,8 +146,8 @@ export async function runImproveQuestionExplanationsAgent(input: {
 						examId: input.examId,
 						questionId: input.questionId,
 						jobId: input.jobId,
-						explanation: payload.explanation ?? null,
-						deepExplanation: payload.deepExplanation ?? null,
+						explanation: parsed.explanation,
+						deepExplanation: parsed.deepExplanation,
 						summary: currentDraft.summary,
 						metadata: currentDraft.metadata,
 					},

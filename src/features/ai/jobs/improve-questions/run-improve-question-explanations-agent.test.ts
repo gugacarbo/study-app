@@ -422,4 +422,105 @@ describe("runImproveQuestionExplanationsAgent", () => {
 			"WARNING: You must call finish_explanations before ending this run.",
 		);
 	});
+
+	it("rejects null explanations and keeps the pending draft unchanged", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const examId = createId();
+		const questionId = createId();
+		const jobId = createId();
+		await seedUser(db, userId);
+		await createExam(db, { id: examId, userId, name: "Prova" });
+
+		await db.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Quanto é 2 + 2?",
+			options: JSON.stringify([
+				{ key: "A", text: "3" },
+				{ key: "B", text: "4" },
+			]),
+			answers: JSON.stringify(["B"]),
+			scoringMode: "exact",
+		});
+
+		await upsertPendingQuestionImprovementDraft(db, {
+			id: createId(),
+			userId,
+			examId,
+			questionId,
+			jobId,
+			originalSnapshot: {
+				question: "Quanto é 2 + 2?",
+				options: [
+					{ key: "A", text: "3" },
+					{ key: "B", text: "4" },
+				],
+				answers: ["B"],
+				topic: "Aritmética",
+				scoringMode: "exact",
+				explanation: "Explicação original",
+				deepExplanation: "Explicação longa original",
+			},
+			improvedSnapshot: {
+				question: "Quanto é 2 + 2?",
+				options: [
+					{ key: "A", text: "3" },
+					{ key: "B", text: "4" },
+				],
+				answers: ["B"],
+				topic: "Aritmética",
+				scoringMode: "exact",
+				explanation: "Explicação original",
+				deepExplanation: "Explicação longa original",
+			},
+			summary: "Draft inicial.",
+			metadata: null,
+		});
+
+		const streamTextMock = vi.fn((input: { tools?: ToolSet }) => {
+			const listQuestion = getTool(input.tools, "list_question");
+			const updateExplanations = getTool(input.tools, "update_explanations");
+
+			return {
+				fullStream: (async function* () {
+					await listQuestion.execute({ questionId }, { toolCallId: "tool-1" });
+					yield {
+						type: "tool-call",
+						toolCallId: "tool-1",
+						toolName: "list_question",
+						input: { questionId },
+					} as TextStreamPart<ToolSet>;
+
+					await updateExplanations.execute(
+						{
+							questionId,
+							explanation: null,
+							deepExplanation: null,
+						},
+						{ toolCallId: "tool-2" },
+					);
+				})(),
+			};
+		});
+
+		await expect(
+			runImproveQuestionExplanationsAgent({
+				db,
+				jobId,
+				userId,
+				examId,
+				questionId,
+				model: {} as never,
+				streamText: streamTextMock as never,
+				appendJobEvent: async () => {},
+			}),
+		).rejects.toThrow();
+
+		const drafts = await getPendingQuestionImprovementDraftsByExam(db, examId, userId);
+		expect(drafts[0]?.improvedSnapshot).toMatchObject({
+			explanation: "Explicação original",
+			deepExplanation: "Explicação longa original",
+		});
+	});
 });
