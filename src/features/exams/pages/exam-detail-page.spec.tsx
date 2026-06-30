@@ -24,6 +24,13 @@ vi.mock("@/features/exams/hooks/use-update-question", () => ({
 	}),
 }));
 
+vi.mock("@/features/exams/hooks/use-delete-exam", () => ({
+	useDeleteExam: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+}));
+
 vi.mock("@/features/exams/hooks/use-question-improvement-drafts", () => ({
 	useQuestionImprovementDrafts: (examId: string) =>
 		mockUseQuestionImprovementDrafts(examId),
@@ -129,5 +136,118 @@ describe("ExamDetailPageContent", () => {
 			screen.getByText(/nenhuma questão disponível nesta prova/i),
 		).toBeInTheDocument();
 		expect(screen.getByText(/sem questões/i)).toBeInTheDocument();
+	});
+
+	it("shows review improvement when drafts are pending and chooses the first pending question by exam order", () => {
+		mockUseExam.mockReturnValue({
+			data: {
+				...examWithQuestions,
+				questionCount: 3,
+				questions: [
+					examWithQuestions.questions[0],
+					{
+						id: "q2",
+						question: "Quanto é 3 + 3?",
+						options: [
+							{ key: "A", text: "5" },
+							{ key: "B", text: "6" },
+						],
+						answers: ["B"],
+						topic: "Aritmética",
+						scoringMode: "exact",
+						explanation: null,
+						deepExplanation: null,
+					},
+					{
+						id: "q3",
+						question: "Quanto é 4 + 4?",
+						options: [
+							{ key: "A", text: "8" },
+							{ key: "B", text: "9" },
+						],
+						answers: ["A"],
+						topic: "Aritmética",
+						scoringMode: "exact",
+						explanation: null,
+						deepExplanation: null,
+					},
+				],
+			},
+		});
+		mockUseQuestionImprovementDrafts.mockReturnValue({
+			data: [
+				{
+					id: "draft-q3",
+					userId: "user-1",
+					examId: "11111111-1111-4111-8111-111111111111",
+					questionId: "q3",
+					jobId: "job-1",
+					status: "pending_review",
+					originalSnapshot: {
+						question: "Original q3",
+						options: [],
+						answers: [],
+						topic: "Aritmética",
+						scoringMode: "exact",
+						explanation: null,
+						deepExplanation: null,
+					},
+					improvedSnapshot: {
+						question: "Improved q3",
+						options: [],
+						answers: [],
+						topic: "Aritmética",
+						scoringMode: "exact",
+						explanation: null,
+						deepExplanation: null,
+					},
+					summary: null,
+					metadata: null,
+					createdAt: null,
+					updatedAt: null,
+				},
+				{
+					id: "draft-q2",
+					userId: "user-1",
+					examId: "11111111-1111-4111-8111-111111111111",
+					questionId: "q2",
+					jobId: "job-1",
+					status: "pending_review",
+					originalSnapshot: {
+						question: "Original q2",
+						options: [],
+						answers: [],
+						topic: "Aritmética",
+						scoringMode: "exact",
+						explanation: null,
+						deepExplanation: null,
+					},
+					improvedSnapshot: {
+						question: "Improved q2",
+						options: [],
+						answers: [],
+						topic: "Aritmética",
+						scoringMode: "exact",
+						explanation: null,
+						deepExplanation: null,
+					},
+					summary: null,
+					metadata: null,
+					createdAt: null,
+					updatedAt: null,
+				},
+			],
+		});
+
+		render(
+			<ExamDetailPageContent examId="11111111-1111-4111-8111-111111111111" />,
+		);
+
+		expect(
+			screen.getByRole("button", { name: /revisar melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: /melhorar/i }),
+		).not.toBeInTheDocument();
 	});
 });

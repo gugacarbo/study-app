@@ -1,6 +1,23 @@
 import { useState } from "react";
-import { BrainIcon, ChevronDownIcon, PlayIcon, SettingsIcon } from "lucide-react";
+import {
+	BrainIcon,
+	ChevronDownIcon,
+	PlayIcon,
+	SettingsIcon,
+	Trash2Icon,
+} from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ExamImproveQuestionsDialog } from "@/features/exams/components/exam-improve-questions-dialog";
+import { useDeleteExam } from "@/features/exams/hooks/use-delete-exam";
 import { useActiveAttempt } from "@/features/quiz/hooks/use-active-attempt";
 import { useStartAttempt } from "@/features/quiz/hooks/use-start-attempt";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
@@ -18,7 +36,9 @@ import type { QuizConfig } from "@/features/quiz/types/quiz";
 
 type ExamDetailActionsProps = {
 	examId: string;
+	examName: string;
 	questions: QuestionDetail[];
+	reviewImprovementQuestionId?: string | null;
 };
 
 const DEFAULT_QUICK_CONFIG: QuizConfig = {
@@ -30,15 +50,21 @@ const DEFAULT_QUICK_CONFIG: QuizConfig = {
 
 export function ExamDetailActions({
 	examId,
+	examName,
 	questions,
+	reviewImprovementQuestionId = null,
 }: ExamDetailActionsProps) {
 	const navigate = useNavigate();
 	const [isImproveDialogOpen, setIsImproveDialogOpen] = useState(false);
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const { data: activeAttempt } = useActiveAttempt(examId);
 	const startAttempt = useStartAttempt(examId);
+	const deleteExam = useDeleteExam(examId);
 
 	const hasQuestions = questions.length > 0;
-	const isPending = startAttempt.isPending;
+	const isStartPending = startAttempt.isPending;
+	const isDeletePending = deleteExam.isPending;
+	const isPending = isStartPending || isDeletePending;
 
 	async function handleStart(config: QuizConfig = DEFAULT_QUICK_CONFIG) {
 		if (activeAttempt) {
@@ -56,6 +82,24 @@ export function ExamDetailActions({
 		});
 	}
 
+	async function handleDelete() {
+		await deleteExam.mutateAsync();
+		setIsDeleteDialogOpen(false);
+		await navigate({ to: "/exams" });
+	}
+
+	async function handleReviewImprovement() {
+		if (!reviewImprovementQuestionId) return;
+
+		await navigate({
+			to: "/exams/$examId/questions/$questionId",
+			params: {
+				examId,
+				questionId: reviewImprovementQuestionId,
+			},
+		});
+	}
+
 	return (
 		<>
 			<div className="flex flex-wrap items-center gap-2">
@@ -63,7 +107,7 @@ export function ExamDetailActions({
 					<DropdownMenuTrigger asChild>
 						<Button disabled={!hasQuestions || isPending}>
 							<PlayIcon data-icon="inline-start" />
-							{isPending ? "Iniciando…" : "Fazer quiz"}
+							{isStartPending ? "Iniciando…" : "Fazer quiz"}
 							<ChevronDownIcon data-icon="inline-end" />
 						</Button>
 					</DropdownMenuTrigger>
@@ -110,14 +154,61 @@ export function ExamDetailActions({
 					</DropdownMenuContent>
 				</DropdownMenu>
 
-				<Button
-					variant="outline"
-					onClick={() => setIsImproveDialogOpen(true)}
-					disabled={questions.length === 0}
+				{reviewImprovementQuestionId ? (
+					<Button
+						variant="outline"
+						onClick={handleReviewImprovement}
+						disabled={isPending}
+					>
+						<BrainIcon data-icon="inline-start" />
+						Revisar melhoria
+					</Button>
+				) : (
+					<Button
+						variant="outline"
+						onClick={() => setIsImproveDialogOpen(true)}
+						disabled={questions.length === 0 || isPending}
+					>
+						<BrainIcon data-icon="inline-start" />
+						Melhorar
+					</Button>
+				)}
+				<AlertDialog
+					open={isDeleteDialogOpen}
+					onOpenChange={setIsDeleteDialogOpen}
 				>
-					<BrainIcon data-icon="inline-start" />
-					Melhorar
-				</Button>
+					<AlertDialogTrigger asChild>
+						<Button variant="destructive" disabled={isPending}>
+							<Trash2Icon data-icon="inline-start" />
+							Excluir prova
+						</Button>
+					</AlertDialogTrigger>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Excluir prova</AlertDialogTitle>
+							<AlertDialogDescription>
+								Essa acao remove a prova "{examName}" e nao pode ser desfeita.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel asChild>
+								<Button variant="outline" disabled={isDeletePending}>
+									Cancelar
+								</Button>
+							</AlertDialogCancel>
+							<AlertDialogAction asChild>
+								<Button
+									variant="destructive"
+									onClick={handleDelete}
+									disabled={isDeletePending}
+								>
+									<Trash2Icon data-icon="inline-start" />
+									{isDeletePending ? "Excluindo..." : "Excluir"}
+								</Button>
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
 				<Badge variant="secondary">Quiz</Badge>
 			</div>
 

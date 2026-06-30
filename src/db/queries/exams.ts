@@ -122,3 +122,18 @@ export async function updateExamAfterIngestUpload(
 		.where(and(eq(schema.exams.id, examId), eq(schema.exams.userId, userId)));
 	return true;
 }
+
+export async function deleteExamById(
+	db: AppDatabase,
+	examId: string,
+	userId: string,
+) {
+	const exam = await getExamById(db, examId, userId);
+	if (!exam) return false;
+
+	await db
+		.delete(schema.exams)
+		.where(and(eq(schema.exams.id, examId), eq(schema.exams.userId, userId)));
+
+	return true;
+}

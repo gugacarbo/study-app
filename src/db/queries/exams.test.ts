@@ -1,10 +1,15 @@
+import { count, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import {
 	createExam,
+	deleteExamById,
 	getExamWithQuestions,
 	listExamsByUserId,
 } from "@/db/queries/exams";
+import { createAttempt, recordAttemptAnswer } from "@/db/queries/attempts";
 import { createId } from "@/db/queries/helpers";
+import { insertFile } from "@/db/queries/files";
+import { upsertPendingQuestionImprovementDraft } from "@/db/queries/question-improvement-drafts";
 import { batchInsertQuestions } from "@/db/queries/questions";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
@@ -188,5 +193,120 @@ describe("listExamsByUserId", () => {
 				questionCount: 2,
 			}),
 		]);
+	});
+});
+
+describe("deleteExamById", () => {
+	it("returns false when exam belongs to another user", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		const otherUserId = createId();
+		await seedUser(db, userId);
+		await seedUser(db, otherUserId);
+
+		const examId = createId();
+		await createExam(db, { id: examId, userId: otherUserId, name: "Prova" });
+
+		await expect(deleteExamById(db, examId, userId)).resolves.toBe(false);
+		expect(await getExamWithQuestions(db, examId, otherUserId)).not.toBeNull();
+	});
+
+	it("deletes the exam and cascades dependent rows", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		await seedUser(db, userId);
+
+		const examId = createId();
+		const questionId = createId();
+		const attemptId = createId();
+		await createExam(db, { id: examId, userId, name: "Prova" });
+		await batchInsertQuestions(db, examId, [
+			{
+				id: questionId,
+				examId,
+				question: "Q1",
+				options: JSON.stringify([{ key: "A", text: "One" }]),
+				answers: JSON.stringify(["A"]),
+				scoringMode: "exact",
+				topic: "t",
+			},
+		]);
+		await insertFile(db, {
+			id: createId(),
+			examId,
+			name: "prova.md",
+			r2Key: `users/${userId}/files/prova.md`,
+		});
+		await createAttempt(db, {
+			id: attemptId,
+			userId,
+			examId,
+			config: {
+				order: "original",
+				quantity: 0,
+				topicFilter: null,
+				revealMode: "after",
+			},
+			totalQuestions: 1,
+		});
+		await recordAttemptAnswer(db, {
+			attemptId,
+			questionId,
+			userAnswer: JSON.stringify(["A"]),
+			correct: true,
+			credit: 1,
+		});
+		await upsertPendingQuestionImprovementDraft(db, {
+			id: createId(),
+			userId,
+			examId,
+			questionId,
+			jobId: createId(),
+			originalSnapshot: {
+				question: "Q1",
+				options: [{ key: "A", text: "One" }],
+				answers: ["A"],
+				topic: "t",
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			improvedSnapshot: {
+				question: "Q1 melhorada",
+				options: [{ key: "A", text: "One" }],
+				answers: ["A"],
+				topic: "t",
+				scoringMode: "exact",
+				explanation: null,
+				deepExplanation: null,
+			},
+			summary: null,
+			metadata: null,
+		});
+
+		await expect(deleteExamById(db, examId, userId)).resolves.toBe(true);
+		await expect(getExamWithQuestions(db, examId, userId)).resolves.toBeNull();
+
+		const [questionCountRow] = await db
+			.select({ count: count() })
+			.from(schema.questions)
+			.where(eq(schema.questions.examId, examId));
+		const [fileCountRow] = await db
+			.select({ count: count() })
+			.from(schema.files)
+			.where(eq(schema.files.examId, examId));
+		const [attemptCountRow] = await db
+			.select({ count: count() })
+			.from(schema.attempts)
+			.where(eq(schema.attempts.examId, examId));
+		const [draftCountRow] = await db
+			.select({ count: count() })
+			.from(schema.questionImprovementDrafts)
+			.where(eq(schema.questionImprovementDrafts.examId, examId));
+
+		expect(questionCountRow?.count).toBe(0);
+		expect(fileCountRow?.count).toBe(0);
+		expect(attemptCountRow?.count).toBe(0);
+		expect(draftCountRow?.count).toBe(0);
 	});
 });
