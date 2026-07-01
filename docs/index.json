@@ -906,5 +906,22 @@
       "src/features/admin/pages/admin-jobs-page.tsx",
       "wrangler.jsonc"
     ]
+  },
+  {
+    "id": "SPEC-0032",
+    "path": "docs/specs/exams/0032-explicacoes-alternativas-melhoria.md",
+    "layer": "specs",
+    "title": "Explicações por alternativa no job de melhoria de questões",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0007",
+      "ADR-0008",
+      "ADR-0009",
+      "SPEC-0021",
+      "SPEC-0024",
+      "SPEC-0029"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]

@@ -1,0 +1,421 @@
+{
+	"title": "Explicações por alternativa na melhoria de questões",
+	"description": "Adicionar switch no dialog de configuração do job de melhoria para gerar explicações por alternativa da questão, armazenando no campo options como explanation opcional.",
+	"tasks": [
+		{
+			"id": "Task-A-001",
+			"title": "Atualizar tipos e schemas para suportar explanation por alternativa",
+			"description": "Estender QuestionOption e todos os schemas Zod que validam options para aceitar explanation opcional. Isso inclui tipos no frontend, schemas de formulário, schemas de parsing e schemas da tool do agente.",
+			"dependencies": [],
+			"batch": "A",
+			"status": "pending",
+			"tryCount": 1,
+			"acceptanceCriteria": [
+				"QuestionOption em exam-detail.ts tem explanation?: string | null",
+				"questionOptionSchema em question-form-schema.ts aceita explanation opcional com max 1000",
+				"optionSchema em parse-question-fields.ts aceita explanation opcional",
+				"questionSnapshotSchema.options em run-improve-question-agent.ts aceita explanation opcional",
+				"QuestionImprovementSnapshot em question-improvement-drafts.ts está OK (usa QuestionOption[])",
+				"npm run typecheck passa sem erros"
+			],
+			"requirements": [
+				"REQ-data: QuestionOption inclui explanation opcional",
+				"REQ-schema: Todos os Zod schemas de option aceitam explanation opcional (max 1000 chars)",
+				"REQ-back compat: explanation ausente = null, não quebra parse existente"
+			],
+			"steps": [
+				{
+					"order": 1,
+					"title": "Atualizar QuestionOption type",
+					"description": "Em src/features/exams/types/exam-detail.ts, adicionar `explanation?: string | null` em QuestionOption.",
+					"command": null,
+					"expectedResult": "Type QuestionOption = { key: string; text: string; explanation?: string | null }",
+					"codeExample": "export type QuestionOption = { key: string; text: string; explanation?: string | null };"
+				},
+				{
+					"order": 2,
+					"title": "Atualizar questionOptionSchema no formulário",
+					"description": "Em src/features/exams/lib/question-form-schema.ts, adicionar `explanation: z.string().trim().max(1000).optional().nullable()` em questionOptionSchema.",
+					"command": null,
+					"expectedResult": "Schema aceita explanation opcional com até 1000 caracteres",
+					"codeExample": "export const questionOptionSchema = z.object({\n  key: z.string().trim().length(1).regex(/^[A-Z]$/),\n  text: z.string().trim().min(1).max(1000),\n  explanation: z.string().trim().max(1000).optional().nullable(),\n});"
+				},
+				{
+					"order": 3,
+					"title": "Atualizar optionSchema no parse-question-fields",
+					"description": "Em src/features/exams/lib/parse-question-fields.ts, adicionar `explanation: z.string().trim().max(1000).optional().nullable()` em optionSchema para evitar Zod strip do campo.",
+					"command": null,
+					"expectedResult": "optionSchema aceita explanation opcional",
+					"codeExample": "const optionSchema = z.object({\n  key: optionKeySchema,\n  text: z.string().trim().min(1),\n  explanation: z.string().trim().max(1000).optional().nullable(),\n});"
+				},
+				{
+					"order": 4,
+					"title": "Atualizar questionSnapshotSchema no agente",
+					"description": "Em src/features/ai/jobs/improve-questions/run-improve-question-agent.ts, no schema da tool update_question_draft (`questionSnapshotSchema.options`), adicionar `explanation: z.string().trim().max(1000).optional().nullable()` no objeto de option.",
+					"command": null,
+					"expectedResult": "Schema do agente aceita explanation opcional",
+					"codeExample": "z.object({\n  key: z.string().trim().length(1).regex(/^[A-Z]$/),\n  text: z.string().trim().min(1).max(1000),\n  explanation: z.string().trim().max(1000).optional().nullable(),\n})"
+				}
+			],
+			"filesTouched": [
+				"src/features/exams/types/exam-detail.ts",
+				"src/features/exams/lib/question-form-schema.ts",
+				"src/features/exams/lib/parse-question-fields.ts",
+				"src/features/ai/jobs/improve-questions/run-improve-question-agent.ts"
+			],
+			"files": {
+				"created": [],
+				"modified": [
+					"src/features/exams/types/exam-detail.ts",
+					"src/features/exams/lib/question-form-schema.ts",
+					"src/features/exams/lib/parse-question-fields.ts",
+					"src/features/ai/jobs/improve-questions/run-improve-question-agent.ts"
+				],
+				"deleted": []
+			},
+			"interfaces": {
+				"consumes": [
+					"import { QuestionOption } from '@/features/exams/types/exam-detail'"
+				],
+				"produces": [
+					"QuestionOption { key, text, explanation? }",
+					"Options schemas com explanation opcional"
+				]
+			},
+			"notes": [
+				"O campo explanation é string | null | undefined — NUNCA obrigatório",
+				"O schema existente faz Zod.strip() por default, por isso precisa adicionar o campo explicitamente",
+				"Verificar se QuestionImprovementSnapshot já usa QuestionOption[] indiretamente"
+			]
+		},
+		{
+			"id": "Task-B-001",
+			"title": "Adicionar writeOptionExplanations no pipeline do job (metadata, API, hook, dialog, batch)",
+			"description": "Adicionar o flag writeOptionExplanations através de toda a stack: metadata do job, schema de criação, client API, hook, dialog (switch + estado), batch runner e consumer. B-001 e B-002 podem rodar em paralelo (não têm conflito de arquivos).",
+			"dependencies": ["Task-A-001"],
+			"batch": "B",
+			"status": "pending",
+			"tryCount": 1,
+			"acceptanceCriteria": [
+				"ImproveQuestionsJobMetadata tem writeOptionExplanations: boolean",
+				"parseImproveQuestionsJobMetadata trata ausência como false",
+				"createImproveQuestionsJobSchema aceita writeOptionExplanations opcional",
+				"ImproveQuestionsApi aceita writeOptionExplanations",
+				"useImproveQuestionsJob.submit aceita writeOptionExplanations",
+				"Dialog exibe o switch e envia o valor no submit",
+				"Batch runner + consumer passam o flag para os deps"
+			],
+			"requirements": [
+				"REQ-meta: writeOptionExplanations em ImproveQuestionsJobMetadata",
+				"REQ-api: Schema de criação aceita o flag opcional",
+				"REQ-dialog: Switch no dialog envia o valor",
+				"REQ-consumer: Batch e consumer passam o flag adiante"
+			],
+			"steps": [
+				{
+					"order": 1,
+					"title": "Adicionar writeOptionExplanations à metadata",
+					"description": "Em src/lib/job-kinds.ts, adicionar `writeOptionExplanations: boolean` em ImproveQuestionsJobMetadata. Atualizar parseImproveQuestionsJobMetadata para aceitar o campo (default false).",
+					"command": null,
+					"expectedResult": "Metadata type e parser atualizados",
+					"codeExample": "type ImproveQuestionsJobMetadata = {\n  ...\n  writeExplanations: boolean;\n  writeOptionExplanations: boolean;\n  ...\n};"
+				},
+				{
+					"order": 2,
+					"title": "Atualizar schema de criação do job",
+					"description": "Em src/functions/jobs/create-improve-questions-job.ts, adicionar `writeOptionExplanations?: z.boolean()` no schema. Passar o valor para createJobInput na metadata serializada.",
+					"command": null,
+					"expectedResult": "Schema aceita e persiste writeOptionExplanations",
+					"codeExample": "const createImproveQuestionsJobSchema = z.object({\n  examId: z.string().uuid(),\n  questionIds: z.array(z.string().uuid()).min(1),\n  concurrencyLimit: z.coerce.number().int().min(1).max(5).optional(),\n  writeExplanations: z.boolean().optional(),\n  writeOptionExplanations: z.boolean().optional(),\n});"
+				},
+				{
+					"order": 3,
+					"title": "Atualizar client API",
+					"description": "Em src/features/exams/lib/improve-questions-api.ts, adicionar `writeOptionExplanations?: boolean` no input type e no payload enviado ao servidor.",
+					"command": null,
+					"expectedResult": "Client API envia o campo no POST",
+					"codeExample": "type CreateImproveQuestionsJobInput = {\n  examId: string;\n  questionIds: string[];\n  concurrencyLimit?: number;\n  writeExplanations?: boolean;\n  writeOptionExplanations?: boolean;\n};"
+				},
+				{
+					"order": 4,
+					"title": "Atualizar hook",
+					"description": "Em src/features/exams/hooks/use-improve-questions-job.ts, adicionar `writeOptionExplanations?: boolean` no input do submit e repassar para a API.",
+					"command": null,
+					"expectedResult": "Hook aceita e repassa o flag",
+					"codeExample": null
+				},
+				{
+					"order": 5,
+					"title": "Adicionar switch no dialog",
+					"description": "Em src/features/exams/components/exam-improve-questions-dialog.tsx, adicionar estado `const [writeOptionExplanations, setWriteOptionExplanations] = useState(false)` e renderizar um segundo switch abaixo do existente com label 'Explicar alternativas incorretas' e description 'Gera, para cada alternativa, uma explicação do porquê ela está incorreta (ou correta).' Incluir no submit.",
+					"command": null,
+					"expectedResult": "Dialog exibe novo switch, envia writeOptionExplanations no submit",
+					"codeExample": null
+				},
+				{
+					"order": 6,
+					"title": "Atualizar batch runner e consumer",
+					"description": "Em src/features/ai/jobs/improve-questions/run-improve-questions-batch.ts e src/features/ai/jobs/run-job-consumer.ts, adicionar `writeOptionExplanations` nos tipos de dependência e passar para o agente. (O agente só usará quando Task-B-002 for implementado, mas a passagem do flag já é estabelecida aqui.)",
+					"command": null,
+					"expectedResult": "Batch deps e consumer incluem o flag",
+					"codeExample": null
+				}
+			],
+			"filesTouched": [
+				"src/lib/job-kinds.ts",
+				"src/functions/jobs/create-improve-questions-job.ts",
+				"src/features/exams/lib/improve-questions-api.ts",
+				"src/features/exams/hooks/use-improve-questions-job.ts",
+				"src/features/exams/components/exam-improve-questions-dialog.tsx",
+				"src/features/ai/jobs/improve-questions/run-improve-questions-batch.ts",
+				"src/features/ai/jobs/run-job-consumer.ts"
+			],
+			"files": {
+				"created": [],
+				"modified": [
+					"src/lib/job-kinds.ts",
+					"src/functions/jobs/create-improve-questions-job.ts",
+					"src/features/exams/lib/improve-questions-api.ts",
+					"src/features/exams/hooks/use-improve-questions-job.ts",
+					"src/features/exams/components/exam-improve-questions-dialog.tsx",
+					"src/features/ai/jobs/improve-questions/run-improve-questions-batch.ts",
+					"src/features/ai/jobs/run-job-consumer.ts"
+				],
+				"deleted": []
+			},
+			"interfaces": {
+				"consumes": [
+					"ImproveQuestionsJobMetadata de job-kinds.ts",
+					"UseImproveQuestionsJobReturn"
+				],
+				"produces": [
+					"ExamImproveQuestionsDialog com novo switch",
+					"Job pipeline aceita writeOptionExplanations"
+				]
+			},
+			"notes": [
+				"Não confundir writeOptionExplanations (novo) com writeExplanations (existente) — são flags independentes",
+				"writeOptionExplanations é passado para o agente como flag de prompt, não muda a tool schema (já feito em Task-A-001)",
+				"O switch no dialog deve vir ABAIXO do switch de explanations existente — seguir o layout atual"
+			]
+		},
+		{
+			"id": "Task-B-002",
+			"title": "Atualizar agente de melhoria para gerar explanations por alternativa",
+			"description": "Modificar runImproveQuestionAgent para aceitar writeOptionExplanations no input e, quando true, instruir o agente via prompt a gerar explanation em cada option do snapshot.",
+			"dependencies": ["Task-A-001"],
+			"batch": "B",
+			"status": "pending",
+			"tryCount": 1,
+			"acceptanceCriteria": [
+				"runImproveQuestionAgent aceita writeOptionExplanations?: boolean no input",
+				"buildPrompt condiciona instrução de option explanations ao flag",
+				"Agente gera options com explanation no snapshot quando flag=true",
+				"npm run typecheck passa"
+			],
+			"requirements": [
+				"REQ-agent-param: Input do agente tem writeOptionExplanations",
+				"REQ-prompt: Prompt inclui instrução de gerar explanation por option quando flag ativo",
+				"REQ-storage: Nenhuma alteração no esquema de persistência — as explanations vão dentro do JSON de options",
+				"REQ-limit: Cada explanation tem no máximo 1000 caracteres"
+			],
+			"steps": [
+				{
+					"order": 1,
+					"title": "Adicionar writeOptionExplanations ao input do agente",
+					"description": "Em src/features/ai/jobs/improve-questions/run-improve-question-agent.ts, adicionar `writeOptionExplanations?: boolean` no type do input do runImproveQuestionAgent.",
+					"command": null,
+					"expectedResult": "Função aceita o parâmetro opcional",
+					"codeExample": "export async function runImproveQuestionAgent(input: {\n  ...\n  webSearchApiKey?: string;\n  writeOptionExplanations?: boolean;\n})"
+				},
+				{
+					"order": 2,
+					"title": "Atualizar buildPrompt para incluir instrução condicional",
+					"description": "Modificar buildPrompt para receber `writeOptionExplanations?: boolean` e, quando true, adicionar linha de instrução: 'Also generate an explanation for each option explaining why it is correct or incorrect in the context of the question. Each explanation must be at most 1000 characters.' A instrução deve vir ANTES de 'Persist the final improved question by calling update_question_draft exactly once.'",
+					"command": null,
+					"expectedResult": "Prompt inclui instrução condicional de explanations",
+					"codeExample": "function buildPrompt(questionId: string, writeOptionExplanations?: boolean): string {\n  const lines = [\n    `Improve question ${questionId}.`,\n    'Always call get_question first.',\n    ...\n  ];\n  if (writeOptionExplanations) {\n    lines.splice(lines.length - 1, 0,\n      'Also generate an explanation for each option explaining why it is correct or incorrect.'\n    );\n  }\n  return lines.join('\\n');\n}"
+				}
+			],
+			"filesTouched": [
+				"src/features/ai/jobs/improve-questions/run-improve-question-agent.ts"
+			],
+			"files": {
+				"created": [],
+				"modified": [
+					"src/features/ai/jobs/improve-questions/run-improve-question-agent.ts"
+				],
+				"deleted": []
+			},
+			"interfaces": {
+				"consumes": [
+					"typeof runImproveQuestionAgent"
+				],
+				"produces": [
+					"runImproveQuestionAgent com suporte a writeOptionExplanations"
+				]
+			},
+			"notes": [
+				"Tool schema de update_question_draft já foi atualizada em Task-A-001 para aceitar explanation opcional",
+				"Não mudar o prompt para inglês se ele já está em inglês — manter consistência",
+				"A instrução deve ser clara: o agente DEVE gerar explanation para CADA option",
+				"Não adicionar estágio novo no ImproveQuestionStage — a geração acontece durante DRAFTING"
+			]
+		},
+		{
+			"id": "Task-C-001",
+			"title": "Exibir explanations por alternativa no formulário de edição/revisão",
+			"description": "Atualizar QuestionEditForm para renderizar um textarea de explanation por option quando a option tiver explanation preenchida. Atualizar QuestionFieldDiff para suportar diff de explanation por alternativa.",
+			"dependencies": ["Task-A-001", "Task-B-001", "Task-B-002"],
+			"batch": "C",
+			"status": "pending",
+			"tryCount": 1,
+			"acceptanceCriteria": [
+				"Cada option no edit form com explanation exibe textarea label 'Explicação da alternativa {key}'",
+				"Placeholder: 'Por que esta alternativa está correta/incorreta?'",
+				"ImprovementToggle funciona para cada explanation de option",
+				"DiffToggle mostra diff entre original e melhorado",
+				"npm run typecheck passa"
+			],
+			"requirements": [
+				"REQ-form: Textarea de explanation por option",
+				"REQ-diff: Diff de explanation entre original e melhorado",
+				"REQ-toggle: ImprovementToggle para cada explanation"
+			],
+			"steps": [
+				{
+					"order": 1,
+					"title": "Ler QuestionEditForm atual",
+					"description": "Ler src/features/exams/components/question-edit-form.tsx para entender como as options são renderizadas atualmente e como ImprovementToggle/DiffToggle funcionam para os campos existentes.",
+					"command": null,
+					"expectedResult": "Entendimento do padrão de renderização de options",
+					"codeExample": null
+				},
+				{
+					"order": 2,
+					"title": "Adicionar textarea de explanation por option no edit form",
+					"description": "Para cada option no formulário, renderizar um textarea label 'Explicação da alternativa {key}' com placeholder 'Por que esta alternativa está correta/incorreta?' abaixo do textarea do texto da option, se a option tiver explanation. Usar o controlador de formulário (react-hook-form) para vincular o campo.",
+					"command": null,
+					"expectedResult": "Explanation visível e editável por option",
+					"codeExample": null
+				},
+				{
+					"order": 3,
+					"title": "Adicionar ImprovementToggle e DiffToggle para explanation",
+					"description": "Seguir o padrão existente dos campos explanation/deepExplanation: ImprovementToggle para alternar entre original e melhorado, e DiffToggle para mostrar diff inline da explanation de cada option.",
+					"command": null,
+					"expectedResult": "Toggle/diff funcionando para explanation de cada option",
+					"codeExample": null
+				}
+			],
+			"filesTouched": [
+				"src/features/exams/components/question-edit-form.tsx",
+				"src/features/exams/components/question-field-diff.tsx"
+			],
+			"files": {
+				"created": [],
+				"modified": [
+					"src/features/exams/components/question-edit-form.tsx",
+					"src/features/exams/components/question-field-diff.tsx"
+				],
+				"deleted": []
+			},
+			"interfaces": {
+				"consumes": [
+					"QuestionOption de exam-detail.ts (agora com explanation)",
+					"QuestionImprovementSnapshot de question-improvement-drafts.ts"
+				],
+				"produces": [
+					"QuestionEditForm com suporte a explanation por option",
+					"QuestionFieldDiff com suporte a diff de explanation"
+				]
+			},
+			"notes": [
+				"Ler os arquivos existentes primeiro para seguir os patterns de ImprovementToggle e DiffToggle",
+				"Verificar como o form control (useForm/useFieldArray) lida com options",
+				"O textarea de explanation deve respeitar max 1000 chars"
+			]
+		},
+		{
+			"id": "Task-D-001",
+			"title": "Atualizar testes e verificação final",
+			"description": "Atualizar testes existentes para cobrir o novo flag writeOptionExplanations e per-option explanations. Rodar typecheck e testes para garantir que tudo passa.",
+			"dependencies": ["Task-A-001", "Task-B-001", "Task-B-002", "Task-C-001"],
+			"batch": "D",
+			"status": "pending",
+			"tryCount": 1,
+			"acceptanceCriteria": [
+				"Testes do dialog cobrem o novo switch",
+				"Testes do agente cobrem writeOptionExplanations: true",
+				"npm run typecheck exit 0",
+				"npm test -- --run src/features/ai/jobs/improve-questions tudo verde",
+				"npm test -- --run src/features/exams/components/exam-improve-questions-dialog.spec.tsx verde"
+			],
+			"requirements": [
+				"REQ-tests: Cobertura do novo flag nos testes existentes"
+			],
+			"steps": [
+				{
+					"order": 1,
+					"title": "Rodar typecheck",
+					"description": "Rodar `npm run typecheck` para garantir que todas as alterações estão type-safe.",
+					"command": "npm run typecheck",
+					"expectedResult": "exit 0, sem erros de tipo",
+					"codeExample": null
+				},
+				{
+					"order": 2,
+					"title": "Atualizar testes do dialog",
+					"description": "Em src/features/exams/components/exam-improve-questions-dialog.spec.tsx, adicionar teste que verifica se o novo switch aparece e se o valor é enviado no submit.",
+					"command": null,
+					"expectedResult": "Teste novo do switch passa",
+					"codeExample": null
+				},
+				{
+					"order": 3,
+					"title": "Atualizar testes do agente",
+					"description": "Em src/features/ai/jobs/improve-questions/run-improve-question-agent.test.ts, adicionar teste (ou atualizar existente) com writeOptionExplanations: true e verificar que o snapshot gerado tem explanation nas options.",
+					"command": null,
+					"expectedResult": "Teste novo do agente passa",
+					"codeExample": null
+				},
+				{
+					"order": 4,
+					"title": "Rodar testes completos",
+					"description": "Rodar `npm test -- --run` para verificar que todos os testes passam.",
+					"command": "npm test",
+					"expectedResult": "Todos os testes verdes",
+					"codeExample": null
+				},
+				{
+					"order": 5,
+					"title": "Rodar docs-check",
+					"description": "Rodar `npm run docs-check` para verificar integridade dos docs.",
+					"command": "npm run docs-check",
+					"expectedResult": "exit 0",
+					"codeExample": null
+				}
+			],
+			"filesTouched": [
+				"src/features/exams/components/exam-improve-questions-dialog.spec.tsx",
+				"src/features/ai/jobs/improve-questions/run-improve-question-agent.test.ts"
+			],
+			"files": {
+				"created": [],
+				"modified": [
+					"src/features/exams/components/exam-improve-questions-dialog.spec.tsx",
+					"src/features/ai/jobs/improve-questions/run-improve-question-agent.test.ts"
+				],
+				"deleted": []
+			},
+			"interfaces": {
+				"consumes": [],
+				"produces": []
+			},
+			"notes": [
+				"Verificar testes existentes primeiro para entender o padrão de mock",
+				"Testes do agente mockam streamText — seguir o padrão existente"
+			]
+		}
+	]
+}
