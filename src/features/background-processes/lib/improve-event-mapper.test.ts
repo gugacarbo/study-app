@@ -6,6 +6,7 @@ describe("mergeImproveJobEvents", () => {
 			examId: "exam-1",
 			modelId: "model-1",
 			writeExplanations: true,
+			writeOptionExplanations: false,
 			questionIds: ["q-1"],
 			concurrencyLimit: 1,
 			totalCount: 1,

@@ -55,6 +55,7 @@ export async function createImproveQuestionsJob(input: {
 	questionIds: string[];
 	concurrencyLimit?: number;
 	writeExplanations?: boolean;
+	writeOptionExplanations?: boolean;
 }): Promise<{ jobId: string }> {
 	const response = await fetch("/api/jobs", {
 		method: "POST",
@@ -65,6 +66,7 @@ export async function createImproveQuestionsJob(input: {
 			questionIds: input.questionIds,
 			concurrencyLimit: input.concurrencyLimit,
 			writeExplanations: input.writeExplanations,
+			writeOptionExplanations: input.writeOptionExplanations,
 		}),
 	});
 

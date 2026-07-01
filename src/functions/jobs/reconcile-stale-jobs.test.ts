@@ -91,6 +91,7 @@ describe("reconcileStaleJobs", () => {
 				examId: createId(),
 				modelId: createId(),
 				writeExplanations: false,
+				writeOptionExplanations: false,
 				questionIds: [questionId],
 				concurrencyLimit: 1,
 				totalCount: 1,

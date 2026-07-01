@@ -25,7 +25,7 @@ export type Attempt = {
 export type QuestionInAttempt = {
 	id: string;
 	question: string;
-	options: Array<{ id: string; text: string }>;
+	options: Array<{ id: string; text: string; explanation?: string | null }>;
 	correctOptionIds: string[];
 	selectedOptionIds: string[];
 	scoringMode: "exact" | "partial";
@@ -55,11 +55,13 @@ export type AttemptAnswer = {
 export type AttemptResultQuestion = {
 	questionId: string;
 	question: string;
-	options: Array<{ id: string; text: string }>;
+	options: Array<{ id: string; text: string; explanation?: string | null }>;
 	correctOptionIds: string[];
 	selectedOptionIds: string[];
-	credit: number;
+	scoringMode: "exact" | "partial";
+	topic: string | null;
 	explanation: string | null;
+	deepExplanation?: string | null;
 };
 
 export type AttemptSummary = {

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MarkdownRenderer } from "@/components/ui/markdown";
 import { Separator } from "@/components/ui/separator";
 import type { AttemptResult } from "@/features/quiz/types/quiz";
 
@@ -105,9 +106,9 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 								<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
 									Questão {index + 1}
 								</p>
-								<CardTitle className="text-base font-semibold leading-relaxed text-foreground">
-									{item.question}
-								</CardTitle>
+							<CardTitle className="text-base font-semibold leading-relaxed text-foreground">
+								<MarkdownRenderer content={item.question} />
+							</CardTitle>
 							</div>
 
 							<div
@@ -152,13 +153,20 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 												className={`rounded-xl border px-4 py-3 ${optionStateClass}`}
 											>
 												<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-													<div className="flex min-w-0 gap-3">
+													<div className="min-w-0 flex-1">
+														<div className="flex gap-3">
 														<span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current/15 bg-background text-sm font-semibold text-foreground">
 															{formatOptionKey(option.id)}
 														</span>
 														<p className="text-sm leading-relaxed text-foreground">
-															{option.text}
+															<MarkdownRenderer content={option.text} />
 														</p>
+														</div>
+														{option.explanation ? (
+															<p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+																{option.explanation}
+															</p>
+														) : null}
 													</div>
 
 													<div className="flex flex-wrap gap-2 sm:max-w-48 sm:justify-end">
@@ -238,9 +246,10 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 									<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
 										Explicação
 									</p>
-									<p className="mt-3 text-sm leading-7 text-muted-foreground">
-										{item.explanation}
-									</p>
+								<MarkdownRenderer
+									content={item.explanation}
+									className="mt-3 text-sm leading-7 text-muted-foreground"
+								/>
 								</div>
 							) : (
 								<div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">

@@ -1,4 +1,4 @@
-export type QuestionOption = { key: string; text: string };
+export type QuestionOption = { key: string; text: string; explanation?: string | null };
 
 export type QuestionDetail = {
 	id: string;

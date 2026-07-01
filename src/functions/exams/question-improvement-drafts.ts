@@ -16,6 +16,7 @@ const getQuestionImprovementDraftsSchema = z.object({
 const optionSchema = z.object({
 	key: z.string().trim().length(1).regex(/^[A-Z]$/),
 	text: z.string().trim().min(1).max(1000),
+	explanation: z.string().trim().max(1000).optional().nullable(),
 });
 
 const snapshotSchema = z

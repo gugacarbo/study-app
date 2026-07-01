@@ -119,6 +119,7 @@ describe("ExamImproveQuestionsDialog", () => {
 				examId: "exam-1",
 				questionIds: ["q-1"],
 				writeExplanations: false,
+				writeOptionExplanations: false,
 			});
 		});
 		await waitFor(() => {

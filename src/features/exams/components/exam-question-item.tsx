@@ -89,7 +89,14 @@ export function ExamQuestionItem({
 										>
 											{formatOptionKey(option.key)})
 										</span>
-										<span className="min-w-0 flex-1">{option.text}</span>
+										<span className="min-w-0 flex-1">
+										<MarkdownRenderer content={option.text} />
+										{option.explanation ? (
+											<p className="mt-1 text-xs text-muted-foreground">
+												{option.explanation}
+											</p>
+										) : null}
+									</span>
 										{isCorrect ? (
 											<Badge variant="secondary" className="self-center">
 												<CheckCircle2Icon data-icon="inline-start" />

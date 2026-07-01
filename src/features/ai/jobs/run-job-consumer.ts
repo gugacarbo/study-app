@@ -92,7 +92,7 @@ export async function runJobConsumer(
 						const job = await getJobByIdInternal(ctx.db, ctx.job.id);
 						return job?.cancelRequestedAt != null;
 					},
-					executeQuestion: async ({ questionId }) => {
+					executeQuestion: async ({ questionId, writeOptionExplanations: _writeOptionExplanations }) => {
 						await heartbeat();
 						const model = await getAiModel({
 							db: ctx.db,
@@ -115,6 +115,7 @@ export async function runJobConsumer(
 								await eventAppender.append(payload);
 							},
 							webSearchApiKey: ctx.env.TAVILY_API_KEY,
+							writeOptionExplanations: _writeOptionExplanations,
 						});
 					},
 					executeExplanations: async ({ questionId }) => {

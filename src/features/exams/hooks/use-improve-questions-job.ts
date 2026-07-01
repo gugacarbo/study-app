@@ -25,6 +25,7 @@ export function useImproveQuestionsJob() {
 			examId: string;
 			questionIds: string[];
 			writeExplanations?: boolean;
+			writeOptionExplanations?: boolean;
 		}) => {
 			setIsPending(true);
 			setError(null);

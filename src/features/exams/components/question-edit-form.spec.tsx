@@ -433,7 +433,7 @@ describe("QuestionEditForm", () => {
 		).not.toBeInTheDocument();
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /ver diff do enunciado/i }),
+			screen.getByRole("button", { name: /ver diff no enunciado/i }),
 		);
 
 		expect(
@@ -441,7 +441,7 @@ describe("QuestionEditForm", () => {
 		).toBeInTheDocument();
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /ocultar diff do enunciado/i }),
+			screen.getByRole("button", { name: /ocultar diff no enunciado/i }),
 		);
 
 		expect(
@@ -474,10 +474,12 @@ describe("QuestionEditForm", () => {
 		expect(diffs).toHaveLength(1);
 		expect(diffs[0]).toHaveTextContent(/nova pergunta/i);
 
-		fireEvent.click(diffToggles[1]);
+		fireEvent.click(
+			screen.getByRole("button", { name: /ver diff na explicação/i }),
+		);
 
 		expect(
-			screen.getByRole("button", { name: /ocultar diff/i }),
+			screen.getByRole("button", { name: /ocultar diff na explicação/i }),
 		).toBeInTheDocument();
 		diffs = screen.getAllByTestId("question-field-diff");
 		expect(diffs).toHaveLength(2);

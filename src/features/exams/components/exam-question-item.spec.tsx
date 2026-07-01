@@ -72,37 +72,36 @@ const pendingDraft: QuestionImprovementDraftRecord = {
 
 describe("ExamQuestionItem", () => {
 	it("renders question text and options in lowercase", () => {
-		render(<ExamQuestionItem index={1} question={singleAnswerQuestion} />);
+		const { container } = render(
+			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,
+		);
 
 		expect(screen.getByTestId("question-main-panel")).toBeInTheDocument();
 		expect(screen.getByTestId("question-page-main")).toBeInTheDocument();
-		expect(screen.getByText(/Q1 · Geografia/i)).toBeInTheDocument();
-		expect(screen.getByText(/Londres/i)).toBeInTheDocument();
-		expect(screen.getByText(/Paris/i)).toBeInTheDocument();
-		expect(
-			screen.getByRole("listitem", { name: /a\)/i }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("listitem", { name: /b\)/i }),
-		).toBeInTheDocument();
+		expect(within(container).getByText(/Q1 · Geografia/i)).toBeInTheDocument();
+		expect(within(container).getByText(/Londres/i)).toBeInTheDocument();
+		expect(within(container).getByText(/Paris/i)).toBeInTheDocument();
+		expect(within(container).getAllByRole("listitem")).toHaveLength(4);
 	});
 
 	it("shows null topic as Geral in trigger", () => {
-		render(<ExamQuestionItem index={2} question={partialAnswerQuestion} />);
+		const { container } = render(
+			<ExamQuestionItem index={2} question={partialAnswerQuestion} />,
+		);
 
-		expect(screen.getByText(/Q2 · Geral/i)).toBeInTheDocument();
-		expect(screen.getByText(/Respostas múltiplas/i)).toBeInTheDocument();
-		expect(screen.getByText(/4 alternativas/i)).toBeInTheDocument();
+		expect(within(container).getByText(/Q2 · Geral/i)).toBeInTheDocument();
+		expect(within(container).getByText(/Respostas múltiplas/i)).toBeInTheDocument();
+		expect(within(container).getByText(/4 alternativas/i)).toBeInTheDocument();
 	});
 
 	it("highlights correct answer inline without exposing a manual edit card", () => {
-		render(<ExamQuestionItem index={1} question={singleAnswerQuestion} />);
+		const { container } = render(
+			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,
+		);
 
-		const correctItem = screen.getByRole("listitem", { name: /b\)/i });
-		expect(within(correctItem).getByText(/Correta/i)).toBeInTheDocument();
-
-		const wrongItem = screen.getByRole("listitem", { name: /a\)/i });
-		expect(within(wrongItem).queryByText(/Correta/i)).not.toBeInTheDocument();
+		const items = within(container).getAllByRole("listitem");
+		expect(within(items[1]).getByText(/Correta/i)).toBeInTheDocument();
+		expect(within(items[0]).queryByText(/Correta/i)).not.toBeInTheDocument();
 
 		expect(screen.queryByTestId("question-side-panel")).not.toBeInTheDocument();
 		expect(
@@ -111,28 +110,15 @@ describe("ExamQuestionItem", () => {
 	});
 
 	it("highlights correct answers inline for partial scoring", () => {
-		render(<ExamQuestionItem index={2} question={partialAnswerQuestion} />);
+		const { container } = render(
+			<ExamQuestionItem index={2} question={partialAnswerQuestion} />,
+		);
 
-		expect(
-			within(screen.getByRole("listitem", { name: /a\)/i })).getByText(
-				/Correta/i,
-			),
-		).toBeInTheDocument();
-		expect(
-			within(screen.getByRole("listitem", { name: /c\)/i })).getByText(
-				/Correta/i,
-			),
-		).toBeInTheDocument();
-		expect(
-			within(screen.getByRole("listitem", { name: /b\)/i })).queryByText(
-				/Correta/i,
-			),
-		).not.toBeInTheDocument();
-		expect(
-			within(screen.getByRole("listitem", { name: /d\)/i })).queryByText(
-				/Correta/i,
-			),
-		).not.toBeInTheDocument();
+		const items = within(container).getAllByRole("listitem");
+		expect(within(items[0]).getByText(/Correta/i)).toBeInTheDocument();
+		expect(within(items[2]).getByText(/Correta/i)).toBeInTheDocument();
+		expect(within(items[1]).queryByText(/Correta/i)).not.toBeInTheDocument();
+		expect(within(items[3]).queryByText(/Correta/i)).not.toBeInTheDocument();
 	});
 
 	it("shows the pending-improvement badge when a draft is provided", () => {

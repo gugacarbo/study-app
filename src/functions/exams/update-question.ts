@@ -11,6 +11,7 @@ import { requireSession } from "@/lib/rbac";
 const optionSchema = z.object({
 	key: z.string().trim().length(1).regex(/^[A-Z]$/),
 	text: z.string().trim().min(1).max(1000),
+	explanation: z.string().trim().max(1000).optional().nullable(),
 });
 
 export const updateQuestionSchema = z

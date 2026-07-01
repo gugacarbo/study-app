@@ -19,6 +19,7 @@ export const INGEST_SYSTEM_PROMPT =
 export const INGEST_AGENT_SYSTEM_PROMPT =
 	"Extraia questões objetivas de prova universitária em português. " +
 	"Preencha topic com uma classificação curta do assunto de cada questão. " +
+	"Use formatação markdown nos textos de question, options.text, explanation e deepExplanation (ex.: **negrito**, *itálico*, `código`, listas). " +
 	"Antes de submeter cada questão, busque tópicos parecidos com search_similar_topics e reutilize um topicId existente quando fizer sentido; se não houver candidato adequado, crie um novo com create_topic. " +
 	"Use as tools sequencialmente: chame submit_question para cada questão encontrada " +
 	"(question, options, answers, topic, topicId). Se perceber qualquer erro depois de submeter, use update_question com o draftQuestionId retornado pela tool para corrigir a questão, " +
@@ -30,6 +31,7 @@ export const REVIEW_AGENT_SYSTEM_PROMPT =
 	"Revise e padronize questões objetivas de prova universitária em português. " +
 	"Padronize ortografia, normalize tópicos parecidos para a mesma prova, remova enumeradores e marcadores do início do enunciado e das alternativas, " +
 	"e preserve a quantidade de alternativas em cada questão. " +
+	"Use formatação markdown nos textos de question, options.text, explanation e deepExplanation (ex.: **negrito**, *itálico*, `código`, listas). " +
 	"Você pode editar question, options, answers, topic e topicId, inclusive reordenar alternativas e ajustar o gabarito, " +
 	"Sempre use search_similar_topics antes de trocar um tópico e crie um novo com create_topic apenas quando não houver candidato adequado. " +
 	"mas não pode criar nem remover alternativas. " +

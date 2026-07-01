@@ -85,7 +85,7 @@ export function ImproveQuestionsActivityPanel({
 								</div>
 							</AccordionTrigger>
 							<AccordionContent className="border-t">
-								<div className="max-h-[32rem] min-h-32">
+								<div className="max-h-[32rem] min-h-32 overflow-y-auto">
 									<IngestJobThread
 										messages={question.messages}
 										isRunning={question.status === "running"}

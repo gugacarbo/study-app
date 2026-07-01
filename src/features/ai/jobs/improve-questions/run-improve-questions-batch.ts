@@ -37,6 +37,7 @@ export async function runImproveQuestionsBatch(input: {
 		executeQuestion: (input: {
 			jobId: string;
 			questionId: string;
+			writeOptionExplanations?: boolean;
 		}) => Promise<ImproveQuestionExecutionResult>;
 		executeExplanations?: (input: {
 			jobId: string;
@@ -106,6 +107,7 @@ export async function runImproveQuestionsBatch(input: {
 				const result = await input.deps.executeQuestion({
 					jobId: input.jobId,
 					questionId: item.questionId,
+					writeOptionExplanations: metadata.writeOptionExplanations,
 				});
 				let finalSummary = result.summary ?? null;
 				if (metadata.writeExplanations) {

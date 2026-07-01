@@ -26,6 +26,7 @@ import { TavilyWebContentProvider } from "@/features/ai/providers/web/tavily-con
 import { TavilyWebSearchProvider } from "@/features/ai/providers/web/tavily-search";
 import { createWebTools } from "@/features/ai/tools/web-tools";
 import { parseQuestionRow } from "@/features/exams/lib/parse-question-fields";
+import { QUESTION_IMPROVEMENT_RULES } from "./question-improvement-rules";
 import {
 	IMPROVE_QUESTION_STAGE,
 	type ImproveQuestionStage,
@@ -41,6 +42,7 @@ const questionSnapshotSchema = z.object({
 			z.object({
 				key: z.string().trim().length(1).regex(/^[A-Z]$/),
 				text: z.string().trim().min(1).max(1000),
+				explanation: z.string().trim().max(1000).optional().nullable(),
 			}),
 		)
 		.min(2)
@@ -54,16 +56,28 @@ const questionSnapshotSchema = z.object({
 	summary: z.string().trim().max(400).nullable().optional(),
 });
 
-function buildPrompt(questionId: string): string {
-	return [
+function buildPrompt(questionId: string, writeOptionExplanations?: boolean): string {
+	const lines = [
 		`Improve question ${questionId}.`,
 		"Always call get_question first.",
 		"Then produce a complete improved version of the same question.",
 		"Set topic as a summary of the question text with at most 30 characters.",
 		"Search similar topics first and create a new topic only when no candidate fits.",
+		...QUESTION_IMPROVEMENT_RULES,
 		"Persist the final improved question by calling update_question_draft exactly once.",
 		"You may use web_search and web_fetch when external context helps.",
-	].join("\n");
+	];
+	if (writeOptionExplanations) {
+		const persistIdx = lines.findIndex((l) => l.startsWith("Persist the final"));
+		if (persistIdx !== -1) {
+			lines.splice(
+				persistIdx,
+				0,
+				"Also generate an explanation for each option explaining why it is correct or incorrect in the context of the question. Each explanation must be at most 1000 characters.",
+			);
+		}
+	}
+	return lines.join("\n");
 }
 
 export async function runImproveQuestionAgent(input: {
@@ -76,6 +90,7 @@ export async function runImproveQuestionAgent(input: {
 	streamText?: typeof streamText;
 	appendJobEvent: (jobId: string, payload: unknown) => Promise<void>;
 	webSearchApiKey?: string;
+	writeOptionExplanations?: boolean;
 }): Promise<{ summary: string | null }> {
 	await input.appendJobEvent(
 		input.jobId,
@@ -304,7 +319,7 @@ export async function runImproveQuestionAgent(input: {
 		model: input.model,
 		system:
 			"You improve one multiple-choice exam question at a time. Work in isolation, keep the output internally consistent, and persist only a complete final draft.",
-		prompt: buildPrompt(input.questionId),
+		prompt: buildPrompt(input.questionId, input.writeOptionExplanations),
 		tools,
 		stopWhen: [stepCountIs(MAX_AGENT_STEPS)],
 	});

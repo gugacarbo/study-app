@@ -23,6 +23,7 @@ export const createImproveQuestionsJobSchema = z.object({
 	questionIds: z.array(z.string().uuid()).min(1),
 	concurrencyLimit: z.coerce.number().int().min(1).max(5).optional(),
 	writeExplanations: z.boolean().optional(),
+	writeOptionExplanations: z.boolean().optional(),
 });
 
 export async function createImproveQuestionsJobHandler(
@@ -127,6 +128,7 @@ export async function createImproveQuestionsJobHandler(
 			examId: input.examId,
 			modelId,
 			writeExplanations: input.writeExplanations ?? false,
+			writeOptionExplanations: input.writeOptionExplanations ?? false,
 			questionIds: input.questionIds,
 			concurrencyLimit:
 				input.concurrencyLimit ?? IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY,

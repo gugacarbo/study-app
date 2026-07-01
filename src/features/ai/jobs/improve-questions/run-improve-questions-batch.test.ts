@@ -9,6 +9,7 @@ function createMetadata(questionIds: string[]): ImproveQuestionsJobMetadata {
 		examId: createId(),
 		modelId: createId(),
 		writeExplanations: false,
+		writeOptionExplanations: false,
 		questionIds,
 		concurrencyLimit: 2,
 		totalCount: questionIds.length,
@@ -166,6 +167,7 @@ describe("runImproveQuestionsBatch", () => {
 		expect(executeQuestion).toHaveBeenCalledWith({
 			jobId: expect.any(String),
 			questionId,
+			writeOptionExplanations: false,
 		});
 		expect(executeExplanations).toHaveBeenCalledWith({
 			jobId: expect.any(String),

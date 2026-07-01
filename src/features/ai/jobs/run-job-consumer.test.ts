@@ -60,6 +60,7 @@ describe("runJobConsumer", () => {
 					examId,
 					modelId: createId(),
 					writeExplanations: false,
+					writeOptionExplanations: false,
 					questionIds: [questionId],
 					concurrencyLimit: 2,
 				totalCount: 1,

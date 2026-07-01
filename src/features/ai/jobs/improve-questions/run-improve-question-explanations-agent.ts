@@ -258,8 +258,8 @@ export async function runImproveQuestionExplanationsAgent(input: {
 	) {
 		const result = runStreamText({
 			model: input.model,
-			system:
-				"You are a specialist in writing explanations for one multiple-choice exam question at a time. Do not edit the question structure or answers. Every successful run must end by calling finish_explanations.",
+		system:
+			"You are a specialist in writing explanations for one multiple-choice exam question at a time. Do not edit the question structure or answers. Every successful run must end by calling finish_explanations. Use markdown formatting in explanation and deepExplanation (e.g. **bold**, *italic*, `code`, lists).",
 			prompt: buildPrompt(input.questionId, missingFinishAttempt),
 			tools,
 			stopWhen: [stepCountIs(MAX_AGENT_STEPS)],

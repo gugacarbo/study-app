@@ -5,7 +5,7 @@ import * as schema from "@/db/schema";
 
 export type QuestionImprovementSnapshot = {
 	question: string;
-	options: Array<{ key: string; text: string }>;
+	options: Array<{ key: string; text: string; explanation?: string | null }>;
 	answers: string[];
 	topicId?: string | null;
 	topic: string | null;

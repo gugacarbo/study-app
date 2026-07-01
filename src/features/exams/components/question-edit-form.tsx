@@ -106,6 +106,7 @@ export function QuestionEditForm({
 		explanation: false,
 		deepExplanation: false,
 		options: false,
+		optionExplanations: false,
 	});
 
 	const { fields, append, remove, replace } = useFieldArray({
@@ -335,6 +336,30 @@ export function QuestionEditForm({
 		  normalizeExplanation(question.deepExplanation)
 		: false;
 
+	const hasOptionExplanationChanges = hasPendingImprovement
+		? baseQuestion.options.some((baseOpt) => {
+				const improvedOpt = question.options.find(
+					(o) => o.key === baseOpt.key,
+				);
+				return (
+					normalizeExplanation(baseOpt.explanation) !==
+					normalizeExplanation(improvedOpt?.explanation)
+				);
+			})
+		: false;
+
+	const isOptionExplanationBase = hasPendingImprovement
+		? watchedOptions.every((opt) => {
+				const baseOpt = baseQuestion.options.find(
+					(o) => o.key === opt.key,
+				);
+				return (
+					normalizeExplanation(opt.explanation) ===
+					normalizeExplanation(baseOpt?.explanation)
+				);
+			})
+		: false;
+
 	function toggleQuestion() {
 		if (!baseQuestion) return;
 		form.setValue(
@@ -394,6 +419,17 @@ export function QuestionEditForm({
 					: baseQuestion.deepExplanation,
 			) ?? "",
 		);
+	}
+
+	function toggleOptionExplanations() {
+		if (!baseQuestion) return;
+		const source = isOptionExplanationBase ? question : baseQuestion;
+		const currentOptions = form.getValues("options");
+		const updatedOptions = currentOptions.map((opt) => {
+			const sourceOpt = source.options.find((o) => o.key === opt.key);
+			return { ...opt, explanation: sourceOpt?.explanation ?? null };
+		});
+		replace(updatedOptions);
 	}
 
 	function ImprovementToggle({
@@ -698,6 +734,17 @@ export function QuestionEditForm({
 							hasChanges={hasOptionsChanges}
 							label="nas alternativas"
 						/>
+						<ImprovementToggle
+							label="nas explicações das alternativas"
+							hasChanges={hasOptionExplanationChanges}
+							isUsingBase={isOptionExplanationBase}
+							onClick={toggleOptionExplanations}
+						/>
+						<DiffToggle
+							field="optionExplanations"
+							hasChanges={hasOptionExplanationChanges}
+							label="nas explicações das alternativas"
+						/>
 					</div>
 					<Button
 						type="button"
@@ -759,6 +806,30 @@ export function QuestionEditForm({
 										{textError.message}
 									</p>
 								)}
+								<FieldContent className="mt-2">
+									<Textarea
+										{...form.register(
+											`options.${index}.explanation`,
+										)}
+										placeholder="Por que esta alternativa está correta/incorreta?"
+										aria-label={`Explicação da alternativa ${option.key}`}
+									/>
+									{visibleDiffs.optionExplanations &&
+									baseQuestion ? (
+										<QuestionFieldDiff
+											base={
+												baseQuestion.options.find(
+													(o) =>
+														o.key ===
+														option.key,
+												)?.explanation ?? ""
+											}
+											improved={
+												option.explanation ?? ""
+											}
+										/>
+									) : null}
+								</FieldContent>
 							</div>
 							<Button
 								type="button"

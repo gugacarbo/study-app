@@ -141,6 +141,7 @@ export type ImproveQuestionsJobMetadata = {
 	examId: string;
 	modelId: string;
 	writeExplanations: boolean;
+	writeOptionExplanations: boolean;
 	questionIds: string[];
 	concurrencyLimit: number;
 	totalCount: number;
@@ -183,6 +184,8 @@ export function parseImproveQuestionsJobMetadata(
 			typeof parsed.modelId !== "string" ||
 			(typeof parsed.writeExplanations !== "boolean" &&
 				typeof parsed.writeExplanations !== "undefined") ||
+			(typeof parsed.writeOptionExplanations !== "boolean" &&
+				typeof parsed.writeOptionExplanations !== "undefined") ||
 			!Array.isArray(parsed.questionIds) ||
 			typeof parsed.concurrencyLimit !== "number" ||
 			typeof parsed.totalCount !== "number" ||
@@ -199,6 +202,7 @@ export function parseImproveQuestionsJobMetadata(
 		return {
 			...parsed,
 			writeExplanations: parsed.writeExplanations ?? false,
+			writeOptionExplanations: parsed.writeOptionExplanations ?? false,
 		} as ImproveQuestionsJobMetadata;
 	} catch {
 		return null;

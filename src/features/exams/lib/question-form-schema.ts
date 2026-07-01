@@ -3,6 +3,7 @@ import { z } from "zod";
 export const questionOptionSchema = z.object({
 	key: z.string().trim().length(1).regex(/^[A-Z]$/),
 	text: z.string().trim().min(1, "O texto da alternativa é obrigatório.").max(1000),
+	explanation: z.string().trim().max(1000).optional().nullable(),
 });
 
 export const questionFormSchema = z

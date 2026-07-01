@@ -159,39 +159,45 @@ export function QuizQuestionCard({
 								showFeedback && isSelected && !isCorrectOption;
 
 							return (
-								<label
-									key={option.id}
-									className={cn(
-										"flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-left transition-colors",
-										showCorrectness
-											? "border-emerald-500 bg-emerald-500/10"
-											: showIncorrectness
-												? "border-red-400 bg-red-50 dark:bg-red-950/20"
-												: isActiveOption || isSelected
-													? "border-primary bg-primary/10"
-													: "border-border hover:bg-muted/40",
-									)}
-								>
-									<Checkbox
-										id={`option-${option.id}`}
-										checked={isSelected}
-										onCheckedChange={(checked) =>
-											handleToggle(option.id, checked === true)
-										}
-										disabled={showFeedback}
-										className="mt-0.5 shrink-0"
-										aria-label={`Alternativa ${formatOptionKey(
-											option.id,
-										)}`}
-									/>
-									<span className="mr-1 shrink-0 text-sm font-bold tabular-nums">
-										{formatOptionKey(option.id)})
-									</span>
-									<MarkdownRenderer
-										content={option.text}
-										className="flex-1 text-sm leading-snug"
-									/>
-								</label>
+								<Fragment key={option.id}>
+									<label
+										className={cn(
+											"flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-left transition-colors",
+											showCorrectness
+												? "border-emerald-500 bg-emerald-500/10"
+												: showIncorrectness
+													? "border-red-400 bg-red-50 dark:bg-red-950/20"
+													: isActiveOption || isSelected
+														? "border-primary bg-primary/10"
+														: "border-border hover:bg-muted/40",
+										)}
+									>
+										<Checkbox
+											id={`option-${option.id}`}
+											checked={isSelected}
+											onCheckedChange={(checked) =>
+												handleToggle(option.id, checked === true)
+											}
+											disabled={showFeedback}
+											className="mt-0.5 shrink-0"
+											aria-label={`Alternativa ${formatOptionKey(
+												option.id,
+											)}`}
+										/>
+										<span className="mr-1 shrink-0 text-sm font-bold tabular-nums">
+											{formatOptionKey(option.id)})
+										</span>
+										<MarkdownRenderer
+											content={option.text}
+											className="flex-1 text-sm leading-snug"
+										/>
+									</label>
+									{showFeedback && "explanation" in option && option.explanation ? (
+										<p className="ml-10 mt-1 text-xs text-muted-foreground">
+											{option.explanation}
+										</p>
+									) : null}
+								</Fragment>
 							);
 						})}
 					</div>
@@ -240,19 +246,24 @@ export function QuizQuestionCard({
 										)}`}
 										className="mt-0.5 shrink-0"
 									/>
-									<Label
-										htmlFor={`option-${option.id}`}
-										className="flex-1 cursor-pointer text-sm leading-snug"
-									>
-										<span className="mr-1 font-bold tabular-nums">
-											{formatOptionKey(option.id)})
-										</span>{" "}
-										<MarkdownRenderer
-											content={option.text}
-											className="text-left"
-										/>
-									</Label>
-								</div>
+								<Label
+									htmlFor={`option-${option.id}`}
+									className="flex-1 cursor-pointer text-sm leading-snug"
+								>
+									<span className="mr-1 font-bold tabular-nums">
+										{formatOptionKey(option.id)})
+									</span>{" "}
+									<MarkdownRenderer
+										content={option.text}
+										className="text-left"
+									/>
+								</Label>
+								{showFeedback && "explanation" in option && option.explanation ? (
+									<p className="ml-7 mt-1 text-xs text-muted-foreground">
+										{option.explanation}
+									</p>
+								) : null}
+							</div>
 							);
 						})}
 					</RadioGroup>

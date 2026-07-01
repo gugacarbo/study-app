@@ -193,6 +193,125 @@ describe("runImproveQuestionAgent", () => {
 		);
 	});
 
+	it("includes the option explanation instruction in the prompt and persists explanations when writeOptionExplanations is true", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		await seedUser(db, userId);
+		const examId = createId();
+		await createExam(db, { id: examId, userId, name: "Prova" });
+		const questionId = createId();
+		const jobId = createId();
+
+		await db.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Qual a capital do Brasil?",
+			options: JSON.stringify([
+				{ key: "A", text: "São Paulo" },
+				{ key: "B", text: "Brasília" },
+				{ key: "C", text: "Belo Horizonte" },
+			]),
+			answers: JSON.stringify(["B"]),
+			scoringMode: "exact",
+			topic: "Geografia",
+		});
+
+		const streamTextMock = vi.fn((input: { tools?: ToolSet }) => {
+			const getQuestion = getTool(input.tools, "get_question");
+			const updateDraft = getTool(input.tools, "update_question_draft");
+
+			return {
+				fullStream: (async function* () {
+					yield {
+						type: "text-delta",
+						text: "Analisando a questão...",
+					} as TextStreamPart<ToolSet>;
+
+					await getQuestion.execute({ questionId }, { toolCallId: "tool-1" });
+					yield {
+						type: "tool-call",
+						toolCallId: "tool-1",
+						toolName: "get_question",
+						input: { questionId },
+					} as TextStreamPart<ToolSet>;
+
+					await updateDraft.execute({
+						questionId,
+						question: "Qual é a capital federal do Brasil?",
+						options: [
+							{ key: "A", text: "São Paulo", explanation: "São Paulo não é a capital federal, é a capital do estado de SP." },
+							{ key: "B", text: "Brasília", explanation: "Brasília é a capital federal desde 1960." },
+							{ key: "C", text: "Belo Horizonte", explanation: "Belo Horizonte é a capital de MG, não do Brasil." },
+						],
+						answers: ["B"],
+						topic: "Geografia do Brasil",
+						scoringMode: "exact",
+						explanation: "Brasília é a capital federal desde 1960.",
+						deepExplanation:
+							"A capital foi transferida do Rio de Janeiro para Brasília em 1960.",
+						summary: "Gerei explicações por alternativa.",
+					}, { toolCallId: "tool-2" });
+					yield {
+						type: "tool-call",
+						toolCallId: "tool-2",
+						toolName: "update_question_draft",
+						input: { questionId },
+					} as TextStreamPart<ToolSet>;
+				})(),
+			};
+		});
+
+		const events: unknown[] = [];
+		const result = await runImproveQuestionAgent({
+			db,
+			jobId,
+			userId,
+			examId,
+			questionId,
+			model: {} as never,
+			streamText: streamTextMock as never,
+			appendJobEvent: async (_jobId, payload) => {
+				events.push(payload);
+			},
+			writeOptionExplanations: true,
+		});
+
+		expect(result.summary).toBe("Gerei explicações por alternativa.");
+		expect(streamTextMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				prompt: expect.stringContaining(
+					"Also generate an explanation for each option explaining why it is correct or incorrect",
+				),
+				tools: expect.objectContaining({
+					get_question: expect.any(Object),
+					search_similar_topics: expect.any(Object),
+					create_topic: expect.any(Object),
+					update_question_draft: expect.any(Object),
+				}),
+			}),
+		);
+
+		const drafts = await getPendingQuestionImprovementDraftsByExam(
+			db,
+			examId,
+			userId,
+		);
+		expect(drafts).toHaveLength(1);
+		expect(drafts[0]).toMatchObject({
+			questionId,
+			summary: "Gerei explicações por alternativa.",
+			improvedSnapshot: expect.objectContaining({
+				question: "Qual é a capital federal do Brasil?",
+				topic: "Geografia do Brasil",
+			}),
+		});
+		const snapshot = drafts[0].improvedSnapshot as Record<string, unknown>;
+		const options = snapshot.options as Array<Record<string, unknown>>;
+		expect(options[0].explanation).toBe("São Paulo não é a capital federal, é a capital do estado de SP.");
+		expect(options[1].explanation).toBe("Brasília é a capital federal desde 1960.");
+		expect(options[2].explanation).toBe("Belo Horizonte é a capital de MG, não do Brasil.");
+	});
+
 	it("rejects improved question drafts with topics longer than 30 characters", async () => {
 		const db = createTestDb();
 		const userId = createId();

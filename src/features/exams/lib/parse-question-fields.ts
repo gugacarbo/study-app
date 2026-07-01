@@ -11,6 +11,7 @@ const optionKeySchema = z
 const optionSchema = z.object({
 	key: optionKeySchema,
 	text: z.string().trim().min(1),
+	explanation: z.string().trim().max(1000).optional().nullable(),
 });
 
 const parsedFieldsSchema = z

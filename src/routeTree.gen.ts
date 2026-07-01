@@ -31,6 +31,7 @@ import { Route as AppExamsNewIndexRouteImport } from './routes/_app/exams/new/in
 import { Route as AppExamsExamIdIndexRouteImport } from './routes/_app/exams/$examId/index'
 import { Route as ApiJobsIdUploadRouteImport } from './routes/api/jobs/$id/upload'
 import { Route as ApiJobsIdStreamRouteImport } from './routes/api/jobs/$id/stream'
+import { Route as ApiJobsIdRecoverRouteImport } from './routes/api/jobs/$id/recover'
 import { Route as ApiJobsIdEventsRouteImport } from './routes/api/jobs/$id/events'
 import { Route as ApiJobsIdCancelRouteImport } from './routes/api/jobs/$id/cancel'
 import { Route as AppExamsExamIdQuizIndexRouteImport } from './routes/_app/exams/$examId/quiz/index'
@@ -149,6 +150,11 @@ const ApiJobsIdStreamRoute = ApiJobsIdStreamRouteImport.update({
   path: '/api/jobs/$id/stream',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiJobsIdRecoverRoute = ApiJobsIdRecoverRouteImport.update({
+  id: '/api/jobs/$id/recover',
+  path: '/api/jobs/$id/recover',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiJobsIdEventsRoute = ApiJobsIdEventsRouteImport.update({
   id: '/api/jobs/$id/events',
   path: '/api/jobs/$id/events',
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
   '/api/jobs/$id/events': typeof ApiJobsIdEventsRoute
+  '/api/jobs/$id/recover': typeof ApiJobsIdRecoverRoute
   '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/exams/$examId/': typeof AppExamsExamIdIndexRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
   '/api/jobs/$id/events': typeof ApiJobsIdEventsRoute
+  '/api/jobs/$id/recover': typeof ApiJobsIdRecoverRoute
   '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/exams/$examId': typeof AppExamsExamIdIndexRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/jobs/$id/cancel': typeof ApiJobsIdCancelRoute
   '/api/jobs/$id/events': typeof ApiJobsIdEventsRoute
+  '/api/jobs/$id/recover': typeof ApiJobsIdRecoverRoute
   '/api/jobs/$id/stream': typeof ApiJobsIdStreamRoute
   '/api/jobs/$id/upload': typeof ApiJobsIdUploadRoute
   '/_app/exams/$examId/': typeof AppExamsExamIdIndexRoute
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/jobs/$id/cancel'
     | '/api/jobs/$id/events'
+    | '/api/jobs/$id/recover'
     | '/api/jobs/$id/stream'
     | '/api/jobs/$id/upload'
     | '/exams/$examId/'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/api/jobs'
     | '/api/jobs/$id/cancel'
     | '/api/jobs/$id/events'
+    | '/api/jobs/$id/recover'
     | '/api/jobs/$id/stream'
     | '/api/jobs/$id/upload'
     | '/exams/$examId'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/jobs/$id/cancel'
     | '/api/jobs/$id/events'
+    | '/api/jobs/$id/recover'
     | '/api/jobs/$id/stream'
     | '/api/jobs/$id/upload'
     | '/_app/exams/$examId/'
@@ -396,6 +408,7 @@ export interface RootRouteChildren {
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiJobsIdCancelRoute: typeof ApiJobsIdCancelRoute
   ApiJobsIdEventsRoute: typeof ApiJobsIdEventsRoute
+  ApiJobsIdRecoverRoute: typeof ApiJobsIdRecoverRoute
   ApiJobsIdStreamRoute: typeof ApiJobsIdStreamRoute
   ApiJobsIdUploadRoute: typeof ApiJobsIdUploadRoute
   ApiAdminModelsIdTestStreamRoute: typeof ApiAdminModelsIdTestStreamRoute
@@ -557,6 +570,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiJobsIdStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/jobs/$id/recover': {
+      id: '/api/jobs/$id/recover'
+      path: '/api/jobs/$id/recover'
+      fullPath: '/api/jobs/$id/recover'
+      preLoaderRoute: typeof ApiJobsIdRecoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/jobs/$id/events': {
       id: '/api/jobs/$id/events'
       path: '/api/jobs/$id/events'
@@ -684,6 +704,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiJobsIdCancelRoute: ApiJobsIdCancelRoute,
   ApiJobsIdEventsRoute: ApiJobsIdEventsRoute,
+  ApiJobsIdRecoverRoute: ApiJobsIdRecoverRoute,
   ApiJobsIdStreamRoute: ApiJobsIdStreamRoute,
   ApiJobsIdUploadRoute: ApiJobsIdUploadRoute,
   ApiAdminModelsIdTestStreamRoute: ApiAdminModelsIdTestStreamRoute,

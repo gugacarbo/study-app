@@ -30,6 +30,7 @@ export function ExamImproveQuestionsDialog({
 	const improveJob = useImproveQuestionsJob();
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [writeExplanations, setWriteExplanations] = useState(false);
+	const [writeOptionExplanations, setWriteOptionExplanations] = useState(false);
 
 	const allIds = useMemo(
 		() => questions.map((question) => question.id),
@@ -57,6 +58,7 @@ export function ExamImproveQuestionsDialog({
 			examId,
 			questionIds: effectiveSelectedIds,
 			writeExplanations,
+			writeOptionExplanations,
 		});
 		if (ok) {
 			onOpenChange(false);
@@ -137,6 +139,23 @@ export function ExamImproveQuestionsDialog({
 						checked={writeExplanations}
 						onCheckedChange={setWriteExplanations}
 						aria-label="Reescrever explicações com agente especialista"
+					/>
+				</div>
+
+				<div className="flex items-center justify-between rounded-lg border px-3 py-3">
+					<div className="space-y-1">
+						<p className="text-sm font-medium">
+							Explicar alternativas incorretas
+						</p>
+						<p className="text-sm text-muted-foreground">
+							Gera, para cada alternativa, uma explicação do porquê ela está
+							incorreta (ou correta).
+						</p>
+					</div>
+					<Switch
+						checked={writeOptionExplanations}
+						onCheckedChange={setWriteOptionExplanations}
+						aria-label="Explicar alternativas incorretas"
 					/>
 				</div>
 
