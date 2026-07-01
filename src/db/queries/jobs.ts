@@ -33,6 +33,7 @@ type JobUpdateValues = {
 	heartbeatAt?: string | null | ReturnType<typeof sql>;
 	leaseExpiresAt?: string | null | ReturnType<typeof sql>;
 	lastRecoveredAt?: string | null | ReturnType<typeof sql>;
+	cancelledAt?: string | null | ReturnType<typeof sql>;
 	updatedAt: ReturnType<typeof sql>;
 };
 
@@ -133,12 +134,14 @@ export async function updateJobStatus(
 	if (patch.metadata !== undefined) {
 		values.metadata = serializeMetadata(patch.metadata);
 	}
-	if (
+	if (patch.status === JOB_STATUS.CANCELLED) {
+		values.cancelledAt = sql`CURRENT_TIMESTAMP`;
+		values = withLeaseCleared(values);
+	} else if (
 		patch.status === JOB_STATUS.AWAITING_UPLOAD ||
 		patch.status === JOB_STATUS.QUEUED ||
 		patch.status === JOB_STATUS.COMPLETED ||
-		patch.status === JOB_STATUS.FAILED ||
-		patch.status === JOB_STATUS.CANCELLED
+		patch.status === JOB_STATUS.FAILED
 	) {
 		values = withLeaseCleared(values);
 	}
@@ -158,6 +161,7 @@ export type AdminJobListItem = {
 	error: string | null;
 	metadata: JsonObject | null;
 	cancelRequestedAt: string | null;
+	cancelledAt: string | null;
 	workerId: string | null;
 	processingStartedAt: string | null;
 	heartbeatAt: string | null;
@@ -189,6 +193,7 @@ export async function listJobsForAdmin(
 			error: schema.backgroundJobs.error,
 			metadata: schema.backgroundJobs.metadata,
 			cancelRequestedAt: schema.backgroundJobs.cancelRequestedAt,
+			cancelledAt: schema.backgroundJobs.cancelledAt,
 			workerId: schema.backgroundJobs.workerId,
 			processingStartedAt: schema.backgroundJobs.processingStartedAt,
 			heartbeatAt: schema.backgroundJobs.heartbeatAt,

@@ -19,6 +19,7 @@ export type JobEventsResponse = {
 	phase: string | null;
 	error: string | null;
 	cancelRequestedAt: string | null;
+	cancelledAt: string | null;
 	processing: {
 		state: JobProcessingState;
 		heartbeatAt: string | null;

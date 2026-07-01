@@ -52,7 +52,9 @@ export type IngestSystemInfoKind =
 	| "llm-call"
 	| "llm-retry"
 	| "persist-validating"
-	| "persist-progress";
+	| "persist-progress"
+	| "cancel-requested"
+	| "cancelled";
 
 export type IngestSystemInfoPart = {
 	type: typeof INGEST_DATA_PART.SYSTEM_INFO;
@@ -191,6 +193,24 @@ export function buildIngestPersistProgressSystemInfo(
 	return {
 		type: INGEST_DATA_PART.SYSTEM_INFO,
 		data: { kind: "persist-progress", payload: { saved, total } },
+	};
+}
+
+export function buildIngestCancelRequestedSystemInfo(
+	at: string,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "cancel-requested", payload: { at } },
+	};
+}
+
+export function buildIngestCancelledSystemInfo(
+	at: string,
+): IngestSystemInfoPart {
+	return {
+		type: INGEST_DATA_PART.SYSTEM_INFO,
+		data: { kind: "cancelled", payload: { at } },
 	};
 }
 

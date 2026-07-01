@@ -9,6 +9,9 @@ import {
 	type StreamPartsState,
 } from "@/features/background-processes/lib/ingest-event-mapper";
 import {
+	formatSystemInfoLabel,
+} from "@/features/background-processes/lib/ingest-event-labels";
+import {
 	type ImproveMonitorState,
 	isImproveQuestionsJobMetadata,
 	mergeImproveJobEvents,
@@ -38,6 +41,7 @@ export type JobSyncState = {
 	phase: string | null;
 	error: string | null;
 	cancelRequestedAt: string | null;
+	cancelledAt: string | null;
 	processing: {
 		state: JobProcessingState;
 		heartbeatAt: string | null;
@@ -61,6 +65,7 @@ const INITIAL_SYNC_STATE: JobSyncState = {
 	phase: null,
 	error: null,
 	cancelRequestedAt: null,
+	cancelledAt: null,
 	processing: null,
 	metadata: null,
 	messages: [],
@@ -81,6 +86,7 @@ function createReplayBaseState(
 		| "phase"
 		| "error"
 		| "cancelRequestedAt"
+		| "cancelledAt"
 		| "processing"
 		| "metadata"
 	>,
@@ -91,6 +97,7 @@ function createReplayBaseState(
 		phase: data.phase,
 		error: data.error,
 		cancelRequestedAt: data.cancelRequestedAt,
+		cancelledAt: data.cancelledAt,
 		processing: data.processing,
 		metadata: data.metadata,
 		improve: isImproveQuestionsJobMetadata(data.metadata)
@@ -102,6 +109,58 @@ function createReplayBaseState(
 			: null,
 		isTerminal: TERMINAL.has(data.status),
 	};
+}
+
+function buildCancellationSystemMessages(
+	cancelRequestedAt: string | null,
+	cancelledAt: string | null,
+	baseSeq: number,
+): MappedThreadMessage[] {
+	const messages: MappedThreadMessage[] = [];
+	let seq = baseSeq;
+	if (cancelRequestedAt) {
+		const text =
+			formatSystemInfoLabel("cancel-requested", { at: cancelRequestedAt }) ??
+			"Cancelamento solicitado";
+		messages.push({
+			id: "system:cancel-requested",
+			role: "system",
+			content: text,
+			seq: seq++,
+		});
+	}
+	if (cancelledAt) {
+		const text =
+			formatSystemInfoLabel("cancelled", { at: cancelledAt }) ??
+			"Job cancelado";
+		messages.push({
+			id: "system:cancelled",
+			role: "system",
+			content: text,
+			seq: seq++,
+		});
+	}
+	return messages;
+}
+
+function mergeCancellationMessages(
+	messages: MappedThreadMessage[],
+	cancellationMessages: MappedThreadMessage[],
+): MappedThreadMessage[] {
+	let next = messages;
+	for (const cancelMsg of cancellationMessages) {
+		const existingIdx = next.findIndex((m) => m.id === cancelMsg.id);
+		if (existingIdx >= 0) {
+			next = [
+				...next.slice(0, existingIdx),
+				cancelMsg,
+				...next.slice(existingIdx + 1),
+			];
+		} else {
+			next = [...next, cancelMsg];
+		}
+	}
+	return next;
 }
 
 function applyJobResponse(
@@ -124,14 +183,25 @@ function applyJobResponse(
 		data.events,
 	);
 
+	const cancellationMessages = buildCancellationSystemMessages(
+		data.cancelRequestedAt,
+		data.cancelledAt,
+		merged.lastSeq + 1,
+	);
+	const messagesWithCancellation = mergeCancellationMessages(
+		merged.messages,
+		cancellationMessages,
+	);
+
 	return {
 		status: data.status,
 		phase: data.phase,
 		error: data.error,
 		cancelRequestedAt: data.cancelRequestedAt,
+		cancelledAt: data.cancelledAt,
 		processing: data.processing,
 		metadata: data.metadata,
-		messages: merged.messages,
+		messages: messagesWithCancellation,
 		progress: merged.progress,
 		improve: isImproveQuestionsJobMetadata(data.metadata)
 			? mergeImproveJobEvents({

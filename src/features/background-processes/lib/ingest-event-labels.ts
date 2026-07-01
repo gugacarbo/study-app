@@ -254,9 +254,36 @@ export function formatSystemInfoLabel(
 			}
 			return null;
 		}
+		case "cancel-requested": {
+			const at = payload.at;
+			if (typeof at === "string") {
+				return `Cancelamento solicitado às ${formatIngestTimestamp(at)}`;
+			}
+			return "Cancelamento solicitado";
+		}
+		case "cancelled": {
+			const at = payload.at;
+			if (typeof at === "string") {
+				return `Job cancelado às ${formatIngestTimestamp(at)}`;
+			}
+			return "Job cancelado";
+		}
 		default:
 			return null;
 	}
+}
+
+function formatIngestTimestamp(value: string): string {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	return date.toLocaleString("pt-BR");
+}
+
+function formatIngestDetailTimestamp(value: string): string {
+	if (!value) return "—";
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return value;
+	return date.toLocaleString("pt-BR");
 }
 
 function messageForStreamPart(part: IngestStreamPartEvent): string {
@@ -350,12 +377,26 @@ export function formatEventDetails(
 				];
 			case "persist-validating":
 				return [{ label: "Total", value: String(data.total) }];
-			case "persist-progress":
-				return [
-					{ label: "Salvas", value: String(data.saved) },
-					{ label: "Total", value: String(data.total) },
-				];
-			default:
+case "persist-progress":
+			return [
+				{ label: "Salvas", value: String(data.saved) },
+				{ label: "Total", value: String(data.total) },
+			];
+		case "cancel-requested":
+			return [
+				{
+					label: "Solicitado em",
+					value: formatIngestDetailTimestamp(String(data.at ?? "")),
+				},
+			];
+		case "cancelled":
+			return [
+				{
+					label: "Cancelado em",
+					value: formatIngestDetailTimestamp(String(data.at ?? "")),
+				},
+			];
+		default:
 				return Object.entries(data).map(([key, value]) => ({
 					label: key,
 					value: typeof value === "object" ? JSON.stringify(value) : String(value),

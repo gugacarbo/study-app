@@ -64,11 +64,23 @@ export function deriveJobProcessing(
 
 	if (job.status === JOB_STATUS.RUNNING) {
 		const leaseExpiresMs = parseTimestampMs(job.leaseExpiresAt);
+		const heartbeatAtMs = parseTimestampMs(job.heartbeatAt);
+		const nowMs = now.getTime();
+
+		const leaseValid = leaseExpiresMs != null && leaseExpiresMs > nowMs;
+		const heartbeatFresh =
+			heartbeatAtMs != null &&
+			nowMs - heartbeatAtMs < JOB_LEASE_TTL_MS;
+
+		// Worker is active only when both the lease is valid AND the heartbeat
+		// has been refreshed within the expected window. This prevents a stale
+		// lease from masking a dead worker that stopped heartbeating.
+		const active = leaseValid && heartbeatFresh;
+
 		return {
-			state:
-				leaseExpiresMs != null && leaseExpiresMs > now.getTime()
-					? JOB_PROCESSING_STATE.ACTIVE
-					: JOB_PROCESSING_STATE.STALE_RUNNING,
+			state: active
+				? JOB_PROCESSING_STATE.ACTIVE
+				: JOB_PROCESSING_STATE.STALE_RUNNING,
 			heartbeatAt: job.heartbeatAt,
 			leaseExpiresAt: job.leaseExpiresAt,
 			recoveryAttempts: job.recoveryAttempts,

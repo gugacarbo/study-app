@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
 	ArrowRightIcon,
+	BanIcon,
+	CircleXIcon,
 	DatabaseIcon,
 	FileTextIcon,
 	InfoIcon,
@@ -60,6 +62,20 @@ export const SYSTEM_KIND_VISUALS: Record<string, SystemKindVisual> = {
 		bgClass: "bg-chart-3/10",
 		circleClass: "bg-chart-3/15",
 		textClass: "text-chart-3",
+	},
+	"cancel-requested": {
+		icon: BanIcon,
+		borderClass: "border-l-muted-foreground",
+		bgClass: "bg-muted/60",
+		circleClass: "bg-muted-foreground/15",
+		textClass: "text-muted-foreground",
+	},
+	cancelled: {
+		icon: CircleXIcon,
+		borderClass: "border-l-destructive",
+		bgClass: "bg-destructive/10",
+		circleClass: "bg-destructive/15",
+		textClass: "text-destructive",
 	},
 };
 

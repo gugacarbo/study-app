@@ -21,6 +21,7 @@ export const backgroundJobs = sqliteTable(
 		error: text("error"),
 		metadata: text("metadata"),
 		cancelRequestedAt: text("cancel_requested_at"),
+		cancelledAt: text("cancelled_at"),
 		workerId: text("worker_id"),
 		processingStartedAt: text("processing_started_at"),
 		heartbeatAt: text("heartbeat_at"),

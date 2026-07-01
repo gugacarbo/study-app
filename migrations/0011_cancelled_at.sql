@@ -1,0 +1,1 @@
+ALTER TABLE `background_jobs` ADD `cancelled_at` text;

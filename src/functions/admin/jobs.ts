@@ -28,6 +28,7 @@ export type AdminJobDetail = {
 	error: string | null;
 	metadata: JsonObject | null;
 	cancelRequestedAt: string | null;
+	cancelledAt: string | null;
 	workerId: string | null;
 	processingStartedAt: string | null;
 	heartbeatAt: string | null;
@@ -74,6 +75,7 @@ export async function getAdminJobDetailHandler(
 		error: job.error,
 		metadata: parseJsonObject(job.metadata),
 		cancelRequestedAt: job.cancelRequestedAt,
+		cancelledAt: job.cancelledAt,
 		workerId: job.workerId,
 		processingStartedAt: job.processingStartedAt,
 		heartbeatAt: job.heartbeatAt,

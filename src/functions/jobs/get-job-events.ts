@@ -34,6 +34,7 @@ export async function getJobEventsHandler(
 		phase: job.phase,
 		error: job.error,
 		cancelRequestedAt: job.cancelRequestedAt,
+		cancelledAt: job.cancelledAt,
 		processing: deriveJobProcessing(job),
 		metadata: job.metadata ? JSON.parse(job.metadata) : null,
 		events: events.map((event) => ({

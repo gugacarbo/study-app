@@ -30,9 +30,8 @@ export function IngestJobThread({
 	title,
 	showHeader,
 }: IngestJobThreadProps) {
-	const assistantMessages = messages.filter((m) => m.role !== "system");
 	const runtime = useExternalStoreRuntime<MappedThreadMessage>({
-		messages: assistantMessages,
+		messages,
 		isRunning,
 		isDisabled: true,
 		convertMessage: (message) => ({
