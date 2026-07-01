@@ -89,8 +89,8 @@ describe("useImproveQuestionsJob", () => {
 
 		expect(result).toBe(false);
 		expect(navigate).not.toHaveBeenCalled();
-		expect(mutation?.error).toBeNull();
-		expect(mutation?.conflict).toMatchObject({
+		expect((mutation as unknown as ReturnType<typeof useImproveQuestionsJob>)?.error).toBeNull();
+		expect((mutation as unknown as ReturnType<typeof useImproveQuestionsJob>)?.conflict).toMatchObject({
 			jobId: "job-1",
 			examId: "exam-1",
 			reason: "pending_review",
@@ -127,7 +127,7 @@ describe("useImproveQuestionsJob", () => {
 			to: "/jobs/$jobId",
 			params: { jobId: "job-2" },
 		});
-		expect(mutation?.conflict).toBeNull();
-		expect(mutation?.error).toBeNull();
+		expect((mutation as unknown as ReturnType<typeof useImproveQuestionsJob>)?.conflict).toBeNull();
+		expect((mutation as unknown as ReturnType<typeof useImproveQuestionsJob>)?.error).toBeNull();
 	});
 });

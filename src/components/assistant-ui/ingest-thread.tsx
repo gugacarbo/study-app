@@ -220,13 +220,16 @@ function parseSystemMessageId(id: string | undefined): string | null {
 }
 
 const IngestSystemMessage: FC = () => {
-	const { id, content, status, isLast } = useAuiState((s) => ({
-		id: s.message.id,
-		content:
-			typeof s.message.content === "string" ? s.message.content : "",
-		status: s.message.status,
-		isLast: s.message.isLast,
-	}));
+	const id = useAuiState((s) => s.message.id);
+	const rawContent = useAuiState((s) => s.message.content);
+	const content =
+		typeof rawContent === "string"
+			? rawContent
+			: Array.isArray(rawContent)
+				? (rawContent.find((p): p is { type: "text"; text: string } => p.type === "text")?.text ?? "")
+				: "";
+	const status = useAuiState((s) => s.message.status);
+	const isLast = useAuiState((s) => s.message.isLast);
 	const isRunning = useAuiState((s) => s.thread.isRunning);
 	const kind = parseSystemMessageId(id);
 	const visual = kind

@@ -536,6 +536,7 @@ export function QuestionEditForm({
 					<DiffToggle
 						field="question"
 						hasChanges={hasQuestionChanges}
+						label="no enunciado"
 					/>
 				</div>
 				<FieldContent>
@@ -695,6 +696,7 @@ export function QuestionEditForm({
 						<DiffToggle
 							field="options"
 							hasChanges={hasOptionsChanges}
+							label="nas alternativas"
 						/>
 					</div>
 					<Button
@@ -791,6 +793,7 @@ export function QuestionEditForm({
 					<DiffToggle
 						field="explanation"
 						hasChanges={hasExplanationChanges}
+						label="na explicação"
 					/>
 				</div>
 				<FieldContent>
@@ -825,6 +828,7 @@ export function QuestionEditForm({
 					<DiffToggle
 						field="deepExplanation"
 						hasChanges={hasDeepExplanationChanges}
+						label="na explicação detalhada"
 					/>
 				</div>
 				<FieldContent>

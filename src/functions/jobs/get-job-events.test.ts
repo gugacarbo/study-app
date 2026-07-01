@@ -80,13 +80,16 @@ describe("getJobEventsHandler", () => {
 				mode: INGEST_MODE.CREATE,
 			}),
 		});
+		const now = new Date();
+		const recentHeartbeat = new Date(now.getTime() - 30_000).toISOString();
+		const futureLease = new Date(now.getTime() + 60_000).toISOString();
 		await testDb
 			.update(schema.backgroundJobs)
 			.set({
 				workerId: "worker-1",
-				processingStartedAt: "2026-06-30T12:00:00.000Z",
-				heartbeatAt: "2026-06-30T12:01:00.000Z",
-				leaseExpiresAt: "2099-06-30T12:02:00.000Z",
+				processingStartedAt: recentHeartbeat,
+				heartbeatAt: recentHeartbeat,
+				leaseExpiresAt: futureLease,
 				recoveryAttempts: 1,
 			})
 			.where(eq(schema.backgroundJobs.id, jobId));
@@ -107,8 +110,8 @@ describe("getJobEventsHandler", () => {
 
 		expect(body.processing).toEqual({
 			state: "active",
-			heartbeatAt: "2026-06-30T12:01:00.000Z",
-			leaseExpiresAt: "2099-06-30T12:02:00.000Z",
+			heartbeatAt: recentHeartbeat,
+			leaseExpiresAt: futureLease,
 			recoveryAttempts: 1,
 		});
 	});

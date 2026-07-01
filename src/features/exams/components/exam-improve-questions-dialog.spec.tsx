@@ -1,3 +1,4 @@
+import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ExamImproveQuestionsDialog } from "@/features/exams/components/exam-improve-questions-dialog";
@@ -30,7 +31,7 @@ vi.mock("@tanstack/react-router", () => ({
 	}: {
 		to: string;
 		params?: Record<string, string>;
-		children: unknown;
+		children: React.ReactNode;
 	}) => {
 		let href = to;
 		if (params) {
