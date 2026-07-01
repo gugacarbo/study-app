@@ -68,6 +68,7 @@ export function mapQuestionRowToQuestionInAttempt(
 		options: parsed.options.map((option) => ({
 			id: option.key,
 			text: option.text,
+			explanation: option.explanation ?? null,
 		})),
 		correctOptionIds: parsed.answers,
 		selectedOptionIds,
@@ -161,6 +162,7 @@ export async function buildAttemptResult(
 			selectedOptionIds: selected,
 			credit,
 			explanation: q.explanation,
+			deepExplanation: q.deepExplanation ?? null,
 		});
 	}
 

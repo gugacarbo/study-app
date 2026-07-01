@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExamDetailActions } from "@/features/exams/components/exam-detail-actions";
 import { ExamDetailHeader } from "@/features/exams/components/exam-detail-header";
+import { useQuestionImprovementDraftActions } from "@/features/exams/hooks/use-question-improvement-draft-actions";
 import { getReviewImprovementQuestionId } from "@/features/exams/lib/get-review-improvement-question-id";
 import { ExamQuestionList } from "@/features/exams/components/exam-question-list";
 import { useExam } from "@/features/exams/hooks/use-exam";
@@ -36,6 +37,7 @@ export function ExamDetailPageContent({ examId }: ExamDetailPageProps) {
 	const { data: exam } = useExam(examId);
 	const { data: ingestJobId } = useIngestJobByExam(examId);
 	const { data: drafts = [] } = useQuestionImprovementDrafts(examId);
+	const { approveAllDrafts } = useQuestionImprovementDraftActions(examId);
 	const reviewImprovementQuestionId = getReviewImprovementQuestionId(
 		exam.questions,
 		drafts,
@@ -54,6 +56,9 @@ export function ExamDetailPageContent({ examId }: ExamDetailPageProps) {
 				examId={examId}
 				examName={exam.name}
 				questions={exam.questions}
+				pendingDraftCount={drafts.length}
+				isApproveAllPending={approveAllDrafts.isPending}
+				onApproveAllDrafts={() => approveAllDrafts.mutateAsync(drafts)}
 				reviewImprovementQuestionId={reviewImprovementQuestionId}
 			/>
 			<ExamQuestionList

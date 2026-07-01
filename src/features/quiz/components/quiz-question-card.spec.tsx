@@ -7,8 +7,16 @@ const answeredQuestion: QuestionInAttempt = {
 	id: "question-1",
 	question: "Qual alternativa está correta?",
 	options: [
-		{ id: "A", text: "Primeira alternativa" },
-		{ id: "B", text: "Segunda alternativa" },
+		{
+			id: "A",
+			text: "Primeira alternativa",
+			explanation: "Nao atende ao critério central do enunciado.",
+		},
+		{
+			id: "B",
+			text: "Segunda alternativa",
+			explanation: "Correta porque satisfaz **todos** os critérios.",
+		},
 	],
 	correctOptionIds: ["B"],
 	selectedOptionIds: ["A"],
@@ -20,7 +28,7 @@ const answeredQuestion: QuestionInAttempt = {
 };
 
 describe("QuizQuestionCard", () => {
-	it("shows the short explanation below the answered question and keeps the long explanation in an accordion", () => {
+	it("shows the question explanation, the option explanations, and keeps the long explanation in an accordion", () => {
 		render(
 			<QuizQuestionCard
 				activeOptionId="A"
@@ -44,6 +52,15 @@ describe("QuizQuestionCard", () => {
 		});
 		expect(explanation).toHaveTextContent(
 			"A segunda alternativa resolve o enunciado.",
+		);
+		const optionExplanations = screen.getByRole("region", {
+			name: /explicações das alternativas/i,
+		});
+		expect(optionExplanations).toHaveTextContent(
+			"Nao atende ao critério central do enunciado.",
+		);
+		expect(optionExplanations).toHaveTextContent(
+			"Correta porque satisfaz todos os critérios.",
 		);
 
 		expect(

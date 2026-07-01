@@ -32,7 +32,10 @@ function formatLegacyOptionList(optionIds: string[]): string {
 	return optionIds.map(formatLegacyOptionKey).join(", ");
 }
 
-function matchesExactly(selectedSet: Set<string>, correctSet: Set<string>): boolean {
+function matchesExactly(
+	selectedSet: Set<string>,
+	correctSet: Set<string>,
+): boolean {
 	if (selectedSet.size !== correctSet.size) {
 		return false;
 	}
@@ -63,37 +66,29 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 					? {
 							label: "Não respondida",
 							description: "Nenhuma alternativa foi marcada.",
-							badgeClass:
-								"border-border bg-muted text-foreground",
-							panelClass:
-								"border-border/70 bg-muted/50",
+							badgeClass: "border-border bg-muted text-foreground",
+							panelClass: "border-border/70 bg-muted/50",
 						}
 					: isExactMatch
 						? {
 								label: "Resposta correta",
 								description: "Sua marcação coincide com o gabarito.",
-								badgeClass:
-									"border-success/25 bg-success/10 text-success",
-								panelClass:
-									"border-success/20 bg-success/10",
+								badgeClass: "border-success/25 bg-success/10 text-success",
+								panelClass: "border-success/20 bg-success/10",
 							}
 						: isPartiallyCorrect
 							? {
 									label: "Resposta parcial",
-									description:
-										"Parte da sua seleção coincide com o gabarito.",
-									badgeClass:
-										"border-chart-5/25 bg-chart-5/10 text-chart-5",
-									panelClass:
-										"border-chart-5/20 bg-chart-5/10",
+									description: "Parte da sua seleção coincide com o gabarito.",
+									badgeClass: "border-chart-5/25 bg-chart-5/10 text-chart-5",
+									panelClass: "border-chart-5/20 bg-chart-5/10",
 								}
 							: {
 									label: "Resposta incorreta",
 									description: "Sua marcação não corresponde ao gabarito.",
 									badgeClass:
 										"border-destructive/25 bg-destructive/10 text-destructive",
-									panelClass:
-										"border-destructive/20 bg-destructive/10",
+									panelClass: "border-destructive/20 bg-destructive/10",
 								};
 
 				return (
@@ -106,9 +101,9 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 								<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
 									Questão {index + 1}
 								</p>
-							<CardTitle className="text-base font-semibold leading-relaxed text-foreground">
-								<MarkdownRenderer content={item.question} />
-							</CardTitle>
+								<CardTitle className="text-base font-semibold leading-relaxed text-foreground">
+									<MarkdownRenderer content={item.question} />
+								</CardTitle>
 							</div>
 
 							<div
@@ -155,23 +150,27 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 												<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 													<div className="min-w-0 flex-1">
 														<div className="flex gap-3">
-														<span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current/15 bg-background text-sm font-semibold text-foreground">
-															{formatOptionKey(option.id)}
-														</span>
-														<p className="text-sm leading-relaxed text-foreground">
-															<MarkdownRenderer content={option.text} />
-														</p>
+															<span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current/15 bg-background text-sm font-semibold text-foreground">
+																{formatOptionKey(option.id)}
+															</span>
+															<p className="text-sm leading-relaxed text-foreground">
+																<MarkdownRenderer content={option.text} />
+															</p>
 														</div>
 														{option.explanation ? (
-															<p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-																{option.explanation}
-															</p>
+															<MarkdownRenderer
+																content={option.explanation}
+																className="mt-1.5 text-xs leading-relaxed text-muted-foreground"
+															/>
 														) : null}
 													</div>
 
 													<div className="flex flex-wrap gap-2 sm:max-w-48 sm:justify-end">
 														{isSelected ? (
-															<Badge variant="secondary" className="font-medium">
+															<Badge
+																variant="secondary"
+																className="font-medium"
+															>
 																Sua escolha
 															</Badge>
 														) : null}
@@ -246,10 +245,10 @@ export function QuizAnswerReview({ result }: QuizAnswerReviewProps) {
 									<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
 										Explicação
 									</p>
-								<MarkdownRenderer
-									content={item.explanation}
-									className="mt-3 text-sm leading-7 text-muted-foreground"
-								/>
+									<MarkdownRenderer
+										content={item.explanation}
+										className="mt-3 text-sm leading-7 text-muted-foreground"
+									/>
 								</div>
 							) : (
 								<div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">

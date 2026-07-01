@@ -3,6 +3,7 @@ import {
 	type ResolveQuestionImprovementDraftInput,
 	resolveQuestionImprovementDraft,
 } from "@/functions/exams/question-improvement-drafts";
+import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import { examQueryKey } from "@/features/exams/hooks/use-exam";
 import { questionImprovementDraftsQueryKey } from "@/features/exams/hooks/use-question-improvement-drafts";
 
@@ -22,6 +23,20 @@ export function useQuestionImprovementDraftActions(examId: string) {
 		resolveDraft: useMutation({
 			mutationFn: (input: ResolveQuestionImprovementDraftInput) =>
 				resolveQuestionImprovementDraft({ data: input }),
+			onSuccess,
+		}),
+		approveAllDrafts: useMutation({
+			mutationFn: async (drafts: QuestionImprovementDraftRecord[]) => {
+				for (const draft of drafts) {
+					await resolveQuestionImprovementDraft({
+						data: {
+							action: "approve",
+							draftId: draft.id,
+							finalSnapshot: draft.improvedSnapshot,
+						},
+					});
+				}
+			},
 			onSuccess,
 		}),
 	};

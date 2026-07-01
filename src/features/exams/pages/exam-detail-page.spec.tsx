@@ -38,11 +38,11 @@ vi.mock("@/features/exams/hooks/use-question-improvement-drafts", () => ({
 
 vi.mock("@/features/exams/hooks/use-question-improvement-draft-actions", () => ({
 	useQuestionImprovementDraftActions: () => ({
-		approveDraft: {
+		resolveDraft: {
 			mutateAsync: vi.fn(),
 			isPending: false,
 		},
-		discardDraft: {
+		approveAllDrafts: {
 			mutateAsync: vi.fn(),
 			isPending: false,
 		},
@@ -245,6 +245,9 @@ describe("ExamDetailPageContent", () => {
 
 		expect(
 			screen.getByRole("button", { name: /revisar melhoria/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /aprovar todas/i }),
 		).toBeInTheDocument();
 		expect(
 			screen.queryByRole("button", { name: /melhorar/i }),

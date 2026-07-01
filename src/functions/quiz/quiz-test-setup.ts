@@ -61,7 +61,11 @@ export async function seedUser(db: AppDatabase, userId: string) {
 	});
 }
 
-export async function seedExam(db: AppDatabase, userId: string, name = "Prova") {
+export async function seedExam(
+	db: AppDatabase,
+	userId: string,
+	name = "Prova",
+) {
 	const examId = createId();
 	await db.insert(schema.exams).values({
 		id: examId,
@@ -77,7 +81,7 @@ export async function seedQuestion(
 	input: {
 		id: string;
 		question: string;
-		options: Array<{ key: string; text: string }>;
+		options: Array<{ key: string; text: string; explanation?: string | null }>;
 		answers: string[];
 		topic?: string | null;
 		topicId?: string | null;

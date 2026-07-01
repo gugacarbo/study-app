@@ -38,6 +38,9 @@ type ExamDetailActionsProps = {
 	examId: string;
 	examName: string;
 	questions: QuestionDetail[];
+	pendingDraftCount?: number;
+	isApproveAllPending?: boolean;
+	onApproveAllDrafts?: () => Promise<unknown>;
 	reviewImprovementQuestionId?: string | null;
 };
 
@@ -52,10 +55,14 @@ export function ExamDetailActions({
 	examId,
 	examName,
 	questions,
+	pendingDraftCount = 0,
+	isApproveAllPending = false,
+	onApproveAllDrafts,
 	reviewImprovementQuestionId = null,
 }: ExamDetailActionsProps) {
 	const navigate = useNavigate();
 	const [isImproveDialogOpen, setIsImproveDialogOpen] = useState(false);
+	const [isApproveAllDialogOpen, setIsApproveAllDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const { data: activeAttempt } = useActiveAttempt(examId);
 	const startAttempt = useStartAttempt(examId);
@@ -64,7 +71,8 @@ export function ExamDetailActions({
 	const hasQuestions = questions.length > 0;
 	const isStartPending = startAttempt.isPending;
 	const isDeletePending = deleteExam.isPending;
-	const isPending = isStartPending || isDeletePending;
+	const hasPendingDrafts = pendingDraftCount > 0;
+	const isPending = isStartPending || isDeletePending || isApproveAllPending;
 
 	async function handleStart(config: QuizConfig = DEFAULT_QUICK_CONFIG) {
 		if (activeAttempt) {
@@ -98,6 +106,13 @@ export function ExamDetailActions({
 				questionId: reviewImprovementQuestionId,
 			},
 		});
+	}
+
+	async function handleApproveAllDrafts() {
+		if (!onApproveAllDrafts || !hasPendingDrafts) return;
+
+		await onApproveAllDrafts();
+		setIsApproveAllDialogOpen(false);
 	}
 
 	return (
@@ -173,6 +188,51 @@ export function ExamDetailActions({
 						Melhorar
 					</Button>
 				)}
+				{hasPendingDrafts ? (
+					<AlertDialog
+						open={isApproveAllDialogOpen}
+						onOpenChange={setIsApproveAllDialogOpen}
+					>
+						<AlertDialogTrigger asChild>
+							<Button variant="secondary" disabled={isPending}>
+								<BrainIcon data-icon="inline-start" />
+								Aprovar todas
+							</Button>
+						</AlertDialogTrigger>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle className="font-serif text-lg">
+									Aprovar todas as melhorias
+								</AlertDialogTitle>
+								<AlertDialogDescription>
+									Isso vai aprovar {pendingDraftCount}{" "}
+									{pendingDraftCount === 1
+										? "melhoria em draft"
+										: "melhorias em draft"}{" "}
+									na prova "{examName}".
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel asChild>
+									<Button variant="ghost" disabled={isApproveAllPending}>
+										Cancelar
+									</Button>
+								</AlertDialogCancel>
+								<AlertDialogAction asChild>
+									<Button
+										onClick={handleApproveAllDrafts}
+										disabled={isApproveAllPending}
+									>
+										<BrainIcon data-icon="inline-start" />
+										{isApproveAllPending
+											? "Aprovando..."
+											: "Aprovar todas"}
+									</Button>
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				) : null}
 				<AlertDialog
 					open={isDeleteDialogOpen}
 					onOpenChange={setIsDeleteDialogOpen}

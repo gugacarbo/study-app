@@ -48,15 +48,21 @@ describe("getAttemptResultHandler", () => {
 		await seedQuestion(testDb, examId, {
 			id: q1,
 			question: "Q1",
-			options: [{ key: "A", text: "A" }],
+			options: [
+				{
+					key: "A",
+					text: "A",
+					explanation: "A alternativa A responde corretamente.",
+				},
+			],
 			answers: ["A"],
 		});
 		await seedQuestion(testDb, examId, {
 			id: q2,
 			question: "Q2",
 			options: [
-				{ key: "A", text: "A" },
-				{ key: "B", text: "B" },
+				{ key: "A", text: "A", explanation: "A cobre apenas parte do caso." },
+				{ key: "B", text: "B", explanation: "B complementa a resposta." },
 			],
 			answers: ["A", "B"],
 			scoringMode: "partial",
@@ -67,7 +73,12 @@ describe("getAttemptResultHandler", () => {
 			id: attemptId,
 			userId: testUserId,
 			examId,
-			config: { order: "original", quantity: 0, topicFilter: null, revealMode: "after" },
+			config: {
+				order: "original",
+				quantity: 0,
+				topicFilter: null,
+				revealMode: "after",
+			},
 			totalQuestions: 2,
 			status: "completed",
 		});
@@ -86,13 +97,17 @@ describe("getAttemptResultHandler", () => {
 			credit: 0.5,
 		});
 
-		const result = await getAttemptResultHandler(
-			{ attemptId },
-			new Headers(),
-		);
+		const result = await getAttemptResultHandler({ attemptId }, new Headers());
 
 		expect(result.scorePercent).toBe(75);
 		expect(result.questions).toHaveLength(2);
+		expect(result.questions[0]?.options).toEqual([
+			{
+				id: "A",
+				text: "A",
+				explanation: "A alternativa A responde corretamente.",
+			},
+		]);
 	});
 
 	it("returns 404 for attempt of another user", async () => {
@@ -104,7 +119,12 @@ describe("getAttemptResultHandler", () => {
 			id: attemptId,
 			userId: otherUserId,
 			examId,
-			config: { order: "original", quantity: 0, topicFilter: null, revealMode: "after" },
+			config: {
+				order: "original",
+				quantity: 0,
+				topicFilter: null,
+				revealMode: "after",
+			},
 			totalQuestions: 1,
 			status: "completed",
 		});
@@ -122,7 +142,12 @@ describe("getAttemptResultHandler", () => {
 			id: attemptId,
 			userId: testUserId,
 			examId,
-			config: { order: "original", quantity: 0, topicFilter: null, revealMode: "after" },
+			config: {
+				order: "original",
+				quantity: 0,
+				topicFilter: null,
+				revealMode: "after",
+			},
 			totalQuestions: 1,
 			status: "in_progress",
 		});

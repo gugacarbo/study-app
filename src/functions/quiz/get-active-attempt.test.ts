@@ -61,15 +61,21 @@ describe("getActiveAttemptHandler", () => {
 		await seedQuestion(testDb, examId, {
 			id: q1,
 			question: "Q1",
-			options: [{ key: "A", text: "A" }],
+			options: [
+				{
+					key: "A",
+					text: "A",
+					explanation: "A alternativa A cobre o caso base.",
+				},
+			],
 			answers: ["A"],
 		});
 		await seedQuestion(testDb, examId, {
 			id: q2,
 			question: "Q2",
 			options: [
-				{ key: "A", text: "A" },
-				{ key: "B", text: "B" },
+				{ key: "A", text: "A", explanation: "A nao resolve o enunciado." },
+				{ key: "B", text: "B", explanation: "B resolve corretamente." },
 			],
 			answers: ["B"],
 		});
@@ -79,7 +85,12 @@ describe("getActiveAttemptHandler", () => {
 			id: attemptId,
 			userId: testUserId,
 			examId,
-			config: { order: "original", quantity: 0, topicFilter: null, revealMode: "after" },
+			config: {
+				order: "original",
+				quantity: 0,
+				topicFilter: null,
+				revealMode: "after",
+			},
 			totalQuestions: 2,
 		});
 		await seedAnswer(testDb, {
@@ -97,6 +108,10 @@ describe("getActiveAttemptHandler", () => {
 		expect(result?.questions).toHaveLength(2);
 		const answered = result?.questions.find((q) => q.id === q2);
 		expect(answered?.selectedOptionIds).toEqual(["B"]);
+		expect(answered?.options).toEqual([
+			{ id: "A", text: "A", explanation: "A nao resolve o enunciado." },
+			{ id: "B", text: "B", explanation: "B resolve corretamente." },
+		]);
 	});
 
 	it("returns 404 for exam of another user", async () => {

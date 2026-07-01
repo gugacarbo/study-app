@@ -61,9 +61,8 @@ export function QuizQuestionCard({
 	onSubmitAnswer,
 	isSubmitting = false,
 }: QuizQuestionCardProps) {
-	const [localSelection, setLocalSelection] = useState<string[]>(
-		selectedOptionIds,
-	);
+	const [localSelection, setLocalSelection] =
+		useState<string[]>(selectedOptionIds);
 
 	useEffect(() => {
 		setLocalSelection(selectedOptionIds);
@@ -102,9 +101,17 @@ export function QuizQuestionCard({
 		question.correctOptionIds.length > 0 &&
 		question.correctOptionIds.every((id) => answeredSelectedSet.has(id)) &&
 		selectedOptionIds.every((id) => correctSet.has(id));
-	const isCorrect = showFeedback && selectedOptionIds.length > 0 ? isFullyCorrect : null;
+	const isCorrect =
+		showFeedback && selectedOptionIds.length > 0 ? isFullyCorrect : null;
 	const partialCredit =
-		showFeedback && credit !== undefined && credit > 0 && credit < 1 && !isFullyCorrect;
+		showFeedback &&
+		credit !== undefined &&
+		credit > 0 &&
+		credit < 1 &&
+		!isFullyCorrect;
+	const optionsWithExplanation = question.options.filter(
+		(option) => "explanation" in option && Boolean(option.explanation?.trim()),
+	);
 
 	function handleWheel(event: WheelEvent) {
 		if (showFeedback) return;
@@ -120,7 +127,9 @@ export function QuizQuestionCard({
 				<div className="flex justify-between">
 					<span className="text-sm text-muted-foreground">
 						Questão{" "}
-						<span className="font-medium text-foreground">{currentIndex + 1}</span>{" "}
+						<span className="font-medium text-foreground">
+							{currentIndex + 1}
+						</span>{" "}
 						de <span className="font-medium text-foreground">{total}</span>
 					</span>
 					<span className="text-sm text-emerald-500">
@@ -159,7 +168,7 @@ export function QuizQuestionCard({
 								showFeedback && isSelected && !isCorrectOption;
 
 							return (
-								<Fragment key={option.id}>
+								<div key={option.id}>
 									<label
 										className={cn(
 											"flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-left transition-colors",
@@ -180,9 +189,7 @@ export function QuizQuestionCard({
 											}
 											disabled={showFeedback}
 											className="mt-0.5 shrink-0"
-											aria-label={`Alternativa ${formatOptionKey(
-												option.id,
-											)}`}
+											aria-label={`Alternativa ${formatOptionKey(option.id)}`}
 										/>
 										<span className="mr-1 shrink-0 text-sm font-bold tabular-nums">
 											{formatOptionKey(option.id)})
@@ -192,12 +199,7 @@ export function QuizQuestionCard({
 											className="flex-1 text-sm leading-snug"
 										/>
 									</label>
-									{showFeedback && "explanation" in option && option.explanation ? (
-										<p className="ml-10 mt-1 text-xs text-muted-foreground">
-											{option.explanation}
-										</p>
-									) : null}
-								</Fragment>
+								</div>
 							);
 						})}
 					</div>
@@ -241,29 +243,22 @@ export function QuizQuestionCard({
 										value={option.id}
 										id={`option-${option.id}`}
 										disabled={showFeedback}
-										aria-label={`Alternativa ${formatOptionKey(
-											option.id,
-										)}`}
+										aria-label={`Alternativa ${formatOptionKey(option.id)}`}
 										className="mt-0.5 shrink-0"
 									/>
-								<Label
-									htmlFor={`option-${option.id}`}
-									className="flex-1 cursor-pointer text-sm leading-snug"
-								>
-									<span className="mr-1 font-bold tabular-nums">
-										{formatOptionKey(option.id)})
-									</span>{" "}
-									<MarkdownRenderer
-										content={option.text}
-										className="text-left"
-									/>
-								</Label>
-								{showFeedback && "explanation" in option && option.explanation ? (
-									<p className="ml-7 mt-1 text-xs text-muted-foreground">
-										{option.explanation}
-									</p>
-								) : null}
-							</div>
+									<Label
+										htmlFor={`option-${option.id}`}
+										className="flex-1 cursor-pointer text-sm leading-snug"
+									>
+										<span className="mr-1 font-bold tabular-nums">
+											{formatOptionKey(option.id)})
+										</span>{" "}
+										<MarkdownRenderer
+											content={option.text}
+											className="text-left"
+										/>
+									</Label>
+								</div>
 							);
 						})}
 					</RadioGroup>
@@ -287,14 +282,43 @@ export function QuizQuestionCard({
 							{isCorrect
 								? "✓ Resposta correta"
 								: partialCredit
-								? `Crédito parcial (${formatCredit(credit ?? 0)})`
-								: "✗ Resposta incorreta"}
+									? `Crédito parcial (${formatCredit(credit ?? 0)})`
+									: "✗ Resposta incorreta"}
 						</Badge>
 					</div>
 				) : null}
 
-				{showFeedback &&
-				(question.explanation || question.deepExplanation) ? (
+				{showFeedback && optionsWithExplanation.length > 0 ? (
+					<section
+						aria-labelledby={`question-${question.id}-option-explanations-title`}
+						className="rounded-md border border-border/70 bg-card p-4"
+					>
+						<h2
+							id={`question-${question.id}-option-explanations-title`}
+							className="mb-3 text-sm font-semibold text-foreground"
+						>
+							Explicações das alternativas
+						</h2>
+						<div className="space-y-3">
+							{optionsWithExplanation.map((option) => (
+								<div
+									key={option.id}
+									className="rounded-md border border-border/70 bg-muted/20 p-3"
+								>
+									<p className="text-xs font-semibold tracking-wide text-foreground">
+										Alternativa {formatOptionKey(option.id)}
+									</p>
+									<MarkdownRenderer
+										content={option.explanation ?? ""}
+										className="mt-2 text-sm leading-relaxed text-muted-foreground"
+									/>
+								</div>
+							))}
+						</div>
+					</section>
+				) : null}
+
+				{showFeedback && (question.explanation || question.deepExplanation) ? (
 					<section
 						aria-labelledby={`question-${question.id}-explanation-title`}
 						className="rounded-md border border-border/70 bg-card p-4"
@@ -332,7 +356,8 @@ export function QuizQuestionCard({
 				{!showFeedback ? (
 					<p className="text-xs text-muted-foreground">
 						Hotkeys: 1-{Math.min(question.options.length, 9)} para{" "}
-						{isMultiple ? "marcar/desmarcar" : "selecionar"}, Enter para confirmar
+						{isMultiple ? "marcar/desmarcar" : "selecionar"}, Enter para
+						confirmar
 					</p>
 				) : null}
 			</CardContent>

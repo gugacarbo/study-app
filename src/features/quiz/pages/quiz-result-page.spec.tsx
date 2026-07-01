@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuizResultPageContent } from "@/features/quiz/pages/quiz-result-page";
 import type { AttemptResult } from "@/features/quiz/types/quiz";
@@ -57,8 +63,16 @@ function makeResult(overrides?: Partial<AttemptResult>): AttemptResult {
 				questionId: "question-1",
 				question: "Qual conceito define o tema principal?",
 				options: [
-					{ id: "A", text: "Definição canônica" },
-					{ id: "B", text: "Exemplo incompleto" },
+					{
+						id: "A",
+						text: "Definição canônica",
+						explanation: "Resume o conceito pedido no enunciado.",
+					},
+					{
+						id: "B",
+						text: "Exemplo incompleto",
+						explanation: "Parece plausível, mas deixa um critério de fora.",
+					},
 					{ id: "C", text: "Relação paralela" },
 				],
 				correctOptionIds: ["A"],
@@ -149,7 +163,7 @@ describe("QuizResultPageContent", () => {
 		).toBe(true);
 	});
 
-	it("shows unanswered questions, separates the answer key from the user's answer, and renders long explanations", () => {
+	it("shows unanswered questions, separates the answer key from the user's answer, and renders question and option explanations", () => {
 		mockUseAttemptResult.mockReturnValue({
 			data: makeResult(),
 		});
@@ -174,6 +188,12 @@ describe("QuizResultPageContent", () => {
 		).toBeInTheDocument();
 		expect(
 			screen.getByText(/questão com múltiplas respostas corretas/i),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/resume o conceito pedido no enunciado/i),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/parece plausível, mas deixa um critério de fora/i),
 		).toBeInTheDocument();
 		expect(screen.getByText(/quest[aã]o em branco/i)).toBeInTheDocument();
 		expect(screen.getByText(LONG_EXPLANATION)).toBeInTheDocument();
