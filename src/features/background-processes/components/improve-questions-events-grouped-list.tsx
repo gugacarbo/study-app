@@ -92,72 +92,79 @@ export function ImproveQuestionsEventsGroupedList({
 				<p className="text-xs text-muted-foreground">Atualizando…</p>
 			) : null}
 
-			<Accordion
-				type="multiple"
-				defaultValue={[
-					...monitor.questions
-						.filter((question) => question.status === "running" || question.status === "failed")
-						.map((question) => question.questionId),
-					...(systemEvents.length > 0 ? ["system"] : []),
-				]}
-				className="flex min-h-0 flex-1 flex-col gap-3"
+			<div
+				aria-label="Lista de eventos do job de melhoria"
+				className="min-h-0 flex-1 overflow-y-auto pr-1"
 			>
-				{monitor.questions.map((question) => (
-					<AccordionItem
-						key={question.questionId}
-						value={question.questionId}
-						className="rounded-md border"
-					>
-						<AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
-							<span className="flex items-center gap-2">
-								<GroupIcon status={question.status} />
-								<span className="font-medium">Questão {question.questionNumber}</span>
-								<Badge variant="secondary">{question.events.length}</Badge>
-							</span>
-						</AccordionTrigger>
-						<AccordionContent className="border-t px-3 pb-3 pt-2">
-							{question.error ? (
-								<p className="mb-2 text-sm text-destructive">{question.error}</p>
-							) : null}
-							<ul className="flex flex-col gap-2">
-								{question.events.map((event) => (
-									<li key={event.seq} className="rounded-md border bg-muted/20 p-3 text-sm">
-										<div className="flex items-center gap-2 text-xs text-muted-foreground">
-											<span>#{event.seq}</span>
-										</div>
-										<p className="mt-1">{labelForEvent(event)}</p>
-									</li>
-								))}
-							</ul>
-						</AccordionContent>
-					</AccordionItem>
-				))}
+				<Accordion
+					type="multiple"
+					defaultValue={[
+						...monitor.questions
+							.filter(
+								(question) => question.status === "running" || question.status === "failed",
+							)
+							.map((question) => question.questionId),
+						...(systemEvents.length > 0 ? ["system"] : []),
+					]}
+					className="flex min-h-0 flex-col gap-3"
+				>
+					{monitor.questions.map((question) => (
+						<AccordionItem
+							key={question.questionId}
+							value={question.questionId}
+							className="rounded-md border"
+						>
+							<AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+								<span className="flex items-center gap-2">
+									<GroupIcon status={question.status} />
+									<span className="font-medium">Questão {question.questionNumber}</span>
+									<Badge variant="secondary">{question.events.length}</Badge>
+								</span>
+							</AccordionTrigger>
+							<AccordionContent className="border-t px-3 pb-3 pt-2">
+								{question.error ? (
+									<p className="mb-2 text-sm text-destructive">{question.error}</p>
+								) : null}
+								<ul className="flex flex-col gap-2">
+									{question.events.map((event) => (
+										<li key={event.seq} className="rounded-md border bg-muted/20 p-3 text-sm">
+											<div className="flex items-center gap-2 text-xs text-muted-foreground">
+												<span>#{event.seq}</span>
+											</div>
+											<p className="mt-1">{labelForEvent(event)}</p>
+										</li>
+									))}
+								</ul>
+							</AccordionContent>
+						</AccordionItem>
+					))}
 
-				{systemEvents.length > 0 ? (
-					<AccordionItem value="system" className="rounded-md border">
-						<AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
-							<span className="flex items-center gap-2">
-								<GroupIcon status={status ?? JOB_STATUS.QUEUED} />
-								<span className="font-medium">Sistema do lote</span>
-								<Badge variant="secondary">{systemEvents.length}</Badge>
-							</span>
-						</AccordionTrigger>
-						<AccordionContent className="border-t px-3 pb-3 pt-2">
-							{error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
-							<ul className="flex flex-col gap-2">
-								{systemEvents.map((event) => (
-									<li key={event.seq} className="rounded-md border bg-muted/20 p-3 text-sm">
-										<div className="flex items-center gap-2 text-xs text-muted-foreground">
-											<span>#{event.seq}</span>
-										</div>
-										<p className="mt-1">{labelForEvent(event)}</p>
-									</li>
-								))}
-							</ul>
-						</AccordionContent>
-					</AccordionItem>
-				) : null}
-			</Accordion>
+					{systemEvents.length > 0 ? (
+						<AccordionItem value="system" className="rounded-md border">
+							<AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+								<span className="flex items-center gap-2">
+									<GroupIcon status={status ?? JOB_STATUS.QUEUED} />
+									<span className="font-medium">Sistema do lote</span>
+									<Badge variant="secondary">{systemEvents.length}</Badge>
+								</span>
+							</AccordionTrigger>
+							<AccordionContent className="border-t px-3 pb-3 pt-2">
+								{error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
+								<ul className="flex flex-col gap-2">
+									{systemEvents.map((event) => (
+										<li key={event.seq} className="rounded-md border bg-muted/20 p-3 text-sm">
+											<div className="flex items-center gap-2 text-xs text-muted-foreground">
+												<span>#{event.seq}</span>
+											</div>
+											<p className="mt-1">{labelForEvent(event)}</p>
+										</li>
+									))}
+								</ul>
+							</AccordionContent>
+						</AccordionItem>
+					) : null}
+				</Accordion>
+			</div>
 		</div>
 	);
 }

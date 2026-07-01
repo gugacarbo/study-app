@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe("ImproveQuestionsProgressPanel", () => {
-	it("renders a taller mobile accordion list for questions while keeping the desktop list", () => {
+	it("limits the question lists to the remaining card height with compact cards", () => {
 		render(
 			<ImproveQuestionsProgressPanel
 				status={JOB_STATUS.COMPLETED}
@@ -98,15 +98,24 @@ describe("ImproveQuestionsProgressPanel", () => {
 		);
 
 		const mobileList = screen.getByLabelText("Lista de questões no mobile");
-		expect(mobileList).toHaveClass("min-h-0", "flex-1", "overflow-hidden", "md:hidden");
+		expect(mobileList).toHaveClass("min-h-40", "flex-1", "overflow-hidden", "md:hidden");
 		expect(
 			screen.getByRole("button", { name: /questões.*2 draft\(s\) pendente\(s\)/i }),
 		).toBeInTheDocument();
 
 		const desktopList = screen.getByLabelText("Lista de questões no desktop");
-		expect(desktopList).toHaveClass("hidden", "md:block");
+		expect(desktopList).toHaveClass(
+			"hidden",
+			"min-h-40",
+			"flex-1",
+			"overflow-y-auto",
+			"md:block",
+		);
 
-		expect(screen.getByRole("button", { name: /questão 1/i })).toBeInTheDocument();
+		const desktopItem = desktopList.querySelector("li");
+		expect(desktopItem).toHaveClass("px-2.5", "py-2");
+
+		expect(screen.getAllByText(/questão 1/i).length).toBeGreaterThan(0);
 		expect(screen.getAllByText(/etapa atual:\s*salvando draft/i).length).toBeGreaterThan(0);
 	});
 
