@@ -16,6 +16,7 @@ import {
 	type IngestJobMetadata,
 	isCancellableJobStatus,
 	JOB_KIND,
+	statusBadgeVariant,
 } from "@/lib/job-kinds";
 import { JOB_PROCESSING_STATE } from "@/lib/job-processing";
 import type { JsonObject } from "@/lib/json-value";
@@ -134,7 +135,14 @@ export function JobDetailContent({
 				<dd>{formatJobKind(detail.kind)}</dd>
 				<dt className="text-muted-foreground">Status</dt>
 				<dd>
-					<Badge>{formatJobStatus(detail.status)}</Badge>
+					{(() => {
+					const sv = statusBadgeVariant(detail.status);
+					return (
+						<Badge variant={sv.variant} className={sv.className}>
+							{formatJobStatus(detail.status)}
+						</Badge>
+					);
+				})()}
 					{phaseLabel ? (
 						<span className="ml-2 text-muted-foreground">{phaseLabel}</span>
 					) : null}

@@ -22,7 +22,7 @@ import {
 	formatJobTimestamp,
 	truncateText,
 } from "@/features/admin/lib/job-labels";
-import { JOB_STATUS } from "@/lib/job-kinds";
+import { statusBadgeVariant } from "@/lib/job-kinds";
 import { cn } from "@/lib/utils";
 
 type JobsTableProps = {
@@ -30,22 +30,6 @@ type JobsTableProps = {
 	selectedJobId: string | null;
 	onSelectJob: (jobId: string) => void;
 };
-
-function statusBadgeVariant(status: string) {
-	switch (status) {
-		case JOB_STATUS.COMPLETED:
-			return "default" as const;
-		case JOB_STATUS.FAILED:
-		case JOB_STATUS.CANCELLED:
-			return "destructive" as const;
-		case JOB_STATUS.RUNNING:
-		case JOB_STATUS.QUEUED:
-		case JOB_STATUS.AWAITING_UPLOAD:
-			return "secondary" as const;
-		default:
-			return "outline" as const;
-	}
-}
 
 export function JobsTable({
 	jobs,
@@ -97,9 +81,14 @@ export function JobsTable({
 										<TableCell>{formatJobKind(job.kind)}</TableCell>
 										<TableCell>
 											<div className="flex flex-col gap-1">
-												<Badge variant={statusBadgeVariant(job.status)}>
-													{formatJobStatus(job.status)}
-												</Badge>
+											{(() => {
+													const sv = statusBadgeVariant(job.status);
+													return (
+														<Badge variant={sv.variant} className={sv.className}>
+															{formatJobStatus(job.status)}
+														</Badge>
+													);
+												})()}
 												{phaseLabel ? (
 													<span className="text-xs text-muted-foreground">
 														{phaseLabel}

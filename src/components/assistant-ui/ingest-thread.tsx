@@ -54,6 +54,7 @@ import {
 	type IngestJobMetadata,
 	JOB_STATUS,
 	type JobStatus,
+	statusBadgeVariant,
 } from "@/lib/job-kinds";
 
 export type IngestThreadProps = {
@@ -112,7 +113,7 @@ function StatusBadge({
 }) {
 	const statusLabel =
 		status != null ? (STATUS_BADGE_LABELS[status] ?? status) : "Carregando…";
-	const isFailed = status === JOB_STATUS.FAILED;
+	const sv = statusBadgeVariant(status ?? "");
 
 	const phaseLabel = phase
 		? (PHASE_BADGE_LABELS[phase] ?? formatPhaseLabel(phase as Parameters<typeof formatPhaseLabel>[0]))
@@ -123,8 +124,8 @@ function StatusBadge({
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Badge
-						variant={isFailed ? "destructive" : "secondary"}
-						className="gap-1.5"
+						variant={sv.variant}
+						className={cn("gap-1.5", sv.className)}
 					>
 						<StatusIcon status={status} />
 						{statusLabel}

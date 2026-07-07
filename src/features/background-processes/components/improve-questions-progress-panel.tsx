@@ -22,6 +22,7 @@ import {
 	type ImproveQuestionsJobMetadata,
 	JOB_STATUS,
 	type JobStatus,
+	statusBadgeVariant,
 } from "@/lib/job-kinds";
 import { cn } from "@/lib/utils";
 
@@ -154,9 +155,14 @@ export function ImproveQuestionsProgressPanel({
 			<div className="flex min-h-0 flex-1 flex-col gap-4">
 				<div className="flex items-center justify-between gap-2">
 					<h2 className="text-sm font-medium">Progresso</h2>
-					<Badge variant={status === JOB_STATUS.FAILED ? "destructive" : "secondary"}>
-						{status ?? "Carregando"}
-					</Badge>
+				{(() => {
+					const sv = statusBadgeVariant(status ?? "");
+					return (
+						<Badge variant={sv.variant} className={sv.className}>
+							{status ?? "Carregando"}
+						</Badge>
+					);
+				})()}
 				</div>
 
 				{isLoading ? (

@@ -72,6 +72,47 @@ export function canManuallyCancelJobStatus(status: string): boolean {
 	);
 }
 
+export function statusBadgeVariant(
+	status: string,
+): { variant: "secondary" | "destructive" | "outline"; className: string } {
+	switch (status) {
+		case JOB_STATUS.COMPLETED:
+			return {
+				variant: "secondary",
+				className:
+					"bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+			};
+		case JOB_STATUS.FAILED:
+			return { variant: "destructive", className: "" };
+		case JOB_STATUS.CANCELLED:
+			return {
+				variant: "secondary",
+				className:
+					"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+			};
+		case JOB_STATUS.RUNNING:
+			return {
+				variant: "secondary",
+				className:
+					"bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+			};
+		case JOB_STATUS.QUEUED:
+			return {
+				variant: "secondary",
+				className:
+					"bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+			};
+		case JOB_STATUS.AWAITING_UPLOAD:
+			return {
+				variant: "secondary",
+				className:
+					"bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+			};
+		default:
+			return { variant: "outline", className: "" };
+	}
+}
+
 export type TokenUsage = {
 	inputTokens: number;
 	outputTokens: number;
