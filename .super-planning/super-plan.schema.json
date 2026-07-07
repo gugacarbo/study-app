@@ -1,0 +1,454 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "super-plan.schema.json",
+	"title": "Super Plan",
+	"type": "object",
+	"additionalProperties": false,
+	"required": [
+		"$schema",
+		"planId",
+		"featureName",
+		"status",
+		"source",
+		"goal",
+		"architectureSummary",
+		"techStack",
+		"executionMode",
+		"reviewCadence",
+		"agents",
+		"branchStrategy",
+		"worktree",
+		"globalConstraints",
+		"fileStructure",
+		"requirementsChecklist",
+		"taskDirectory",
+		"rules",
+		"tasks"
+	],
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"planId": {
+			"type": "string",
+			"minLength": 1
+		},
+		"featureName": {
+			"type": "string",
+			"minLength": 1
+		},
+		"status": {
+			"type": "string",
+			"enum": [
+				"pending",
+				"in_progress",
+				"ready_for_review",
+				"needs_fix",
+				"blocked",
+				"completed"
+			]
+		},
+		"source": {
+			"$ref": "#/$defs/source"
+		},
+		"goal": {
+			"type": "string"
+		},
+		"architectureSummary": {
+			"type": "string"
+		},
+		"techStack": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"executionMode": {
+			"type": "string",
+			"enum": ["subagent-driven", "sequential"]
+		},
+		"reviewCadence": {
+			"type": "string",
+			"enum": ["per_task", "per_batch", "final_only"]
+		},
+		"agents": {
+			"$ref": "#/$defs/agentsConfig"
+		},
+		"branchStrategy": {
+			"$ref": "#/$defs/branchStrategy"
+		},
+		"worktree": {
+			"$ref": "#/$defs/worktree"
+		},
+		"globalConstraints": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"fileStructure": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/fileStructureEntry"
+			}
+		},
+		"requirementsChecklist": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/requirement"
+			}
+		},
+		"taskDirectory": {
+			"type": "string",
+			"minLength": 1
+		},
+		"rules": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"tasks": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/task"
+			}
+		}
+	},
+	"$defs": {
+		"source": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["spec", "plan"],
+			"properties": {
+				"spec": {
+					"type": "string",
+					"minLength": 1
+				},
+				"plan": {
+					"type": "string",
+					"minLength": 1
+				}
+			}
+		},
+		"branchStrategy": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["baseBranch", "featureBranch"],
+			"properties": {
+				"baseBranch": {
+					"type": "string",
+					"minLength": 1
+				},
+				"featureBranch": {
+					"type": "string",
+					"minLength": 1
+				}
+			}
+		},
+		"agentProfile": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["model", "agent"],
+			"properties": {
+				"model": {
+					"type": "string"
+				},
+				"agent": {
+					"type": "string"
+				}
+			}
+		},
+		"agentsConfig": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["general", "deep", "quick"],
+			"properties": {
+				"general": {
+					"$ref": "#/$defs/agentProfile"
+				},
+				"deep": {
+					"$ref": "#/$defs/agentProfile"
+				},
+				"quick": {
+					"$ref": "#/$defs/agentProfile"
+				}
+			}
+		},
+		"worktree": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["enabled", "path"],
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				},
+				"path": {
+					"type": "string"
+				}
+			}
+		},
+		"fileStructureEntry": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["path", "ownerTask", "notes"],
+			"properties": {
+				"path": {
+					"type": "string",
+					"minLength": 1
+				},
+				"ownerTask": {
+					"type": "string",
+					"minLength": 1
+				},
+				"notes": {
+					"type": "string"
+				}
+			}
+		},
+		"requirement": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"id",
+				"title",
+				"source",
+				"status",
+				"acceptanceCriteria",
+				"coveredByTasks",
+				"notes"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"minLength": 1
+				},
+				"title": {
+					"type": "string",
+					"minLength": 1
+				},
+				"source": {
+					"type": "string"
+				},
+				"status": {
+					"type": "string",
+					"enum": [
+						"pending",
+						"in_progress",
+						"ready_for_review",
+						"reviewing",
+						"needs_fix",
+						"blocked",
+						"completed",
+						"cancelled"
+					]
+				},
+				"acceptanceCriteria": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"coveredByTasks": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"notes": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			}
+		},
+		"task": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"id",
+				"title",
+				"description",
+				"status",
+				"tryCount",
+				"task_profile",
+				"batch",
+				"phase",
+				"reportFile",
+				"reviewPackage",
+				"progressLog",
+				"logTaskScript",
+				"dependencies",
+				"acceptanceCriteria",
+				"requirements",
+				"rules",
+				"steps",
+				"filesTouched",
+				"files",
+				"notes"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"minLength": 1
+				},
+				"title": {
+					"type": "string",
+					"minLength": 1
+				},
+				"description": {
+					"type": "string"
+				},
+				"status": {
+					"type": "string",
+					"enum": [
+						"pending",
+						"in_progress",
+						"ready_for_review",
+						"reviewing",
+						"needs_fix",
+						"blocked",
+						"completed"
+					]
+				},
+				"tryCount": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"task_profile": {
+					"type": "string",
+					"enum": ["general", "deep", "quick"]
+				},
+				"batch": {
+					"type": "string",
+					"minLength": 1
+				},
+				"phase": {
+					"type": "string",
+					"enum": ["foundation", "core", "surface", "final"]
+				},
+				"reportFile": {
+					"type": "string",
+					"minLength": 1
+				},
+				"reviewPackage": {
+					"type": "string",
+					"minLength": 1
+				},
+				"progressLog": {
+					"type": "string",
+					"minLength": 1
+				},
+				"logTaskScript": {
+					"type": "string",
+					"minLength": 1
+				},
+				"dependencies": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"acceptanceCriteria": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"requirements": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"rules": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"steps": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/taskStep"
+					}
+				},
+				"filesTouched": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"files": {
+					"$ref": "#/$defs/taskFiles"
+				},
+				"notes": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			}
+		},
+		"taskStep": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"order",
+				"title",
+				"description",
+				"command",
+				"expectedResult",
+				"codeExample"
+			],
+			"properties": {
+				"order": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"title": {
+					"type": "string",
+					"minLength": 1
+				},
+				"description": {
+					"type": "string"
+				},
+				"command": {
+					"type": ["string", "null"]
+				},
+				"expectedResult": {
+					"type": ["string", "null"]
+				},
+				"codeExample": {
+					"type": ["string", "null"]
+				}
+			}
+		},
+		"taskFiles": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["created", "modified", "deleted"],
+			"properties": {
+				"created": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"modified": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"deleted": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			}
+		}
+	}
+}

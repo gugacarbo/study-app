@@ -1,0 +1,43 @@
+{
+  "$schema": "/home/gustavo/Desktop/study-app/.super-planning/super-plan.schema.json",
+  "planId": "0033-geracao-provas-por-conteudo",
+  "featureName": "geracao-provas-por-conteudo",
+  "status": "pending",
+  "source": {
+    "spec": "docs/specs/exams/0033-geracao-provas-por-conteudo.md",
+    "plan": "docs/plans/0033-geracao-provas-por-conteudo.md"
+  },
+  "goal": "",
+  "architectureSummary": "",
+  "techStack": [],
+  "executionMode": "subagent-driven",
+  "reviewCadence": "per_task",
+  "agents": {
+    "general": {
+      "model": "",
+      "agent": ""
+    },
+    "deep": {
+      "model": "",
+      "agent": ""
+    },
+    "quick": {
+      "model": "",
+      "agent": ""
+    }
+  },
+  "branchStrategy": {
+    "baseBranch": "main",
+    "featureBranch": "codex/0033-geracao-provas-por-conteudo"
+  },
+  "worktree": {
+    "enabled": false,
+    "path": "../0033-geracao-provas-por-conteudo-worktree"
+  },
+  "globalConstraints": [],
+  "fileStructure": [],
+  "requirementsChecklist": [],
+  "taskDirectory": "docs/tasks/0033-geracao-provas-por-conteudo",
+  "rules": [],
+  "tasks": []
+}
