@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
+	ListIcon,
 	LogOutIcon,
 	MoonIcon,
 	SettingsIcon,
@@ -48,30 +49,36 @@ export function AppAccountMenu({ user, isAdmin }: AppAccountMenuProps) {
 					<span className="flex h-6 w-6 items-center justify-center border border-border bg-muted text-[10px] font-semibold text-foreground">
 						{initials}
 					</span>
-					<span className="hidden max-w-[120px] truncate md:inline">{user.name}</span>
+					<span className="hidden max-w-[120px] truncate md:inline">
+						{user.name}
+					</span>
 				</Button>
 			</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" className="w-56">
-					<DropdownMenuGroup>
-						<DropdownMenuLabel className="font-normal">
-							<div className="flex flex-col gap-1">
-								<span className="truncate font-medium">{user.name}</span>
-								<span className="truncate text-xs text-muted-foreground">
-									{user.email}
-								</span>
-							</div>
-						</DropdownMenuLabel>
-					</DropdownMenuGroup>
-					<DropdownMenuSeparator />
-					<DropdownMenuGroup>
-						<DropdownMenuItem onSelect={() => navigate({ to: "/profile" })}>
-							<UserIcon />
-							Perfil
-						</DropdownMenuItem>
-						{isAdmin ? (
-						<DropdownMenuItem
-							onSelect={() => navigate({ to: "/admin" })}
-						>
+			<DropdownMenuContent align="end" className="w-56">
+				<DropdownMenuGroup>
+					<DropdownMenuLabel className="font-normal">
+						<div className="flex flex-col gap-1">
+							<span className="truncate font-medium">{user.name}</span>
+							<span className="truncate text-xs text-muted-foreground">
+								{user.email}
+							</span>
+						</div>
+					</DropdownMenuLabel>
+				</DropdownMenuGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuGroup>
+					<DropdownMenuItem onSelect={() => navigate({ to: "/profile" })}>
+						<UserIcon />
+						Perfil
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onSelect={() => navigate({ to: "/jobs", search: { page: 1 } })}
+					>
+						<ListIcon />
+						Meus jobs
+					</DropdownMenuItem>
+					{isAdmin ? (
+						<DropdownMenuItem onSelect={() => navigate({ to: "/admin" })}>
 							<SettingsIcon />
 							Administração
 						</DropdownMenuItem>

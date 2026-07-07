@@ -109,6 +109,23 @@ describe("AppAccountMenu", () => {
 		expect(navigate).toHaveBeenCalledWith({ to: "/profile" });
 	});
 
+	it("navigates to user jobs when clicking Meus jobs", async () => {
+		render(
+			<AppAccountMenu
+				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
+				isAdmin={false}
+			/>,
+		);
+
+		await openAccountMenu();
+		fireEvent.click(screen.getByText("Meus jobs"));
+
+		expect(navigate).toHaveBeenCalledWith({
+			to: "/jobs",
+			search: { page: 1 },
+		});
+	});
+
 	it("calls signOut on Sair", async () => {
 		const { authClient } = await import("@/lib/auth-client");
 

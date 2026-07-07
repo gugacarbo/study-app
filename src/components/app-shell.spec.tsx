@@ -161,4 +161,21 @@ describe("AppShell", () => {
 		const main = container.querySelector("main");
 		expect(main).toHaveClass("max-w-full");
 	});
+
+	it("shows Jobs as the page title on the jobs list route", () => {
+		mockPathname = "/jobs";
+
+		renderShell(
+			<AppShell
+				user={{ name: "Gustavo", email: "aluno@ifsc.edu.br" }}
+				isAdmin={false}
+			>
+				<p>Jobs</p>
+			</AppShell>,
+		);
+
+		expect(
+			screen.getByRole("heading", { level: 1, name: "Jobs" }),
+		).toBeInTheDocument();
+	});
 });

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import {
 	ACTIVE_INGEST_STATUSES,
 	canManuallyCancelJobStatus,
@@ -349,13 +349,65 @@ export async function listActiveJobsForUser(
 		.limit(5);
 }
 
+export async function listJobsForUser(
+	db: AppDatabase,
+	userId: string,
+): Promise<JobRow[]> {
+	return db
+		.select()
+		.from(schema.backgroundJobs)
+		.where(eq(schema.backgroundJobs.userId, userId))
+		.orderBy(desc(schema.backgroundJobs.createdAt));
+}
+
+export type UserJobsPage = {
+	rows: JobRow[];
+	total: number;
+	page: number;
+	pageSize: number;
+};
+
+export async function listJobsPageForUser(
+	db: AppDatabase,
+	userId: string,
+	page: number,
+	pageSize: number,
+): Promise<UserJobsPage> {
+	const offset = (page - 1) * pageSize;
+	const [countResult] = await db
+		.select({ total: count() })
+		.from(schema.backgroundJobs)
+		.where(eq(schema.backgroundJobs.userId, userId));
+
+	const rows = await db
+		.select()
+		.from(schema.backgroundJobs)
+		.where(eq(schema.backgroundJobs.userId, userId))
+		.orderBy(
+			desc(schema.backgroundJobs.createdAt),
+			desc(schema.backgroundJobs.id),
+		)
+		.limit(pageSize)
+		.offset(offset);
+
+	return {
+		rows,
+		total: Number(countResult.total),
+		page,
+		pageSize,
+	};
+}
+
 export async function getIngestJobIdByExamId(
 	db: AppDatabase,
 	userId: string,
 	examId: string,
 ): Promise<string | null> {
 	const rows = await db
-		.select({ id: schema.backgroundJobs.id, metadata: schema.backgroundJobs.metadata })
+		.select({
+			id: schema.backgroundJobs.id,
+			metadata: schema.backgroundJobs.metadata,
+		})
 		.from(schema.backgroundJobs)
 		.where(
 			and(

@@ -35,6 +35,9 @@ export function getAppPageTitle(pathname: string): string {
 	if (pathname === "/") {
 		return "Início";
 	}
+	if (pathname === "/jobs") {
+		return "Jobs";
+	}
 	if (pathname === "/exams/new") {
 		return "Nova prova";
 	}

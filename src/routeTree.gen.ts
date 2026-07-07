@@ -22,6 +22,7 @@ import { Route as AdminModelsIndexRouteImport } from './routes/admin/models/inde
 import { Route as AdminLlmLogsIndexRouteImport } from './routes/admin/llm-logs/index'
 import { Route as AdminJobsIndexRouteImport } from './routes/admin/jobs/index'
 import { Route as AppProfileIndexRouteImport } from './routes/_app/profile/index'
+import { Route as AppJobsIndexRouteImport } from './routes/_app/jobs/index'
 import { Route as AppExamsIndexRouteImport } from './routes/_app/exams/index'
 import { Route as ApiJobsActiveRouteImport } from './routes/api/jobs/active'
 import { Route as ApiAuthGoogleStatusRouteImport } from './routes/api/auth/google-status'
@@ -103,6 +104,11 @@ const AdminJobsIndexRoute = AdminJobsIndexRouteImport.update({
 const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
   id: '/profile/',
   path: '/profile/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppJobsIndexRoute = AppJobsIndexRouteImport.update({
+  id: '/jobs/',
+  path: '/jobs/',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppExamsIndexRoute = AppExamsIndexRouteImport.update({
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/google-status': typeof ApiAuthGoogleStatusRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/exams/': typeof AppExamsIndexRoute
+  '/jobs/': typeof AppJobsIndexRoute
   '/profile/': typeof AppProfileIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/api/auth/google-status': typeof ApiAuthGoogleStatusRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/exams': typeof AppExamsIndexRoute
+  '/jobs': typeof AppJobsIndexRoute
   '/profile': typeof AppProfileIndexRoute
   '/admin/jobs': typeof AdminJobsIndexRoute
   '/admin/llm-logs': typeof AdminLlmLogsIndexRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/api/auth/google-status': typeof ApiAuthGoogleStatusRoute
   '/api/jobs/active': typeof ApiJobsActiveRoute
   '/_app/exams/': typeof AppExamsIndexRoute
+  '/_app/jobs/': typeof AppJobsIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
   '/admin/jobs/': typeof AdminJobsIndexRoute
   '/admin/llm-logs/': typeof AdminLlmLogsIndexRoute
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/api/auth/google-status'
     | '/api/jobs/active'
     | '/exams/'
+    | '/jobs/'
     | '/profile/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/api/auth/google-status'
     | '/api/jobs/active'
     | '/exams'
+    | '/jobs'
     | '/profile'
     | '/admin/jobs'
     | '/admin/llm-logs'
@@ -374,6 +385,7 @@ export interface FileRouteTypes {
     | '/api/auth/google-status'
     | '/api/jobs/active'
     | '/_app/exams/'
+    | '/_app/jobs/'
     | '/_app/profile/'
     | '/admin/jobs/'
     | '/admin/llm-logs/'
@@ -505,6 +517,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile/'
       preLoaderRoute: typeof AppProfileIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/jobs/': {
+      id: '/_app/jobs/'
+      path: '/jobs'
+      fullPath: '/jobs/'
+      preLoaderRoute: typeof AppJobsIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/exams/': {
@@ -639,6 +658,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppExamsIndexRoute: typeof AppExamsIndexRoute
+  AppJobsIndexRoute: typeof AppJobsIndexRoute
   AppProfileIndexRoute: typeof AppProfileIndexRoute
   AppExamsExamIdIndexRoute: typeof AppExamsExamIdIndexRoute
   AppExamsNewIndexRoute: typeof AppExamsNewIndexRoute
@@ -653,6 +673,7 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppExamsIndexRoute: AppExamsIndexRoute,
+  AppJobsIndexRoute: AppJobsIndexRoute,
   AppProfileIndexRoute: AppProfileIndexRoute,
   AppExamsExamIdIndexRoute: AppExamsExamIdIndexRoute,
   AppExamsNewIndexRoute: AppExamsNewIndexRoute,
