@@ -367,7 +367,197 @@ describe("runImproveQuestionAgent", () => {
 				model: {} as never,
 				streamText: streamTextMock as never,
 				appendJobEvent: async () => {},
+				sleep: async () => {},
 			}),
 		).rejects.toThrow("Too big");
+	});
+
+	it("retries a failed question agent run with prior attempt context and a 5s delay", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		await seedUser(db, userId);
+		const examId = createId();
+		await createExam(db, { id: examId, userId, name: "Prova" });
+		const questionId = createId();
+		const jobId = createId();
+
+		await db.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Qual a capital do Brasil?",
+			options: JSON.stringify([
+				{ key: "A", text: "São Paulo" },
+				{ key: "B", text: "Brasília" },
+				{ key: "C", text: "Rio de Janeiro" },
+			]),
+			answers: JSON.stringify(["B"]),
+			scoringMode: "exact",
+			topic: "Geografia",
+		});
+
+		const sleepMock = vi.fn(async () => {});
+		const streamTextMock = vi
+			.fn<(input: { tools?: ToolSet; prompt?: string }) => { fullStream: AsyncGenerator<TextStreamPart<ToolSet>> }>()
+			.mockImplementationOnce((input) => {
+				const getQuestion = getTool(input.tools, "get_question");
+				return {
+					fullStream: (async function* () {
+						yield {
+							type: "text-delta",
+							text: "Primeira tentativa analisando a questão.",
+						} as TextStreamPart<ToolSet>;
+
+						await getQuestion.execute({ questionId }, { toolCallId: "tool-1" });
+						yield {
+							type: "tool-call",
+							toolCallId: "tool-1",
+							toolName: "get_question",
+							input: { questionId },
+						} as TextStreamPart<ToolSet>;
+
+						yield {
+							type: "error",
+							error: new Error("model exploded"),
+						} as TextStreamPart<ToolSet>;
+					})(),
+				};
+			})
+			.mockImplementationOnce((input) => {
+				const updateDraft = getTool(input.tools, "update_question_draft");
+				return {
+					fullStream: (async function* () {
+						yield {
+							type: "text-delta",
+							text: "Segunda tentativa concluída.",
+						} as TextStreamPart<ToolSet>;
+
+						await updateDraft.execute(
+							{
+								questionId,
+								question: "Qual é a capital federal do Brasil?",
+								options: [
+									{ key: "A", text: "São Paulo" },
+									{ key: "B", text: "Brasília" },
+									{ key: "C", text: "Belo Horizonte" },
+								],
+								answers: ["B"],
+								topic: "Geografia do Brasil",
+								scoringMode: "exact",
+								explanation: "Brasília é a capital federal desde 1960.",
+								deepExplanation:
+									"A capital foi transferida do Rio de Janeiro para Brasília em 1960.",
+								summary: "Funcionou após retry.",
+							},
+							{ toolCallId: "tool-2" },
+						);
+						yield {
+							type: "tool-call",
+							toolCallId: "tool-2",
+							toolName: "update_question_draft",
+							input: { questionId },
+						} as TextStreamPart<ToolSet>;
+					})(),
+				};
+			});
+
+		const events: unknown[] = [];
+		const result = await runImproveQuestionAgent({
+			db,
+			jobId,
+			userId,
+			examId,
+			questionId,
+			model: {} as never,
+			streamText: streamTextMock as never,
+			appendJobEvent: async (_jobId, payload) => {
+				events.push(payload);
+			},
+			sleep: sleepMock,
+		});
+
+		expect(result.summary).toBe("Funcionou após retry.");
+		expect(streamTextMock).toHaveBeenCalledTimes(2);
+		expect(sleepMock).toHaveBeenCalledTimes(1);
+		expect(sleepMock).toHaveBeenCalledWith(5000);
+		expect(streamTextMock.mock.calls[1]?.[0].prompt).toContain(
+			"Previous failed attempt context:",
+		);
+		expect(streamTextMock.mock.calls[1]?.[0].prompt).toContain(
+			"Primeira tentativa analisando a questão.",
+		);
+		expect(streamTextMock.mock.calls[1]?.[0].prompt).toContain("model exploded");
+		expect(streamTextMock.mock.calls[1]?.[0].prompt).toContain("get_question");
+		expect(events).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: "data-improve-question-warning",
+					data: expect.objectContaining({
+						questionId,
+						message: expect.stringContaining("Retrying question improvement"),
+					}),
+				}),
+			]),
+		);
+	});
+
+	it("fails only after exhausting 3 retries with 5s delays between attempts", async () => {
+		const db = createTestDb();
+		const userId = createId();
+		await seedUser(db, userId);
+		const examId = createId();
+		await createExam(db, { id: examId, userId, name: "Prova" });
+		const questionId = createId();
+		const jobId = createId();
+
+		await db.insert(schema.questions).values({
+			id: questionId,
+			examId,
+			question: "Qual a capital do Brasil?",
+			options: JSON.stringify([
+				{ key: "A", text: "São Paulo" },
+				{ key: "B", text: "Brasília" },
+			]),
+			answers: JSON.stringify(["B"]),
+			scoringMode: "exact",
+			topic: "Geografia",
+		});
+
+		const sleepMock = vi.fn(async () => {});
+		const streamTextMock = vi.fn(() => ({
+			fullStream: (async function* () {
+				yield {
+					type: "text-delta",
+					text: "Tentativa sem persistir draft.",
+				} as TextStreamPart<ToolSet>;
+			})(),
+		}));
+
+		await expect(
+			runImproveQuestionAgent({
+				db,
+				jobId,
+				userId,
+				examId,
+				questionId,
+				model: {} as never,
+				streamText: streamTextMock as never,
+				appendJobEvent: async () => {},
+				sleep: sleepMock,
+			}),
+		).rejects.toThrow(
+			"Improve question agent finished without persisting a draft",
+		);
+
+		expect(streamTextMock).toHaveBeenCalledTimes(4);
+		expect(sleepMock).toHaveBeenCalledTimes(3);
+		expect(sleepMock).toHaveBeenNthCalledWith(1, 5000);
+		expect(sleepMock).toHaveBeenNthCalledWith(2, 5000);
+		expect(sleepMock).toHaveBeenNthCalledWith(3, 5000);
+		expect(streamTextMock).toHaveBeenNthCalledWith(
+			4,
+			expect.objectContaining({
+				prompt: expect.stringContaining("Previous failed attempt context:"),
+			}),
+		);
 	});
 });

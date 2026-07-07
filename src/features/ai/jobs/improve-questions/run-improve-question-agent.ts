@@ -26,6 +26,7 @@ import { TavilyWebContentProvider } from "@/features/ai/providers/web/tavily-con
 import { TavilyWebSearchProvider } from "@/features/ai/providers/web/tavily-search";
 import { createWebTools } from "@/features/ai/tools/web-tools";
 import { parseQuestionRow } from "@/features/exams/lib/parse-question-fields";
+import { defaultSleep } from "@/features/ai/jobs/ingest/run-ingest/llm-helpers";
 import { QUESTION_IMPROVEMENT_RULES } from "./question-improvement-rules";
 import {
 	IMPROVE_QUESTION_STAGE,
@@ -33,6 +34,8 @@ import {
 } from "@/lib/job-kinds";
 
 const MAX_AGENT_STEPS = 6;
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 5_000;
 
 const questionSnapshotSchema = z.object({
 	questionId: z.string().uuid(),
@@ -56,7 +59,11 @@ const questionSnapshotSchema = z.object({
 	summary: z.string().trim().max(400).nullable().optional(),
 });
 
-function buildPrompt(questionId: string, writeOptionExplanations?: boolean): string {
+function buildPrompt(
+	questionId: string,
+	writeOptionExplanations?: boolean,
+	previousAttemptContext?: string,
+): string {
 	const lines = [
 		`Improve question ${questionId}.`,
 		"Always call get_question first.",
@@ -77,6 +84,14 @@ function buildPrompt(questionId: string, writeOptionExplanations?: boolean): str
 			);
 		}
 	}
+	if (previousAttemptContext) {
+		lines.push(
+			"",
+			"Previous failed attempt context:",
+			previousAttemptContext,
+			"Use this context to continue from the prior failure instead of restarting blindly.",
+		);
+	}
 	return lines.join("\n");
 }
 
@@ -91,6 +106,7 @@ export async function runImproveQuestionAgent(input: {
 	appendJobEvent: (jobId: string, payload: unknown) => Promise<void>;
 	webSearchApiKey?: string;
 	writeOptionExplanations?: boolean;
+	sleep?: (ms: number) => Promise<void>;
 }): Promise<{ summary: string | null }> {
 	await input.appendJobEvent(
 		input.jobId,
@@ -315,71 +331,107 @@ export async function runImproveQuestionAgent(input: {
 	}
 
 	const runStreamText = input.streamText ?? streamText;
-	const result = runStreamText({
-		model: input.model,
-		system:
-			"You improve one multiple-choice exam question at a time. Work in isolation, keep the output internally consistent, and persist only a complete final draft.",
-		prompt: buildPrompt(input.questionId, input.writeOptionExplanations),
-		tools,
-		stopWhen: [stepCountIs(MAX_AGENT_STEPS)],
-	});
+	const sleep = input.sleep ?? defaultSleep;
+	let previousAttemptContext: string | null = null;
 
-	for await (const part of result.fullStream) {
-		if (part.type === "start-step") {
-			const nextStep =
-				Number.parseInt(currentMessageId.split(":").at(-1) ?? "1", 10) + 1;
-			currentMessageId = buildImproveStepMessageId(input.questionId, nextStep);
-			continue;
-		}
-		if (part.type === "text-delta") {
-			await input.appendJobEvent(
-				input.jobId,
-				buildImproveTextEvent(input.questionId, currentMessageId, part.text),
-			);
-		}
-		if (part.type === "tool-call") {
-			if (part.toolName === "web_search" || part.toolName === "web_fetch") {
-				await emitQuestionStage(IMPROVE_QUESTION_STAGE.RESEARCHING);
+	for (let retryAttempt = 0; retryAttempt <= MAX_RETRY_ATTEMPTS; retryAttempt += 1) {
+		const attemptContext: string[] = [];
+		draftPersisted = false;
+		currentMessageId = buildImproveStepMessageId(input.questionId, 1);
+		await emitQuestionStage(IMPROVE_QUESTION_STAGE.DRAFTING);
+
+		try {
+			const result = runStreamText({
+				model: input.model,
+				system:
+					"You improve one multiple-choice exam question at a time. Work in isolation, keep the output internally consistent, and persist only a complete final draft.",
+				prompt: buildPrompt(
+					input.questionId,
+					input.writeOptionExplanations,
+					previousAttemptContext ?? undefined,
+				),
+				tools,
+				stopWhen: [stepCountIs(MAX_AGENT_STEPS)],
+			});
+
+			for await (const part of result.fullStream) {
+				if (part.type === "start-step") {
+					const nextStep =
+						Number.parseInt(currentMessageId.split(":").at(-1) ?? "1", 10) + 1;
+					currentMessageId = buildImproveStepMessageId(
+						input.questionId,
+						nextStep,
+					);
+					continue;
+				}
+				if (part.type === "text-delta") {
+					attemptContext.push(`text: ${part.text}`);
+					await input.appendJobEvent(
+						input.jobId,
+						buildImproveTextEvent(input.questionId, currentMessageId, part.text),
+					);
+				}
+				if (part.type === "tool-call") {
+					attemptContext.push(
+						`tool-call ${part.toolName}: ${JSON.stringify(part.input)}`,
+					);
+					if (part.toolName === "web_search" || part.toolName === "web_fetch") {
+						await emitQuestionStage(IMPROVE_QUESTION_STAGE.RESEARCHING);
+					}
+					await input.appendJobEvent(
+						input.jobId,
+						buildImproveToolCallEvent({
+							questionId: input.questionId,
+							messageId: currentMessageId,
+							toolCallId: part.toolCallId,
+							toolName: part.toolName,
+							argsText: JSON.stringify(part.input),
+						}),
+					);
+					if (part.toolName !== "web_search" && part.toolName !== "web_fetch") {
+						await emitQuestionStage(IMPROVE_QUESTION_STAGE.DRAFTING);
+					}
+				}
+				if (part.type === "error") {
+					throw part.error;
+				}
 			}
-			await input.appendJobEvent(
-				input.jobId,
-				buildImproveToolCallEvent({
-					questionId: input.questionId,
-					messageId: currentMessageId,
-					toolCallId: part.toolCallId,
-					toolName: part.toolName,
-					argsText: JSON.stringify(part.input),
-				}),
-			);
-			if (part.toolName !== "web_search" && part.toolName !== "web_fetch") {
-				await emitQuestionStage(IMPROVE_QUESTION_STAGE.DRAFTING);
+
+			if (!draftPersisted) {
+				throw new Error(
+					"Improve question agent finished without persisting a draft",
+				);
 			}
-		}
-		if (part.type === "error") {
+
+			return { summary: latestSummary };
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "unknown_error";
+			attemptContext.push(`error: ${errorMessage}`);
+			previousAttemptContext = attemptContext.join("\n");
+
+			if (retryAttempt >= MAX_RETRY_ATTEMPTS) {
+				await input.appendJobEvent(
+					input.jobId,
+					buildImproveQuestionStatusEvent({
+						questionId: input.questionId,
+						status: "failed",
+						error: errorMessage,
+					}),
+				);
+				throw error;
+			}
+
 			await input.appendJobEvent(
 				input.jobId,
-				buildImproveQuestionStatusEvent({
-					questionId: input.questionId,
-					status: "failed",
-					error:
-						part.error instanceof Error ? part.error.message : "unknown_error",
-				}),
+				buildImproveQuestionWarningEvent(
+					input.questionId,
+					`Retrying question improvement after attempt ${retryAttempt + 1} failed: ${errorMessage}`,
+				),
 			);
-			throw part.error;
+			await sleep(RETRY_DELAY_MS);
 		}
 	}
 
-	if (!draftPersisted) {
-		await input.appendJobEvent(
-			input.jobId,
-			buildImproveQuestionStatusEvent({
-				questionId: input.questionId,
-				status: "failed",
-				error: "Improve question agent finished without persisting a draft",
-			}),
-		);
-		throw new Error("Improve question agent finished without persisting a draft");
-	}
-
-	return { summary: latestSummary };
+	throw new Error("Improve question agent retry loop exited unexpectedly");
 }

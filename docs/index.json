@@ -923,5 +923,24 @@
     ],
     "superseded-by": null,
     "implemented-by": []
+  },
+  {
+    "id": "SPEC-0033",
+    "path": "docs/specs/exams/0033-geracao-provas-por-conteudo.md",
+    "layer": "specs",
+    "title": "Geração de provas por conteúdo",
+    "status": "draft",
+    "builds-on": [
+      "ADR-0002",
+      "ADR-0005",
+      "ADR-0008",
+      "ADR-0009",
+      "SPEC-0001",
+      "SPEC-0004",
+      "SPEC-0008",
+      "SPEC-0009"
+    ],
+    "superseded-by": null,
+    "implemented-by": []
   }
 ]

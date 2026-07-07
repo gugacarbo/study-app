@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -10,9 +10,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	Field,
+	FieldContent,
+	FieldDescription,
+	FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useImproveQuestionsJob } from "@/features/exams/hooks/use-improve-questions-job";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
+import { IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY } from "@/lib/job-kinds";
 
 type ExamImproveQuestionsDialogProps = {
 	examId: string;
@@ -29,6 +37,9 @@ export function ExamImproveQuestionsDialog({
 }: ExamImproveQuestionsDialogProps) {
 	const improveJob = useImproveQuestionsJob();
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+	const [concurrencyLimit, setConcurrencyLimit] = useState(
+		IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY,
+	);
 	const [writeExplanations, setWriteExplanations] = useState(false);
 	const [writeOptionExplanations, setWriteOptionExplanations] = useState(false);
 
@@ -36,15 +47,21 @@ export function ExamImproveQuestionsDialog({
 		() => questions.map((question) => question.id),
 		[questions],
 	);
-	const effectiveSelectedIds = selectedIds.length > 0 ? selectedIds : allIds;
+
+	useEffect(() => {
+		if (!open) return;
+		setSelectedIds(allIds);
+		setConcurrencyLimit(IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY);
+		setWriteExplanations(false);
+		setWriteOptionExplanations(false);
+	}, [allIds, open]);
 
 	function toggleQuestion(questionId: string, checked: boolean) {
 		setSelectedIds((prev) => {
-			const base = prev.length > 0 ? prev : allIds;
 			if (checked) {
-				return Array.from(new Set([...base, questionId]));
+				return Array.from(new Set([...prev, questionId]));
 			}
-			return base.filter((id) => id !== questionId);
+			return prev.filter((id) => id !== questionId);
 		});
 	}
 
@@ -53,10 +70,11 @@ export function ExamImproveQuestionsDialog({
 	}
 
 	async function handleSubmit() {
-		if (effectiveSelectedIds.length === 0) return;
+		if (selectedIds.length === 0) return;
 		const ok = await improveJob.submit({
 			examId,
-			questionIds: effectiveSelectedIds,
+			questionIds: selectedIds,
+			concurrencyLimit,
 			writeExplanations,
 			writeOptionExplanations,
 		});
@@ -67,7 +85,7 @@ export function ExamImproveQuestionsDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-2xl h-128 flex flex-col">
+			<DialogContent className="w-[min(56rem,calc(100vw-2rem))] max-w-4xl min-h-[42rem] max-h-[90vh] flex flex-col">
 				<DialogHeader>
 					<DialogTitle>Melhorar questões</DialogTitle>
 					<DialogDescription>
@@ -77,21 +95,21 @@ export function ExamImproveQuestionsDialog({
 
 				<div className="flex items-center justify-between">
 					<p className="text-sm text-muted-foreground">
-						{effectiveSelectedIds.length} de {questions.length} selecionada(s)
+						{selectedIds.length} de {questions.length} selecionada(s)
 					</p>
 					<Button
 						type="button"
 						variant="ghost"
 						size="sm"
 						onClick={() => {
-							if (effectiveSelectedIds.length === questions.length) {
+							if (selectedIds.length === questions.length) {
 								setSelectedIds([]);
 							} else {
 								selectAll();
 							}
 						}}
 					>
-						{effectiveSelectedIds.length === questions.length
+						{selectedIds.length === questions.length
 							? "Desmarcar todas"
 							: "Selecionar todas"}
 					</Button>
@@ -99,7 +117,7 @@ export function ExamImproveQuestionsDialog({
 
 				<div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1">
 					{questions.map((question, index) => {
-						const checked = effectiveSelectedIds.includes(question.id);
+						const checked = selectedIds.includes(question.id);
 						return (
 							<label
 								key={question.id}
@@ -124,6 +142,36 @@ export function ExamImproveQuestionsDialog({
 						);
 					})}
 				</div>
+
+				<Field orientation="vertical">
+					<FieldLabel htmlFor="improve-concurrency-limit">
+						Máximo de tarefas em paralelo
+					</FieldLabel>
+					<FieldContent>
+						<Input
+							id="improve-concurrency-limit"
+							type="number"
+							min={1}
+							max={5}
+							value={concurrencyLimit}
+							onChange={(event) => {
+								const parsed = Number.parseInt(event.target.value, 10);
+								if (Number.isNaN(parsed)) {
+									setConcurrencyLimit(
+										IMPROVE_QUESTIONS_DEFAULT_CONCURRENCY,
+									);
+									return;
+								}
+								setConcurrencyLimit(Math.min(5, Math.max(1, parsed)));
+							}}
+							disabled={improveJob.isPending}
+							aria-label="Máximo de tarefas em paralelo"
+						/>
+						<FieldDescription>
+							Define quantas questões o job pode processar ao mesmo tempo.
+						</FieldDescription>
+					</FieldContent>
+				</Field>
 
 				<div className="flex items-center justify-between rounded-lg border px-3 py-3">
 					<div className="space-y-1">
@@ -197,7 +245,7 @@ export function ExamImproveQuestionsDialog({
 					<Button
 						type="button"
 						onClick={() => void handleSubmit()}
-						disabled={improveJob.isPending || effectiveSelectedIds.length === 0}
+						disabled={improveJob.isPending || selectedIds.length === 0}
 					>
 						{improveJob.isPending ? "Iniciando…" : "Iniciar melhoria"}
 					</Button>

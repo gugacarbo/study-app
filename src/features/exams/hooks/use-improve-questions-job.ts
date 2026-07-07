@@ -24,6 +24,7 @@ export function useImproveQuestionsJob() {
 		async (input: {
 			examId: string;
 			questionIds: string[];
+			concurrencyLimit?: number;
 			writeExplanations?: boolean;
 			writeOptionExplanations?: boolean;
 		}) => {

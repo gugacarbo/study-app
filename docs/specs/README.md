@@ -36,3 +36,4 @@
 | [SPEC-0030](ui/0030-identity-visual-redesign.md)             | Redesign visual: identidade acadêmica premium                                 | implemented |
 | [SPEC-0031](0031-recuperacao-jobs-orfos-worker-lease.md)     | Recuperar jobs órfãos com lease e heartbeat de worker                         | implemented |
 | [SPEC-0032](exams/0032-explicacoes-alternativas-melhoria.md) | Explicações por alternativa no job de melhoria de questões                    | draft       |
+| [SPEC-0033](exams/0033-geracao-provas-por-conteudo.md)       | Geração de provas por conteúdo                                                | draft       |
