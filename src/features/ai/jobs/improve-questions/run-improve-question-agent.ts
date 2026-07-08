@@ -107,6 +107,7 @@ export async function runImproveQuestionAgent(input: {
 	webSearchApiKey?: string;
 	writeOptionExplanations?: boolean;
 	sleep?: (ms: number) => Promise<void>;
+	abortSignal?: AbortSignal;
 }): Promise<{ summary: string | null }> {
 	await input.appendJobEvent(
 		input.jobId,
@@ -335,6 +336,9 @@ export async function runImproveQuestionAgent(input: {
 	let previousAttemptContext: string | null = null;
 
 	for (let retryAttempt = 0; retryAttempt <= MAX_RETRY_ATTEMPTS; retryAttempt += 1) {
+		if (input.abortSignal?.aborted) {
+			throw new Error(`Question ${input.questionId} was aborted`);
+		}
 		const attemptContext: string[] = [];
 		draftPersisted = false;
 		currentMessageId = buildImproveStepMessageId(input.questionId, 1);
@@ -352,6 +356,7 @@ export async function runImproveQuestionAgent(input: {
 				),
 				tools,
 				stopWhen: [stepCountIs(MAX_AGENT_STEPS)],
+				abortSignal: input.abortSignal,
 			});
 
 			for await (const part of result.fullStream) {
@@ -405,6 +410,9 @@ export async function runImproveQuestionAgent(input: {
 
 			return { summary: latestSummary };
 		} catch (error) {
+			if (input.abortSignal?.aborted) {
+				throw error;
+			}
 			const errorMessage =
 				error instanceof Error ? error.message : "unknown_error";
 			attemptContext.push(`error: ${errorMessage}`);

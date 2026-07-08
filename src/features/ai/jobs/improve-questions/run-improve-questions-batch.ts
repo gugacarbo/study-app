@@ -164,7 +164,10 @@ export async function runImproveQuestionsBatch(input: {
 			);
 		} catch (error) {
 			metadata.runningCount = Math.max(0, metadata.runningCount - 1);
-			if (error instanceof QuestionCancelledError) {
+			const wasCancelled =
+				error instanceof QuestionCancelledError ||
+				(await isQuestionCancelled(item.questionId));
+			if (wasCancelled) {
 				item.status = "cancelled";
 				item.stage = item.stage ?? IMPROVE_QUESTION_STAGE.QUEUED;
 				metadata.cancelledCount += 1;

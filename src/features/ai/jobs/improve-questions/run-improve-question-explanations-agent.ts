@@ -66,6 +66,7 @@ export async function runImproveQuestionExplanationsAgent(input: {
 	streamText?: typeof streamText;
 	appendJobEvent: (jobId: string, payload: unknown) => Promise<void>;
 	webSearchApiKey?: string;
+	abortSignal?: AbortSignal;
 }): Promise<{ summary: string; alerts: string[] }> {
 	await input.appendJobEvent(
 		input.jobId,
@@ -256,6 +257,9 @@ export async function runImproveQuestionExplanationsAgent(input: {
 		missingFinishAttempt <= MAX_FINISH_RETRIES && !finished;
 		missingFinishAttempt += 1
 	) {
+		if (input.abortSignal?.aborted) {
+			throw new Error(`Explanations for question ${input.questionId} were aborted`);
+		}
 		const result = runStreamText({
 			model: input.model,
 		system:
@@ -263,6 +267,7 @@ export async function runImproveQuestionExplanationsAgent(input: {
 			prompt: buildPrompt(input.questionId, missingFinishAttempt),
 			tools,
 			stopWhen: [stepCountIs(MAX_AGENT_STEPS)],
+			abortSignal: input.abortSignal,
 		});
 
 		for await (const part of result.fullStream) {

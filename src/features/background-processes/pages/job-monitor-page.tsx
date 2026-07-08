@@ -30,12 +30,6 @@ type JobMonitorPageProps = {
 	jobId: string;
 };
 
-type QuestionActionError = {
-	questionId: string;
-	action: "cancel" | "retry";
-	message: string;
-};
-
 export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	const monitor = useJobMonitor(jobId);
 	const pendingFile = useRouterState({
@@ -43,7 +37,6 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 			(state.location.state as JobUploadLocationState | undefined)?.pendingFile,
 	});
 	const [cancelError, setCancelError] = useState<string | null>(null);
-	const [questionError, setQuestionError] = useState<QuestionActionError | null>(null);
 
 	const cancelMutation = useMutation({
 		mutationFn: () => cancelJob(jobId),
@@ -61,42 +54,16 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	const cancelQuestionMutation = useMutation({
 		mutationFn: ({ questionId }: { questionId: string }) =>
 			cancelImproveQuestion(jobId, questionId),
-		onMutate: ({ questionId }) => {
-			setQuestionError((prev) => (prev?.questionId === questionId ? null : prev));
-		},
 		onSuccess: () => {
 			void monitor.refetch();
-		},
-		onError: (error, { questionId }) => {
-			setQuestionError({
-				questionId,
-				action: "cancel",
-				message:
-					error instanceof Error
-						? error.message
-						: "Não foi possível cancelar a questão.",
-			});
 		},
 	});
 
 	const retryQuestionMutation = useMutation({
 		mutationFn: ({ questionId }: { questionId: string }) =>
 			retryImproveQuestion(jobId, questionId),
-		onMutate: ({ questionId }) => {
-			setQuestionError((prev) => (prev?.questionId === questionId ? null : prev));
-		},
 		onSuccess: () => {
 			void monitor.refetch();
-		},
-		onError: (error, { questionId }) => {
-			setQuestionError({
-				questionId,
-				action: "retry",
-				message:
-					error instanceof Error
-						? error.message
-						: "Não foi possível tentar novamente a questão.",
-			});
 		},
 	});
 
@@ -212,16 +179,20 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 					monitor={monitor.improve ?? { batchPhase: null, questions: [] }}
 					events={monitor.events}
 					isLoading={monitor.isLoading}
+					isJobLive={isRunning}
+					pendingQuestionId={
+						cancelQuestionMutation.isPending
+							? cancelQuestionMutation.variables.questionId
+							: retryQuestionMutation.isPending
+								? retryQuestionMutation.variables.questionId
+								: null
+					}
 					onCancelQuestion={(questionId) =>
 						cancelQuestionMutation.mutate({ questionId })
 					}
 					onRetryQuestion={(questionId) =>
 						retryQuestionMutation.mutate({ questionId })
 					}
-					pendingQuestionAction={
-						cancelQuestionMutation.isPending || retryQuestionMutation.isPending
-					}
-					questionError={questionError}
 				/>
 			) : (
 				<JobWorkspaceLayout

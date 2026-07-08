@@ -141,15 +141,8 @@ describe("runImproveQuestionsBatch", () => {
 
 	it("cancels a running question when per-question cancellation is requested", async () => {
 		const questionIds = [createId(), createId()];
-		let questionCalls = 0;
-		let secondQuestionCancelled = false;
 
 		const executeQuestion = vi.fn(async ({ questionId }: { questionId: string }) => {
-			questionCalls += 1;
-			if (questionCalls === 2) {
-				secondQuestionCancelled = true;
-			}
-			await Promise.resolve();
 			return { summary: `ok:${questionId}` };
 		});
 
@@ -157,19 +150,19 @@ describe("runImproveQuestionsBatch", () => {
 
 		await runImproveQuestionsBatch({
 			jobId: createId(),
-			metadata: createMetadata(questionIds),
+			metadata: { ...createMetadata(questionIds), concurrencyLimit: 1 },
 			deps: {
 				appendJobEvent: async () => undefined,
 				updateJobStatus,
 				isCancelRequested: async () => false,
 				isQuestionCancelled: async (questionId: string) => {
-					return questionId === questionIds[1] && secondQuestionCancelled;
+					return questionId === questionIds[1];
 				},
 				executeQuestion,
 			},
 		});
 
-		expect(executeQuestion).toHaveBeenCalledTimes(2);
+		expect(executeQuestion).toHaveBeenCalledTimes(1);
 		const lastCall = updateJobStatus.mock.calls.at(-1) as
 			| [string, { metadata?: ImproveQuestionsJobMetadata }]
 			| undefined;
@@ -201,6 +194,46 @@ describe("runImproveQuestionsBatch", () => {
 		});
 
 		expect(executeQuestion).toHaveBeenCalledTimes(1);
+	});
+
+	it("treats an agent abort error as cancellation when isQuestionCancelled is true", async () => {
+		const questionIds = [createId(), createId()];
+		let secondQuestionStarted = false;
+
+		const executeQuestion = vi.fn(async ({ questionId }: { questionId: string }) => {
+			if (questionId === questionIds[1]) {
+				secondQuestionStarted = true;
+				throw new Error("agent aborted");
+			}
+			return { summary: `ok:${questionId}` };
+		});
+
+		const updateJobStatus = vi.fn(async () => undefined);
+
+		await runImproveQuestionsBatch({
+			jobId: createId(),
+			metadata: { ...createMetadata(questionIds), concurrencyLimit: 1 },
+			deps: {
+				appendJobEvent: async () => undefined,
+				updateJobStatus,
+				isCancelRequested: async () => false,
+				isQuestionCancelled: async (questionId: string) => {
+					return questionId === questionIds[1] && secondQuestionStarted;
+				},
+				executeQuestion,
+			},
+		});
+
+		expect(executeQuestion).toHaveBeenCalledTimes(2);
+		const lastCall = updateJobStatus.mock.calls.at(-1) as
+			| [string, { metadata?: ImproveQuestionsJobMetadata }]
+			| undefined;
+		const lastMetadata = lastCall?.[1].metadata;
+		expect(
+			lastMetadata?.items.find((i) => i.questionId === questionIds[1])?.status,
+		).toBe("cancelled");
+		expect(lastMetadata?.cancelledCount).toBe(1);
+		expect(lastMetadata?.failedCount).toBe(0);
 	});
 
 	it("runs the explanation agent after the improvement agent when enabled and emits completed only once", async () => {

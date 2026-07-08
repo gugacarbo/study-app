@@ -14,6 +14,7 @@ import { runGenerateExam } from "@/features/ai/jobs/generate-exam/run-generate-e
 import { runImproveQuestionAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-agent";
 import { runImproveQuestionExplanationsAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-explanations-agent";
 import { runImproveQuestionsBatch } from "@/features/ai/jobs/improve-questions/run-improve-questions-batch";
+import { withCancellationWatch } from "@/features/ai/jobs/shared/cancellation-watcher";
 import {
 	type RunIngestDeps,
 	runIngest,
@@ -103,7 +104,9 @@ export async function runJobConsumer(
 							job?.metadata ?? null,
 						);
 						const item = parsed?.items.find((i) => i.questionId === questionId);
-						return item?.status === "cancelled";
+						return (
+							item?.status === "cancelled" || item?.cancelRequestedAt != null
+						);
 					},
 					isCancelRequested: async () => {
 						await heartbeat();
@@ -120,23 +123,42 @@ export async function runJobConsumer(
 							userId: ctx.job.userId,
 							modelId: metadata.modelId,
 						});
-						return runImproveQuestionAgent({
-							db: ctx.db,
-							jobId: ctx.job.id,
-							userId: ctx.job.userId,
-							examId: metadata.examId,
-							questionId,
-							model: model as never,
-							appendJobEvent: async (jobId, payload) => {
-								if (jobId !== ctx.job.id) {
-									throw new Error(
-										"Unexpected job id for improve question appender",
-									);
-								}
-								await eventAppender.append(payload);
-							},
-							webSearchApiKey: ctx.env.TAVILY_API_KEY,
-							writeOptionExplanations: _writeOptionExplanations,
+						const isCancelled = async () => {
+							await heartbeat();
+							const job = await getJobByIdInternal(ctx.db, ctx.job.id);
+							const parsed = parseImproveQuestionsJobMetadata(
+								job?.metadata ?? null,
+							);
+							const item = parsed?.items.find(
+								(i) => i.questionId === questionId,
+							);
+							if (item?.status === "cancelled" || item?.cancelRequestedAt != null) {
+								return true;
+							}
+							return job?.cancelRequestedAt != null;
+						};
+						return withCancellationWatch({
+							isCancelled,
+							execute: (abortSignal) =>
+								runImproveQuestionAgent({
+									db: ctx.db,
+									jobId: ctx.job.id,
+									userId: ctx.job.userId,
+									examId: metadata.examId,
+									questionId,
+									model: model as never,
+									appendJobEvent: async (jobId, payload) => {
+										if (jobId !== ctx.job.id) {
+											throw new Error(
+												"Unexpected job id for improve question appender",
+											);
+										}
+										await eventAppender.append(payload);
+									},
+									webSearchApiKey: ctx.env.TAVILY_API_KEY,
+									writeOptionExplanations: _writeOptionExplanations,
+									abortSignal,
+								}),
 						});
 					},
 					executeExplanations: async ({ questionId }) => {
@@ -146,22 +168,41 @@ export async function runJobConsumer(
 							userId: ctx.job.userId,
 							modelId: metadata.modelId,
 						});
-						return runImproveQuestionExplanationsAgent({
-							db: ctx.db,
-							jobId: ctx.job.id,
-							userId: ctx.job.userId,
-							examId: metadata.examId,
-							questionId,
-							model: model as never,
-							appendJobEvent: async (jobId, payload) => {
-								if (jobId !== ctx.job.id) {
-									throw new Error(
-										"Unexpected job id for improve explanations appender",
-									);
-								}
-								await eventAppender.append(payload);
-							},
-							webSearchApiKey: ctx.env.TAVILY_API_KEY,
+						const isCancelled = async () => {
+							await heartbeat();
+							const job = await getJobByIdInternal(ctx.db, ctx.job.id);
+							const parsed = parseImproveQuestionsJobMetadata(
+								job?.metadata ?? null,
+							);
+							const item = parsed?.items.find(
+								(i) => i.questionId === questionId,
+							);
+							if (item?.status === "cancelled" || item?.cancelRequestedAt != null) {
+								return true;
+							}
+							return job?.cancelRequestedAt != null;
+						};
+						return withCancellationWatch({
+							isCancelled,
+							execute: (abortSignal) =>
+								runImproveQuestionExplanationsAgent({
+									db: ctx.db,
+									jobId: ctx.job.id,
+									userId: ctx.job.userId,
+									examId: metadata.examId,
+									questionId,
+									model: model as never,
+									appendJobEvent: async (jobId, payload) => {
+										if (jobId !== ctx.job.id) {
+											throw new Error(
+												"Unexpected job id for improve explanations appender",
+											);
+										}
+										await eventAppender.append(payload);
+									},
+									webSearchApiKey: ctx.env.TAVILY_API_KEY,
+									abortSignal,
+								}),
 						});
 					},
 				},

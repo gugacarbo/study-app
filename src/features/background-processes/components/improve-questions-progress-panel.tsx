@@ -32,10 +32,10 @@ type ImproveQuestionsProgressPanelProps = {
 	metadata: ImproveQuestionsJobMetadata;
 	monitor: ImproveMonitorState;
 	isLoading: boolean;
-	isCancelling?: Record<string, boolean>;
-	isRetrying?: Record<string, boolean>;
+	isJobLive: boolean;
 	onCancelQuestion?: (questionId: string) => void;
 	onRetryQuestion?: (questionId: string) => void;
+	pendingQuestionId?: string | null;
 };
 
 const BATCH_STEPS = [
@@ -115,19 +115,21 @@ function StepIcon({
 
 function ImproveQuestionListItem({
 	question,
-	isCancelling,
-	isRetrying,
+	isJobLive,
+	pendingQuestionId,
 	onCancelQuestion,
 	onRetryQuestion,
 }: {
 	question: ImproveMonitorState["questions"][number];
-	isCancelling?: boolean;
-	isRetrying?: boolean;
+	isJobLive: boolean;
+	pendingQuestionId?: string | null;
 	onCancelQuestion?: (questionId: string) => void;
 	onRetryQuestion?: (questionId: string) => void;
 }) {
-	const canCancel = question.status === "running" || question.status === "queued";
+	const canCancel =
+		isJobLive && (question.status === "running" || question.status === "queued");
 	const canRetry = question.status === "failed" || question.status === "cancelled";
+	const isPending = pendingQuestionId === question.questionId;
 
 	return (
 		<div className="flex flex-col gap-1.5">
@@ -149,10 +151,10 @@ function ImproveQuestionListItem({
 						variant="outline"
 						size="sm"
 						className="h-7 px-2 text-xs"
-						disabled={isCancelling}
+						disabled={isPending}
 						onClick={() => onCancelQuestion(question.questionId)}
 					>
-						{isCancelling ? "Cancelando…" : "Cancelar"}
+						{isPending ? "Cancelando…" : "Cancelar"}
 					</Button>
 				) : null}
 				{canRetry && onRetryQuestion ? (
@@ -160,10 +162,10 @@ function ImproveQuestionListItem({
 						variant="outline"
 						size="sm"
 						className="h-7 px-2 text-xs"
-						disabled={isRetrying}
+						disabled={isPending}
 						onClick={() => onRetryQuestion(question.questionId)}
 					>
-						{isRetrying ? "Reiniciando…" : "Tentar novamente"}
+						{isPending ? "Reiniciando…" : "Tentar novamente"}
 					</Button>
 				) : null}
 			</div>
@@ -177,8 +179,8 @@ export function ImproveQuestionsProgressPanel({
 	metadata,
 	monitor,
 	isLoading,
-	isCancelling,
-	isRetrying,
+	isJobLive,
+	pendingQuestionId,
 	onCancelQuestion,
 	onRetryQuestion,
 }: ImproveQuestionsProgressPanelProps) {
@@ -294,13 +296,13 @@ export function ImproveQuestionsProgressPanel({
 												key={question.questionId}
 												className="rounded-md border bg-muted/20 px-2.5 py-2"
 											>
-												<ImproveQuestionListItem
-													question={question}
-													isCancelling={isCancelling?.[question.questionId]}
-													isRetrying={isRetrying?.[question.questionId]}
-													onCancelQuestion={onCancelQuestion}
-													onRetryQuestion={onRetryQuestion}
-												/>
+								<ImproveQuestionListItem
+												question={question}
+												isJobLive={isJobLive}
+												pendingQuestionId={pendingQuestionId}
+												onCancelQuestion={onCancelQuestion}
+												onRetryQuestion={onRetryQuestion}
+											/>
 											</li>
 										))}
 									</ul>
@@ -320,8 +322,8 @@ export function ImproveQuestionsProgressPanel({
 									>
 										<ImproveQuestionListItem
 											question={question}
-											isCancelling={isCancelling?.[question.questionId]}
-											isRetrying={isRetrying?.[question.questionId]}
+											isJobLive={isJobLive}
+											pendingQuestionId={pendingQuestionId}
 											onCancelQuestion={onCancelQuestion}
 											onRetryQuestion={onRetryQuestion}
 										/>

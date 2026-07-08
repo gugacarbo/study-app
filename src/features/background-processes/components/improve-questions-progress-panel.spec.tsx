@@ -40,6 +40,7 @@ describe("ImproveQuestionsProgressPanel", () => {
 				status={JOB_STATUS.COMPLETED}
 				error={null}
 				isLoading={false}
+				isJobLive={false}
 				metadata={{
 					examId: "exam-1",
 					modelId: "model-1",
@@ -125,6 +126,7 @@ describe("ImproveQuestionsProgressPanel", () => {
 				status={JOB_STATUS.RUNNING}
 				error={null}
 				isLoading={false}
+				isJobLive={true}
 				metadata={{
 					examId: "exam-1",
 					modelId: "model-1",
@@ -181,6 +183,7 @@ describe("ImproveQuestionsProgressPanel", () => {
 				status={JOB_STATUS.RUNNING}
 				error={null}
 				isLoading={false}
+				isJobLive={true}
 				metadata={{
 					examId: "exam-1",
 					modelId: "model-1",
