@@ -51,6 +51,34 @@ export async function cancelJob(jobId: string): Promise<void> {
 	}
 }
 
+export async function cancelImproveQuestion(
+	jobId: string,
+	questionId: string,
+): Promise<{ ok: true; alreadyTerminal?: boolean }> {
+	const response = await fetch(
+		`/api/jobs/${jobId}/questions/${questionId}/cancel`,
+		{ method: "POST" },
+	);
+	if (!response.ok) {
+		throw new Error(await parseJobApiError(response));
+	}
+	return response.json() as Promise<{ ok: true; alreadyTerminal?: boolean }>;
+}
+
+export async function retryImproveQuestion(
+	jobId: string,
+	questionId: string,
+): Promise<{ ok: true }> {
+	const response = await fetch(
+		`/api/jobs/${jobId}/questions/${questionId}/retry`,
+		{ method: "POST" },
+	);
+	if (!response.ok) {
+		throw new Error(await parseJobApiError(response));
+	}
+	return response.json() as Promise<{ ok: true }>;
+}
+
 export async function fetchJobEvents(
 	jobId: string,
 	afterSeq = 0,

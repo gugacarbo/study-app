@@ -16,6 +16,10 @@ type ImproveQuestionsJobPanelProps = {
 	monitor: ImproveMonitorState;
 	events: JobEventRecord[];
 	isLoading: boolean;
+	isJobLive: boolean;
+	pendingQuestionId?: string | null;
+	onCancelQuestion: (questionId: string) => void;
+	onRetryQuestion: (questionId: string) => void;
 };
 
 export function ImproveQuestionsJobPanel({
@@ -26,9 +30,20 @@ export function ImproveQuestionsJobPanel({
 	monitor,
 	events,
 	isLoading,
+	isJobLive,
+	pendingQuestionId,
+	onCancelQuestion,
+	onRetryQuestion,
 }: ImproveQuestionsJobPanelProps) {
 	const activityContent = (
-		<ImproveQuestionsActivityPanel monitor={monitor} status={status} />
+		<ImproveQuestionsActivityPanel
+			monitor={monitor}
+			status={status}
+			isJobLive={isJobLive}
+			pendingQuestionId={pendingQuestionId}
+			onCancelQuestion={onCancelQuestion}
+			onRetryQuestion={onRetryQuestion}
+		/>
 	);
 	const progressContent = (
 		<ImproveQuestionsProgressPanel
@@ -37,6 +52,10 @@ export function ImproveQuestionsJobPanel({
 			metadata={metadata}
 			monitor={monitor}
 			isLoading={isLoading}
+			isJobLive={isJobLive}
+			pendingQuestionId={pendingQuestionId}
+			onCancelQuestion={onCancelQuestion}
+			onRetryQuestion={onRetryQuestion}
 		/>
 	);
 	const eventsContent = (

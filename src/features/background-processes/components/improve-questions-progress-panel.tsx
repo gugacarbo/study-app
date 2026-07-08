@@ -32,6 +32,10 @@ type ImproveQuestionsProgressPanelProps = {
 	metadata: ImproveQuestionsJobMetadata;
 	monitor: ImproveMonitorState;
 	isLoading: boolean;
+	isCancelling?: Record<string, boolean>;
+	isRetrying?: Record<string, boolean>;
+	onCancelQuestion?: (questionId: string) => void;
+	onRetryQuestion?: (questionId: string) => void;
 };
 
 const BATCH_STEPS = [
@@ -111,9 +115,20 @@ function StepIcon({
 
 function ImproveQuestionListItem({
 	question,
+	isCancelling,
+	isRetrying,
+	onCancelQuestion,
+	onRetryQuestion,
 }: {
 	question: ImproveMonitorState["questions"][number];
+	isCancelling?: boolean;
+	isRetrying?: boolean;
+	onCancelQuestion?: (questionId: string) => void;
+	onRetryQuestion?: (questionId: string) => void;
 }) {
+	const canCancel = question.status === "running" || question.status === "queued";
+	const canRetry = question.status === "failed" || question.status === "cancelled";
+
 	return (
 		<div className="flex flex-col gap-1.5">
 			<div className="flex items-center justify-between gap-2">
@@ -128,6 +143,30 @@ function ImproveQuestionListItem({
 			{question.warnings[0] ? (
 				<p className="text-xs text-amber-700">Alerta: {question.warnings[0]}</p>
 			) : null}
+			<div className="mt-1 flex flex-wrap items-center gap-2">
+				{canCancel && onCancelQuestion ? (
+					<Button
+						variant="outline"
+						size="sm"
+						className="h-7 px-2 text-xs"
+						disabled={isCancelling}
+						onClick={() => onCancelQuestion(question.questionId)}
+					>
+						{isCancelling ? "Cancelando…" : "Cancelar"}
+					</Button>
+				) : null}
+				{canRetry && onRetryQuestion ? (
+					<Button
+						variant="outline"
+						size="sm"
+						className="h-7 px-2 text-xs"
+						disabled={isRetrying}
+						onClick={() => onRetryQuestion(question.questionId)}
+					>
+						{isRetrying ? "Reiniciando…" : "Tentar novamente"}
+					</Button>
+				) : null}
+			</div>
 		</div>
 	);
 }
@@ -138,6 +177,10 @@ export function ImproveQuestionsProgressPanel({
 	metadata,
 	monitor,
 	isLoading,
+	isCancelling,
+	isRetrying,
+	onCancelQuestion,
+	onRetryQuestion,
 }: ImproveQuestionsProgressPanelProps) {
 	const currentStep =
 		status === JOB_STATUS.COMPLETED ? BATCH_STEPS.length : stepIndex(monitor.batchPhase);
@@ -251,31 +294,43 @@ export function ImproveQuestionsProgressPanel({
 												key={question.questionId}
 												className="rounded-md border bg-muted/20 px-2.5 py-2"
 											>
-												<ImproveQuestionListItem question={question} />
+												<ImproveQuestionListItem
+													question={question}
+													isCancelling={isCancelling?.[question.questionId]}
+													isRetrying={isRetrying?.[question.questionId]}
+													onCancelQuestion={onCancelQuestion}
+													onRetryQuestion={onRetryQuestion}
+												/>
 											</li>
 										))}
 									</ul>
 								</AccordionContent>
-							</AccordionItem>
-						</Accordion>
-					</div>
-					<div
-						aria-label="Lista de questões no desktop"
-						className="hidden min-h-40 flex-1 overflow-y-auto md:block"
-					>
-						<ul className="flex flex-col gap-1.5">
-							{monitor.questions.map((question) => (
-								<li
-									key={question.questionId}
-									className="rounded-md border bg-muted/20 px-2.5 py-2"
-								>
-									<ImproveQuestionListItem question={question} />
-								</li>
-							))}
-						</ul>
+								</AccordionItem>
+							</Accordion>
+						</div>
+						<div
+							aria-label="Lista de questões no desktop"
+							className="hidden min-h-40 flex-1 overflow-y-auto md:block"
+						>
+							<ul className="flex flex-col gap-1.5">
+								{monitor.questions.map((question) => (
+									<li
+										key={question.questionId}
+										className="rounded-md border bg-muted/20 px-2.5 py-2"
+									>
+										<ImproveQuestionListItem
+											question={question}
+											isCancelling={isCancelling?.[question.questionId]}
+											isRetrying={isRetrying?.[question.questionId]}
+											onCancelQuestion={onCancelQuestion}
+											onRetryQuestion={onRetryQuestion}
+										/>
+									</li>
+								))}
+							</ul>
+						</div>
 					</div>
 				</div>
-			</div>
 
 			{status === JOB_STATUS.COMPLETED && metadata.pendingReviewCount > 0 ? (
 				<div className="border-t px-4 py-3">

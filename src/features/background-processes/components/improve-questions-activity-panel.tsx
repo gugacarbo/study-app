@@ -6,20 +6,29 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { IngestJobThread } from "@/features/background-processes/components/ingest-job-thread";
 import { formatImproveQuestionStageLabel } from "@/features/background-processes/lib/improve-event-labels";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import type { JobStatus } from "@/lib/job-kinds";
-import { LoaderCircleIcon } from "lucide-react";
+import { LoaderCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
 
 type ImproveQuestionsActivityPanelProps = {
 	monitor: ImproveMonitorState;
 	status: JobStatus | null;
+	isJobLive?: boolean;
+	onCancelQuestion?: (questionId: string) => void;
+	onRetryQuestion?: (questionId: string) => void;
+	pendingQuestionId?: string | null;
 };
 
 export function ImproveQuestionsActivityPanel({
 	monitor,
 	status,
+	isJobLive,
+	onCancelQuestion,
+	onRetryQuestion,
+	pendingQuestionId,
 }: ImproveQuestionsActivityPanelProps) {
 	const [expanded, setExpanded] = useState<string[]>([]);
 
@@ -37,6 +46,13 @@ export function ImproveQuestionsActivityPanel({
 				>
 					{monitor.questions.map((question) => {
 						const isExpanded = expanded.includes(question.questionId);
+						const canCancel =
+							isJobLive &&
+							(question.status === "running" || question.status === "queued");
+						const canRetry =
+							(question.status === "failed" || question.status === "cancelled") &&
+							onRetryQuestion != null;
+						const isPending = pendingQuestionId === question.questionId;
 
 						return (
 							<AccordionItem
@@ -64,7 +80,47 @@ export function ImproveQuestionsActivityPanel({
 												</p>
 											) : null}
 										</div>
-										<Badge variant="outline">{question.status}</Badge>
+										<div className="flex items-center gap-2">
+											{canCancel ? (
+												<Button
+													variant="ghost"
+													size="icon"
+													className="size-7"
+													disabled={isPending}
+													onClick={(event) => {
+														event.stopPropagation();
+														onCancelQuestion?.(question.questionId);
+													}}
+													aria-label={`Cancelar questão ${question.questionNumber}`}
+												>
+													{isPending ? (
+														<LoaderCircleIcon className="size-4 animate-spin" />
+													) : (
+														<XIcon className="size-4" />
+													)}
+												</Button>
+											) : null}
+											{canRetry ? (
+												<Button
+													variant="ghost"
+													size="icon"
+													className="size-7"
+													disabled={isPending}
+													onClick={(event) => {
+														event.stopPropagation();
+														onRetryQuestion?.(question.questionId);
+													}}
+													aria-label={`Tentar novamente questão ${question.questionNumber}`}
+												>
+													{isPending ? (
+														<LoaderCircleIcon className="size-4 animate-spin" />
+													) : (
+														<RefreshCwIcon className="size-4" />
+													)}
+												</Button>
+											) : null}
+											<Badge variant="outline">{question.status}</Badge>
+										</div>
 									</div>
 								</AccordionTrigger>
 								<AccordionContent className="border-t">
@@ -96,7 +152,9 @@ export function ImproveQuestionsActivityPanel({
 													</p>
 													<ul className="mt-2 flex flex-col gap-1 text-sm text-amber-700">
 														{question.warnings.map((warning, index) => (
-															<li key={`${question.questionId}-warning-${index}`}>
+															<li
+																key={`${question.questionId}-warning-${index}`}
+															>
 																- {warning}
 															</li>
 														))}

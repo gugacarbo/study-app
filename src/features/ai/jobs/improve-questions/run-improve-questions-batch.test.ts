@@ -70,7 +70,7 @@ describe("runImproveQuestionsBatch", () => {
 		expect(updateJobStatus).toHaveBeenLastCalledWith(
 			expect.any(String),
 			expect.objectContaining({
-				status: JOB_STATUS.COMPLETED,
+				status: JOB_STATUS.FAILED,
 				phase: "finalizing_batch",
 				metadata: expect.objectContaining({
 					queuedCount: 0,
@@ -117,7 +117,7 @@ describe("runImproveQuestionsBatch", () => {
 		);
 	});
 
-	it("stops dispatching new questions when cancellation is requested", async () => {
+	it("stops dispatching new questions when global cancellation is requested", async () => {
 		const questionIds = [createId(), createId(), createId()];
 		const executeQuestion = vi.fn(async () => ({ summary: "ok" }));
 		let cancelChecks = 0;
@@ -132,6 +132,70 @@ describe("runImproveQuestionsBatch", () => {
 					cancelChecks += 1;
 					return cancelChecks > 1;
 				},
+				executeQuestion,
+			},
+		});
+
+		expect(executeQuestion).toHaveBeenCalledTimes(1);
+	});
+
+	it("cancels a running question when per-question cancellation is requested", async () => {
+		const questionIds = [createId(), createId()];
+		let questionCalls = 0;
+		let secondQuestionCancelled = false;
+
+		const executeQuestion = vi.fn(async ({ questionId }: { questionId: string }) => {
+			questionCalls += 1;
+			if (questionCalls === 2) {
+				secondQuestionCancelled = true;
+			}
+			await Promise.resolve();
+			return { summary: `ok:${questionId}` };
+		});
+
+		const updateJobStatus = vi.fn(async () => undefined);
+
+		await runImproveQuestionsBatch({
+			jobId: createId(),
+			metadata: createMetadata(questionIds),
+			deps: {
+				appendJobEvent: async () => undefined,
+				updateJobStatus,
+				isCancelRequested: async () => false,
+				isQuestionCancelled: async (questionId: string) => {
+					return questionId === questionIds[1] && secondQuestionCancelled;
+				},
+				executeQuestion,
+			},
+		});
+
+		expect(executeQuestion).toHaveBeenCalledTimes(2);
+		const lastCall = updateJobStatus.mock.calls.at(-1) as
+			| [string, { metadata?: ImproveQuestionsJobMetadata }]
+			| undefined;
+		const lastMetadata = lastCall?.[1].metadata;
+		expect(lastMetadata?.cancelledCount).toBe(1);
+		expect(lastMetadata?.completedCount).toBe(1);
+		expect(
+			lastMetadata?.items.find((i) => i.questionId === questionIds[1])?.status,
+		).toBe("cancelled");
+	});
+
+	it("re-runs queued questions when metadata already contains retried items", async () => {
+		const questionId = createId();
+		const metadata = createMetadata([questionId]);
+		metadata.items[0].status = "queued";
+		metadata.items[0].retryAttempt = 1;
+
+		const executeQuestion = vi.fn(async () => ({ summary: "ok" }));
+
+		await runImproveQuestionsBatch({
+			jobId: createId(),
+			metadata,
+			deps: {
+				appendJobEvent: async () => undefined,
+				updateJobStatus: async () => undefined,
+				isCancelRequested: async () => false,
 				executeQuestion,
 			},
 		});

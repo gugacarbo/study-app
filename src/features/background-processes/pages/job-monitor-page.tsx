@@ -11,7 +11,11 @@ import { IngestUploadPanel } from "@/features/background-processes/components/in
 import { JobSidebarTabs } from "@/features/background-processes/components/job-sidebar-tabs";
 import { JobWorkspaceLayout } from "@/features/background-processes/components/job-workspace-layout";
 import { useJobMonitor } from "@/features/background-processes/hooks/use-job-monitor";
-import { cancelJob } from "@/features/background-processes/lib/jobs-api";
+import {
+	cancelImproveQuestion,
+	cancelJob,
+	retryImproveQuestion,
+} from "@/features/background-processes/lib/jobs-api";
 import type { JobUploadLocationState } from "@/features/exams/hooks/use-ingest-job";
 import {
 	canManuallyCancelJobStatus,
@@ -26,6 +30,12 @@ type JobMonitorPageProps = {
 	jobId: string;
 };
 
+type QuestionActionError = {
+	questionId: string;
+	action: "cancel" | "retry";
+	message: string;
+};
+
 export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	const monitor = useJobMonitor(jobId);
 	const pendingFile = useRouterState({
@@ -33,6 +43,7 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 			(state.location.state as JobUploadLocationState | undefined)?.pendingFile,
 	});
 	const [cancelError, setCancelError] = useState<string | null>(null);
+	const [questionError, setQuestionError] = useState<QuestionActionError | null>(null);
 
 	const cancelMutation = useMutation({
 		mutationFn: () => cancelJob(jobId),
@@ -47,15 +58,55 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 		},
 	});
 
+	const cancelQuestionMutation = useMutation({
+		mutationFn: ({ questionId }: { questionId: string }) =>
+			cancelImproveQuestion(jobId, questionId),
+		onMutate: ({ questionId }) => {
+			setQuestionError((prev) => (prev?.questionId === questionId ? null : prev));
+		},
+		onSuccess: () => {
+			void monitor.refetch();
+		},
+		onError: (error, { questionId }) => {
+			setQuestionError({
+				questionId,
+				action: "cancel",
+				message:
+					error instanceof Error
+						? error.message
+						: "Não foi possível cancelar a questão.",
+			});
+		},
+	});
+
+	const retryQuestionMutation = useMutation({
+		mutationFn: ({ questionId }: { questionId: string }) =>
+			retryImproveQuestion(jobId, questionId),
+		onMutate: ({ questionId }) => {
+			setQuestionError((prev) => (prev?.questionId === questionId ? null : prev));
+		},
+		onSuccess: () => {
+			void monitor.refetch();
+		},
+		onError: (error, { questionId }) => {
+			setQuestionError({
+				questionId,
+				action: "retry",
+				message:
+					error instanceof Error
+						? error.message
+						: "Não foi possível tentar novamente a questão.",
+			});
+		},
+	});
+
 	async function handleCancel() {
 		const isActiveJob =
 			monitor.status != null && isCancellableJobStatus(monitor.status);
 		const confirmMessage = isActiveJob
 			? "Cancelar esta importação? O processamento irá parar entre etapas."
 			: "Cancelar este job falho? Ele será marcado como cancelado.";
-		if (
-			!window.confirm(confirmMessage)
-		) {
+		if (!window.confirm(confirmMessage)) {
 			return;
 		}
 		cancelMutation.mutate();
@@ -93,8 +144,7 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 	}
 
 	const isRunning =
-		monitor.status === JOB_STATUS.QUEUED ||
-		monitor.status === JOB_STATUS.RUNNING;
+		monitor.status === JOB_STATUS.QUEUED || monitor.status === JOB_STATUS.RUNNING;
 	const cancelRequested =
 		monitor.cancelRequestedAt != null &&
 		monitor.status != null &&
@@ -162,6 +212,16 @@ export function JobMonitorPage({ jobId }: JobMonitorPageProps) {
 					monitor={monitor.improve ?? { batchPhase: null, questions: [] }}
 					events={monitor.events}
 					isLoading={monitor.isLoading}
+					onCancelQuestion={(questionId) =>
+						cancelQuestionMutation.mutate({ questionId })
+					}
+					onRetryQuestion={(questionId) =>
+						retryQuestionMutation.mutate({ questionId })
+					}
+					pendingQuestionAction={
+						cancelQuestionMutation.isPending || retryQuestionMutation.isPending
+					}
+					questionError={questionError}
 				/>
 			) : (
 				<JobWorkspaceLayout
