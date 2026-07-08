@@ -310,8 +310,12 @@ export function QuestionEditForm({
 		: false;
 
 	const isOptionsBase = hasPendingImprovement
-		? valuesEqual(watchedOptions, baseQuestion.options) &&
-		  valuesEqual(watchedAnswers, baseQuestion.answers)
+		? fields.length === baseQuestion.options.length &&
+			fields.every(
+				(field, i) =>
+					field.key === baseQuestion.options[i]?.key &&
+					field.text === baseQuestion.options[i]?.text,
+			) && valuesEqual(watchedAnswers, baseQuestion.answers)
 		: false;
 	const hasOptionsChanges = hasPendingImprovement
 		? !valuesEqual(baseQuestion.options, question.options) ||

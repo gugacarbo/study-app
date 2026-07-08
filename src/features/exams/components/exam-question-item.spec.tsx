@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { QuestionImprovementDraftRecord } from "@/db/queries/question-improvement-drafts";
 import { ExamQuestionItem } from "@/features/exams/components/exam-question-item";
 import type { QuestionDetail } from "@/features/exams/types/exam-detail";
@@ -71,6 +71,10 @@ const pendingDraft: QuestionImprovementDraftRecord = {
 };
 
 describe("ExamQuestionItem", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
 	it("renders question text and options in lowercase", () => {
 		const { container } = render(
 			<ExamQuestionItem index={1} question={singleAnswerQuestion} />,

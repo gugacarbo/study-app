@@ -14,7 +14,6 @@ import { useActiveJobs } from "@/features/background-processes/hooks/use-active-
 import type { ActiveJobSummary } from "@/functions/jobs/list-active-jobs";
 import {
 	INGEST_PHASE,
-	type IngestPhase,
 	JOB_STATUS,
 	type JobStatus,
 } from "@/lib/job-kinds";
@@ -28,7 +27,7 @@ const STATUS_LABELS: Record<JobStatus, string> = {
 	[JOB_STATUS.CANCELLED]: "Cancelado",
 };
 
-const PHASE_LABELS: Record<IngestPhase, string> = {
+const PHASE_LABELS: Record<string, string> = {
 	[INGEST_PHASE.READING_FILE]: "Lendo arquivo",
 	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
 	[INGEST_PHASE.REVIEWING]: "Revisando questões",

@@ -164,10 +164,13 @@ describe("GenerateExamForm", () => {
 		});
 
 		const fileInput = screen.getByLabelText(/arquivos de contexto/i);
-		vi.spyOn(fileInput, "files", "get").mockReturnValue(
-			files as unknown as FileList,
-		);
-		fireEvent.change(fileInput);
+		Object.defineProperty(fileInput, "files", {
+			get: () => files as unknown as FileList,
+			configurable: true,
+		});
+		fireEvent.change(fileInput, {
+			target: { files: files as unknown as FileList },
+		} as never);
 
 		// Submit to trigger validation
 		fireEvent.click(

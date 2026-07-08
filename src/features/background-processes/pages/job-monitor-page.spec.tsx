@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JobMonitorPage } from "@/features/background-processes/pages/job-monitor-page";
 import { PHASE_TEXT } from "@/features/ai/jobs/ingest/run-ingest/constants";
@@ -568,6 +568,12 @@ describe("JobMonitorPage", () => {
 				screen.getByRole("region", { name: /progresso do job/i }),
 			).toBeInTheDocument();
 			expect(screen.getAllByText(/questão 1/i).length).toBeGreaterThan(0);
+		});
+
+		const activity = screen.getByRole("region", { name: /atividade do job/i });
+		fireEvent.click(within(activity).getByText(/questão 1/i));
+
+		await waitFor(() => {
 			expect(screen.getAllByText(/refinando a questão/i).length).toBeGreaterThan(0);
 			expect(screen.getAllByText(/escrevendo explicações/i).length).toBeGreaterThan(0);
 			expect(

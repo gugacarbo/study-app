@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
 	Accordion,
 	AccordionContent,
@@ -6,12 +6,52 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { IngestJobThread } from "@/features/background-processes/components/ingest-job-thread";
 import { formatImproveQuestionStageLabel } from "@/features/background-processes/lib/improve-event-labels";
 import type { ImproveMonitorState } from "@/features/background-processes/lib/improve-event-mapper";
 import type { JobStatus } from "@/lib/job-kinds";
+import { cn } from "@/lib/utils";
 import { LoaderCircleIcon, RefreshCwIcon, XIcon } from "lucide-react";
+
+function ActionButton({
+	disabled,
+	onClick,
+	children,
+	"aria-label": ariaLabel,
+}: {
+	disabled?: boolean;
+	onClick: () => void;
+	children: ReactNode;
+	"aria-label": string;
+}) {
+	return (
+		<span
+			role="button"
+			tabIndex={disabled ? -1 : 0}
+			aria-disabled={disabled || undefined}
+			aria-label={ariaLabel}
+			className={cn(
+				buttonVariants({ variant: "ghost", size: "icon" }),
+				"size-7",
+				disabled && "pointer-events-none opacity-50",
+			)}
+			onClick={(event) => {
+				event.stopPropagation();
+				if (!disabled) onClick();
+			}}
+			onKeyDown={(event) => {
+				if (event.key === "Enter" || event.key === " ") {
+					event.stopPropagation();
+					event.preventDefault();
+					if (!disabled) onClick();
+				}
+			}}
+		>
+			{children}
+		</span>
+	);
+}
 
 type ImproveQuestionsActivityPanelProps = {
 	monitor: ImproveMonitorState;
@@ -82,15 +122,11 @@ export function ImproveQuestionsActivityPanel({
 										</div>
 										<div className="flex items-center gap-2">
 											{canCancel ? (
-												<Button
-													variant="ghost"
-													size="icon"
-													className="size-7"
+												<ActionButton
 													disabled={isPending}
-													onClick={(event) => {
-														event.stopPropagation();
-														onCancelQuestion?.(question.questionId);
-													}}
+													onClick={() =>
+														onCancelQuestion?.(question.questionId)
+													}
 													aria-label={`Cancelar questão ${question.questionNumber}`}
 												>
 													{isPending ? (
@@ -98,18 +134,14 @@ export function ImproveQuestionsActivityPanel({
 													) : (
 														<XIcon className="size-4" />
 													)}
-												</Button>
+												</ActionButton>
 											) : null}
 											{canRetry ? (
-												<Button
-													variant="ghost"
-													size="icon"
-													className="size-7"
+												<ActionButton
 													disabled={isPending}
-													onClick={(event) => {
-														event.stopPropagation();
-														onRetryQuestion?.(question.questionId);
-													}}
+													onClick={() =>
+														onRetryQuestion?.(question.questionId)
+													}
 													aria-label={`Tentar novamente questão ${question.questionNumber}`}
 												>
 													{isPending ? (
@@ -117,7 +149,7 @@ export function ImproveQuestionsActivityPanel({
 													) : (
 														<RefreshCwIcon className="size-4" />
 													)}
-												</Button>
+												</ActionButton>
 											) : null}
 											<Badge variant="outline">{question.status}</Badge>
 										</div>
