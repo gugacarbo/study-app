@@ -65,6 +65,20 @@ export function cancelImproveQuestionItem(
 	return { ok: true, item, metadata: cloned };
 }
 
+function retrySingleItem(
+	metadata: ImproveQuestionsJobMetadata,
+	item: ImproveQuestionItem,
+) {
+	adjustCountsForRetry(metadata, item);
+	item.status = "queued";
+	item.stage = IMPROVE_QUESTION_STAGE.QUEUED;
+	item.error = undefined;
+	item.summary = undefined;
+	item.cancelRequestedAt = undefined;
+	item.retryAttempt = (item.retryAttempt ?? 0) + 1;
+	metadata.queuedCount += 1;
+}
+
 export function retryImproveQuestionItem(
 	metadata: ImproveQuestionsJobMetadata,
 	questionId: string,
@@ -83,16 +97,21 @@ export function retryImproveQuestionItem(
 		return { ok: false, reason: "not_retryable" };
 	}
 
-	adjustCountsForRetry(cloned, item);
-	item.status = "queued";
-	item.stage = IMPROVE_QUESTION_STAGE.QUEUED;
-	item.error = undefined;
-	item.summary = undefined;
-	item.cancelRequestedAt = undefined;
-	item.retryAttempt = (item.retryAttempt ?? 0) + 1;
-	cloned.queuedCount += 1;
+	retrySingleItem(cloned, item);
 
 	return { ok: true, item, metadata: cloned };
+}
+
+export function retryAllFailedItems(
+	metadata: ImproveQuestionsJobMetadata,
+): ImproveQuestionsJobMetadata {
+	const cloned = cloneMetadata(metadata);
+	for (const item of cloned.items) {
+		if (item.status === "failed" || item.status === "cancelled") {
+			retrySingleItem(cloned, item);
+		}
+	}
+	return cloned;
 }
 
 export function isImproveQuestionCancelled(

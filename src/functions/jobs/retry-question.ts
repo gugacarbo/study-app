@@ -1,7 +1,11 @@
 import { createDb } from "@/db/client";
 import { getJobById, updateJobStatus } from "@/db/queries/jobs";
 import { requireDB } from "@/functions/db";
-import { retryImproveQuestionItem } from "@/features/ai/jobs/improve-questions/metadata";
+import { enqueueJob } from "@/functions/queue";
+import {
+	retryAllFailedItems,
+	retryImproveQuestionItem,
+} from "@/features/ai/jobs/improve-questions/metadata";
 import { JOB_ERROR_CODE, jobErrorResponse } from "@/lib/job-errors";
 import {
 	JOB_KIND,
@@ -45,13 +49,15 @@ export async function retryQuestionHandler(
 		});
 	}
 
-	const result = retryImproveQuestionItem(metadata, questionId);
-	if (!result.ok) {
+	const validateResult = retryImproveQuestionItem(metadata, questionId);
+	if (!validateResult.ok) {
 		return Response.json(
-			{ error: result.reason, questionId },
+			{ error: validateResult.reason, questionId },
 			{ status: 409 },
 		);
 	}
+
+	const updatedMetadata = retryAllFailedItems(validateResult.metadata);
 
 	const nextStatus =
 		job.status === JOB_STATUS.RUNNING || job.status === JOB_STATUS.QUEUED
@@ -60,8 +66,12 @@ export async function retryQuestionHandler(
 
 	await updateJobStatus(db, jobId, {
 		status: nextStatus,
-		metadata: serializeImproveQuestionsJobMetadata(result.metadata),
+		metadata: serializeImproveQuestionsJobMetadata(updatedMetadata),
 	});
 
-	return Response.json({ ok: true, item: result.item });
+	if (nextStatus === JOB_STATUS.QUEUED) {
+		await enqueueJob(jobId);
+	}
+
+	return Response.json({ ok: true });
 }
