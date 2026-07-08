@@ -1,0 +1,4 @@
+{"timestamp":"2026-07-07T22:40:20Z","task":"Task-A-001","event":"started","try":1,"maxTries":3,"message":"Worker began Task-A-001"}
+{"timestamp":"2026-07-07T22:40:20Z","task":"Task-A-001","event":"ready_for_review","try":1,"maxTries":3,"message":"Worker returned DONE_WITH_CONCERNS; contracts implemented"}
+{"timestamp":"2026-07-07T22:43:59Z","task":"Task-A-001","event":"ready_for_review","try":2,"maxTries":3,"message":"Addressed review findings: label map and complete package"}
+{"timestamp":"2026-07-07T22:45:53Z","task":"Task-A-001","event":"ready_for_review","try":3,"maxTries":3,"message":"Updated report to match job-labels fix"}

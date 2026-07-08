@@ -1,0 +1,8 @@
+[2026-07-07T22:59:52Z] event=started try=1 max_tries=3
+[2026-07-07T22:59:52Z] message=Iniciando Task-B-001: handlers server de criacao e upload do generate-exam
+[2026-07-07T23:12:31Z] event=ready_for_review try=1 max_tries=3
+[2026-07-07T23:12:31Z] message=Handlers de criação e upload do generate-exam implementados, testes focados passam, Biome e docs-check verdes. Typecheck mantém apenas erros preexistentes do quiz.
+{"timestamp":"2026-07-07T23:18:37Z","task":"Task-B-001","event":"ready_for_review","try":2,"maxTries":3,"message":"Fixes applied: 404 for missing jobs, strict kind routing, failed status on upload persistence error, .md mimeType"}
+{"timestamp":"2026-07-07T23:25:34Z","task":"Task-B-001","event":"ready_for_review","try":3,"maxTries":null,"message":"Upload handler marks job FAILED after R2/files failure; route kind validation fixed; tests pass"}
+{"timestamp":"2026-07-07T23:25:34Z","task":"Task-B-001","event":"ready_for_review","try":3,"maxTries":null,"message":"Upload handler marks job FAILED after R2/files failure; route kind validation fixed; tests pass"}
+{"timestamp":"2026-07-07T23:25:49Z","task":"Task-B-001","event":"completed","try":1,"maxTries":3,"message":"Task approved after review fixes"}

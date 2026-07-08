@@ -2,28 +2,41 @@
   "$schema": "/home/gustavo/Desktop/study-app/.super-planning/super-plan.schema.json",
   "planId": "0033-geracao-provas-por-conteudo",
   "featureName": "geracao-provas-por-conteudo",
-  "status": "pending",
+  "status": "in_progress",
   "source": {
     "spec": "docs/specs/exams/0033-geracao-provas-por-conteudo.md",
     "plan": "docs/plans/0033-geracao-provas-por-conteudo.md"
   },
-  "goal": "",
-  "architectureSummary": "",
-  "techStack": [],
+  "goal": "Adicionar em /exams/new um modo de gera\u00e7\u00e3o de prova por IA com parsing por arquivo e gera\u00e7\u00e3o de quest\u00f5es objetivas compat\u00edveis com exams e quiz.",
+  "architectureSummary": "O fluxo reaproveita a infraestrutura existente de jobs em duas etapas ass\u00edncronas dentro do mesmo worker: upload/persist\u00eancia do contexto bruto e depois parsing por arquivo seguido da gera\u00e7\u00e3o das quest\u00f5es. O novo contrato fica concentrado em JOB_KIND.GENERATE_EXAM, um diret\u00f3rio dedicado em src/features/ai/jobs/generate-exam/ e um schema Zod can\u00f4nico cujos artefatos parseados vivem em R2 e alimentam o gerador da prova.",
+  "techStack": [
+    "React 19",
+    "TanStack Start",
+    "TanStack Router",
+    "TanStack Query",
+    "TypeScript",
+    "Zod",
+    "Drizzle ORM",
+    "Cloudflare Workers",
+    "D1",
+    "R2",
+    "Vercel AI SDK",
+    "Vitest"
+  ],
   "executionMode": "subagent-driven",
   "reviewCadence": "per_task",
   "agents": {
     "general": {
-      "model": "",
-      "agent": ""
+      "model": "gpt-5.4",
+      "agent": "worker"
     },
     "deep": {
-      "model": "",
-      "agent": ""
+      "model": "gpt-5.5",
+      "agent": "worker"
     },
     "quick": {
-      "model": "",
-      "agent": ""
+      "model": "gpt-5.4-mini",
+      "agent": "worker"
     }
   },
   "branchStrategy": {
@@ -34,10 +47,899 @@
     "enabled": false,
     "path": "../0033-geracao-provas-por-conteudo-worktree"
   },
-  "globalConstraints": [],
-  "fileStructure": [],
-  "requirementsChecklist": [],
+  "globalConstraints": [
+    "title: obrigat\u00f3rio; trim; 1..120 chars; come\u00e7a com sugest\u00e3o edit\u00e1vel",
+    "mainContent: obrigat\u00f3rio; trim; min 1 char",
+    "questionCount: obrigat\u00f3rio; inteiro; 1..20",
+    "difficulty: obrigat\u00f3rio; easy | medium | hard",
+    "difficultyNotes: opcional; trim; m\u00e1x. 2000 chars",
+    "contextFiles[]: opcional; at\u00e9 5 arquivos .txt/.md",
+    "Request body bruto do upload: at\u00e9 1 MB",
+    "Soma do texto decodificado de mainContent + arquivos: at\u00e9 100000 caracteres",
+    "mainContent \u00e9 salvo em R2 como arquivo sint\u00e9tico conteudo-base.md",
+    "Cada arquivo enviado vira row em files com ttl_seconds = 0",
+    "Existe exatamente um output can\u00f4nico por arquivo v\u00e1lido",
+    "Se o parser de um arquivo falhar, o job inteiro falha",
+    "O output aceito do parser \u00e9 persistido em R2 como artefato .json version\u00e1vel",
+    "O gerador da prova consome mainContent bruto, JSONs can\u00f4nicos dos arquivos parseados e os metadados do job",
+    "Apenas quest\u00f5es objetivas s\u00e3o permitidas nesta v1",
+    "Persist\u00eancia das quest\u00f5es acontece apenas em batch final, nunca incremental"
+  ],
+  "fileStructure": [
+    {
+      "path": "src/routes/_app/exams/new/index.tsx",
+      "ownerTask": "Task-A-002",
+      "notes": "P\u00e1gina passa a oferecer os modos Importar arquivo e Gerar com IA."
+    },
+    {
+      "path": "src/features/exams/components/generate-exam-form.tsx",
+      "ownerTask": "Task-A-002",
+      "notes": "Formul\u00e1rio do modo novo com t\u00edtulo sugerido, conte\u00fado-base, dificuldade e anexos."
+    },
+    {
+      "path": "src/features/exams/hooks/use-generate-exam-job.ts",
+      "ownerTask": "Task-A-002",
+      "notes": "Hook client para criar job, enviar multipart e navegar ao monitor."
+    },
+    {
+      "path": "src/features/exams/lib/generate-exam-api.ts",
+      "ownerTask": "Task-A-002",
+      "notes": "Cliente HTTP para os endpoints do novo kind generate-exam."
+    },
+    {
+      "path": "src/functions/jobs/create-generate-exam-job.ts",
+      "ownerTask": "Task-B-001",
+      "notes": "Cria\u00e7\u00e3o do job com metadados, exame novo e source Gerada por IA."
+    },
+    {
+      "path": "src/functions/jobs/upload-generate-exam-context.ts",
+      "ownerTask": "Task-B-001",
+      "notes": "Upload de mainContent e contextFiles com persist\u00eancia em R2 e files."
+    },
+    {
+      "path": "src/routes/api/jobs/index.ts",
+      "ownerTask": "Task-B-001",
+      "notes": "Dispatcher de cria\u00e7\u00e3o entre ingest, improve-questions e generate-exam."
+    },
+    {
+      "path": "src/routes/api/jobs/$id/upload.ts",
+      "ownerTask": "Task-B-001",
+      "notes": "Upload roteado pelo kind correto do job."
+    },
+    {
+      "path": "src/lib/job-kinds.ts",
+      "ownerTask": "Task-A-001",
+      "notes": "Novo JOB_KIND, metadata, fases e contratos compartilhados do generate-exam."
+    },
+    {
+      "path": "src/lib/job-errors.ts",
+      "ownerTask": "Task-A-001",
+      "notes": "Novos erros para parsing inv\u00e1lido, contexto insuficiente e gera\u00e7\u00e3o incompleta."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/parser-schema.ts",
+      "ownerTask": "Task-A-001",
+      "notes": "Schema Zod can\u00f4nico do parser por arquivo."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/types.ts",
+      "ownerTask": "Task-A-001",
+      "notes": "Tipos compartilhados do pipeline e artefatos."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/read-context.ts",
+      "ownerTask": "Task-B-002",
+      "notes": "Leitura do mainContent e arquivos salvos em R2."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/parse-context-file.ts",
+      "ownerTask": "Task-B-002",
+      "notes": "Execu\u00e7\u00e3o de um parser-agent por arquivo com valida\u00e7\u00e3o r\u00edgida."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/store-parsed-artifact.ts",
+      "ownerTask": "Task-B-002",
+      "notes": "Persist\u00eancia do JSON can\u00f4nico derivado em R2."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/build-generation-context.ts",
+      "ownerTask": "Task-B-002",
+      "notes": "Consolida\u00e7\u00e3o do contexto bruto e parseado para o gerador de quest\u00f5es."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/generate-questions.ts",
+      "ownerTask": "Task-C-001",
+      "notes": "Chamada estruturada ao modelo para gerar quest\u00f5es objetivas."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/run-generate-exam.ts",
+      "ownerTask": "Task-C-001",
+      "notes": "Orquestrador do novo job: leitura, parsing, gera\u00e7\u00e3o, retries e persist\u00eancia."
+    },
+    {
+      "path": "src/features/ai/jobs/run-job-consumer.ts",
+      "ownerTask": "Task-C-001",
+      "notes": "Integra o novo kind generate-exam ao consumer."
+    },
+    {
+      "path": "src/functions/jobs/list-user-jobs.ts",
+      "ownerTask": "Task-C-002",
+      "notes": "Listagem entende o novo kind e seus metadados."
+    },
+    {
+      "path": "src/functions/jobs/list-active-jobs.ts",
+      "ownerTask": "Task-C-002",
+      "notes": "Jobs ativos incluem generate-exam."
+    },
+    {
+      "path": "src/features/background-processes/lib/ingest-event-mapper.ts",
+      "ownerTask": "Task-C-002",
+      "notes": "Extens\u00e3o ou separa\u00e7\u00e3o do mapper de eventos para o novo fluxo."
+    },
+    {
+      "path": "src/features/background-processes/lib/ingest-event-labels.ts",
+      "ownerTask": "Task-C-002",
+      "notes": "Labels para reading_context, parsing_context_files, generating_questions e persisting."
+    },
+    {
+      "path": "src/features/exams/components/generate-exam-form.spec.tsx",
+      "ownerTask": "Task-D-001",
+      "notes": "Cobertura do formul\u00e1rio do novo modo e sugest\u00e3o de t\u00edtulo."
+    },
+    {
+      "path": "src/functions/jobs/create-generate-exam-job.test.ts",
+      "ownerTask": "Task-D-001",
+      "notes": "Testes focados do contrato de cria\u00e7\u00e3o do job."
+    },
+    {
+      "path": "src/functions/jobs/upload-generate-exam-context.test.ts",
+      "ownerTask": "Task-D-001",
+      "notes": "Testes focados do upload de contexto."
+    },
+    {
+      "path": "src/features/ai/jobs/generate-exam/*.test.ts",
+      "ownerTask": "Task-D-001",
+      "notes": "Cobertura do schema do parser, parsing por arquivo e worker de gera\u00e7\u00e3o."
+    },
+    {
+      "path": "src/features/background-processes/pages/job-monitor-page.spec.tsx",
+      "ownerTask": "Task-D-001",
+      "notes": "Cobertura dos estados e CTA do novo kind no monitor."
+    }
+  ],
+  "requirementsChecklist": [
+    {
+      "id": "REQ-001",
+      "title": "Adicionar modo Gerar com IA em /exams/new",
+      "source": "SPEC-0033 UI and Flow",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "A p\u00e1gina /exams/new oferece os modos Importar arquivo e Gerar com IA.",
+        "O modo Gerar com IA exibe title, mainContent, questionCount, difficulty, difficultyNotes e contextFiles[].",
+        "O submit desse modo cria um novo job generate-exam e navega ao monitor padr\u00e3o."
+      ],
+      "coveredByTasks": [
+        "Task-A-002",
+        "Task-B-001"
+      ],
+      "notes": [
+        "O fluxo novo n\u00e3o substitui o ingest existente."
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "title": "Sugerir t\u00edtulo edit\u00e1vel sem sobrescrever edi\u00e7\u00e3o manual",
+      "source": "SPEC-0033 Flow",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "O t\u00edtulo \u00e9 sugerido a partir de heading markdown, primeira linha \u00fatil, primeiro arquivo ou fallback Nova prova.",
+        "Ap\u00f3s edi\u00e7\u00e3o manual do usu\u00e1rio, novas sugest\u00f5es autom\u00e1ticas n\u00e3o sobrescrevem o valor digitado."
+      ],
+      "coveredByTasks": [
+        "Task-A-002",
+        "Task-D-001"
+      ],
+      "notes": [
+        "A heur\u00edstica de sugest\u00e3o fica no client do formul\u00e1rio."
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "title": "Criar sempre um novo exame por generate-exam",
+      "source": "SPEC-0033 Job Creation",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "POST /api/jobs com kind generate-exam cria um novo exam e um background_job awaiting_upload.",
+        "exams.name recebe o title enviado e exams.source recebe Gerada por IA.",
+        "O fluxo n\u00e3o oferece append em exame existente."
+      ],
+      "coveredByTasks": [
+        "Task-B-001"
+      ],
+      "notes": [
+        "Mant\u00e9m alinhamento com a spec e evita branching extra no worker."
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "title": "Salvar mainContent e contextFiles originais em R2 e files",
+      "source": "SPEC-0033 Upload and Context Persistence",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "mainContent \u00e9 salvo como conteudo-base.md em R2.",
+        "Cada contextFile v\u00e1lido vira row em files com ttl_seconds=0.",
+        "Falhas ap\u00f3s put em R2 executam compensa\u00e7\u00e3o best-effort ou marcam o job como failed conforme o ponto da falha."
+      ],
+      "coveredByTasks": [
+        "Task-B-001"
+      ],
+      "notes": [
+        "Os arquivos originais precisam sobreviver mesmo se o parsing posterior falhar."
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "title": "Executar um parser-agent por arquivo com JSON can\u00f4nico r\u00edgido",
+      "source": "SPEC-0033 Context Parsing",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "Cada contextFile aciona exatamente uma execu\u00e7\u00e3o de parser-agent dedicada.",
+        "O output precisa passar em schema Zod r\u00edgido com documentType, rawText, sections, topics, facts, studyObjectives, glossary e warnings.",
+        "Falha ou JSON inv\u00e1lido em um \u00fanico arquivo falha o job inteiro antes da gera\u00e7\u00e3o das quest\u00f5es."
+      ],
+      "coveredByTasks": [
+        "Task-A-001",
+        "Task-B-002",
+        "Task-D-001"
+      ],
+      "notes": [
+        "O parser n\u00e3o produz markdown, apenas JSON v\u00e1lido."
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "title": "Persistir artefatos parseados em R2 e referenciar em metadata",
+      "source": "SPEC-0033 Parsed Artifacts Persistence",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "Cada parser bem-sucedido gera um objeto .json derivado em R2.",
+        "A metadata do job registra parsedContextArtifactIds e parsedContextCount.",
+        "Os artefatos parseados coexistem com os arquivos originais; um n\u00e3o substitui o outro."
+      ],
+      "coveredByTasks": [
+        "Task-A-001",
+        "Task-B-002"
+      ],
+      "notes": [
+        "Os artefatos precisam ser f\u00e1ceis de relacionar ao arquivo de origem."
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "title": "Gerar apenas quest\u00f5es objetivas compat\u00edveis com exams e quiz",
+      "source": "SPEC-0033 Generated Questions Contract",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "As quest\u00f5es geradas seguem o contrato question/options/answers/topic j\u00e1 usado pelo ingest.",
+        "A gera\u00e7\u00e3o n\u00e3o produz discursivas e inicializa explanation/deepExplanation como null.",
+        "As provas resultantes funcionam no detalhe da prova, na edi\u00e7\u00e3o de quest\u00e3o e no quiz atual."
+      ],
+      "coveredByTasks": [
+        "Task-C-001",
+        "Task-C-002",
+        "Task-D-001"
+      ],
+      "notes": [
+        "Compatibilidade com o quiz foi um requisito expl\u00edcito na fase de brainstorm."
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "title": "Aplicar limites, deduplica\u00e7\u00e3o e falha por insufici\u00eancia de quest\u00f5es v\u00e1lidas",
+      "source": "SPEC-0033 Generation Guarantees and Edge Cases",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "questionCount fica entre 1 e 20 e o contexto total n\u00e3o passa de 100000 caracteres.",
+        "Duplicatas usam a mesma normaliza\u00e7\u00e3o de enunciado do ingest.",
+        "Se ap\u00f3s valida\u00e7\u00e3o e retries houver menos quest\u00f5es v\u00e1lidas do que questionCount, o job falha sem persist\u00eancia parcial."
+      ],
+      "coveredByTasks": [
+        "Task-B-001",
+        "Task-C-001",
+        "Task-D-001"
+      ],
+      "notes": [
+        "O comportamento desejado \u00e9 tudo-ou-nada na persist\u00eancia das quest\u00f5es."
+      ]
+    },
+    {
+      "id": "REQ-009",
+      "title": "Reaproveitar monitor e listagens de jobs para o novo kind",
+      "source": "SPEC-0033 Flow and Phases",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "O monitor exibe o progresso do generate-exam com labels para reading_context, parsing_context_files, generating_questions e persisting.",
+        "As listagens de jobs entendem o novo kind e preservam o CTA Ver prova quando houver examId.",
+        "A feature n\u00e3o redesenha o monitor existente."
+      ],
+      "coveredByTasks": [
+        "Task-C-002",
+        "Task-D-001"
+      ],
+      "notes": [
+        "A surface de observabilidade deve seguir os padr\u00f5es do ingest."
+      ]
+    },
+    {
+      "id": "REQ-010",
+      "title": "Fechar o fluxo com testes focados e docs-check",
+      "source": "SPEC-0033 Definition of Done",
+      "status": "pending",
+      "acceptanceCriteria": [
+        "Existem testes focados para formul\u00e1rio, cria\u00e7\u00e3o do job, upload, parsing por arquivo, worker e monitor do generate-exam.",
+        "O c\u00f3digo novo passa pelos comandos definidos na spec dentro do escopo implementado.",
+        "O docs-check continua verde ap\u00f3s os artefatos da feature."
+      ],
+      "coveredByTasks": [
+        "Task-D-001"
+      ],
+      "notes": [
+        "A verifica\u00e7\u00e3o pode ficar focada nas suites honestas se o repo tiver ru\u00eddo n\u00e3o relacionado."
+      ]
+    }
+  ],
   "taskDirectory": "docs/tasks/0033-geracao-provas-por-conteudo",
-  "rules": [],
-  "tasks": []
+  "rules": [
+    "N\u00e3o alterar o comportamento do fluxo de ingest existente al\u00e9m do necess\u00e1rio para compartilhar utilit\u00e1rios ou contratos.",
+    "N\u00e3o introduzir suporte a quest\u00f5es discursivas nesta feature.",
+    "N\u00e3o persistir parse estruturado em D1; os artefatos can\u00f4nicos vivem em R2.",
+    "N\u00e3o redesenhar o job monitor nem o cat\u00e1logo de exames; apenas estender o comportamento atual.",
+    "Reutilizar persistQuestions, normaliza\u00e7\u00e3o de enunciado e padr\u00f5es de job existentes sempre que poss\u00edvel.",
+    "Preservar arquivos originais de contexto em R2 mesmo quando o parsing falhar.",
+    "Qualquer falha de parsing em um arquivo deve abortar o job antes da gera\u00e7\u00e3o das quest\u00f5es.",
+    "As altera\u00e7\u00f5es devem conviver com um worktree j\u00e1 sujo e n\u00e3o reverter mudan\u00e7as do usu\u00e1rio."
+  ],
+  "tasks": [
+    {
+      "id": "Task-A-001",
+      "title": "Definir contratos compartilhados do generate-exam e do parser can\u00f4nico",
+      "description": "Criar o novo vocabul\u00e1rio de job, metadados, fases, erros e schema Zod do parser por arquivo para que as camadas client, server e worker falem a mesma linguagem desde o in\u00edcio.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "deep",
+      "batch": "A",
+      "phase": "foundation",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-001/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-001/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-001/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-001/log-task.sh",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "JOB_KIND.GENERATE_EXAM e o metadata correspondente existem em src/lib/job-kinds.ts.",
+        "As fases reading_context, parsing_context_files, generating_questions e persisting est\u00e3o modeladas em tipos/metadata.",
+        "O schema Zod do parser can\u00f4nico cobre documentType, rawText, sections, topics, facts, studyObjectives, glossary e warnings."
+      ],
+      "requirements": [
+        "REQ-005",
+        "REQ-006"
+      ],
+      "rules": [
+        "N\u00e3o introduzir tabelas novas no banco para armazenar o parse can\u00f4nico.",
+        "Modelar o parser como JSON r\u00edgido, sem markdown no output.",
+        "Os contratos precisam ser reutiliz\u00e1veis pelo worker e pelos testes."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Expandir job kinds e metadata",
+          "description": "Adicionar o novo kind, fases e metadata do generate-exam em src/lib/job-kinds.ts e novos erros em src/lib/job-errors.ts.",
+          "command": null,
+          "expectedResult": "Os contratos centrais do novo job existem e tipam metadata, fases e erros.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Criar schema do parser can\u00f4nico",
+          "description": "Implementar em src/features/ai/jobs/generate-exam/parser-schema.ts o schema Zod do documento parseado por arquivo, com rastreabilidade e confidence.",
+          "command": null,
+          "expectedResult": "O schema aceita apenas JSONs v\u00e1lidos no formato aprovado na spec.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Publicar tipos compartilhados",
+          "description": "Adicionar em src/features/ai/jobs/generate-exam/types.ts os tipos compartilhados do pipeline para artefatos parseados e contexto de gera\u00e7\u00e3o.",
+          "command": null,
+          "expectedResult": "As pr\u00f3ximas tasks conseguem importar tipos est\u00e1veis sem re-declarar contratos.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/lib/job-kinds.ts",
+        "src/lib/job-errors.ts",
+        "src/features/ai/jobs/generate-exam/parser-schema.ts",
+        "src/features/ai/jobs/generate-exam/types.ts",
+        "src/features/admin/lib/job-labels.ts"
+      ],
+      "files": {
+        "created": [
+          "src/features/ai/jobs/generate-exam/parser-schema.ts",
+          "src/features/ai/jobs/generate-exam/types.ts"
+        ],
+        "modified": [
+          "src/lib/job-kinds.ts",
+          "src/lib/job-errors.ts",
+          "src/features/admin/lib/job-labels.ts"
+        ],
+        "deleted": []
+      },
+      "notes": [
+        "Foundation task; n\u00e3o deve implementar worker nem rotas."
+      ]
+    },
+    {
+      "id": "Task-A-002",
+      "title": "Adicionar a superf\u00edcie client do modo Gerar com IA em /exams/new",
+      "description": "Criar a UX do novo modo em /exams/new com formul\u00e1rio dedicado, sugest\u00e3o de t\u00edtulo, anexos e integra\u00e7\u00e3o client-side com a API do novo kind.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "general",
+      "batch": "A",
+      "phase": "surface",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-002/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-002/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-002/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-A-002/log-task.sh",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "A p\u00e1gina /exams/new exp\u00f5e um segundo modo Gerar com IA sem remover o fluxo de importa\u00e7\u00e3o existente.",
+        "O formul\u00e1rio coleta title, mainContent, questionCount, difficulty, difficultyNotes e contextFiles[].",
+        "A sugest\u00e3o autom\u00e1tica de title n\u00e3o sobrescreve edi\u00e7\u00e3o manual do usu\u00e1rio e o submit navega ao monitor padr\u00e3o do job."
+      ],
+      "requirements": [
+        "REQ-001",
+        "REQ-002"
+      ],
+      "rules": [
+        "Preservar visual e padr\u00f5es j\u00e1 usados pelo dom\u00ednio exams.",
+        "N\u00e3o acoplar a UI ao worker; o client s\u00f3 fala com a API de jobs.",
+        "N\u00e3o misturar o estado do modo Gerar com IA com o estado do modo Importar arquivo."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Criar API client do generate-exam",
+          "description": "Implementar generate-exam-api.ts com create job, upload multipart e parse padronizado de erros.",
+          "command": null,
+          "expectedResult": "Existe uma camada client isolada para o novo kind.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Criar hook do fluxo client",
+          "description": "Adicionar use-generate-exam-job.ts para gerenciar cria\u00e7\u00e3o do job, upload e navega\u00e7\u00e3o ao monitor.",
+          "command": null,
+          "expectedResult": "A UI usa um hook \u00fanico para o fluxo ass\u00edncrono do novo modo.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Construir o formul\u00e1rio e integrar em /exams/new",
+          "description": "Adicionar generate-exam-form.tsx e atualizar a rota /exams/new para alternar entre os dois modos e renderizar o novo formul\u00e1rio.",
+          "command": null,
+          "expectedResult": "O usu\u00e1rio consegue preencher e enviar o novo fluxo a partir da p\u00e1gina existente.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/routes/_app/exams/new/index.tsx",
+        "src/features/exams/components/generate-exam-form.tsx",
+        "src/features/exams/hooks/use-generate-exam-job.ts",
+        "src/features/exams/lib/generate-exam-api.ts"
+      ],
+      "files": {
+        "created": [
+          "src/features/exams/components/generate-exam-form.tsx",
+          "src/features/exams/hooks/use-generate-exam-job.ts",
+          "src/features/exams/lib/generate-exam-api.ts"
+        ],
+        "modified": [
+          "src/routes/_app/exams/new/index.tsx"
+        ],
+        "deleted": []
+      },
+      "notes": [
+        "Pode rodar em paralelo com Task-A-001 porque n\u00e3o possui write set sobre os mesmos arquivos."
+      ]
+    },
+    {
+      "id": "Task-B-001",
+      "title": "Implementar handlers server de cria\u00e7\u00e3o e upload do generate-exam",
+      "description": "Adicionar os handlers de cria\u00e7\u00e3o do job e upload do contexto bruto, com persist\u00eancia em R2/files, metadados corretos e dispatch nas rotas de jobs.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "general",
+      "batch": "B",
+      "phase": "core",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-001/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-001/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-001/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-001/log-task.sh",
+      "dependencies": [
+        "Task-A-001"
+      ],
+      "acceptanceCriteria": [
+        "POST /api/jobs aceita kind generate-exam e cria exam + background_job awaiting_upload.",
+        "POST /api/jobs/:id/upload aceita mainContent e contextFiles, grava os arquivos em R2 e cria rows em files.",
+        "As rotas de jobs encaminham corretamente create/upload pelo kind do job."
+      ],
+      "requirements": [
+        "REQ-003",
+        "REQ-004",
+        "REQ-008"
+      ],
+      "rules": [
+        "Seguir o padr\u00e3o de ownership, requireSession e status lifecycle j\u00e1 usado pelo ingest.",
+        "Preservar arquivos originais em R2 mesmo se etapas posteriores falharem.",
+        "Aplicar os limites de tamanho e extens\u00e3o definidos na spec."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Criar o handler de cria\u00e7\u00e3o do job",
+          "description": "Implementar create-generate-exam-job.ts com schema Zod, resolu\u00e7\u00e3o de modelo, cria\u00e7\u00e3o do exam e metadata inicial.",
+          "command": null,
+          "expectedResult": "O servidor cria um novo generate-exam com source Gerada por IA e status awaiting_upload.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Criar o handler de upload do contexto",
+          "description": "Implementar upload-generate-exam-context.ts para receber mainContent e contextFiles, validar limites, salvar em R2 e registrar files.",
+          "command": null,
+          "expectedResult": "O upload marca o job como queued e deixa o contexto bruto audit\u00e1vel em R2/files.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Conectar as rotas de jobs",
+          "description": "Atualizar src/routes/api/jobs/index.ts e src/routes/api/jobs/$id/upload.ts para rotear create/upload pelo novo kind.",
+          "command": null,
+          "expectedResult": "A API p\u00fablica do app reconhece o kind generate-exam de ponta a ponta.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/functions/jobs/create-generate-exam-job.ts",
+        "src/functions/jobs/upload-generate-exam-context.ts",
+        "src/routes/api/jobs/index.ts",
+        "src/routes/api/jobs/$id/upload.ts"
+      ],
+      "files": {
+        "created": [
+          "src/functions/jobs/create-generate-exam-job.ts",
+          "src/functions/jobs/upload-generate-exam-context.ts"
+        ],
+        "modified": [
+          "src/routes/api/jobs/index.ts",
+          "src/routes/api/jobs/$id/upload.ts"
+        ],
+        "deleted": []
+      },
+      "notes": [
+        "Depende dos contratos de Task-A-001; n\u00e3o deve ainda executar o parser por arquivo."
+      ]
+    },
+    {
+      "id": "Task-B-002",
+      "title": "Implementar parsing por arquivo e persist\u00eancia de artefatos can\u00f4nicos",
+      "description": "Adicionar a etapa que l\u00ea os arquivos de contexto em R2, executa um parser-agent por arquivo, valida o JSON can\u00f4nico e persiste o artefato derivado em R2 para alimentar a gera\u00e7\u00e3o da prova.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "deep",
+      "batch": "B",
+      "phase": "core",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-002/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-002/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-002/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-B-002/log-task.sh",
+      "dependencies": [
+        "Task-A-001",
+        "Task-B-001"
+      ],
+      "acceptanceCriteria": [
+        "O worker consegue ler o mainContent sint\u00e9tico e cada contextFile salvo em R2.",
+        "Cada contextFile dispara uma execu\u00e7\u00e3o independente de parser-agent e s\u00f3 JSONs v\u00e1lidos no schema can\u00f4nico s\u00e3o aceitos.",
+        "Cada parse v\u00e1lido gera um artefato .json em R2 e atualiza a metadata com parsedContextArtifactIds e parsedContextCount."
+      ],
+      "requirements": [
+        "REQ-005",
+        "REQ-006"
+      ],
+      "rules": [
+        "Falha de parsing de um \u00fanico arquivo aborta o job antes da gera\u00e7\u00e3o das quest\u00f5es.",
+        "Os arquivos originais permanecem em R2 e n\u00e3o s\u00e3o substitu\u00eddos pelos artefatos parseados.",
+        "O contexto consolidado precisa preservar a ordem de upload dos contextFiles."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Ler o contexto bruto salvo em R2",
+          "description": "Implementar utilit\u00e1rios de leitura do mainContent e dos contextFiles gravados pelo upload do generate-exam.",
+          "command": null,
+          "expectedResult": "O worker obt\u00e9m texto bruto e metadados de todos os insumos necess\u00e1rios.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Executar e validar o parser por arquivo",
+          "description": "Criar o runner parse-context-file.ts para chamar o agente, validar o output no parser-schema e construir o resultado tipado por arquivo.",
+          "command": null,
+          "expectedResult": "Cada arquivo retorna ou um documento can\u00f4nico v\u00e1lido ou uma falha terminal do job.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Persistir os artefatos parseados e montar o contexto de gera\u00e7\u00e3o",
+          "description": "Salvar o JSON derivado em R2, registrar os ids na metadata do job e produzir a estrutura consolidada que ser\u00e1 consumida pelo gerador de quest\u00f5es.",
+          "command": null,
+          "expectedResult": "O pr\u00f3ximo est\u00e1gio do worker recebe um contexto estruturado est\u00e1vel e rastre\u00e1vel.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/features/ai/jobs/generate-exam/read-context.ts",
+        "src/features/ai/jobs/generate-exam/parse-context-file.ts",
+        "src/features/ai/jobs/generate-exam/store-parsed-artifact.ts",
+        "src/features/ai/jobs/generate-exam/build-generation-context.ts"
+      ],
+      "files": {
+        "created": [
+          "src/features/ai/jobs/generate-exam/read-context.ts",
+          "src/features/ai/jobs/generate-exam/parse-context-file.ts",
+          "src/features/ai/jobs/generate-exam/store-parsed-artifact.ts",
+          "src/features/ai/jobs/generate-exam/build-generation-context.ts"
+        ],
+        "modified": [],
+        "deleted": []
+      },
+      "notes": [
+        "Task de arquitetura do worker; precisa preservar rastreabilidade e metadados de origem."
+      ]
+    },
+    {
+      "id": "Task-C-001",
+      "title": "Implementar o worker de gera\u00e7\u00e3o da prova e integrar ao consumer",
+      "description": "Orquestrar o generate-exam dentro do consumer, usando o contexto bruto e parseado para gerar quest\u00f5es objetivas, aplicar retries e persistir o resultado final como prova normal do sistema.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "deep",
+      "batch": "C",
+      "phase": "core",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-001/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-001/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-001/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-001/log-task.sh",
+      "dependencies": [
+        "Task-B-001",
+        "Task-B-002"
+      ],
+      "acceptanceCriteria": [
+        "O consumer despacha JOB_KIND.GENERATE_EXAM para um run-generate-exam dedicado.",
+        "A gera\u00e7\u00e3o produz apenas quest\u00f5es objetivas compat\u00edveis com persistQuestions e quiz atual.",
+        "Se n\u00e3o houver questionCount quest\u00f5es v\u00e1lidas ap\u00f3s valida\u00e7\u00e3o, deduplica\u00e7\u00e3o e retries, o job falha sem persist\u00eancia parcial."
+      ],
+      "requirements": [
+        "REQ-007",
+        "REQ-008"
+      ],
+      "rules": [
+        "Reutilizar persistQuestions e normaliza\u00e7\u00e3o de enunciado quando isso n\u00e3o conflitar com a spec.",
+        "Persist\u00eancia das quest\u00f5es deve continuar batch-only.",
+        "N\u00e3o gerar discursivas nem abrir um contrato paralelo para o quiz."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Criar o gerador estruturado de quest\u00f5es",
+          "description": "Implementar generate-questions.ts para pedir exatamente questionCount quest\u00f5es objetivas com difficulty e difficultyNotes a partir do contexto consolidado.",
+          "command": null,
+          "expectedResult": "Existe uma chamada ao modelo capaz de devolver quest\u00f5es no contrato atual do dom\u00ednio.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Orquestrar o pipeline do worker",
+          "description": "Implementar run-generate-exam.ts encadeando leitura do contexto, parsing, gera\u00e7\u00e3o, retries por insufici\u00eancia e persist\u00eancia final.",
+          "command": null,
+          "expectedResult": "O job generate-exam tem lifecycle completo dentro do worker.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Integrar o novo job ao consumer",
+          "description": "Atualizar run-job-consumer.ts para despachar generate-exam e passar os deps necess\u00e1rios ao pipeline novo.",
+          "command": null,
+          "expectedResult": "O queue consumer executa o novo kind ponta a ponta.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/features/ai/jobs/generate-exam/generate-questions.ts",
+        "src/features/ai/jobs/generate-exam/run-generate-exam.ts",
+        "src/features/ai/jobs/run-job-consumer.ts"
+      ],
+      "files": {
+        "created": [
+          "src/features/ai/jobs/generate-exam/generate-questions.ts",
+          "src/features/ai/jobs/generate-exam/run-generate-exam.ts"
+        ],
+        "modified": [
+          "src/features/ai/jobs/run-job-consumer.ts"
+        ],
+        "deleted": []
+      },
+      "notes": [
+        "Task central do pipeline; depende do contexto parseado j\u00e1 estar consolidado."
+      ]
+    },
+    {
+      "id": "Task-C-002",
+      "title": "Estender monitor e listagens para o novo kind generate-exam",
+      "description": "Fazer o job monitor, os mappers de evento e as listagens de jobs entenderem o novo tipo generate-exam e suas fases sem redesenhar as superf\u00edcies existentes.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "general",
+      "batch": "C",
+      "phase": "surface",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-002/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-002/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-002/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-C-002/log-task.sh",
+      "dependencies": [
+        "Task-A-001",
+        "Task-B-001"
+      ],
+      "acceptanceCriteria": [
+        "Listagens de jobs ativos e do usu\u00e1rio entendem generate-exam e seus metadados.",
+        "O monitor exibe labels adequados para reading_context, parsing_context_files, generating_questions e persisting.",
+        "O CTA Ver prova continua funcionando para o novo kind quando examId estiver presente."
+      ],
+      "requirements": [
+        "REQ-007",
+        "REQ-009"
+      ],
+      "rules": [
+        "N\u00e3o redesenhar o monitor; apenas estender o comportamento atual.",
+        "Seguir o padr\u00e3o de eventos j\u00e1 usado pelo ingest sempre que poss\u00edvel.",
+        "Se necess\u00e1rio separar mappers, faz\u00ea-lo com o menor refactor compartilhado poss\u00edvel."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Atualizar listagens de jobs",
+          "description": "Estender list-user-jobs.ts e list-active-jobs.ts para reconhecer generate-exam e seus metadados relevantes.",
+          "command": null,
+          "expectedResult": "O novo kind aparece de forma coerente nas consultas e DTOs de jobs.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Mapear eventos e labels do generate-exam",
+          "description": "Adicionar ou adaptar o mapper/labels de eventos para as fases e mensagens do novo fluxo sem quebrar o ingest atual.",
+          "command": null,
+          "expectedResult": "O monitor consegue traduzir o progresso do generate-exam em mensagens leg\u00edveis.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Garantir CTA e navega\u00e7\u00e3o da prova gerada",
+          "description": "Confirmar que o job monitor mostra Ver prova quando houver examId e que a navega\u00e7\u00e3o abre o detalhe do exame gerado.",
+          "command": null,
+          "expectedResult": "A observabilidade fecha o ciclo do novo fluxo para o usu\u00e1rio final.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/functions/jobs/list-user-jobs.ts",
+        "src/functions/jobs/list-active-jobs.ts",
+        "src/features/background-processes/lib/ingest-event-mapper.ts",
+        "src/features/background-processes/lib/ingest-event-labels.ts"
+      ],
+      "files": {
+        "created": [],
+        "modified": [
+          "src/functions/jobs/list-user-jobs.ts",
+          "src/functions/jobs/list-active-jobs.ts",
+          "src/features/background-processes/lib/ingest-event-mapper.ts",
+          "src/features/background-processes/lib/ingest-event-labels.ts"
+        ],
+        "deleted": []
+      },
+      "notes": [
+        "Surface task; n\u00e3o deve mexer no contrato do worker al\u00e9m do necess\u00e1rio para consumir eventos."
+      ]
+    },
+    {
+      "id": "Task-D-001",
+      "title": "Fechar o fluxo com testes focados e integra\u00e7\u00e3o final",
+      "description": "Consolidar a cobertura honesta do formul\u00e1rio, API, parser por arquivo, worker e monitor, garantindo que a feature chegue ao fim com documenta\u00e7\u00e3o e verifica\u00e7\u00e3o alinhadas \u00e0 spec.",
+      "status": "completed",
+      "tryCount": 1,
+      "task_profile": "general",
+      "batch": "D",
+      "phase": "final",
+      "reportFile": "docs/tasks/0033-geracao-provas-por-conteudo/Task-D-001/report.md",
+      "reviewPackage": "docs/tasks/0033-geracao-provas-por-conteudo/Task-D-001/review-package.diff.md",
+      "progressLog": "docs/tasks/0033-geracao-provas-por-conteudo/Task-D-001/progress.log",
+      "logTaskScript": "docs/tasks/0033-geracao-provas-por-conteudo/Task-D-001/log-task.sh",
+      "dependencies": [
+        "Task-A-002",
+        "Task-B-001",
+        "Task-B-002",
+        "Task-C-001",
+        "Task-C-002"
+      ],
+      "acceptanceCriteria": [
+        "Existem testes focados cobrindo formul\u00e1rio, cria\u00e7\u00e3o do job, upload, parsing por arquivo, worker e monitor do generate-exam.",
+        "A su\u00edte focada da feature reflete corretamente as decis\u00f5es da spec e n\u00e3o mascara falhas de contrato.",
+        "O fechamento da feature deixa evid\u00eancia suficiente para o docs-check e para a verifica\u00e7\u00e3o final."
+      ],
+      "requirements": [
+        "REQ-010"
+      ],
+      "rules": [
+        "Priorizar as suites focadas como sinal honesto caso existam falhas n\u00e3o relacionadas no repo.",
+        "N\u00e3o abrir novos comportamentos de produto; apenas estabilizar o fluxo aprovado.",
+        "Se os testes revelarem buracos de contrato, corrigi-los no menor escopo necess\u00e1rio."
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "title": "Cobrir o formul\u00e1rio e a API do novo fluxo",
+          "description": "Adicionar e/ou ajustar os testes de generate-exam-form, create-generate-exam-job e upload-generate-exam-context.",
+          "command": null,
+          "expectedResult": "A entrada do fluxo tem cobertura focada de UI e server.",
+          "codeExample": null
+        },
+        {
+          "order": 2,
+          "title": "Cobrir parser e worker do generate-exam",
+          "description": "Adicionar testes para o schema do parser, parsing por arquivo, persist\u00eancia de artefatos e orquestra\u00e7\u00e3o do worker.",
+          "command": null,
+          "expectedResult": "As partes de IA/worker t\u00eam cobertura suficiente para regress\u00f5es contratuais.",
+          "codeExample": null
+        },
+        {
+          "order": 3,
+          "title": "Cobrir monitor e fechamento documental",
+          "description": "Ajustar os testes do monitor/listagens e preparar a verifica\u00e7\u00e3o final da feature conforme a spec.",
+          "command": null,
+          "expectedResult": "O fluxo inteiro fica verific\u00e1vel do submit ao monitor e ao detalhe da prova.",
+          "codeExample": null
+        }
+      ],
+      "filesTouched": [
+        "src/features/exams/components/generate-exam-form.spec.tsx",
+        "src/functions/jobs/create-generate-exam-job.test.ts",
+        "src/functions/jobs/upload-generate-exam-context.test.ts",
+        "src/features/ai/jobs/generate-exam/*.test.ts",
+        "src/features/background-processes/pages/job-monitor-page.spec.tsx"
+      ],
+      "files": {
+        "created": [
+          "src/features/exams/components/generate-exam-form.spec.tsx",
+          "src/functions/jobs/create-generate-exam-job.test.ts",
+          "src/functions/jobs/upload-generate-exam-context.test.ts"
+        ],
+        "modified": [
+          "src/features/background-processes/pages/job-monitor-page.spec.tsx"
+        ],
+        "deleted": []
+      },
+      "notes": [
+        "Task final; integra e estabiliza, mas n\u00e3o substitui a revis\u00e3o per-task definida na cad\u00eancia aprovada."
+      ]
+    }
+  ]
 }
