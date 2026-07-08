@@ -60,6 +60,7 @@ export type AttemptResultQuestion = {
 	selectedOptionIds: string[];
 	scoringMode: "exact" | "partial";
 	topic: string | null;
+	credit: number;
 	explanation: string | null;
 	deepExplanation?: string | null;
 };

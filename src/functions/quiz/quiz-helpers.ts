@@ -160,6 +160,8 @@ export async function buildAttemptResult(
 			options: q.options,
 			correctOptionIds: q.correctOptionIds,
 			selectedOptionIds: selected,
+			scoringMode: q.scoringMode,
+			topic: q.topic,
 			credit,
 			explanation: q.explanation,
 			deepExplanation: q.deepExplanation ?? null,

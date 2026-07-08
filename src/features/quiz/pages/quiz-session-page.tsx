@@ -29,7 +29,13 @@ function QuizSessionPageContent({ examId, attemptId }: QuizSessionPageProps) {
 	const { data: session } = useActiveAttempt(examId);
 	const submitAnswer = useSubmitAnswer(attemptId, examId);
 	const finishAttempt = useFinishAttempt(attemptId, examId);
-	const [currentIndex, setCurrentIndex] = useState(0);
+	const [currentIndex, setCurrentIndex] = useState(() => {
+		const qs = session?.questions ?? [];
+		const firstUnanswered = qs.findIndex(
+			(q) => (q.selectedOptionIds ?? []).length === 0,
+		);
+		return firstUnanswered >= 0 ? firstUnanswered : 0;
+	});
 	const [isFinishingTransition, setIsFinishingTransition] = useState(false);
 	const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
 	const [draftSelections, setDraftSelections] = useState<Record<string, string[]>>(

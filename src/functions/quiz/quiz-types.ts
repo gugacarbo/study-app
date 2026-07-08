@@ -57,6 +57,8 @@ export type AttemptResultQuestion = {
 	options: Array<{ id: string; text: string; explanation?: string | null }>;
 	correctOptionIds: string[];
 	selectedOptionIds: string[];
+	scoringMode: "exact" | "partial";
+	topic: string | null;
 	credit: number;
 	explanation: string | null;
 	deepExplanation?: string | null;
