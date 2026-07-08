@@ -39,6 +39,8 @@ import { Route as AppExamsExamIdQuizIndexRouteImport } from './routes/_app/exams
 import { Route as ApiAdminModelsIdTestStreamRouteImport } from './routes/api/admin/models/$id/test-stream'
 import { Route as AppExamsExamIdQuizAttemptIdIndexRouteImport } from './routes/_app/exams/$examId/quiz/$attemptId/index'
 import { Route as AppExamsExamIdQuestionsQuestionIdIndexRouteImport } from './routes/_app/exams/$examId/questions/$questionId/index'
+import { Route as ApiJobsIdQuestionsQuestionIdRetryRouteImport } from './routes/api/jobs/$id/questions/$questionId/retry'
+import { Route as ApiJobsIdQuestionsQuestionIdCancelRouteImport } from './routes/api/jobs/$id/questions/$questionId/cancel'
 import { Route as AppExamsExamIdQuizAttemptIdResultRouteImport } from './routes/_app/exams/$examId/quiz/$attemptId/result'
 import { Route as AppExamsExamIdQuestionsQuestionIdEditIndexRouteImport } from './routes/_app/exams/$examId/questions/$questionId/edit/index'
 
@@ -194,6 +196,18 @@ const AppExamsExamIdQuestionsQuestionIdIndexRoute =
     path: '/exams/$examId/questions/$questionId/',
     getParentRoute: () => AppRouteRoute,
   } as any)
+const ApiJobsIdQuestionsQuestionIdRetryRoute =
+  ApiJobsIdQuestionsQuestionIdRetryRouteImport.update({
+    id: '/api/jobs/$id/questions/$questionId/retry',
+    path: '/api/jobs/$id/questions/$questionId/retry',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiJobsIdQuestionsQuestionIdCancelRoute =
+  ApiJobsIdQuestionsQuestionIdCancelRouteImport.update({
+    id: '/api/jobs/$id/questions/$questionId/cancel',
+    path: '/api/jobs/$id/questions/$questionId/cancel',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppExamsExamIdQuizAttemptIdResultRoute =
   AppExamsExamIdQuizAttemptIdResultRouteImport.update({
     id: '/exams/$examId/quiz/$attemptId/result',
@@ -236,6 +250,8 @@ export interface FileRoutesByFullPath {
   '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
   '/exams/$examId/quiz/': typeof AppExamsExamIdQuizIndexRoute
   '/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
+  '/api/jobs/$id/questions/$questionId/cancel': typeof ApiJobsIdQuestionsQuestionIdCancelRoute
+  '/api/jobs/$id/questions/$questionId/retry': typeof ApiJobsIdQuestionsQuestionIdRetryRoute
   '/exams/$examId/questions/$questionId/': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/exams/$examId/quiz/$attemptId/': typeof AppExamsExamIdQuizAttemptIdIndexRoute
   '/exams/$examId/questions/$questionId/edit/': typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
@@ -268,6 +284,8 @@ export interface FileRoutesByTo {
   '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
   '/exams/$examId/quiz': typeof AppExamsExamIdQuizIndexRoute
   '/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
+  '/api/jobs/$id/questions/$questionId/cancel': typeof ApiJobsIdQuestionsQuestionIdCancelRoute
+  '/api/jobs/$id/questions/$questionId/retry': typeof ApiJobsIdQuestionsQuestionIdRetryRoute
   '/exams/$examId/questions/$questionId': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/exams/$examId/quiz/$attemptId': typeof AppExamsExamIdQuizAttemptIdIndexRoute
   '/exams/$examId/questions/$questionId/edit': typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
@@ -303,6 +321,8 @@ export interface FileRoutesById {
   '/api/admin/models/$id/test-stream': typeof ApiAdminModelsIdTestStreamRoute
   '/_app/exams/$examId/quiz/': typeof AppExamsExamIdQuizIndexRoute
   '/_app/exams/$examId/quiz/$attemptId/result': typeof AppExamsExamIdQuizAttemptIdResultRoute
+  '/api/jobs/$id/questions/$questionId/cancel': typeof ApiJobsIdQuestionsQuestionIdCancelRoute
+  '/api/jobs/$id/questions/$questionId/retry': typeof ApiJobsIdQuestionsQuestionIdRetryRoute
   '/_app/exams/$examId/questions/$questionId/': typeof AppExamsExamIdQuestionsQuestionIdIndexRoute
   '/_app/exams/$examId/quiz/$attemptId/': typeof AppExamsExamIdQuizAttemptIdIndexRoute
   '/_app/exams/$examId/questions/$questionId/edit/': typeof AppExamsExamIdQuestionsQuestionIdEditIndexRoute
@@ -338,6 +358,8 @@ export interface FileRouteTypes {
     | '/api/admin/models/$id/test-stream'
     | '/exams/$examId/quiz/'
     | '/exams/$examId/quiz/$attemptId/result'
+    | '/api/jobs/$id/questions/$questionId/cancel'
+    | '/api/jobs/$id/questions/$questionId/retry'
     | '/exams/$examId/questions/$questionId/'
     | '/exams/$examId/quiz/$attemptId/'
     | '/exams/$examId/questions/$questionId/edit/'
@@ -370,6 +392,8 @@ export interface FileRouteTypes {
     | '/api/admin/models/$id/test-stream'
     | '/exams/$examId/quiz'
     | '/exams/$examId/quiz/$attemptId/result'
+    | '/api/jobs/$id/questions/$questionId/cancel'
+    | '/api/jobs/$id/questions/$questionId/retry'
     | '/exams/$examId/questions/$questionId'
     | '/exams/$examId/quiz/$attemptId'
     | '/exams/$examId/questions/$questionId/edit'
@@ -404,6 +428,8 @@ export interface FileRouteTypes {
     | '/api/admin/models/$id/test-stream'
     | '/_app/exams/$examId/quiz/'
     | '/_app/exams/$examId/quiz/$attemptId/result'
+    | '/api/jobs/$id/questions/$questionId/cancel'
+    | '/api/jobs/$id/questions/$questionId/retry'
     | '/_app/exams/$examId/questions/$questionId/'
     | '/_app/exams/$examId/quiz/$attemptId/'
     | '/_app/exams/$examId/questions/$questionId/edit/'
@@ -424,6 +450,8 @@ export interface RootRouteChildren {
   ApiJobsIdStreamRoute: typeof ApiJobsIdStreamRoute
   ApiJobsIdUploadRoute: typeof ApiJobsIdUploadRoute
   ApiAdminModelsIdTestStreamRoute: typeof ApiAdminModelsIdTestStreamRoute
+  ApiJobsIdQuestionsQuestionIdCancelRoute: typeof ApiJobsIdQuestionsQuestionIdCancelRoute
+  ApiJobsIdQuestionsQuestionIdRetryRoute: typeof ApiJobsIdQuestionsQuestionIdRetryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -638,6 +666,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExamsExamIdQuestionsQuestionIdIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/api/jobs/$id/questions/$questionId/retry': {
+      id: '/api/jobs/$id/questions/$questionId/retry'
+      path: '/api/jobs/$id/questions/$questionId/retry'
+      fullPath: '/api/jobs/$id/questions/$questionId/retry'
+      preLoaderRoute: typeof ApiJobsIdQuestionsQuestionIdRetryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/$id/questions/$questionId/cancel': {
+      id: '/api/jobs/$id/questions/$questionId/cancel'
+      path: '/api/jobs/$id/questions/$questionId/cancel'
+      fullPath: '/api/jobs/$id/questions/$questionId/cancel'
+      preLoaderRoute: typeof ApiJobsIdQuestionsQuestionIdCancelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/exams/$examId/quiz/$attemptId/result': {
       id: '/_app/exams/$examId/quiz/$attemptId/result'
       path: '/exams/$examId/quiz/$attemptId/result'
@@ -729,6 +771,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIdStreamRoute: ApiJobsIdStreamRoute,
   ApiJobsIdUploadRoute: ApiJobsIdUploadRoute,
   ApiAdminModelsIdTestStreamRoute: ApiAdminModelsIdTestStreamRoute,
+  ApiJobsIdQuestionsQuestionIdCancelRoute:
+    ApiJobsIdQuestionsQuestionIdCancelRoute,
+  ApiJobsIdQuestionsQuestionIdRetryRoute:
+    ApiJobsIdQuestionsQuestionIdRetryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

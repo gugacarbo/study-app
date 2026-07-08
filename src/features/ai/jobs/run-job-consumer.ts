@@ -10,17 +10,21 @@ import {
 	batchInsertQuestions,
 	existsNormalizedQuestion,
 } from "@/db/queries/questions";
+import { runGenerateExam } from "@/features/ai/jobs/generate-exam/run-generate-exam";
+import { runImproveQuestionAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-agent";
+import { runImproveQuestionExplanationsAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-explanations-agent";
+import { runImproveQuestionsBatch } from "@/features/ai/jobs/improve-questions/run-improve-questions-batch";
 import {
 	type RunIngestDeps,
 	runIngest,
 } from "@/features/ai/jobs/ingest/run-ingest";
-import { runImproveQuestionAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-agent";
-import { runImproveQuestionExplanationsAgent } from "@/features/ai/jobs/improve-questions/run-improve-question-explanations-agent";
-import { runImproveQuestionsBatch } from "@/features/ai/jobs/improve-questions/run-improve-questions-batch";
 import { JobEventAppender } from "@/features/ai/jobs/shared/job-event-appender";
-import { JOB_KIND } from "@/lib/job-kinds";
-import { parseImproveQuestionsJobMetadata } from "@/lib/job-kinds";
 import { getAiModel } from "@/lib/ai-config";
+import {
+	JOB_KIND,
+	parseGenerateExamJobMetadata,
+	parseImproveQuestionsJobMetadata,
+} from "@/lib/job-kinds";
 import type { JobConsumerBindings } from "@/workers/job-consumer";
 
 export type RunJobConsumerContext = {
@@ -68,9 +72,12 @@ export async function runJobConsumer(
 				});
 				return;
 			}
-			const eventAppender = new JobEventAppender(ctx.job.id, async (jobId, payload) => {
-				await appendJobEvent(ctx.db, jobId, payload);
-			});
+			const eventAppender = new JobEventAppender(
+				ctx.job.id,
+				async (jobId, payload) => {
+					await appendJobEvent(ctx.db, jobId, payload);
+				},
+			);
 
 			await runImproveQuestionsBatch({
 				jobId: ctx.job.id,
@@ -79,7 +86,9 @@ export async function runJobConsumer(
 					appendJobEvent: async (jobId, payload) => {
 						await heartbeat();
 						if (jobId !== ctx.job.id) {
-							throw new Error("Unexpected job id for improve-questions appender");
+							throw new Error(
+								"Unexpected job id for improve-questions appender",
+							);
 						}
 						await eventAppender.append(payload);
 					},
@@ -87,12 +96,24 @@ export async function runJobConsumer(
 						await heartbeat();
 						await updateJobStatus(ctx.db, jobId, patch);
 					},
+					isQuestionCancelled: async (questionId: string) => {
+						await heartbeat();
+						const job = await getJobByIdInternal(ctx.db, ctx.job.id);
+						const parsed = parseImproveQuestionsJobMetadata(
+							job?.metadata ?? null,
+						);
+						const item = parsed?.items.find((i) => i.questionId === questionId);
+						return item?.status === "cancelled";
+					},
 					isCancelRequested: async () => {
 						await heartbeat();
 						const job = await getJobByIdInternal(ctx.db, ctx.job.id);
 						return job?.cancelRequestedAt != null;
 					},
-					executeQuestion: async ({ questionId, writeOptionExplanations: _writeOptionExplanations }) => {
+					executeQuestion: async ({
+						questionId,
+						writeOptionExplanations: _writeOptionExplanations,
+					}) => {
 						await heartbeat();
 						const model = await getAiModel({
 							db: ctx.db,
@@ -142,6 +163,68 @@ export async function runJobConsumer(
 							},
 							webSearchApiKey: ctx.env.TAVILY_API_KEY,
 						});
+					},
+				},
+			});
+			break;
+		}
+		case JOB_KIND.GENERATE_EXAM: {
+			const metadata = parseGenerateExamJobMetadata(ctx.job.metadata);
+			if (!metadata) {
+				await updateJobStatus(ctx.db, ctx.job.id, {
+					status: "failed",
+					error: "invalid_generate_exam_metadata",
+				});
+				return;
+			}
+			const eventAppender = new JobEventAppender(
+				ctx.job.id,
+				async (jobId, payload) => {
+					await appendJobEvent(ctx.db, jobId, payload);
+				},
+			);
+
+			await runGenerateExam({
+				jobId: ctx.job.id,
+				db: ctx.db,
+				filesBucket: ctx.env.FILES_BUCKET,
+				deps: {
+					getJobById: (jobId: string) => getJobByIdInternal(ctx.db, jobId),
+					updateJobStatus: async (jobId, patch) => {
+						await heartbeat();
+						await updateJobStatus(ctx.db, jobId, {
+							status: patch.status as Parameters<
+								typeof updateJobStatus
+							>[2]["status"],
+							phase: patch.phase,
+							error: patch.error,
+							metadata: patch.metadata ?? null,
+						});
+					},
+					appendJobEvent: async (jobId, payload) => {
+						await heartbeat();
+						if (jobId !== ctx.job.id) {
+							throw new Error("Unexpected job id for generate-exam appender");
+						}
+						await eventAppender.append(payload);
+					},
+					isCancelRequested: async (jobId: string) => {
+						await heartbeat();
+						const job = await getJobByIdInternal(ctx.db, jobId);
+						return job?.cancelRequestedAt != null;
+					},
+					heartbeat,
+					persistQuestionsDeps: {
+						existsNormalizedQuestion: (
+							examId: string,
+							normalizedText: string,
+						) => existsNormalizedQuestion(ctx.db, examId, normalizedText),
+						batchInsertQuestions: async (questions) => {
+							await heartbeat();
+							const [first] = questions;
+							if (!first) return;
+							await batchInsertQuestions(ctx.db, first.examId, questions);
+						},
 					},
 				},
 			});

@@ -8,7 +8,12 @@ import {
 	type IngestSummaryPart,
 } from "@/features/ai/jobs/ingest/ingest-events";
 import { PHASE_TEXT } from "@/features/ai/jobs/ingest/run-ingest/constants";
-import { INGEST_PHASE, type IngestPhase } from "@/lib/job-kinds";
+import {
+	GENERATE_EXAM_PHASE,
+	type GenerateExamPhase,
+	INGEST_PHASE,
+	type IngestPhase,
+} from "@/lib/job-kinds";
 
 export type IngestClientDataPart = IngestDataPart;
 
@@ -49,6 +54,13 @@ const PHASE_LABELS: Record<IngestPhase, string> = {
 	[INGEST_PHASE.EXTRACTING]: "Extraindo questões",
 	[INGEST_PHASE.REVIEWING]: "Revisando questões",
 	[INGEST_PHASE.PERSISTING]: "Salvando questões",
+};
+
+export const GENERATE_EXAM_PHASE_LABELS: Record<GenerateExamPhase, string> = {
+	[GENERATE_EXAM_PHASE.READING_CONTEXT]: "Lendo conteúdo",
+	[GENERATE_EXAM_PHASE.PARSING_CONTEXT_FILES]: "Processando arquivos",
+	[GENERATE_EXAM_PHASE.GENERATING_QUESTIONS]: "Gerando questões",
+	[GENERATE_EXAM_PHASE.PERSISTING]: "Salvando questões",
 };
 
 const PHASE_TEXT_VALUES = new Set<string>(Object.values(PHASE_TEXT));
@@ -119,9 +131,10 @@ export function isSystemTextPart(
 	);
 }
 
-export function isSystemInfoPart(
-	payload: unknown,
-): payload is { type: typeof INGEST_DATA_PART.SYSTEM_INFO; data: { kind: string; payload: Record<string, unknown> } } {
+export function isSystemInfoPart(payload: unknown): payload is {
+	type: typeof INGEST_DATA_PART.SYSTEM_INFO;
+	data: { kind: string; payload: Record<string, unknown> };
+} {
 	if (!payload || typeof payload !== "object") return false;
 	const obj = payload as Record<string, unknown>;
 	if (obj.type !== INGEST_DATA_PART.SYSTEM_INFO) return false;
@@ -188,7 +201,9 @@ function messageForProgressPart(part: IngestStreamProgressPart): string {
 	return `Identifiquei ${count} questões até agora…`;
 }
 
-function messageForPersistProgressPart(part: IngestPersistProgressPart): string {
+function messageForPersistProgressPart(
+	part: IngestPersistProgressPart,
+): string {
 	const { saved, total } = part.data;
 	return `Salvando ${saved}/${total} questão(ões)…`;
 }
@@ -216,7 +231,10 @@ export function formatSystemInfoLabel(
 	switch (kind) {
 		case "phase": {
 			const phase = payload.phase;
-			if (typeof phase === "string" && Object.values(INGEST_PHASE).includes(phase as IngestPhase)) {
+			if (
+				typeof phase === "string" &&
+				Object.values(INGEST_PHASE).includes(phase as IngestPhase)
+			) {
 				const p = phase as IngestPhase;
 				return `${PHASE_LABELS[p] ?? p}…`;
 			}
@@ -367,9 +385,20 @@ export function formatEventDetails(
 		const { kind, payload: data } = payload.data;
 		switch (kind) {
 			case "phase":
-				return [{ label: "Fase", value: PHASE_LABELS[data.phase as IngestPhase] ?? String(data.phase) }];
+				return [
+					{
+						label: "Fase",
+						value:
+							PHASE_LABELS[data.phase as IngestPhase] ?? String(data.phase),
+					},
+				];
 			case "file-read":
-				return [{ label: "Caracteres", value: (data.charCount as number)?.toLocaleString("pt-BR") }];
+				return [
+					{
+						label: "Caracteres",
+						value: (data.charCount as number)?.toLocaleString("pt-BR"),
+					},
+				];
 			case "llm-retry":
 				return [
 					{ label: "Tentativa", value: String(data.attempt) },
@@ -377,29 +406,30 @@ export function formatEventDetails(
 				];
 			case "persist-validating":
 				return [{ label: "Total", value: String(data.total) }];
-case "persist-progress":
-			return [
-				{ label: "Salvas", value: String(data.saved) },
-				{ label: "Total", value: String(data.total) },
-			];
-		case "cancel-requested":
-			return [
-				{
-					label: "Solicitado em",
-					value: formatIngestDetailTimestamp(String(data.at ?? "")),
-				},
-			];
-		case "cancelled":
-			return [
-				{
-					label: "Cancelado em",
-					value: formatIngestDetailTimestamp(String(data.at ?? "")),
-				},
-			];
-		default:
+			case "persist-progress":
+				return [
+					{ label: "Salvas", value: String(data.saved) },
+					{ label: "Total", value: String(data.total) },
+				];
+			case "cancel-requested":
+				return [
+					{
+						label: "Solicitado em",
+						value: formatIngestDetailTimestamp(String(data.at ?? "")),
+					},
+				];
+			case "cancelled":
+				return [
+					{
+						label: "Cancelado em",
+						value: formatIngestDetailTimestamp(String(data.at ?? "")),
+					},
+				];
+			default:
 				return Object.entries(data).map(([key, value]) => ({
 					label: key,
-					value: typeof value === "object" ? JSON.stringify(value) : String(value),
+					value:
+						typeof value === "object" ? JSON.stringify(value) : String(value),
 				}));
 		}
 	}
@@ -430,9 +460,7 @@ case "persist-progress":
 						label: "resultado",
 						value: JSON.stringify(payload.result),
 					},
-					...(payload.isError
-						? [{ label: "erro", value: "true" }]
-						: []),
+					...(payload.isError ? [{ label: "erro", value: "true" }] : []),
 				];
 			case "text":
 				return [
@@ -467,9 +495,7 @@ case "persist-progress":
 				{ label: "Total", value: String(payload.data.total) },
 			];
 		case INGEST_DATA_PART.SKIPPED_DUPLICATE:
-			return [
-				{ label: "Prévia", value: payload.data.questionPreview },
-			];
+			return [{ label: "Prévia", value: payload.data.questionPreview }];
 		case INGEST_DATA_PART.SUMMARY:
 			return [
 				{ label: "Extraídas", value: String(payload.data.extracted) },
@@ -503,7 +529,9 @@ export function messageForPayload(payload: unknown): string | null {
 	return formatEventLabel(payload);
 }
 
-export function roleForPayload(payload: unknown): "system" | "assistant" | null {
+export function roleForPayload(
+	payload: unknown,
+): "system" | "assistant" | null {
 	if (isSystemInfoPart(payload)) return "system";
 	if (isIngestStreamPartEvent(payload)) return null;
 	const text = messageForPayload(payload);

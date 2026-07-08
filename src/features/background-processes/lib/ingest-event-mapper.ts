@@ -6,17 +6,21 @@ import {
 	formatEventLabel,
 	formatEventType,
 	formatSystemInfoLabel,
-	isSystemInfoPart,
 	type IngestClientDataPart,
 	type IngestEventType,
 	type IngestStreamPartEvent,
 	isIngestStreamPartEvent,
+	isSystemInfoPart,
 	messageForPayload,
 	PHASE_LABELS,
 	roleForPayload,
 } from "@/features/background-processes/lib/ingest-event-labels";
 import type { JobEventRecord } from "@/features/background-processes/lib/jobs-api";
-import type { IngestPhase } from "@/lib/job-kinds";
+import {
+	GENERATE_EXAM_PHASE,
+	type GenerateExamPhase,
+	type IngestPhase,
+} from "@/lib/job-kinds";
 
 type AssistantContentPart = Extract<
 	ThreadMessageLike["content"],
@@ -44,6 +48,14 @@ export type IngestProgressState = {
 	}[];
 };
 
+export type GenerateExamProgressState = {
+	phase: GenerateExamPhase | null;
+	parsedCount: number;
+	totalFiles: number;
+	questionsGenerated: number;
+	persistedCount: number;
+};
+
 export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
 	phase: null,
 	questionsSeen: 0,
@@ -53,6 +65,47 @@ export const INITIAL_INGEST_PROGRESS: IngestProgressState = {
 	invalid: null,
 	extractedQuestionsPreview: [],
 };
+
+export const INITIAL_GENERATE_EXAM_PROGRESS: GenerateExamProgressState = {
+	phase: null,
+	parsedCount: 0,
+	totalFiles: 0,
+	questionsGenerated: 0,
+	persistedCount: 0,
+};
+
+/** True if the payload is a generate-exam phase event. */
+export function isGenerateExamEvent(payload: unknown): payload is {
+	type: "data-generate-exam-phase";
+	data: { phase: GenerateExamPhase };
+} {
+	if (!payload || typeof payload !== "object") return false;
+	const obj = payload as Record<string, unknown>;
+	if (obj.type !== "data-generate-exam-phase") return false;
+	if (!obj.data || typeof obj.data !== "object") return false;
+	const data = obj.data as Record<string, unknown>;
+	if (typeof data.phase !== "string") return false;
+	return Object.values(GENERATE_EXAM_PHASE).includes(
+		data.phase as GenerateExamPhase,
+	);
+}
+
+/** Compute progress state from a list of generate-exam job events. */
+export function mapGenerateExamProgress(
+	events: JobEventRecord[],
+): GenerateExamProgressState {
+	let progress: GenerateExamProgressState = {
+		...INITIAL_GENERATE_EXAM_PROGRESS,
+	};
+
+	for (const event of events) {
+		if (isGenerateExamEvent(event.payload)) {
+			progress = { ...progress, phase: event.payload.data.phase };
+		}
+	}
+
+	return progress;
+}
 
 export type StreamPartsState = Map<string, AssistantContentPart[]>;
 export type PendingToolResultsState = Map<
@@ -116,7 +169,10 @@ function findTextPartIndex(parts: AssistantContentPart[]): number {
 	return parts.findIndex((part) => part.type === "text");
 }
 
-function buildPendingToolResultKey(messageId: string, toolCallId: string): string {
+function buildPendingToolResultKey(
+	messageId: string,
+	toolCallId: string,
+): string {
 	return `${messageId}:${toolCallId}`;
 }
 
@@ -266,7 +322,10 @@ function upsertStreamMessages(
 		};
 
 		if (idx >= 0) {
-			next[idx] = { ...streamMessage, seq: next[idx]?.seq ?? streamMessage.seq };
+			next[idx] = {
+				...streamMessage,
+				seq: next[idx]?.seq ?? streamMessage.seq,
+			};
 		} else {
 			next = [...next, streamMessage];
 		}
@@ -519,7 +578,10 @@ export function mergeJobEvents(
 				);
 			}
 		} else if (isSystemInfoPart(event.payload)) {
-			const text = formatSystemInfoLabel(event.payload.data.kind, event.payload.data.payload);
+			const text = formatSystemInfoLabel(
+				event.payload.data.kind,
+				event.payload.data.payload,
+			);
 			const kind = event.payload.data.kind;
 			const msgId = `system:${kind}`;
 			const existingIdx = messages.findIndex((m) => m.id === msgId);
@@ -562,10 +624,16 @@ export function mergeJobEvents(
 
 		if (isSystemInfoPart(event.payload)) {
 			if (event.payload.data.kind === "phase") {
-				progress = { ...progress, phase: event.payload.data.payload.phase as IngestPhase };
+				progress = {
+					...progress,
+					phase: event.payload.data.payload.phase as IngestPhase,
+				};
 			}
 			if (event.payload.data.kind === "persist-progress") {
-				progress = { ...progress, persisted: event.payload.data.payload.saved as number };
+				progress = {
+					...progress,
+					persisted: event.payload.data.payload.saved as number,
+				};
 			}
 		}
 

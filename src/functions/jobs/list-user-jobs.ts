@@ -8,6 +8,7 @@ import {
 	JOB_KIND,
 	type JobKind,
 	type JobStatus,
+	parseGenerateExamJobMetadata,
 	parseIngestJobMetadata,
 } from "@/lib/job-kinds";
 import { requireSession } from "@/lib/rbac";
@@ -42,6 +43,11 @@ function getJobTitle(job: JobRow): string {
 		return (
 			parseIngestJobMetadata(job.metadata)?.fileName ?? "Importação de prova"
 		);
+	}
+
+	if (job.kind === JOB_KIND.GENERATE_EXAM) {
+		const metadata = parseGenerateExamJobMetadata(job.metadata);
+		return metadata?.examId ? "Geração de prova" : "Geração de prova";
 	}
 
 	if (job.kind === JOB_KIND.IMPROVE_QUESTIONS) {

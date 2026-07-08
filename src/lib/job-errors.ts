@@ -12,6 +12,9 @@ export const JOB_ERROR_CODE = {
 	JOB_NOT_FOUND: "job_not_found",
 	JOB_NOT_AWAITING_UPLOAD: "job_not_awaiting_upload",
 	INVALID_JOB_KIND: "invalid_job_kind",
+	INVALID_CONTEXT_PARSE: "invalid_context_parse",
+	CONTEXT_PARSE_FAILED: "context_parse_failed",
+	UPLOAD_FAILED: "upload_failed",
 } as const;
 
 export type JobErrorCode = (typeof JOB_ERROR_CODE)[keyof typeof JOB_ERROR_CODE];
