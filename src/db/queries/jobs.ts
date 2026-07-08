@@ -12,10 +12,12 @@ import {
 import {
 	deriveJobProcessing as deriveProcessingState,
 	JOB_LEASE_TTL_MS,
+	JOB_PROCESSING_STATE,
 } from "@/lib/job-processing";
 import { type JsonObject, parseJsonObject } from "@/lib/json-value";
 import type { AppDatabase } from "../client";
 import * as schema from "../schema";
+import { appendJobEvent } from "./job-events";
 
 export type JobRow = typeof schema.backgroundJobs.$inferSelect;
 export type BackgroundJobRow = JobRow;
@@ -311,11 +313,23 @@ export async function requestJobCancelIfActive(
 	}
 	await setCancelRequested(db, job.id);
 
-	// No consumer work can continue — finalize immediately instead of waiting.
 	if (job.status !== JOB_STATUS.RUNNING) {
 		await updateJobStatus(db, job.id, {
 			status: JOB_STATUS.CANCELLED,
 			...(job.status === JOB_STATUS.FAILED ? {} : { error: null }),
+		});
+		return { cancelled: true, alreadyTerminal: false };
+	}
+
+	const processing = deriveJobProcessing(job);
+	if (processing.state === JOB_PROCESSING_STATE.STALE_RUNNING) {
+		await updateJobStatus(db, job.id, {
+			status: JOB_STATUS.CANCELLED,
+			error: null,
+		});
+		await appendJobEvent(db, job.id, {
+			type: "system",
+			text: "Cancelamento concluído — worker inativo detectado no momento da solicitação.",
 		});
 	}
 

@@ -202,6 +202,13 @@ describe("jobs queries", () => {
 			kind: JOB_KIND.INGEST,
 			status: JOB_STATUS.RUNNING,
 		});
+		await db
+			.update(schema.backgroundJobs)
+			.set({
+				leaseExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+				heartbeatAt: new Date().toISOString(),
+			})
+			.where(eq(schema.backgroundJobs.id, jobId));
 
 		const job = await getJobById(db, jobId, userId);
 		const result = await requestJobCancelIfActive(db, job!);
