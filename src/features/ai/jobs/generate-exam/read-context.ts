@@ -2,7 +2,8 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import * as schema from "@/db/schema";
 import { JOB_ERROR_CODE, type JobErrorBody } from "@/lib/job-errors";
-import type { GenerateExamJobMetadata, GenerateExamRawContext } from "./types";
+import type { GenerateExamJobMetadata } from "@/lib/job-kinds";
+import type { GenerateExamRawContext } from "./types";
 
 export type ReadContextResult =
 	| { ok: true; context: GenerateExamRawContext }
@@ -49,7 +50,7 @@ function emptyFileError(fileId: string): JobErrorBody {
 
 export function buildReadContextDeps(
 	filesBucket: R2BucketLike,
-	userId: string,
+	_userId: string,
 ): ReadContextDeps {
 	return {
 		async getR2Object(key: string): Promise<R2ObjectLike | null> {

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
 import {
-	GENERATE_EXAM_PHASE,
 	JOB_KIND,
 	JOB_STATUS,
 	serializeGenerateExamJobMetadata,
@@ -469,7 +468,7 @@ describe("runGenerateExam", () => {
 				(call[1] as Record<string, unknown>)?.status === JOB_STATUS.COMPLETED,
 		);
 		expect(completedCall).toBeDefined();
-		const patch = (completedCall as [string, Record<string, unknown>])[1];
+		const patch = (completedCall as [string, Record<string, unknown>] | undefined)![1];
 		expect(patch.phase).toBeNull();
 		expect(patch.metadata).toContain("persistedCount");
 	});

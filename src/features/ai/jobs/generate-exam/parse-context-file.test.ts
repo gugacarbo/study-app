@@ -2,6 +2,7 @@ import { zodSchema } from "ai";
 import { describe, expect, it, vi } from "vitest";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
 import { parseContextFile } from "./parse-context-file";
+import type { GetAiModelLike } from "./parse-context-file";
 import {
 	type ParsedContextDocument,
 	parsedContextDocumentSchema,
@@ -101,12 +102,12 @@ function makeDeps(overrides?: {
 	generateObject?: (
 		options: object,
 	) => Promise<{ object: unknown; usage?: unknown }>;
-	getAiModel?: () => Promise<Record<string, never>>;
+	getAiModel?: GetAiModelLike;
 }) {
 	return {
 		getAiModel:
 			overrides?.getAiModel ??
-			vi.fn(async () => ({} as Record<string, never>)),
+			(vi.fn(async () => ({})) as unknown as GetAiModelLike),
 		generateObject:
 			overrides?.generateObject ??
 			vi.fn(async () => ({

@@ -1,14 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createDb } from "@/db/client";
 import { createId } from "@/db/queries/helpers";
 import * as schema from "@/db/schema";
 import { createTestDb } from "@/db/test-db";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
-import {
-	GENERATE_EXAM_DIFFICULTY,
-	JOB_STATUS,
-	serializeGenerateExamJobMetadata,
-} from "@/lib/job-kinds";
+import { GENERATE_EXAM_DIFFICULTY } from "@/lib/job-kinds";
 import { readGenerateExamContextWithDeps } from "./read-context";
 
 const testDb = createTestDb();

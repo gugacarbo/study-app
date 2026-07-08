@@ -37,7 +37,6 @@ export type ParseContextFileDeps = {
 
 const MAX_LLM_RETRIES = 2;
 const RETRY_BACKOFF_MS = [500, 1500] as const;
-const textEncoder = new TextEncoder();
 
 function defaultSleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));

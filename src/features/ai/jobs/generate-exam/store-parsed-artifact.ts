@@ -1,3 +1,4 @@
+import type { R2Bucket } from "@cloudflare/workers-types";
 import { buildFileR2Key, createId } from "@/db/queries/helpers";
 import { type AuditedR2Context, auditedR2Put } from "@/lib/r2-audit";
 import type { ParsedContextDocument } from "./parser-schema";
@@ -6,13 +7,7 @@ export type StoreParsedArtifactResult =
 	| { ok: true; artifactFileId: string; r2Key: string }
 	| { ok: false; error: string };
 
-type R2BucketLike = {
-	put(
-		key: string,
-		body: ArrayBuffer | ArrayBufferView | string | Blob | ReadableStream | null,
-		options?: object,
-	): Promise<unknown> | unknown;
-};
+type R2BucketLike = R2Bucket;
 
 export type StoreParsedArtifactDeps = {
 	putArtifact: (

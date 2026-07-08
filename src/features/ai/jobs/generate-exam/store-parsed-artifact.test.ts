@@ -60,7 +60,7 @@ describe("storeParsedArtifact", () => {
 		expect(result.r2Key).toContain("parsed-artifact.json");
 		expect(result.r2Key).toContain(userId);
 
-		const putBody = put.mock.calls[0]?.[1] as string;
+		const putBody = (put.mock.calls[0] as unknown[])[1] as string;
 		const parsed = JSON.parse(putBody);
 		expect(parsed.sourceFileId).toBe(document.sourceFileId);
 		expect(parsed.schemaVersion).toBe("1");

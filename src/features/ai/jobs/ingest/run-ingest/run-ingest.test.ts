@@ -24,6 +24,18 @@ import {
 import * as llmLogging from "@/lib/llm-logging";
 import * as r2Audit from "@/lib/r2-audit";
 
+vi.mock("@/db/queries/question-topics", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@/db/queries/question-topics")>();
+	return {
+		...actual,
+		getOrCreateQuestionTopicFromName: vi.fn(async () => ({
+			id: "topic-1",
+			name: "Tópico",
+			normalizedName: "topico",
+		})),
+	};
+});
+
 const jobId = "00000000-0000-4000-8000-000000000101";
 const examId = "00000000-0000-4000-8000-000000000201";
 const fileId = "00000000-0000-4000-8000-000000000301";
@@ -385,7 +397,7 @@ describe("runIngest", () => {
 	it("no-ops when job status is not queued", async () => {
 		const updateJobStatus = vi.fn(async () => undefined);
 		const deps: RunIngestDeps = {
-			getJobById: vi.fn(async () => makeJob({ status: JOB_STATUS.RUNNING })),
+			getJobById: vi.fn(async () => makeJob({ status: JOB_STATUS.COMPLETED })),
 			updateJobStatus,
 			appendJobEvent: vi.fn(async () => undefined),
 			isCancelRequested: vi.fn(async () => false),
@@ -985,7 +997,8 @@ describe("runIngest", () => {
 						{ key: "B", text: "São Paulo" },
 					]),
 					answers: JSON.stringify(["A"]),
-					topic: "Geografia",
+					scoringMode: "exact",
+					topicId: null,
 				}),
 			]),
 		);

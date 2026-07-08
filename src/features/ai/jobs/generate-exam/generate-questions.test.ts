@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JOB_ERROR_CODE } from "@/lib/job-errors";
-import {
-	type GenerateQuestionsDeps,
-	generateQuestions,
+import type {
+	GenerateQuestionsDeps,
+	GetAiModelLike,
 } from "./generate-questions";
+import { generateQuestions } from "./generate-questions";
 import type { GenerateExamGenerationContext } from "./types";
 
 vi.mock("@/lib/llm-logging", () => ({
@@ -72,11 +73,12 @@ function makeDeps(overrides?: {
 	generateObject?: (
 		options: object,
 	) => Promise<{ object: unknown; usage?: unknown }>;
-	getAiModel?: () => Promise<Record<string, never>>;
+	getAiModel?: GetAiModelLike;
 }): GenerateQuestionsDeps {
 	return {
 		getAiModel:
-			overrides?.getAiModel ?? vi.fn(async () => ({}) as Record<string, never>),
+			overrides?.getAiModel ??
+			(vi.fn(async () => ({})) as unknown as GetAiModelLike),
 		generateObject:
 			overrides?.generateObject ??
 			vi.fn(async () => ({
